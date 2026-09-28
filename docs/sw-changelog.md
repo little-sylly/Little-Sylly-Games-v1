@@ -4,6 +4,22 @@ Historical SW release notes, moved out of `CLAUDE.md` (1 Aug 2026) so they stop 
 The **current** version and its notes stay in `CLAUDE.md` § Current Focus — append the outgoing entry here on each bump.
 
 
+## v242 — Cold Shoulder: the Berg ring, and a client's private write (28 Sep 2026).
+
+The ring now covers ~80% of the rim (`CLD_RING_COVER`, r=16, count derived from the floe's own
+circumference) with 2–3 random slip gaps; Ice Breaker is 1/2/3 hits, default 2 (Off removed); the
+Thaw calves the ring as it shrinks. 3p Slush+Thaw 3.8 → 5.8 Slides/Floe-Off. `mpSendPrivate` warns on
+a refused write; the live rules need the §2.7 `private` block (BUG-26). No packet change —
+`MP_PROTOCOL_VERSION` stays `'v240'`. Detail: `cld-implementation-notes.md` DD-16 / BUG-12.
+
+## v241 — The Bluff: procedural dice, a new table, Practice (28 Sep 2026).
+
+Dice are drawn, not images (`js/games/dyb-dice.js`): sets × seat tints, the Tempest shown by form,
+`diceSet` skin packs (+ Classic). The table is a counting stage ("You hold 3 · need 3 more"); hold-to-
+shake throw; The Overlook fills claim slots and the fog lifts off Phantoms. Counting single-sourced
+(`dybCountEvents`). How to Play gains **Practice** — the suite's tutorial standard. No packet
+change; `MP_PROTOCOL_VERSION` stays `'v240'`. Detail: `dyb-implementation-notes.md`.
+
 ## v240 — a dropped player no longer ends the game on a timer (28 Sep 2026).
 
 A game without reconnect holds a dropped seat **60 s** (was 20), then asks the **host**: Keep waiting

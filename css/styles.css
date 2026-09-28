@@ -2723,7 +2723,6 @@ body.flash-red   { background-color: #fecaca; }
 /* Dive controls — a direction with no free position renders unavailable rather
    than failing at resolution (brief §14). Dimmed + non-interactive, never hidden:
    a control that vanishes reads as a bug, one that dims reads as a rule. */
-.cld-dive-btn.cld-dive-unavailable { opacity: 0.35; pointer-events: none; }
 
 /* ── Honeycomb Hills (comb) — bright honey gold #F0A500, WHITE button ink ──
    Buttons and settings pills follow the suite-wide rule (10 Sep 2026): brand

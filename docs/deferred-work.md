@@ -315,10 +315,20 @@ PKO with Force of Nature — reload the Challenger during a Carrion window.
 Game 19 shipped through Stage 6 (documentation closure). Every headless harness and the two-client
 loopback pass. **Not yet done:**
 
-1. **Live multi-device session** — host + ≥2 real devices, a full Match including a plunge, a rim
-   Snowball, a Dive, a Washout, and The Thaw on. Closes the phase gate along with item 2. Also
+1. **Live multi-device session** — host + ≥2 real devices, a full Match including a plunge that
+   **plugs** a gap, a plug **knocked back**, a displacement, a rim Snowball, a **Dive** (Throw · Dive
+   switch, tap-to-dive onto a dashed free seat — SW v243), a Washout that starts an **Ice Bath**, and
+   The Thaw on. **Every device must be on SW v243** (`MP_PROTOCOL_VERSION` `'v243'`). The Throw · Dive
+   row and the canvas re-fit have had `visual-check` only (375×667 / 375×548 / 320×452). Closes the
+   phase gate along with item 2. Also
    check **How to Play → The Floe** on a real device: Shove/Resurface, the six-pose cast, and the
    practice RAF stopping on tab-switch / close (v221; `visual-check` clean but never on hardware).
+   **First attempt 28 Sep 2026 (3 players) stalled at the first non-host Lock In** — the live
+   Firebase rules had no `private` block (`cld-impl-notes` BUG-12 → `shared` BUG-26). Re-run once
+   the owner has pasted the §2.7 `private` rule into the console. The same session's feel notes
+   (ring too sparse, drag clunky, art) are a design round of their own, not gate items: the ring
+   was answered at SW v242 and the Drowned at SW v243 (DD-16 / DD-17); the pool-style drag + the
+   Practice Arena, then the procedural art pass, are the next two specs.
 2. **Offline install check** — unregister the SW, go offline, cold-boot, confirm
    `js/lib/physics.js` and `js/games/cld.js` precached. The Floe tab (v221) is a *procedural*
    reference, not asset-backed, so it does not double as a gallery check — run this directly.

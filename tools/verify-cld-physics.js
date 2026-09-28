@@ -623,6 +623,62 @@ function snowballTravel(ice, R, startDist) {
   }
 
   // ═══════════════════════════════════════════════════════════════════════
+  section('seatOnPlunge — a plunging body can be seated as a one-hit anchor (SW v243)');
+  {
+    const R = 130;
+    const seatAt = { x: 180 + R - 16, y: 180 };
+    const cfg = seat => ({
+      world: W(R),
+      bodies: [{ id: 'a', x: 180 + R - 20, y: 180, r: CLD_PENGUIN_R },
+               { id: 'b', x: 180 + R - 110, y: 180, r: CLD_PENGUIN_R }],   // far enough back never to overlap the seat on arrival
+      impulses: [{ bodyId: 'a', vx: 80, vy: 0 }, { bodyId: 'b', vx: 150, vy: 0 }],
+      params: Object.assign(baseParams('slush'), seat ? { seatOnPlunge: seat } : {}),
+      seed: 7,
+    });
+    const plain = Physics.simulate(cfg(null));
+    const seen = [];
+    const seated = Physics.simulate(cfg((x, y, vx, vy, anchors) => { seen.push(anchors.length); return seatAt; }));
+
+    const ev = seated.events.map(e => e.type + ':' + (e.id || ''));
+    ok('the plunge is still reported, then a seat event for the same body',
+      ev.indexOf('plunge:a') >= 0 && ev.indexOf('seat:a') === ev.indexOf('plunge:a') + 1, ev.join(' '));
+    const fa = seated.final.find(f => f.id === 'a');
+    check('…the seated body rests exactly at the seat', [fa.x, fa.y, fa.seated === true], [seatAt.x, seatAt.y, true]);
+    ok('…and the SECOND body rebounds off it instead of plunging',
+      seated.events.some(e => e.type === 'rebound' && e.id === 'b' && e.offId === 'a') &&
+      !seated.events.some(e => e.type === 'plunge' && e.id === 'b'));
+    ok('…which knocks the seat back (one hit) and reports who did it',
+      seated.events.some(e => e.type === 'knockback' && e.id === 'a' && e.by === 'b'));
+    check('…so the seat is marked knocked in final', fa.knocked === true, true);
+    check('the callback saw the live anchors (none here)', seen, [0]);
+
+    const fb = plain.final.find(f => f.id === 'b');
+    check('WITHOUT the option both bodies plunge, exactly as before', [plain.final.find(f => f.id === 'a').plunged, fb.plunged], [true, true]);
+    ok('…and no seat/knockback events exist', !plain.events.some(e => e.type === 'seat' || e.type === 'knockback'));
+    check('a null return from the callback is a plain plunge',
+      JSON.stringify(Physics.simulate(cfg(() => null)).events), JSON.stringify(plain.events));
+
+    const again = Physics.simulate(cfg((x, y) => seatAt));
+    check('seating is deterministic (byte-identical rerun)', JSON.stringify(again), JSON.stringify(Physics.simulate(cfg((x, y) => seatAt))));
+
+    // A drowned anchor with no hits (the How-to practice sim's shape) is still unbreakable.
+    const legacy = Physics.simulate({
+      world: W(R),
+      bodies: [{ id: 'd', x: 180 + 100, y: 180, r: CLD_PENGUIN_R, kind: 'drowned' },
+               { id: 'p', x: 180 + 40, y: 180, r: CLD_PENGUIN_R }],
+      impulses: [{ bodyId: 'p', vx: 150, vy: 0 }], params: baseParams('slush'), seed: 3 });
+    ok('a drowned body without hits never knocks back', !legacy.events.some(e => e.type === 'knockback'));
+
+    // A Snowball landing on a hits:1 drowned anchor does nothing to it (spec §3.2).
+    const ball = Physics.simulate({
+      world: W(R),
+      bodies: [{ id: 'd', x: 250, y: 180, r: CLD_PENGUIN_R, kind: 'drowned', hits: 1 }],
+      events: [{ t: 10, type: 'snowball', x: 250, y: 180, radius: CLD_SNOWBALL_R, force: 60, from: { x: 180, y: 180 } }],
+      params: baseParams('slush'), seed: 4 });
+    ok('a Snowball on a plug is a no-op', !ball.events.some(e => e.type === 'knockback'));
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
   section('Determinism — the whole model rests on it');
   {
     // A deliberately busy Slide: six penguins, two Drowned bumpers, two Bergs,

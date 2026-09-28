@@ -8,8 +8,9 @@
 //   CLD_LOOP_SEED=n node tools/…             (reseed the randomised sweep)
 //
 // Companion to verify-cld-physics.js (the sim) and, later, verify-cld-loopback.js
-// (the wire). This one owns everything physics.js deliberately does NOT: Berth
-// geometry, Berth assignment and the multi-hop shunt, Dive legality, The Thaw's
+// (the wire). This one owns everything physics.js deliberately does NOT: ring
+// geometry (where a Drowned penguin seats), plugs, knock-back, displacement,
+// Throw-or-Dive, The Thaw's
 // radius schedule, Washout detection, and Fish scoring (spec §4B/§4C/§6/§12).
 //
 // It re-implements no rules. js/lib/physics.js and js/games/cld.js are both
@@ -58,27 +59,26 @@ vm.runInContext(fs.readFileSync(GAME, 'utf8'), sandbox, { filename: GAME });
 const BRIDGE = `
 globalThis.__cld = {
   C: {
-    CLD_W, CLD_H, CLD_BERTH_SLOTS, CLD_THAW_STEP, CLD_PENGUIN_R, CLD_BERG_R,
-    CLD_BERG_COUNT, CLD_START_RING, CLD_MIN_POWER, CLD_V_MAX, CLD_R_STD,
+    CLD_W, CLD_H, CLD_THAW_STEP, CLD_PENGUIN_R, CLD_BERG_R,
+    CLD_RING_COVER, CLD_SLIP_GAPS, CLD_SLIP_GAP_WIDTH, CLD_START_RING, CLD_MIN_POWER, CLD_V_MAX, CLD_R_STD,
     CLD_MIN_RADIUS_MULT, CLD_SIM_CAP_MS, CLD_FLOE_SIZE, CLD_ICE_MULT,
     CLD_SNOWBALL_R, CLD_SNOWBALL_SPEED,
   },
   fn: {
     cldFullSlideDist, cldDecel, cldMinRadius, cldSnowballForce, cldSnowballArrivalMs,
-    cldStanding, cldPlayersAlive, cldNormAngle, cldBerthArc, cldBerthOfAngle,
-    cldSlotAngle, cldRimPos, cldDistFromCentre, cldSlotTaken, cldFreeSlots,
-    cldPickFreeSlot, cldShuntSide, cldAssignBerth, cldSeatDrowned,
-    cldDiveTarget, cldDiveAvailable, cldApplyDive,
+    cldStanding, cldPlayersAlive, cldNormAngle, cldRimPos, cldDistFromCentre,
+    cldPlaceDrowned, cldSeatAt, cldKnockBack, cldSurfaceAt,
+    cldApplyCommit, cldStartIceBath, cldBathRadius,
     cldPlaceBergs, cldProjectBergsToRim, cldBergInset,
     cldStartMatch, cldStartFloeOff, cldBuildSlideInputs, cldResolveSlide,
     cldThawStep, cldCheckWashout, cldResolveFloeOff, cldMatchWinner, cldSimParams,
+    cldRingR, cldAngleOf, cldArcDist, cldSeatSpotFrom, cldRingAnchors, cldSeatSpot,
   },
   rng(s) { return window.Physics.rng(s); },
   get penguins()    { return cldPenguins; },    set penguins(v)    { cldPenguins = v; },
   get bergs()       { return cldBergs; },       set bergs(v)       { cldBergs = v; },
   get commits()     { return cldCommits; },     set commits(v)     { cldCommits = v; },
   get radius()      { return cldFloeRadius; },  set radius(v)      { cldFloeRadius = v; },
-  get berthCount()  { return cldBerthCount; },  set berthCount(v)  { cldBerthCount = v; },
   get playerCount() { return cldPlayerCount; }, set playerCount(v) { cldPlayerCount = v; },
   get fish()        { return cldFish; },        set fish(v)        { cldFish = v; },
   get stats()       { return cldMatchStats; },  set stats(v)       { cldMatchStats = v; },
@@ -129,6 +129,7 @@ const section = t => console.log(`\n${t}`);
 const CX = 180, CY = 180, TAU = Math.PI * 2;
 const distC = (x, y) => Math.hypot(x - CX, y - CY);
 const pen   = id => G.penguins.find(p => p.id === id);
+function cldMid(a, b) { return a + ((b - a) / 2); }
 
 // Seat a match + a fresh Floe-Off through the real shipped entry points.
 function setup(o) {
@@ -144,44 +145,9 @@ function setup(o) {
   F.cldStartFloeOff(o.seed === undefined ? 1 : o.seed);
 }
 
-// Build a synthetic rim directly: `occ` maps berth index → how many of its
-// slots are taken (slots 0..k-1). Used for the shunt cases, where the point is
-// to pin the SEARCH, not to reach the state through play.
-function rimState(N, occ, radius) {
-  G.playerCount = N;
-  G.berthCount  = N;
-  G.radius      = radius === undefined ? 130 : radius;
-  G.fish        = new Array(N).fill(0);
-  G.stats       = Array.from({ length: N }, () => ({ slidesStood: 0, plunges: 0 }));
-  const pens = [];
-  let k = 0;
-  Object.keys(occ).forEach(b => {
-    for (let s = 0; s < occ[b]; s++) {
-      pens.push({ id: 'd' + (k++), ownerIdx: 0, x: 0, y: 0,
-                  drowned: true, berth: Number(b), slot: s });
-    }
-  });
-  G.penguins = pens;
-  pens.forEach(p => F.cldSeatDrowned(p, p.berth, p.slot));
-}
-
-// A point just outside the rim, in the middle of Berth b's arc.
-function exitInBerth(b, N) {
-  const a = (TAU / N) * (b + 0.5);
-  const R = G.radius + 3;
-  return { x: CX + R * Math.cos(a), y: CY + R * Math.sin(a), angle: a };
-}
-
-// A velocity tangential to the rim at `angle`. sign +1 = clockwise (increasing
-// Berth index), −1 = anticlockwise. Matches cldShuntSide's convention.
-function tangentVel(angle, sign, mag) {
-  const m = mag === undefined ? 50 : mag;
-  return { vx: -Math.sin(angle) * m * sign, vy: Math.cos(angle) * m * sign };
-}
-
 // Every player holds — a legal, deliberate zero-power commit (§7).
 function allHold() {
-  return Array.from({ length: G.playerCount }, () => ({ aims: [], dive: 0, snowball: null }));
+  return Array.from({ length: G.playerCount }, () => ({ aims: [], dive: null, snowball: null }));
 }
 
 // Aim one penguin straight out from the centre at full power.
@@ -192,22 +158,19 @@ function shoveOut(penguinId, power) {
            power: power === undefined ? 1 : power };
 }
 
-// Rim legality — the invariant every path in the game has to preserve.
+// Rim legality — the invariant every path in the game has to preserve (SW v243):
+// a Standing penguin holds no seat; a Plugged one sits on the ring circle at its
+// own angle overlapping nothing; a Knocked-back one bobs just outside the rim.
 function rimLegal() {
-  const seen = new Set();
   for (const p of G.penguins) {
-    if (!p.drowned) { if (p.berth !== null || p.slot !== null) return 'standing penguin holds a Berth'; continue; }
-    if (!(p.berth >= 0 && p.berth < G.berthCount)) return 'berth out of range: ' + p.berth;
-    if (!(p.slot >= 0 && p.slot < C.CLD_BERTH_SLOTS)) return 'slot out of range: ' + p.slot;
-    const key = p.berth + ':' + p.slot;
-    if (seen.has(key)) return 'two penguins share position ' + key;
-    seen.add(key);
-    // Exact slot geometry, not just "somewhere on the rim" — being on the rim
-    // at the wrong angle is how a Drowned penguin silently leaves its Berth.
-    const seat = F.cldRimPos(F.cldSlotAngle(p.berth, p.slot));
-    if (Math.abs(p.x - seat.x) > 1e-6 || Math.abs(p.y - seat.y) > 1e-6)
-      return 'Drowned penguin off its Berth slot: ' + p.id;
-    if (Math.abs(distC(p.x, p.y) - G.radius) > 1e-6) return 'Drowned penguin off the rim: ' + p.id;
+    if (!p.drowned) { if (p.plug || p.angle !== null) return 'standing penguin holds a seat: ' + p.id; continue; }
+    const want = p.plug ? F.cldRingR() : G.radius + C.CLD_PENGUIN_R * 1.4;
+    if (Math.abs(distC(p.x, p.y) - want) > 1e-6)
+      return (p.plug ? 'plug off the ring circle: ' : 'knocked-back penguin off its bob line: ') + p.id;
+    if (F.cldArcDist(Math.atan2(p.y - CY, p.x - CX), p.angle) > 1e-6) return 'Drowned penguin off its angle: ' + p.id;
+    if (!p.plug) continue;
+    for (const a of F.cldRingAnchors(p.id))
+      if (Math.hypot(p.x - a.x, p.y - a.y) < C.CLD_PENGUIN_R + a.r - 1e-6) return 'plug ' + p.id + ' overlaps ' + a.id;
   }
   return null;
 }
@@ -240,8 +203,6 @@ function rimLegal() {
     ok('…and the Stage 4 boundary was found, so the rules layer is really isolated',
       rulesSrc.length < src.length);
     check('resolution never draws an unseeded random number', rulesSrc.includes('Math.random'), false);
-    ok('the shunt has no "nowhere left to put them" fallback — it throws instead',
-      /throw new Error\('cldAssignBerth/.test(src) && !/nowhere/i.test(src.replace(/§4C[^\n]*/g, '')));
   }
   {
     // §4B's table, recomputed from the closed form rather than copied.
@@ -282,261 +243,6 @@ function rimLegal() {
       'distance takes exactly one second, whatever the constant is set to',
       F.cldSnowballArrivalMs(C.CLD_SNOWBALL_SPEED), 1000, 1e-9);
   }
-  {
-    // The capacity invariant §4C leans on. Stated there as "the rim can never be
-    // full everywhere"; at CLD_BERTH_SLOTS = 2 it is stronger than that — total
-    // rim capacity exceeds the TOTAL penguin count, in every mode.
-    ok('a Berth holds at least 2 slots — §4C lets two Drowned penguins share one',
-      C.CLD_BERTH_SLOTS >= 2, 'CLD_BERTH_SLOTS = ' + C.CLD_BERTH_SLOTS);
-    let held = true, worst = '';
-    for (let n = 2; n <= 8; n++) {
-      const cap = n * C.CLD_BERTH_SLOTS;
-      if (cap < n) { held = false; worst = n + ' players'; }
-    }
-    const peckCap = 2 * C.CLD_BERTH_SLOTS;
-    if (peckCap < 4) { held = false; worst = 'Peck Off'; }
-    ok('rim capacity exceeds the penguin count at every player count, Peck Off included',
-      held, 'first failure at ' + worst);
-  }
-
-  // ═══════════════════════════════════════════════════════════════════════
-  section('Berth geometry (§4C)');
-  {
-    G.berthCount = 8; G.radius = 130;
-    check('angle 0 is Berth 0',            F.cldBerthOfAngle(0), 0);
-    check('just below the first boundary stays in Berth 0',
-      F.cldBerthOfAngle(TAU / 8 - 1e-9), 0);
-    check('the boundary itself belongs to the NEXT Berth — the arc is half-open',
-      F.cldBerthOfAngle(TAU / 8), 1);
-    check('just below a full turn is the last Berth', F.cldBerthOfAngle(TAU - 1e-9), 7);
-    check('a full turn wraps back to Berth 0', F.cldBerthOfAngle(TAU), 0);
-    check('a negative angle wraps the same way', F.cldBerthOfAngle(-1e-9), 7);
-    ok('every slot angle lands inside its own Berth arc', (() => {
-      for (let b = 0; b < 8; b++)
-        for (let s = 0; s < C.CLD_BERTH_SLOTS; s++)
-          if (F.cldBerthOfAngle(F.cldSlotAngle(b, s)) !== b) return false;
-      return true;
-    })());
-    ok('the slots inside one Berth are distinct and evenly spaced', (() => {
-      const arc = TAU / 8, gap = arc / C.CLD_BERTH_SLOTS;
-      for (let s = 1; s < C.CLD_BERTH_SLOTS; s++)
-        if (Math.abs((F.cldSlotAngle(3, s) - F.cldSlotAngle(3, s - 1)) - gap) > 1e-9) return false;
-      return true;
-    })());
-    const rp = F.cldRimPos(0.7);
-    close('cldRimPos puts a body exactly on the rim', distC(rp.x, rp.y), 130, 1e-9);
-  }
-
-  // ═══════════════════════════════════════════════════════════════════════
-  section('The multi-hop shunt (§4C) — home Berth');
-  {
-    rimState(6, {});
-    const e = exitInBerth(2, 6);
-    const spot = F.cldAssignBerth(e.x, e.y, 0, 0, G.rng(7));
-    check('an empty home Berth takes the penguin, no hops', [spot.berth, spot.hops], [2, 0]);
-    ok('and the slot it picked is a real one',
-      spot.slot >= 0 && spot.slot < C.CLD_BERTH_SLOTS);
-  }
-  {
-    rimState(6, { 2: 1 });
-    const e = exitInBerth(2, 6);
-    const spot = F.cldAssignBerth(e.x, e.y, 0, 0, G.rng(7));
-    check('a half-full home Berth still takes it — two Drowned may share a Berth',
-      [spot.berth, spot.hops], [2, 0]);
-    check('…in the free slot, never the taken one', spot.slot, 1);
-  }
-  {
-    // The seeded pick is a real pick: over many seeds both free slots come up.
-    rimState(6, {});
-    const e = exitInBerth(0, 6);
-    const picked = new Set();
-    for (let s = 1; s <= 40; s++) picked.add(F.cldAssignBerth(e.x, e.y, 0, 0, G.rng(s)).slot);
-    check('the free-slot pick is seeded, not fixed', picked.size, C.CLD_BERTH_SLOTS);
-    check('the same seed picks the same slot every time',
-      F.cldAssignBerth(e.x, e.y, 0, 0, G.rng(11)).slot,
-      F.cldAssignBerth(e.x, e.y, 0, 0, G.rng(11)).slot);
-  }
-
-  section('The multi-hop shunt — stepping outward');
-  {
-    rimState(6, { 0: 2 });
-    const e = exitInBerth(0, 6);
-    const spot = F.cldAssignBerth(e.x, e.y, 0, 0, G.rng(7));
-    check('a full home Berth hops one step', spot.hops, 1);
-    ok('to a neighbour', spot.berth === 1 || spot.berth === 5, 'berth ' + spot.berth);
-  }
-  {
-    // Prefer MORE free positions — this outranks the travel direction entirely.
-    rimState(6, { 0: 2, 1: 2, 5: 1 });
-    const e = exitInBerth(0, 6);
-    const cw = tangentVel(e.angle, +1);
-    const spot = F.cldAssignBerth(e.x, e.y, cw.vx, cw.vy, G.rng(7));
-    check('the emptier neighbour wins even against the travel direction',
-      [spot.berth, spot.hops], [5, 1]);
-  }
-  {
-    // A tie at h = 1 (both full) → h = 2, where both are equally free → the
-    // travel direction decides.
-    rimState(6, { 5: 2, 0: 2, 1: 2 });
-    const e = exitInBerth(0, 6);
-    const cw  = tangentVel(e.angle, +1);
-    const ccw = tangentVel(e.angle, -1);
-    check('a clockwise exit shunts clockwise',
-      F.cldAssignBerth(e.x, e.y, cw.vx, cw.vy, G.rng(7)).berth, 2);
-    check('an anticlockwise exit shunts anticlockwise',
-      F.cldAssignBerth(e.x, e.y, ccw.vx, ccw.vy, G.rng(7)).berth, 4);
-    const zero = F.cldAssignBerth(e.x, e.y, 0, 0, G.rng(7));
-    check('a ZERO-velocity exit defaults CLOCKWISE — the thaw-drop case',
-      [zero.berth, zero.hops], [2, 2]);
-    check('cldShuntSide agrees on its own: no sideways component → clockwise',
-      F.cldShuntSide(e.angle, 0, 0), 1);
-    const radial = { vx: Math.cos(e.angle) * 90, vy: Math.sin(e.angle) * 90 };
-    check('a dead-straight radial exit also defaults CLOCKWISE',
-      F.cldAssignBerth(e.x, e.y, radial.vx, radial.vy, G.rng(7)).berth, 2);
-  }
-  {
-    // ── The ≥3-hop case §4C calls for ──────────────────────────────────────
-    // Five consecutive full Berths. Note this is BEYOND legal rim density at
-    // CLD_BERTH_SLOTS = 2 (it needs 10 Drowned penguins, and 8 players field 8),
-    // so it is asserted against the function directly. The deepest hop real play
-    // can reach is 2 — see the Round E case below and the impl notes.
-    rimState(8, { 2: 2, 3: 2, 4: 2, 5: 2, 6: 2 });
-    const e = exitInBerth(4, 8);
-    const zero = F.cldAssignBerth(e.x, e.y, 0, 0, G.rng(7));
-    check('a four-deep block of full Berths forces THREE hops', zero.hops, 3);
-    check('…resolving clockwise on a zero-velocity exit', zero.berth, 7);
-    const ccw = tangentVel(e.angle, -1);
-    const other = F.cldAssignBerth(e.x, e.y, ccw.vx, ccw.vy, G.rng(7));
-    check('…and anticlockwise the other way, still three hops', [other.berth, other.hops], [1, 3]);
-  }
-  {
-    // ── Brief Round E, exactly as described, and REACHABLE ─────────────────
-    // 8 players, The Thaw well advanced: Berths 3/4/5 full and Berth 2 holding
-    // one. Seven Drowned — the eighth penguin plunging into Berth 4 resolves
-    // to 6 because 6 has more free room than 2.
-    rimState(8, { 2: 1, 3: 2, 4: 2, 5: 2 }, 70);
-    const e = exitInBerth(4, 8);
-    const spot = F.cldAssignBerth(e.x, e.y, 0, 0, G.rng(3));
-    check('brief Round E resolves to Berth 6', spot.berth, 6);
-    check('…two hops out, because 6 is emptier than 2', spot.hops, 2);
-    ok('…and the state it needed is legal: 7 Drowned of 8 penguins',
-      G.penguins.filter(p => p.drowned).length === 7);
-  }
-  {
-    // The loud failure §4C demands in place of a silent fallback.
-    rimState(3, { 0: 2, 1: 2, 2: 2 });
-    const e = exitInBerth(1, 3);
-    throws('a genuinely full rim fails LOUDLY — no silent fallback placement',
-      () => F.cldAssignBerth(e.x, e.y, 0, 0, G.rng(7)), 'the rim is full');
-  }
-  {
-    // Coverage: the search must be able to reach every Berth on the ring.
-    let allReached = true;
-    for (const N of [2, 3, 4, 5, 6, 7, 8]) {
-      const occ = {};
-      for (let b = 0; b < N; b++) occ[b] = C.CLD_BERTH_SLOTS;
-      for (let b = 0; b < N; b++) {
-        occ[b] = C.CLD_BERTH_SLOTS - 1;          // leave exactly one slot open
-        rimState(N, occ);
-        const e = exitInBerth(0, N);
-        const got = F.cldAssignBerth(e.x, e.y, 0, 0, G.rng(5));
-        if (got.berth !== b) allReached = false;
-        occ[b] = C.CLD_BERTH_SLOTS;
-      }
-    }
-    ok('the shunt reaches EVERY Berth on the ring, at every player count', allReached);
-  }
-
-  // ═══════════════════════════════════════════════════════════════════════
-  section('Dive (§4C) — voluntary, one step, allowed to fail');
-  {
-    rimState(6, { 0: 1 });
-    const p = G.penguins[0];
-    ok('a free neighbour is available clockwise',      F.cldDiveAvailable(p, +1));
-    ok('and anticlockwise',                            F.cldDiveAvailable(p, -1));
-    check('the clockwise target is the next Berth up', F.cldDiveTarget(p, +1), 1);
-    check('the anticlockwise target wraps',            F.cldDiveTarget(p, -1), 5);
-    const moved = F.cldApplyDive(p, +1, G.rng(9));
-    ok('the Dive lands', moved);
-    check('…in the target Berth', p.berth, 1);
-    close('…and exactly on the rim', distC(p.x, p.y), G.radius, 1e-9);
-  }
-  {
-    rimState(6, { 0: 1, 1: 2, 5: 2 });
-    const p = G.penguins.find(q => q.berth === 0);
-    ok('a full target reads as unavailable while aiming', !F.cldDiveAvailable(p, +1));
-    const before = { berth: p.berth, slot: p.slot, x: p.x, y: p.y };
-    const moved = F.cldApplyDive(p, +1, G.rng(9));
-    ok('a Dive into a full Berth FAILS rather than shunting', moved === false);
-    check('…and the penguin stays exactly where it was',
-      [p.berth, p.slot, p.x, p.y], [before.berth, before.slot, before.x, before.y]);
-  }
-  {
-    rimState(6, { 0: 1 });
-    const p = G.penguins[0];
-    ok('a zero direction is not a Dive', F.cldApplyDive(p, 0, G.rng(9)) === false);
-    const standing = { id: 's', ownerIdx: 1, x: CX, y: CY, drowned: false, berth: null, slot: null };
-    G.penguins.push(standing);
-    ok('a Standing penguin cannot Dive', F.cldDiveAvailable(standing, +1) === false);
-  }
-  {
-    // A Dive resolves BEFORE the Slide, so the moved bumper is already in the
-    // sim's opening frame.
-    setup({ players: 4, seed: 5 });
-    const victim = G.penguins[0];
-    victim.drowned = true;
-    F.cldSeatDrowned(victim, 0, 0);
-    const cs = allHold();
-    cs.forEach((c, i) => {
-      G.penguins.filter(p => p.ownerIdx === i && !p.drowned)
-                .forEach(p => c.aims.push({ penguinId: p.id, dx: 1, dy: 0, power: 0 }));
-    });
-    cs[victim.ownerIdx].dive = +1;
-    G.commits = cs;
-    const tl = F.cldResolveSlide(31);
-    check('the Dive is recorded on the timeline', tl.dives.length, 1);
-    ok('…and it moved',  tl.dives[0].moved === true);
-    check('…to the next Berth', victim.berth, 1);
-    // Compare frame 0 against the Berth slot's OWN geometry, not against the
-    // penguin's post-resolve x/y — those two can be stale together, and were.
-    const idx = G.penguins.findIndex(p => p.id === victim.id);
-    const seat = F.cldRimPos(F.cldSlotAngle(victim.berth, victim.slot));
-    check('…and frame 0 of the Slide already shows it in the new Berth',
-      [tl.samples[0][idx * 2], tl.samples[0][idx * 2 + 1]],
-      [Math.round(seat.x), Math.round(seat.y)]);
-    check('…and the Slide never dragged it back off its slot',
-      [victim.x, victim.y], [seat.x, seat.y]);
-    check('…with every Drowned penguin still on its own Berth geometry', rimLegal(), null);
-  }
-
-  {
-    // A Drowned penguin is a BUMPER. It must go into the sim immovable, or a
-    // hard enough shove pushes it off its own Berth — and if it crosses the rim
-    // it "plunges" a second time, which no rule in the game has a meaning for.
-    setup({ players: 4, seed: 41 });
-    const anchor = G.penguins[0];
-    anchor.drowned = true;
-    F.cldSeatDrowned(anchor, 0, 0);
-    const seat = { x: anchor.x, y: anchor.y };
-    // Put a shover directly inboard of it and fire it straight out.
-    const ang = Math.atan2(anchor.y - CY, anchor.x - CX);
-    const shover = G.penguins[1];
-    shover.x = CX + (G.radius - 60) * Math.cos(ang);
-    shover.y = CY + (G.radius - 60) * Math.sin(ang);
-    const cs = allHold();
-    cs[shover.ownerIdx].aims.push({ penguinId: shover.id,
-      dx: Math.cos(ang), dy: Math.sin(ang), power: 1 });
-    G.commits = cs;
-    const tl = F.cldResolveSlide(42);
-    const fa = tl.final.find(f => f.id === anchor.id);
-    ok('a Slide fires straight into the Drowned penguin',
-      tl.events.some(e => e.type === 'rebound' && e.offId === anchor.id));
-    check('…and it does not budge', [anchor.x, anchor.y], [seat.x, seat.y]);
-    check('…carries no velocity out of the Slide', [fa.vx, fa.vy], [0, 0]);
-    ok('…and never "plunges" a second time', fa.plunged === false);
-    check('…so the rim is still legal', rimLegal(), null);
-  }
-
   // ═══════════════════════════════════════════════════════════════════════
   section('The Thaw (§4B/§12) — schedule and floor');
   {
@@ -584,9 +290,9 @@ function rimLegal() {
   {
     setup({ players: 4, sylly: true, iceBreaker: 3, seed: 4 });
     const drowned = G.penguins[0];
-    drowned.drowned = true;
-    F.cldSeatDrowned(drowned, 2, 0);
-    const angleBefore = Math.atan2(drowned.y - CY, drowned.x - CX);
+    const seat = F.cldSeatSpot(1.0, drowned.id);
+    F.cldSeatAt(drowned, seat);
+    const angleBefore = drowned.angle;
     const inner = G.penguins[1];
     inner.x = CX + 10; inner.y = CY;
     const outer = G.penguins[2];
@@ -594,17 +300,16 @@ function rimLegal() {
     outer.x = CX + (to + 4); outer.y = CY;               // left outside the new rim
 
     const t = F.cldThawStep(G.rng(6));
-    close('a Drowned penguin rides the rim inward', distC(drowned.x, drowned.y), G.radius, 1e-9);
+    close('a Plugged penguin rides the ring circle inward', distC(drowned.x, drowned.y), F.cldRingR(), 1e-9);
     close('…keeping its angle exactly',
-      Math.atan2(drowned.y - CY, drowned.x - CX), angleBefore, 1e-9);
-    check('…and its Berth and slot',  [drowned.berth, drowned.slot], [2, 0]);
-    check('the Berth COUNT never changes', G.berthCount, 4);
+      F.cldArcDist(Math.atan2(drowned.y - CY, drowned.x - CX), angleBefore), 0, 1e-9);
+    ok('…still Plugged', drowned.plug === true);
     ok('a surviving Berg rides the rim inward too',
       G.bergs.length > 0 &&
       G.bergs.every(b => Math.abs(distC(b.x, b.y) - F.cldBergInset()) < 1e-9));
     ok('a Standing penguin comfortably inside is untouched',
       inner.drowned === false && inner.x === CX + 10);
-    ok('a Standing penguin the ice ran out from under plunges', outer.drowned === true);
+    ok('a Standing penguin the ice ran out from under goes in', outer.drowned === true);
     check('…as its own thaw-drop beat', t.beats.some(b => b.type === 'thaw-drop' &&
       b.penguinId === outer.id), true);
     check('…followed by a surface beat', t.beats.some(b => b.type === 'surface' &&
@@ -614,22 +319,17 @@ function rimLegal() {
     check('the rim stays legal after a thaw-drop', rimLegal(), null);
   }
   {
-    // The only zero-velocity plunge in the game — §12 asks for it by name.
-    setup({ players: 6, sylly: true, seed: 8 });
+    // A thaw-drop is not through a gap — it surfaces at the free seat nearest
+    // its own angle (spec §3.5). With no ring at all, that is its own angle.
+    setup({ players: 6, sylly: true, iceBreaker: 0, seed: 8 });
     const to = G.radius - C.CLD_THAW_STEP;
     const dropper = G.penguins[0];
-    const a = (TAU / 6) * 0.5;                    // dead centre of Berth 0
+    const a = 0.7;
     dropper.x = CX + (to + 5) * Math.cos(a);
     dropper.y = CY + (to + 5) * Math.sin(a);
-    // Fill Berth 0 and both its neighbours so the drop has to shunt.
-    const fillers = G.penguins.slice(1, 6);
-    [[0, 0], [0, 1], [5, 0], [5, 1], [1, 0]].forEach((bs, i) => {
-      fillers[i].drowned = true;
-      F.cldSeatDrowned(fillers[i], bs[0], bs[1]);
-    });
     F.cldThawStep(G.rng(21));
-    check('a thaw-drop shunts CLOCKWISE — zero exit velocity, so the default applies',
-      dropper.berth, 1);
+    ok('a thaw-drop on an open rim seats Plugged at its own angle',
+      dropper.plug === true && F.cldArcDist(dropper.angle, a) < 1e-9);
     check('the rim stays legal', rimLegal(), null);
   }
 
@@ -649,7 +349,7 @@ function rimLegal() {
     check('…with no winner', tl.winnerIdx, -1);
     check('…and nobody scores a Fish', G.fish, [0, 0, 0]);
     check('…while every plunger still surfaced legally', rimLegal(), null);
-    check('…one surface beat per penguin', tl.aftermath.filter(b => b.type === 'surface').length, 3);
+    check('…one mid-Slide seat per penguin', tl.events.filter(e => e.type === 'seat').length, 3);
   }
   {
     // A Washout the SLIDE cannot see: everyone survives the Slide, and the Thaw
@@ -749,7 +449,6 @@ function rimLegal() {
   {
     setup({ players: 2, peckOff: true, fishToWin: 3, seed: 17 });
     check('Peck Off fields two penguins each', G.penguins.length, 4);
-    check('…and the Berth count still equals the PLAYER count', G.berthCount, 2);
     check('every penguin id is owner-scoped', G.penguins.map(p => p.id).sort(),
       ['0-0', '0-1', '1-0', '1-1']);
 
@@ -772,7 +471,7 @@ function rimLegal() {
     check('…and the rim held all of it', rimLegal(), null);
   }
   {
-    // Peck Off is the tightest rim in the game: 2 Berths, 4 penguins.
+    // Peck Off: all four penguins in at once on the smallest ring.
     setup({ players: 2, peckOff: true, seed: 18 });
     const cs = allHold();
     G.penguins.forEach(p => cs[p.ownerIdx].aims.push(shoveOut(p.id, 1)));
@@ -788,15 +487,49 @@ function rimLegal() {
   {
     setup({ players: 4, iceBreaker: 0, seed: 20 });
     check('Ice Breaker Off places no Bergs', G.bergs.length, 0);
-    setup({ players: 4, iceBreaker: 3, seed: 20 });
-    check('Ice Breaker on places Bergs', G.bergs.length, C.CLD_BERG_COUNT);
-    check('…each with its full hit capacity', G.bergs.map(b => b.hits),
-      new Array(C.CLD_BERG_COUNT).fill(3));
-    ok('…all sitting just inside the rim',
-      G.bergs.every(b => Math.abs(distC(b.x, b.y) - F.cldBergInset()) < 1e-9));
-    ok('…and never stacked on each other',
-      G.bergs.every((b, i) => G.bergs.every((o, j) =>
-        i === j || Math.hypot(b.x - o.x, b.y - o.y) > 2 * C.CLD_BERG_R)));
+    // The ring (SW v242): sized by coverage, 2–3 slip gaps a penguin fits
+    // through, hairline cracks elsewhere, never overlapping — on every floe size.
+    const ringGaps = () => {
+      const inset = F.cldBergInset();
+      const chunk = 2 * inset * Math.asin(C.CLD_BERG_R / inset);
+      const ang = G.bergs.map(b => b.angle).sort((p, q) => p - q);
+      return ang.map((x, i) => {
+        const nx = i + 1 < ang.length ? ang[i + 1] : ang[0] + 2 * Math.PI;
+        return (nx - x) * inset - chunk;
+      });
+    };
+    let cover = true, slips = true, noStack = true, full = true, inside = true, cracks = true;
+    ['roomy', 'standard', 'cramped'].forEach(size => {
+      for (let seed = 30; seed < 42; seed++) {
+        setup({ players: 4, iceBreaker: 3, seed: seed, floe: size });
+        const inset = F.cldBergInset();
+        const iceArc = G.bergs.length * 2 * inset * Math.asin(C.CLD_BERG_R / inset);
+        const share = iceArc / (2 * Math.PI * inset);
+        if (share < C.CLD_RING_COVER - 0.05 || share > C.CLD_RING_COVER + 0.001) cover = false;
+        const gaps = ringGaps();
+        const wide = gaps.filter(g => g >= 2 * C.CLD_PENGUIN_R * C.CLD_SLIP_GAP_WIDTH[0] - 1e-6);
+        if (wide.length < C.CLD_SLIP_GAPS[0] || wide.length > C.CLD_SLIP_GAPS[1]) slips = false;
+        if (gaps.some(g => g < -1e-6)) noStack = false;
+        if (gaps.some(g => g > 1e-6 && g < 2 * C.CLD_PENGUIN_R * C.CLD_SLIP_GAP_WIDTH[0] - 1e-6
+                        && g >= 2 * C.CLD_PENGUIN_R)) cracks = false;
+        if (G.bergs.some(b => b.hits !== 3)) full = false;
+        if (!G.bergs.every(b => Math.abs(distC(b.x, b.y) - inset) < 1e-9)) inside = false;
+      }
+    });
+    ok('Ice Breaker on rings the floe at CLD_RING_COVER of its circumference (3 sizes × 12 seeds)', cover);
+    ok('…with 2–3 slip gaps a penguin fits through', slips);
+    ok('…every other gap a crack a penguin cannot fit through', cracks);
+    ok('…never stacked on each other', noStack);
+    ok('…each with its full hit capacity', full);
+    ok('…all sitting just inside the rim', inside);
+
+    // The Thaw calves the ring rather than piling it up.
+    setup({ players: 4, iceBreaker: 3, seed: 33 });
+    const before = G.bergs.length;
+    G.radius = G.radius * 0.6;
+    F.cldProjectBergsToRim();
+    ok('a shrunken rim calves chunks off the ring', G.bergs.length < before);
+    ok('…and what is left never overlaps', ringGaps().every(g => g > -0.02));
   }
   {
     setup({ players: 3, seed: 21 });
@@ -866,18 +599,16 @@ function rimLegal() {
     const b = JSON.stringify(F.cldResolveSlide(101));
     check('the same Floe-Off, commits and seed resolve byte-identically', a === b, true);
 
-    // The seed only reaches the tie-breaks — Berth-slot picks and the
-    // exactly-concentric collision normal — so ANY single pair of seeds can
-    // legitimately agree. Asserting one pair differs is a coin flip; asserting
-    // the seed is wired in at all is the real claim.
-    const variants = new Set([a]);
+    // Since SW v243 the seed reaches ONE tie-break — the exactly-concentric
+    // collision normal (the seeded Berth-slot pick is gone with the Berths) —
+    // so only a Slide with two penguins stacked on one spot can show it. The
+    // real claim is that the seed is wired into the sim at all.
+    const variants = new Set();
     for (const sd of [102, 103, 104, 105, 106, 107, 108, 109]) {
-      setup({ players: 5, sylly: true, iceBreaker: 3, seed: 24 });
-      const cs3 = allHold();
-      G.penguins.forEach(p => cs3[p.ownerIdx].aims.push(shoveOut(p.id, 0.9)));
-      cs3[0].snowball = { x: CX + 20, y: CY + 20 };
-      G.commits = cs3;
-      variants.add(JSON.stringify(F.cldResolveSlide(sd)));
+      setup({ players: 2, iceBreaker: 0, seed: 24 });
+      G.penguins.forEach(p => { p.x = CX + 10; p.y = CY; });   // exactly concentric
+      G.commits = allHold();
+      variants.add(JSON.stringify(F.cldResolveSlide(sd).final));
     }
     ok('…and the resolution seed genuinely reaches the tie-breaks',
       variants.size > 1, 'all 9 seeds resolved identically');
@@ -894,10 +625,295 @@ function rimLegal() {
   }
 
   // ═══════════════════════════════════════════════════════════════════════
+  section('Ring geometry — where a Drowned penguin seats (spec §3.1)');
+  {
+    setup({ players: 4, iceBreaker: 2, seed: 50 });
+    const R = F.cldRingR();
+    const P = C.CLD_PENGUIN_R;
+    const touching = (a, b) => Math.hypot(a.x - b.x, a.y - b.y) >= a.r + b.r - 1e-6;
+
+    check('with no anchors the spot is exactly the asked angle',
+      Math.round(F.cldSeatSpotFrom([], 1.0).angle * 1e6), 1e6);
+
+    // Every seat F.cldSeatSpot returns overlaps nothing, across many angles.
+    let clean = true;
+    for (let k = 0; k < 72; k++) {
+      const s = F.cldSeatSpot(k * TAU / 72, null);
+      if (!s) continue;
+      const me = { x: s.x, y: s.y, r: P };
+      if (!F.cldRingAnchors(null).every(a => touching(me, a))) clean = false;
+      // Against the Berg circle DIRECTLY, not cldRingR(): a check that asks the
+      // function under test where the circle is cannot see the circle move.
+      if (Math.abs(Math.hypot(s.x - CX, s.y - CY) - F.cldBergInset()) > 1e-6) clean = false;
+    }
+    ok('every seat sits on the chunks’ own circle and overlaps no chunk', clean);
+
+    // A slip gap: narrow → the seat is the gap's centre, whatever the asked angle.
+    const gapAngles = G.bergs.map(b => b.angle).sort((a, b) => a - b);
+    const chunkHalf = Math.asin(C.CLD_BERG_R / R);
+    let centred = true, found = 0;
+    gapAngles.forEach((a, i) => {
+      const nx = i + 1 < gapAngles.length ? gapAngles[i + 1] : gapAngles[0] + TAU;
+      const edgeGap = (nx - a - 2 * chunkHalf) * R;
+      if (edgeGap < 2 * P) return;                     // a crack, not a gap
+      found++;
+      const mid = cldMid(a, nx);
+      const s1 = F.cldSeatSpot(a + chunkHalf + 0.01, null);
+      const s2 = F.cldSeatSpot(nx - chunkHalf - 0.01, null);
+      if (!s1 || !s2 || F.cldArcDist(s1.angle, mid) > 1e-6 || F.cldArcDist(s2.angle, mid) > 1e-6) centred = false;
+    });
+    ok('the generated ring has slip gaps', found >= 2);
+    ok('…and a seat anywhere in a slip gap lands at its centre', centred);
+  }
+  {
+    section('The seal — a plugged slip gap cannot be passed (spec §3.1)');
+    // Build the tightest honest case by hand: two chunks with an edge gap of the
+    // WIDEST slip width the ring can generate, a plug at its centre, and a
+    // penguin driven straight at every offset across the gap at full power.
+    setup({ players: 3, iceBreaker: 3, seed: 51 });
+    const R = F.cldRingR();
+    const widest = 2 * C.CLD_PENGUIN_R * C.CLD_SLIP_GAP_WIDTH[1];
+    const half = Math.asin(C.CLD_BERG_R / R);
+    const a0 = 0, a1 = a0 + 2 * half + widest / R;
+    const pos = a => ({ x: CX + R * Math.cos(a), y: CY + R * Math.sin(a) });
+    const mid = (a0 + a1) / 2;
+    let sealed = true;
+    for (let off = -1; off <= 1.0001; off += 0.125) {
+      const aim = mid + off * (a1 - a0) / 2;
+      const start = { x: CX + (R - 60) * Math.cos(aim), y: CY + (R - 60) * Math.sin(aim) };
+      const res = sandbox.window.Physics.simulate({
+        world: { cx: CX, cy: CY, radius: G.radius },
+        bodies: [{ id: 'p', x: start.x, y: start.y, r: C.CLD_PENGUIN_R },
+                 Object.assign({ id: 'g0', r: C.CLD_BERG_R, kind: 'berg', hits: 3 }, pos(a0)),
+                 Object.assign({ id: 'g1', r: C.CLD_BERG_R, kind: 'berg', hits: 3 }, pos(a1)),
+                 Object.assign({ id: 'd', r: C.CLD_PENGUIN_R, kind: 'drowned', hits: 1 }, pos(mid))],
+        impulses: [{ bodyId: 'p', vx: Math.cos(aim) * C.CLD_V_MAX, vy: Math.sin(aim) * C.CLD_V_MAX }],
+        params: F.cldSimParams(), seed: 9 });
+      if (res.events.some(e => e.type === 'plunge' && e.id === 'p')) sealed = false;
+    }
+    ok('a centred plug seals the widest slip gap against a full-power shove at every offset', sealed);
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  section('The Slide — instant plugs, one-hit knock-back, displacement (spec §3.2–3.3)');
+  {
+    // Two penguins shoved at the SAME slip gap, one behind the other.
+    setup({ players: 3, iceBreaker: 3, seed: 52 });
+    const s = F.cldSeatSpot(0, null);                // centre of the nearest gap to angle 0
+    const [p0, p1, p2] = G.penguins;
+    const lane = (p, back) => { p.x = CX + (F.cldRingR() - back) * Math.cos(s.angle); p.y = CY + (F.cldRingR() - back) * Math.sin(s.angle); };
+    lane(p0, 25); lane(p1, 70); p2.x = CX - 40; p2.y = CY;
+    const cs = allHold();
+    cs[0].aims.push({ penguinId: p0.id, dx: Math.cos(s.angle), dy: Math.sin(s.angle), power: 0.7 });
+    cs[1].aims.push({ penguinId: p1.id, dx: Math.cos(s.angle), dy: Math.sin(s.angle), power: 1 });
+    G.commits = cs;
+    const tl = F.cldResolveSlide(301);
+    ok('the first penguin plugged the gap mid-Slide', tl.events.some(e => e.type === 'seat' && e.id === p0.id));
+    ok('…and the second rebounded off it instead of following it in',
+      !tl.events.some(e => e.type === 'plunge' && e.id === p1.id));
+    check('…the plug took that hit and is Knocked back', [pen(p0.id).drowned, pen(p0.id).plug], [true, false]);
+    close('…bobbing outside its gap', Math.hypot(pen(p0.id).x - CX, pen(p0.id).y - CY),
+      G.radius + C.CLD_PENGUIN_R * 1.4, 1e-6);
+    ok('the timeline names its body order', Array.isArray(tl.bodyIds) && tl.bodyIds[0] === p0.id);
+  }
+  {
+    // A plug is ENERGETIC (restitution > 1): whoever bounces off it travels further
+    // than it arrived with — the "does not save you, shoves you back harder" rule.
+    setup({ players: 3, iceBreaker: 0, seed: 54 });
+    const [p0, p1, p2] = G.penguins;
+    p0.drowned = true; p0.plug = true; p0.angle = 0; F.cldPlaceDrowned(p0);
+    p1.x = CX; p1.y = CY; p2.x = CX; p2.y = CY - 60;
+    const cs = allHold();
+    cs[1].aims.push({ penguinId: p1.id, dx: 1, dy: 0, power: 1 });
+    G.commits = cs;
+    const tl = F.cldResolveSlide(303);
+    const hit = tl.events.find(e => e.type === 'rebound' && e.id === p1.id && e.offId === p0.id);
+    // hit.x/y is on the PLUG's surface; p1's centre starts one radius further out.
+    const rest = hit ? Math.hypot(pen(p1.id).x - hit.x, pen(p1.id).y - hit.y) - C.CLD_PENGUIN_R : 0;
+    const flat = hit ? hit.speed * hit.speed / (2 * F.cldDecel()) : Infinity;   // e = 1
+    ok('a penguin bounces off a plug further than it arrived (restitution > 1)',
+      !!hit && rest > 1.25 * flat, 'rest ' + rest.toFixed(1) + ' vs e=1 ' + flat.toFixed(1));
+  }
+  {
+    // Displacement: a Knocked-back penguin in the gap a new plunge seats into moves on.
+    setup({ players: 3, iceBreaker: 3, seed: 53 });
+    const [p0, p1, p2] = G.penguins;
+    const s = F.cldSeatSpot(0, null);
+    p0.drowned = true; p0.plug = false; p0.angle = s.angle; F.cldPlaceDrowned(p0);   // knocked back, in that gap
+    p1.x = CX + (F.cldRingR() - 25) * Math.cos(s.angle); p1.y = CY + (F.cldRingR() - 25) * Math.sin(s.angle);
+    const cs = allHold();
+    cs[1].aims.push({ penguinId: p1.id, dx: Math.cos(s.angle), dy: Math.sin(s.angle), power: 0.7 });
+    G.commits = cs;
+    const tl = F.cldResolveSlide(302);
+    ok('the new penguin plugged the gap', pen(p1.id).plug === true);
+    const d = tl.aftermath.find(b => b.type === 'displace' && b.penguinId === p0.id);
+    ok('…the knocked-back one was displaced, as its own beat', !!d);
+    ok('…to a different free seat, Plugged again', pen(p0.id).plug === true && F.cldArcDist(pen(p0.id).angle, s.angle) > 1e-3);
+  }
+  {
+    // Every arrival path keeps the ring legal: no plug overlaps a chunk or a plug.
+    let legal = true;
+    for (let seed = 60; seed < 90; seed++) {
+      setup({ players: 3 + (seed % 6), iceBreaker: 1 + (seed % 3), seed: seed });
+      for (let k = 0; k < 6; k++) {
+        const cs = allHold();
+        G.penguins.forEach(p => { if (!p.drowned) cs[p.ownerIdx].aims.push(shoveOut(p.id, 0.6 + 0.4 * ((seed + k) % 2))); });
+        G.commits = cs;
+        F.cldResolveSlide(seed * 31 + k);
+        const plugs = G.penguins.filter(p => p.drowned && p.plug);
+        plugs.forEach(p => {
+          if (Math.abs(Math.hypot(p.x - CX, p.y - CY) - F.cldRingR()) > 1e-6) legal = false;
+          F.cldRingAnchors(p.id).forEach(a => {
+            if (Math.hypot(p.x - a.x, p.y - a.y) < C.CLD_PENGUIN_R + a.r - 1e-6) legal = false;
+          });
+        });
+        if (F.cldCheckWashout() || F.cldPlayersAlive() <= 1) break;
+      }
+    }
+    ok('after every Slide of 30 random Floe-Offs, no plug overlaps anything on the ring', legal);
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  section('Throw or Dive (spec §3.4)');
+  const knockBackAt = (p, a) => { p.drowned = true; p.plug = false; p.angle = a; F.cldPlaceDrowned(p); };
+  {
+    setup({ players: 3, iceBreaker: 3, seed: 70 });
+    const [p0, p1] = G.penguins;
+    const s = F.cldSeatSpot(Math.PI, null);
+    knockBackAt(p0, s.angle - 0.30);          // nearer
+    knockBackAt(p1, s.angle + 0.60);          // further
+    const cs = allHold();
+    cs[0].dive = { penguinId: p0.id, angle: s.angle };
+    cs[1].dive = { penguinId: p1.id, angle: s.angle };
+    G.commits = cs;
+    F.cldResolveSlide(401);
+    close('two Dives at one spot: the CLOSER penguin takes it', F.cldArcDist(pen(p0.id).angle, s.angle), 0, 1e-9);
+    ok('…the other goes to the free seat nearest the target, Plugged',
+      pen(p1.id).plug === true && F.cldArcDist(pen(p1.id).angle, s.angle) > 1e-3);
+  }
+  {
+    setup({ players: 3, iceBreaker: 3, seed: 71 });
+    const [p0, p1] = G.penguins;
+    const s = F.cldSeatSpot(Math.PI, null);
+    knockBackAt(p1, s.angle - 0.30);          // same distance, seat 1
+    knockBackAt(p0, s.angle + 0.30);          // same distance, seat 0 — wins the tie
+    const cs = allHold();
+    cs[0].dive = { penguinId: p0.id, angle: s.angle };
+    cs[1].dive = { penguinId: p1.id, angle: s.angle };
+    G.commits = cs;
+    F.cldResolveSlide(402);
+    close('equal distances fall back to seat order', F.cldArcDist(pen(p0.id).angle, s.angle), 0, 1e-9);
+  }
+  {
+    setup({ players: 3, iceBreaker: 3, seed: 72 });
+    const [p0] = G.penguins;
+    const s = F.cldSeatSpot(0, null);
+    p0.drowned = true; p0.plug = true; p0.angle = s.angle; F.cldPlaceDrowned(p0);
+    const cs = allHold();
+    cs[0].dive = { penguinId: p0.id, angle: Math.PI };
+    G.commits = cs;
+    F.cldResolveSlide(403);
+    close('a PLUGGED penguin cannot Dive', F.cldArcDist(pen(p0.id).angle, s.angle), 0, 1e-9);
+  }
+  {
+    setup({ players: 3, iceBreaker: 3, seed: 73 });
+    const [p0] = G.penguins;
+    knockBackAt(p0, 0);
+    check('host drops the Snowball when a commit also Dives',
+      (F.cldApplyCommit(0, { aims: [], dive: { penguinId: p0.id, angle: 1 }, snowball: { x: 180, y: 180 } }, G.slideNo),
+       G.commits[0].snowball), null);
+    const tl = F.cldResolveSlide(404);
+    ok('…so no Snowball lands that Slide', !tl.events.some(e => e.type === 'landing'));
+  }
+  {
+    // Review Focus 5 — a Dive seals its gap before anyone slides at it.
+    setup({ players: 3, iceBreaker: 3, seed: 74 });
+    const [p0, p1] = G.penguins;
+    const s = F.cldSeatSpot(0, null);
+    knockBackAt(p0, s.angle + 1.0);
+    p1.x = CX + (F.cldRingR() - 30) * Math.cos(s.angle); p1.y = CY + (F.cldRingR() - 30) * Math.sin(s.angle);
+    const cs = allHold();
+    cs[0].dive = { penguinId: p0.id, angle: s.angle };
+    cs[1].aims.push({ penguinId: p1.id, dx: Math.cos(s.angle), dy: Math.sin(s.angle), power: 1 });
+    G.commits = cs;
+    const tl = F.cldResolveSlide(405);
+    ok('a Dive is in place for the Slide it was committed with — the shove rebounds',
+      !tl.events.some(e => e.type === 'plunge' && e.id === p1.id));
+  }
+  {
+    // Review Focus 3 — The Thaw to its floor never leaves overlaps.
+    let clean = true;
+    for (let seed = 80; seed < 95; seed++) {
+      setup({ players: 6, iceBreaker: 3, sylly: true, seed: seed });
+      G.penguins.slice(0, 4).forEach((p, k) => { const sp = F.cldSeatSpot(k * TAU / 4, p.id); if (sp) { p.drowned = true; p.plug = true; p.angle = sp.angle; F.cldPlaceDrowned(p); } });
+      for (let k = 0; k < 14; k++) {
+        G.commits = allHold();
+        F.cldResolveSlide(seed * 17 + k);
+        const plugs = G.penguins.filter(p => p.drowned && p.plug);
+        plugs.forEach(p => F.cldRingAnchors(p.id).forEach(a => {
+          if (Math.hypot(p.x - a.x, p.y - a.y) < C.CLD_PENGUIN_R + a.r - 1e-6) clean = false;
+        }));
+        if (F.cldCheckWashout()) break;
+      }
+    }
+    ok('The Thaw shrinking to its floor never leaves a plug overlapping a chunk or a plug', clean);
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  section('The Ice Bath — a Washout becomes sudden death (spec §4)');
+  {
+    setup({ players: 4, iceBreaker: 2, seed: 90, fishToWin: 3 });
+    const [p0, p1, p2, p3] = G.penguins;
+    // p2, p3 already Drowned; p0 and p1 go in together this Slide.
+    [p2, p3].forEach((p, k) => { const sp = F.cldSeatSpot(Math.PI + k, p.id); p.drowned = true; p.plug = true; p.angle = sp.angle; F.cldPlaceDrowned(p); });
+    G.bergs = [];                               // make the edge open so both really go in
+    const cs = allHold();
+    cs[0].aims.push(shoveOut(p0.id, 1)); cs[1].aims.push(shoveOut(p1.id, 1));
+    G.commits = cs;
+    const fishBefore = JSON.stringify(G.fish);
+    const floeOffBefore = G.floeOffNo;
+    const tl = F.cldResolveSlide(501);
+    check('a Washout names the bath: the penguins Standing going into the Slide',
+      (tl.bathIds || []).slice().sort(), [p0.id, p1.id].sort());
+    F.cldStartIceBath(tl.bathIds, 777);
+    check('…no Fish awarded, same Floe-Off', [JSON.stringify(G.fish), G.floeOffNo], [fishBefore, floeOffBefore]);
+    check('…the bath penguins are Standing again, the rest still Drowned',
+      G.penguins.map(p => p.drowned), [false, false, true, true]);
+    check('…on a ringless floe', G.bergs.length, 0);
+    close('…sized to the bath', G.radius, F.cldBathRadius(2, 4), 1e-9);
+    ok('…the Drowned re-seated Plugged on the new rim',
+      [p2, p3].every(p => pen(p.id).plug && Math.abs(Math.hypot(pen(p.id).x - CX, pen(p.id).y - CY) - F.cldRingR()) < 1e-6));
+    ok('…and the floor holds', F.cldBathRadius(1, 8) >= 1.25 * F.cldMinRadius() - 1e-9);
+  }
+  {
+    // Review Focus 2 — repeated baths shrink or hold, and always have ≥ 2 owners.
+    let sane = true, ringless = true;
+    for (let seed = 100; seed < 130; seed++) {
+      setup({ players: 3 + (seed % 5), iceBreaker: 1, seed: seed });
+      let last = G.penguins.length;
+      for (let k = 0; k < 40; k++) {
+        const cs = allHold();
+        G.penguins.forEach(p => { if (!p.drowned) cs[p.ownerIdx].aims.push(shoveOut(p.id, 1)); });
+        G.commits = cs;
+        const tl = F.cldResolveSlide(seed * 101 + k);
+        if (tl.bathIds) {
+          const owners = new Set(tl.bathIds.map(id => pen(id).ownerIdx));
+          if (tl.bathIds.length > last || owners.size < 2) sane = false;
+          last = tl.bathIds.length;
+          F.cldStartIceBath(tl.bathIds, seed + k);
+          if (G.bergs.length) ringless = false;
+        } else if (tl.floeOffOver) break;
+      }
+    }
+    ok('every bath roster is ≥ 2 owners and never larger than the last', sane);
+    ok('…and every bath starts ringless, whatever Ice Breaker the match uses', ringless);
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
   section('Randomised sweep — rim legality across whole matches');
   {
     const rand = G.rng(SEED);
-    let slides = 0, floeOffs = 0, washouts = 0, maxHops = 0, deepest = 0;
+    let slides = 0, floeOffs = 0, washouts = 0, deepest = 0, seats = 0, knocks = 0;
     let legality = null, thrown = null, bumper = null;
 
     for (const players of [2, 3, 4, 5, 6, 7, 8]) {
@@ -906,7 +922,7 @@ function rimLegal() {
           setup({ players: players, sylly: sylly, peckOff: peckOff,
                   ice: ['powder', 'slush', 'blackice'][players % 3],
                   floe: ['roomy', 'standard', 'cramped'][players % 3],
-                  iceBreaker: [0, 1, 3][players % 3],
+                  iceBreaker: [0, 1, 2, 3][players % 4],
                   seed: Math.floor(rand() * 1e9) });
           for (let fo = 0; fo < 3; fo++) {
             if (fo > 0) F.cldStartFloeOff(Math.floor(rand() * 1e9));
@@ -916,14 +932,15 @@ function rimLegal() {
               for (let i = 0; i < G.playerCount; i++) {
                 const mine     = G.penguins.filter(p => p.ownerIdx === i);
                 const standing = mine.filter(p => !p.drowned);
-                const c = { aims: [], dive: 0, snowball: null };
+                const c = { aims: [], dive: null, snowball: null };
                 standing.forEach(p => {
                   const ang = rand() * TAU;
                   c.aims.push({ penguinId: p.id, dx: Math.cos(ang), dy: Math.sin(ang),
                                 power: 0.15 + rand() * 0.85 });
                 });
-                if (!standing.length && mine.length) c.dive = rand() < 0.5 ? -1 : 1;
-                if (rand() < 0.3) {
+                const back = mine.find(p => p.drowned && !p.plug);
+                if (back && rand() < 0.5) c.dive = { penguinId: back.id, angle: rand() * TAU };
+                else if (rand() < 0.3) {
                   const t = rand() * TAU, rr = rand() * G.radius;
                   c.snowball = { x: CX + rr * Math.cos(t), y: CY + rr * Math.sin(t) };
                 }
@@ -940,9 +957,8 @@ function rimLegal() {
                 if ((f.plunged || f.vx !== 0 || f.vy !== 0) && !bumper)
                   bumper = `${players}p: Drowned penguin ${f.id} moved during a Slide`;
               });
-              tl.aftermath.forEach(b => {
-                if (b.type === 'surface') { maxHops = Math.max(maxHops, b.hops); }
-              });
+              seats  += tl.events.filter(e => e.type === 'seat').length;
+              knocks += tl.events.filter(e => e.type === 'knockback').length;
               deepest = Math.max(deepest, G.penguins.filter(p => p.drowned).length);
               const bad = rimLegal();
               if (bad && !legality) legality = `${players}p sylly=${sylly} peck=${peckOff}: ${bad}`;
@@ -958,18 +974,16 @@ function rimLegal() {
       if (thrown) break;
     }
 
-    ok('no legal Slide ever needed the shunt\'s loud-failure branch', thrown === null, thrown);
-    check('no two Drowned penguins ever shared a Berth position, in any configuration',
+    ok('no Slide ever threw', thrown === null, thrown);
+    check('no plug ever left the ring circle or overlapped a chunk or a plug, in any configuration',
       legality, null);
     check('and no Drowned penguin was ever moved by a Slide — a bumper, not a body in play',
       bumper, null);
     ok('the sweep genuinely exercised the loop',
-      slides > 200 && floeOffs > 20 && washouts > 0,
+      slides > 200 && floeOffs > 20 && washouts > 0 && seats > 0 && knocks > 0,
       `${slides} Slides, ${floeOffs} Floe-Offs, ${washouts} Washouts`);
     console.log(`        (${slides} Slides over ${floeOffs} Floe-Offs · ${washouts} Washouts · ` +
-                `deepest rim ${deepest} Drowned · deepest shunt ${maxHops} hop(s))`);
-    ok('the deepest shunt legal play reached is within the search\'s reach',
-      maxHops <= Math.floor(8 / 2), 'maxHops ' + maxHops);
+                `deepest rim ${deepest} Drowned · ${seats} seats · ${knocks} knock-backs)`);
   }
 
   console.log('\n' + '='.repeat(58));

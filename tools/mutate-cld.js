@@ -37,29 +37,6 @@ const SRC  = { game: fs.readFileSync(GAME, 'utf8').replace(/\r\n/g, '\n'),
 // [name, which, [ [from, to], ... ]]
 const M = [
 
-['shunt-one-hop-only', 'game', [[
-  'for (let h = 1; h <= Math.floor(N / 2); h++) {',
-  'for (let h = 1; h <= 1; h++) {']]],
-
-['shunt-ignores-free-count', 'game', [[
-`    if (ccw === cw)      pick = cw;                    // the antipode, at h = N/2
-    else if (fCw > fCcw) pick = cw;                    // prefer MORE free positions
-    else if (fCcw > fCw) pick = ccw;
-    else                 pick = (side > 0) ? cw : ccw; // tie (incl. both full) → travel direction`,
-`    pick = (side > 0) ? cw : ccw;   // MUTANT: travel direction always wins`]]],
-
-['shunt-default-anticlockwise', 'game', [[
-  '  if (!(Math.abs(t) > speed * 1e-9)) return +1;',
-  '  if (!(Math.abs(t) > speed * 1e-9)) return -1;']]],
-
-['shunt-exact-zero-not-tolerance', 'game', [[
-  '  if (!(Math.abs(t) > speed * 1e-9)) return +1;',
-  '  if (t === 0) return +1;']]],
-
-['shunt-silent-fallback', 'game', [[
-  "  throw new Error('cldAssignBerth: the rim is full at '",
-  "  return { berth: home, slot: 0, hops: -1 };\n  throw new Error('cldAssignBerth: the rim is full at '"]]],
-
 ['win-test-on-penguins', 'game', [[
 `  const alive = Object.keys(owners).map(Number);
   if (alive.length !== 1) return { winnerIdx: -1, matchOver: false };`,
@@ -69,8 +46,8 @@ const M = [
 ['washout-decided-before-thaw', 'game', [
  ['  const thaw = cldThawStep(rand);',
   '  const washoutEarly = cldCheckWashout();\n  const outcomeEarly = cldResolveFloeOff();\n  const thaw = cldThawStep(rand);'],
- ['  const washout = cldCheckWashout();\n  const outcome = cldResolveFloeOff();',
-  '  const washout = washoutEarly;\n  const outcome = outcomeEarly;']]],
+ ['  const washout = cldCheckWashout();', '  const washout = washoutEarly;'],
+ ['  const outcome = cldResolveFloeOff();', '  const outcome = outcomeEarly;']]],
 
 ['washout-blind-to-the-thaw', 'game', [[
   '  const washout = cldCheckWashout();',
@@ -90,39 +67,25 @@ const M = [
   const dropped = cldStanding().filter(p => cldDistFromCentre(p.x, p.y) > to);`]]],
 
 ['thaw-strands-the-drowned', 'game', [[
-  '  cldPenguins.forEach(p => { if (p.drowned) cldSeatDrowned(p, p.berth, p.slot); });',
+  '  cldPenguins.forEach(p => { if (p.drowned) cldPlaceDrowned(p); });',
   '  // MUTANT: Drowned penguins left stranded off the new rim']]],
 
 ['thaw-strands-the-bergs', 'game', [[
   '  cldProjectBergsToRim();',
   '  // MUTANT: Bergs left stranded off the new rim']]],
 
-['dive-shunts-instead-of-failing', 'game', [[
-`  const slot = cldPickFreeSlot(t, rand);
-  if (slot < 0) return false;              // full → stays put. This is not an error.`,
-`  let slot = cldPickFreeSlot(t, rand);
-  if (slot < 0) { const s = cldAssignBerth(p.x, p.y, 0, 0, rand); cldSeatDrowned(p, s.berth, s.slot); return true; }`]]],
-
 ['drowned-enter-the-sim-as-movable', 'game', [[
-  "    kind: p.drowned ? 'drowned' : 'penguin',",
-  "    kind: 'penguin',"]]],
+  "      ? { id: p.id, x: p.x, y: p.y, r: CLD_PENGUIN_R, kind: 'drowned', hits: 1 }",
+  "      ? { id: p.id, x: p.x, y: p.y, r: CLD_PENGUIN_R, kind: 'penguin' }"]]],
 
 ['drowned-lose-their-restitution', 'game', [[
-  "    kind: p.drowned ? 'drowned' : 'penguin',",
-  "    kind: 'penguin', immovable: true,"]]],
+  "      ? { id: p.id, x: p.x, y: p.y, r: CLD_PENGUIN_R, kind: 'drowned', hits: 1 }",
+  "      ? { id: p.id, x: p.x, y: p.y, r: CLD_PENGUIN_R, kind: 'penguin', immovable: true, hits: 1 }"]]],
 
 ['dive-resolves-after-the-slide', 'game', [
- ['  const input = cldBuildSlideInputs();\n  const res = window.Physics.simulate({',
-  '  const res = window.Physics.simulate({'],
-  ['  const dives = [];', '  const input = cldBuildSlideInputs();\n  const dives = [];']]],
-
-['slot-pick-ignores-occupancy', 'game', [[
-`  const free = [];
-  for (let s = 0; s < CLD_BERTH_SLOTS; s++) if (!cldSlotTaken(berth, s)) free.push(s);
-  if (!free.length) return -1;`,
-`  const free = [];
-  for (let s = 0; s < CLD_BERTH_SLOTS; s++) free.push(s);
-  if (cldFreeSlots(berth) === 0) return -1;`]]],
+ ['  const dives = cldResolveDives();\n', '  const dives = [];\n'],
+ ['  const standingAfterSlide = cldStanding().map(p => p.id);',
+  '  cldResolveDives();\n  const standingAfterSlide = cldStanding().map(p => p.id);']]],
 
 ['fish-awarded-on-washout', 'game', [[
 `  const alive = Object.keys(owners).map(Number);
@@ -162,9 +125,50 @@ const M = [
   'radius: CLD_SNOWBALL_R,',
   'radius: 0,']]],
 
-['berth-count-tracks-penguins', 'game', [[
-  '  cldBerthCount  = cldPlayerCount;      // fixed for the whole match — NEVER changes',
-  '  cldBerthCount  = cldPeckOff ? cldPlayerCount * 2 : cldPlayerCount;']]],
+// ── SW v243: plugs, Throw-or-Dive and the Ice Bath ─────────────────────────
+['plug-seats-on-the-rim-not-the-ring', 'game', [[
+  'function cldRingR() { return cldBergInset(); }',
+  'function cldRingR() { return cldFloeRadius; }']]],
+
+['plug-never-centres', 'game', [[
+  '    if (widthUnits < CLD_CENTRE_GAP_DIAM * 2 * CLD_PENGUIN_R) t = (s + e) / 2;',
+  '    if (false) t = (s + e) / 2;']]],
+
+['plug-absorbs-forever', 'game', [[
+  "      ? { id: p.id, x: p.x, y: p.y, r: CLD_PENGUIN_R, kind: 'drowned', hits: 1 }",
+  "      ? { id: p.id, x: p.x, y: p.y, r: CLD_PENGUIN_R, kind: 'drowned' }"]]],
+
+['no-instant-plug', 'game', [[
+  '    params:   Object.assign(cldSimParams(), { seatOnPlunge: cldSeatOnPlunge }),',
+  '    params:   cldSimParams(),']]],
+
+['no-displacement', 'game', [[
+  '      cldDisplaceFrom(p, aftermath);',
+  '      /* MUTANT: no displacement */']]],
+
+['dive-furthest-wins', 'game', [[
+  '  want.sort((a, b) => { const d = a.dist - b.dist; return Math.abs(d) > 0.01 ? d : a.seat - b.seat; });',
+  '  want.sort((a, b) => { const d = b.dist - a.dist; return Math.abs(d) > 0.01 ? d : a.seat - b.seat; });']]],
+
+['plugged-may-dive', 'game', [[
+  '    const p = cldPenguins.find(q => q.id === c.dive.penguinId && q.ownerIdx === i && q.drowned && !q.plug);',
+  '    const p = cldPenguins.find(q => q.id === c.dive.penguinId && q.ownerIdx === i && q.drowned);']]],
+
+['throw-and-dive-both', 'game', [[
+  '  if (commit && commit.dive && commit.snowball) commit = Object.assign({}, commit, { snowball: null });',
+  '  /* MUTANT: both allowed */']]],
+
+['bath-includes-everyone', 'game', [[
+  '  const bathIds = washout ? (standingAfterSlide.length ? standingAfterSlide : standingBefore) : null;',
+  '  const bathIds = washout ? cldPenguins.map(p => p.id) : null;']]],
+
+['bath-keeps-the-ring', 'game', [[
+  '  cldBergs      = [];\n  cldFloeRadius = cldBathRadius(',
+  '  cldFloeRadius = cldBathRadius(']]],
+
+['anchor-never-breaks', 'phys', [[
+  '              if (anchor.hits !== null) {',
+  "              if (anchor.kind === 'berg') {"]]],
 
 ['rng-warmup-removed', 'phys', [[
   '    for (let i = 0; i < 4; i++) step();',

@@ -18,7 +18,7 @@
 //
 // ── The five [Stage-3 tunable] constants it exists to resolve ──────────────
 //   CLD_V_MAX · CLD_SNOWBALL_R · CLD_SNOWBALL_SPEED · CLD_THAW_STEP ·
-//   CLD_BERG_COUNT   (+ a read on CLD_MIN_RADIUS_MULT, brief §19's third item)
+//   CLD_RING_COVER   (+ a read on CLD_MIN_RADIUS_MULT, brief §19's third item)
 // § F prints a verdict line per constant, each naming the number behind it.
 //
 // ── The honest caveat, stated up front ─────────────────────────────────────
@@ -71,13 +71,13 @@ vm.runInContext(fs.readFileSync(GAME, 'utf8'), sandbox, { filename: GAME });
 // cld.js declares everything with const/let, so nothing lands on the sandbox
 // object by itself. Same bridge trick as the two verify-* harnesses.
 vm.runInContext(`globalThis.__cld = {
-  C: { CLD_W, CLD_H, CLD_PENGUIN_R, CLD_BERG_R, CLD_BERG_COUNT, CLD_BERTH_SLOTS,
+  C: { CLD_W, CLD_H, CLD_PENGUIN_R, CLD_BERG_R, CLD_RING_COVER,
        CLD_THAW_STEP, CLD_START_RING, CLD_MIN_POWER, CLD_V_MAX, CLD_R_STD,
        CLD_SNOWBALL_R, CLD_SNOWBALL_SPEED, CLD_MIN_RADIUS_MULT, CLD_SIM_CAP_MS,
-       CLD_SAMPLE_HZ, CLD_FLOE_SIZE, CLD_ICE_MULT },
+       CLD_SAMPLE_HZ, CLD_FLOE_SIZE, CLD_ICE_MULT, CLD_BATH_FLOOR_MULT },
   fn: { cldFullSlideDist, cldDecel, cldMinRadius, cldSnowballForce, cldSnowballArrivalMs,
         cldStanding, cldPlayersAlive, cldDistFromCentre, cldStartMatch, cldStartFloeOff,
-        cldResolveSlide, cldMatchWinner },
+        cldResolveSlide, cldMatchWinner, cldStartIceBath, cldBathRadius },
   rng(s) { return window.Physics.rng(s); },
   get penguins()   { return cldPenguins; },
   get bergs()      { return cldBergs; },
@@ -159,9 +159,10 @@ function botCommit(i, rand, policy, aimSigma, pSnow) {
     aims.push({ penguinId: p.id, dx: Math.cos(ang), dy: Math.sin(ang), power: pow });
   });
 
-  let dive = 0;
-  const drowned = G.penguins.find(p => p.ownerIdx === i && p.drowned);
-  if (drowned && rand() < 0.25) dive = rand() < 0.5 ? -1 : +1;
+  // Throw OR Dive (SW v243): only a Knocked-back penguin may Dive, anywhere free.
+  let dive = null;
+  const back = G.penguins.find(p => p.ownerIdx === i && p.drowned && !p.plug);
+  if (back && rand() < 0.25) dive = { penguinId: back.id, angle: rand() * Math.PI * 2 };
 
   // Naive throw: at the target's position RIGHT NOW. § D measures what a
   // perfectly-leading throw would have done instead; the gap between them is
@@ -172,6 +173,7 @@ function botCommit(i, rand, policy, aimSigma, pSnow) {
     const t   = src ? pickTarget(i, src, policy) : null;
     if (t) { snowball = { x: t.x, y: t.y }; intent = { x: t.x, y: t.y, id: t.id }; }
   }
+  if (dive) { snowball = null; intent = null; }
   return { commit: { aims: aims, dive: dive, snowball: snowball }, intent: intent };
 }
 
@@ -188,7 +190,7 @@ function newMetrics() {
     balls: 0, struck: 0, bystander: 0, whiff: 0,
     contested: 0, raceMiss: 0,
     arrivalFrac: Acc(), rebounds: 0, shatters: 0, firstShatter: Acc(), withShatter: 0,
-    maxHops: 0, paths: [],
+    seats: 0, knocks: 0, bathLen: Acc(), preBath: Acc(), paths: [],
   };
 }
 
@@ -199,9 +201,11 @@ function runFloeOff(m, seed, rand, policy, sigmaFor, pSnow, onSlide) {
   m.floeOffs++;
   const floor = F.cldMinRadius();
   let sawShatter = false;
+  let bathFrom = 0;               // the Slide the current Ice Bath started after (0 = none yet)
 
   const finish = (s, tl) => {
     m.slides.v.push(s);
+    if (bathFrom) m.bathLen.v.push(s - bathFrom);
     if (tl) {
       m.endRadius.v.push(tl.radius);
       if (tl.radius <= floor + 1e-6) m.floorHits++;
@@ -229,8 +233,9 @@ function runFloeOff(m, seed, rand, policy, sigmaFor, pSnow, onSlide) {
     const sh = tl.events.filter(e => e.type === 'shatter').length;
     m.shatters += sh;
     if (sh && !sawShatter) { sawShatter = true; m.withShatter++; m.firstShatter.v.push(s); }
+    m.seats  += tl.events.filter(e => e.type === 'seat').length;
+    m.knocks += tl.events.filter(e => e.type === 'knockback').length;
     tl.aftermath.forEach(a => {
-      if (a.type === 'surface' && a.hops > m.maxHops) m.maxHops = a.hops;
       if (a.type === 'thaw-drop') m.thawDrops++;
     });
 
@@ -264,7 +269,16 @@ function runFloeOff(m, seed, rand, policy, sigmaFor, pSnow, onSlide) {
       }
     });
 
-    if (tl.washout)     { m.washouts++; finish(s, tl); return null; }
+    // A Washout is no longer the end (SW v243): the ones who went in settle it in
+    // an Ice Bath, inside the SAME Floe-Off. Each bath's length runs to the next
+    // Washout or the Floe-Off's end; preBath is the Slides before the first one.
+    if (tl.washout) {
+      m.washouts++;
+      if (bathFrom) m.bathLen.v.push(s - bathFrom); else m.preBath.v.push(s);
+      bathFrom = s;
+      F.cldStartIceBath(tl.bathIds || [], seed * 977 + s);
+      continue;
+    }
     if (tl.floeOffOver) { finish(s, tl); return tl.winnerIdx; }
   }
   m.stalls++;
@@ -275,7 +289,7 @@ function runFloeOff(m, seed, rand, policy, sigmaFor, pSnow, onSlide) {
 function configure(o) {
   G.ice = o.ice; G.floe = o.floe || 'standard'; G.sylly = !!o.sylly;
   G.peckOff = false; G.fishToWin = o.fishToWin || 999;
-  G.iceBreaker = o.iceBreaker === undefined ? 3 : o.iceBreaker;
+  G.iceBreaker = o.iceBreaker === undefined ? 2 : o.iceBreaker;   // the shipped default (SW v242)
 }
 
 function sweepConfig(o) {
@@ -293,8 +307,8 @@ function sweepConfig(o) {
 // ═══════════════════════════════════════════════════════════════════════════
 const PRESETS = {
   //                players ice      sylly  iceBreaker  pSnow
-  bergs: { players: 5, ice: 'slush', sylly: false, iceBreaker: 3, pSnow: 0.0 },
-  thaw:  { players: 5, ice: 'slush', sylly: true,  iceBreaker: 3, pSnow: 0.0 },
+  bergs: { players: 5, ice: 'slush', sylly: false, iceBreaker: 2, pSnow: 0.0 },
+  thaw:  { players: 5, ice: 'slush', sylly: true,  iceBreaker: 2, pSnow: 0.0 },
   balls: { players: 5, ice: 'slush', sylly: false, iceBreaker: 0, pSnow: 0.8 },
 };
 if (PROBE) {
@@ -307,7 +321,7 @@ if (PROBE) {
   const sig  = new Array(o.players).fill(AIM.normal);
   for (let r = 0; r < RUNS; r++) runFloeOff(m, SEED + r * 977, rand, 'neutral', sig, o.pSnow);
   console.log(JSON.stringify({
-    bergCount: C.CLD_BERG_COUNT, thawStep: C.CLD_THAW_STEP,
+    ringCover: C.CLD_RING_COVER, thawStep: C.CLD_THAW_STEP,
     ballR: C.CLD_SNOWBALL_R, ballSpeed: C.CLD_SNOWBALL_SPEED, vMax: C.CLD_V_MAX,
     slides: Acc.mean(m.slides), slidesP90: Acc.q(m.slides, 0.9),
     plunges: Acc.mean(m.plunges), washout: m.washouts / Math.max(1, m.floeOffs),
@@ -360,8 +374,8 @@ console.log('\n  Snowball force curve (§4D), standard floe, maxRange = 2R = 260
 });
 
 // ── § B. Main sweep ───────────────────────────────────────────────────────
-console.log('\n\n§ B  MAIN SWEEP — 3–8 players × 3 Ice Conditions × Thaw off/on   (Ice Breaker 3)\n');
-console.log('  N ice       thaw | slides/FO  med p90 max | plunge/sl | wash  | dur ms  p90  cap | balls  hit  whiff | race-miss | shatter@   %FO | hop');
+console.log('\n\n§ B  MAIN SWEEP — 3–8 players × 3 Ice Conditions × Thaw off/on   (Ice Breaker 2)\n');
+console.log('  N ice       thaw | slides/FO  med p90 max | plunge/sl | bath  | dur ms  p90  cap | balls  hit  whiff | race-miss | shatter@   %FO | seat/sl knock/sl');
 console.log('  ' + '─'.repeat(134));
 const sweep = [];
 for (let n = 3; n <= 8; n++) {
@@ -379,7 +393,7 @@ for (let n = 3; n <= 8; n++) {
         `${String(m.balls).padStart(6)} ${pc(m.struck, m.balls).padStart(5)} ${pc(m.whiff, m.balls).padStart(6)} |` +
         `${(pc(m.raceMiss, m.contested) + ' /' + m.contested).padStart(10)} |` +
         `${(m.withShatter ? f1(Acc.mean(m.firstShatter)) : '  —').padStart(8)} ${pc(m.withShatter, m.floeOffs).padStart(6)} |` +
-        `${String(m.maxHops).padStart(4)}`);
+        `${f2(m.seats / Math.max(1, m.slideCount)).padStart(8)} ${f2(m.knocks / Math.max(1, m.slideCount)).padStart(8)}`);
     }
   }
 }
@@ -388,19 +402,24 @@ function roll(pred) {
   const t = newMetrics();
   sweep.filter(pred).forEach(s => {
     const m = s.m;
-    ['slides', 'plunges', 'duration', 'endRadius', 'firstShatter', 'arrivalFrac']
+    ['slides', 'plunges', 'duration', 'endRadius', 'firstShatter', 'arrivalFrac', 'bathLen', 'preBath']
       .forEach(k => { t[k].v = t[k].v.concat(m[k].v); });
     ['floeOffs', 'washouts', 'stalls', 'capped', 'slideCount', 'floorHits', 'thawDrops', 'balls',
-     'struck', 'bystander', 'whiff', 'contested', 'raceMiss', 'rebounds', 'shatters', 'withShatter']
+     'struck', 'bystander', 'whiff', 'contested', 'raceMiss', 'rebounds', 'shatters', 'withShatter',
+     'seats', 'knocks']
       .forEach(k => { t[k] += m[k]; });
-    if (m.maxHops > t.maxHops) t.maxHops = m.maxHops;
   });
   return t;
 }
 const ALL = roll(() => true), THAW_ON = roll(s => s.sylly), THAW_OFF = roll(s => !s.sylly);
 
 console.log('\n  Totals: ' + ALL.floeOffs + ' Floe-Offs · ' + ALL.slideCount + ' Slides · ' +
-            ALL.balls + ' Snowballs · ' + ALL.stalls + ' stalls · deepest shunt ' + ALL.maxHops + ' hop(s)');
+            ALL.balls + ' Snowballs · ' + ALL.stalls + ' stalls');
+console.log('  Plugs ' + f2(ALL.seats / Math.max(1, ALL.slideCount)) + '/Slide · knock-backs ' +
+            f2(ALL.knocks / Math.max(1, ALL.slideCount)) + '/Slide · Ice Baths ' + ALL.washouts +
+            ' (' + pc(ALL.washouts, ALL.floeOffs) + ' of Floe-Offs) · mean bath ' + f2(Acc.mean(ALL.bathLen)) +
+            ' Slides vs ' + f2(Acc.mean(ALL.preBath)) + ' before the first bath' +
+            '   (CLD_BATH_FLOOR_MULT ' + C.CLD_BATH_FLOOR_MULT + ')');
 console.log('  Thaw OFF  slides/FO ' + f2(Acc.mean(THAW_OFF.slides)) + '  p90 ' + Acc.q(THAW_OFF.slides, 0.9) +
             '   washout ' + pc(THAW_OFF.washouts, THAW_OFF.floeOffs));
 console.log('  Thaw ON   slides/FO ' + f2(Acc.mean(THAW_ON.slides)) + '  p90 ' + Acc.q(THAW_ON.slides, 0.9) +
@@ -414,7 +433,7 @@ console.log('  By Ice Conditions (slides/FO): ' + ['powder', 'slush', 'blackice'
 console.log('\n\n§ C  ICE BREAKER — what the Bergs are actually doing   (5 players, slush, Thaw off)\n');
 console.log('  hits/Berg | rebounds/slide | shatters/FO | 1st shatter | FOs with a shatter | slides/FO | plunge/sl');
 console.log('  ' + '─'.repeat(104));
-[0, 1, 3].forEach(ib => {
+[0, 1, 2, 3].forEach(ib => {
   const m = newMetrics();
   configure({ players: 5, ice: 'slush', sylly: false, iceBreaker: ib });
   F.cldStartMatch(['A', 'B', 'C', 'D', 'E']);
@@ -422,14 +441,14 @@ console.log('  ' + '─'.repeat(104));
   const sig = new Array(5).fill(AIM.normal);
   for (let r = 0; r < RUNS; r++) runFloeOff(m, SEED + r * 613 + ib, rand, 'neutral', sig);
   console.log(
-    `  ${(ib === 0 ? 'Off' : String(ib)).padStart(9)} |${f2(m.rebounds / Math.max(1, m.slideCount)).padStart(15)} |` +
+    `  ${(ib === 0 ? 'no ring' : String(ib)).padStart(9)} |${f2(m.rebounds / Math.max(1, m.slideCount)).padStart(15)} |` +
     `${f2(m.shatters / Math.max(1, m.floeOffs)).padStart(12)} |` +
     `${(m.withShatter ? f1(Acc.mean(m.firstShatter)) : '  —').padStart(12)} |` +
     `${pc(m.withShatter, m.floeOffs).padStart(19)} |${f2(Acc.mean(m.slides)).padStart(10)} |` +
     `${f2(Acc.mean(m.plunges)).padStart(10)}`);
 });
-console.log(`\n  (CLD_BERG_COUNT = ${C.CLD_BERG_COUNT} Bergs on the rim, inset by CLD_BERG_R.` +
-            ` Ice Breaker is the per-Berg HIT CAPACITY, not the count.)`);
+console.log(`\n  (The ring covers CLD_RING_COVER = ${C.CLD_RING_COVER} of its circumference, inset by CLD_BERG_R.` +
+            ` Ice Breaker is the per-Berg HIT CAPACITY; no ring is a harness baseline, not a setting.)`);
 
 // ═══════════════════════════════════════════════════════════════════════════
 // § D. Snowball reach — the two constants brief §19 assigned to this tool.
@@ -487,8 +506,12 @@ const leadDist = Acc(), throwDist = Acc(), travelled = Acc();
       return { x: S[k][2 * idx], y: S[k][2 * idx + 1] };
     };
     const live = [];
-    pre.forEach((p, idx) => {
+    pre.forEach(p => {
       if (p.drowned) return;                       // not a target, not a thrower
+      // Samples are positional by tl.bodyIds (SW v243): a Knocked-back penguin
+      // is not a body, so cldPenguins order is NOT sample order.
+      const idx = (tl.bodyIds || []).indexOf(p.id);
+      if (idx < 0) return;
       const s0 = posAt(idx, 0);
       let peak = 0;
       for (let fr = 0; fr < S.length; fr++) {
@@ -636,7 +659,7 @@ console.log('\n  Skill headroom — one sharp aimer (σ 0.05 rad) against four l
 // ═══════════════════════════════════════════════════════════════════════════
 // § G. Constant sweep — the only honest way to compare `const` values.
 //
-// CLD_BERG_COUNT, CLD_THAW_STEP, CLD_SNOWBALL_R and CLD_SNOWBALL_SPEED are
+// CLD_RING_COVER, CLD_THAW_STEP, CLD_SNOWBALL_R and CLD_SNOWBALL_SPEED are
 // `const` in cld.js, so no bridge setter can move them and nothing measured in
 // this process can speak about an alternative value. § G patches a copy of
 // js/games/cld.js per candidate, re-spawns this script in --probe mode against
@@ -668,16 +691,16 @@ function probe(preset, constName, value, runs) {
 const SWEEP_RUNS = Math.max(40, Math.round(RUNS * 0.6));
 console.log(`\n\n§ G  CONSTANT SWEEP — patched copies of cld.js, ${SWEEP_RUNS} Floe-Offs each\n`);
 
-console.log('  CLD_BERG_COUNT   (5 players, slush, Thaw off, Ice Breaker 3, no Snowballs)');
+console.log('  CLD_RING_COVER   (5 players, slush, Thaw off, Ice Breaker 2, no Snowballs)');
 console.log('    value | rebounds/sl | shatters/FO | 1st shatter | %FO shattered | plunge/sl | slides/FO');
 console.log('    ' + '─'.repeat(88));
-[1, 2, 3, 4, 6].forEach(v => {
-  const r = probe('bergs', 'CLD_BERG_COUNT', v, SWEEP_RUNS);
+[0.5, 0.65, 0.8, 0.9].forEach(v => {
+  const r = probe('bergs', 'CLD_RING_COVER', v, SWEEP_RUNS);
   if (r.error) return console.log(`    ${String(v).padStart(5)} | ERROR ${r.error}`);
   console.log(`    ${String(v).padStart(5)} |${f2(r.rebounds).padStart(12)} |${f2(r.shatters).padStart(12)} |` +
               `${(r.withShatter ? f1(r.firstShatter) : '  —').padStart(12)} |${(f1(100 * r.withShatter) + '%').padStart(14)} |` +
               `${f2(r.plunges).padStart(10)} |${f2(r.slides).padStart(10)}` +
-              (v === C.CLD_BERG_COUNT ? '   ← shipped' : ''));
+              (v === C.CLD_RING_COVER ? '   ← shipped' : ''));
 });
 
 console.log('\n  CLD_THAW_STEP   (5 players, slush, Thaw ON, no Snowballs)');
@@ -747,10 +770,10 @@ verdict('CLD_THAW_STEP', C.CLD_THAW_STEP,
   `Floor reached in ${pc(THAW_ON.floorHits, THAW_ON.floeOffs)} of Floe-Offs; ${THAW_ON.thawDrops} thaw-drops ` +
   `over ${THAW_ON.slideCount} Slides. The Thaw cuts a Floe-Off from ${f2(Acc.mean(THAW_OFF.slides))} to ` +
   `${f2(Acc.mean(THAW_ON.slides))} Slides.`);
-verdict('CLD_BERG_COUNT', C.CLD_BERG_COUNT,
-  `At Ice Breaker 3: ${f2(ALL.rebounds / Math.max(1, ALL.slideCount))} rebounds/Slide, ` +
+verdict('CLD_RING_COVER', C.CLD_RING_COVER,
+  `At Ice Breaker 2: ${f2(ALL.rebounds / Math.max(1, ALL.slideCount))} rebounds/Slide, ` +
   `${pc(ALL.withShatter, ALL.floeOffs)} of Floe-Offs see a Berg shatter, first at Slide ` +
-  `${ALL.withShatter ? f1(Acc.mean(ALL.firstShatter)) : 'n/a'}. § C has the Off/1/3 comparison.`);
+  `${ALL.withShatter ? f1(Acc.mean(ALL.firstShatter)) : 'n/a'}. § C has the 1/2/3 comparison.`);
 console.log(`  CLD_MIN_RADIUS_MULT = ${C.CLD_MIN_RADIUS_MULT}   (brief §19's third open value)`);
 console.log(`      Floor is ${f1(F.cldMinRadius('powder'))} / ${f1(F.cldMinRadius('slush'))} / ` +
             `${f1(F.cldMinRadius('blackice'))} at powder / slush / blackice. Reached in ` +

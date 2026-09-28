@@ -952,10 +952,17 @@ function mpStopListeners() {
 //     requires Firebase RTDB rules scoping private/{uid} reads to that uid.
 async function mpSendPrivate(targetUid, envelope) {
   if (!mpActiveRoomCode || !window.syllyFirebase || !targetUid) return;
-  await window.syllyFirebase.push(
-    window.syllyFirebase.ref(`rooms/${mpActiveRoomCode}/private/${targetUid}`),
-    { ...envelope, originId: window.syllyDeviceUid, timestamp: Date.now() }
-  );
+  // A refused write must be loud (BUG-26): the live rules are the only thing that can
+  // refuse it, and no harness's fake Firebase has rules — so this warn is the one signal.
+  try {
+    await window.syllyFirebase.push(
+      window.syllyFirebase.ref(`rooms/${mpActiveRoomCode}/private/${targetUid}`),
+      { ...envelope, originId: window.syllyDeviceUid, timestamp: Date.now() }
+    );
+  } catch (err) {
+    console.warn(`[mp] private write to ${targetUid} refused (${envelope?.payload?.action}) — `
+      + 'check the live Firebase rules for rooms/$roomCode/private (multiplayer spec §2.7).', err);
+  }
 }
 
 // Every device subscribes to its OWN private queue (mirrors mpStartEventListener).

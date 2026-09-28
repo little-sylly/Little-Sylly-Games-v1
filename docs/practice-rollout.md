@@ -20,11 +20,12 @@ Practice is drawn by the game's **own renderers**, so each game's pass is also t
 **improve the action stage.** The renderer is open anyway, and we look at it with a newcomer's eyes
 (checklist item **D3**).
 
-**The standard** (from `ui-style.md` — read it there, don't re-derive it here): scripted and
-deterministic · the game's real renderers fed a model · beats gated on the player doing the thing ·
-coach caption + step counter + soft ring · **both branches** of the key decision · ends
-**Practice again / Got it** · cast **Sylvia, Sam, Shirley, Jeff**, the player is "You" · no
-multiplayer · own timer bag · reduced motion checked in JS · tabs **Rules | Practice | gallery**.
+**The standard** (from `ui-style.md` — read it there, don't re-derive it here): one of four
+**forms** — *Scripted hand* (default), *Arena*, *Lessons*, *Autopilot* (§ 5) · the game's real
+renderers fed a model · beats gated on the player doing the thing · coach caption + step counter +
+soft ring · ends **Practice again / Got it** · cast **Sylvia, Sam, Shirley, Jeff**, the player is
+"You" · no multiplayer · own timer bag · reduced motion checked in JS · tabs **Rules | Practice |
+gallery**, or **Rules | Practice** for a game with no gallery.
 
 ---
 
@@ -32,8 +33,11 @@ multiplayer · own timer bag · reduced motion checked in JS · tabs **Rules | P
 
 1. **Intake.** Read this game's card (§ 6), then its identity doc **whole**
    (`docs/game-identities/[abbr].md`), then its impl-notes Template Gaps.
-2. **Script.** Write the beat table (the shape of DYB spec § 7.2: #, beat, coach line, what the
-   player does), naming the fixed deal and both branches. **The owner signs it off before any code.**
+2. **Form + script.** Confirm the form (the card suggests one), then write it down: a beat table for
+   a Scripted hand (the shape of DYB spec § 7.2: #, beat, coach line, what the player does — the fixed
+   deal, both branches); the fixed opponent moves and the drills for an Arena; the lesson list, one
+   beat table each, for Lessons; the pre-typed answers and scripted replies for Autopilot.
+   **The owner signs it off before any code.**
    For an **S/M** game the script plus its card here *is* the spec. An **L/XL** game gets a short spec
    in `docs/superpowers/specs/`.
 3. **Plan → build → verify → close**, against the checklist in § 3.
@@ -49,13 +53,13 @@ game — an S game does not need a 4,000-line plan.
 
 | # | Item | Done when |
 |---|------|-----------|
-| **D1** | **Script signed off** | Beat table written, owner-approved: the fixed deal, coach lines, the key decision and both branches, which cast members play |
+| **D1** | **Form + script signed off** | Form chosen and written down (§ 2 step 2), owner-approved: coach lines, which cast members play, and — per form — the fixed deal and both branches / the fixed opponent moves / the lesson list / the auto-typed answers |
 | **D2** | **Stage renderers take a model** | The live game renders through `[abbr]TableModel()` → renderer; Practice through `[abbr]PracticeModel(s)` → the *same* renderer. Nothing hand-built to look like the game |
 | **D3** | **Stage review** | The action stage looked at fresh while its renderer is open; changes made, or logged in `deferred-work.md` with a reason |
 | **D4** | **Tab built** | Rules \| Practice \| gallery; coach caption + "n / N" + soft ring on the taught control; beats gated; a new coach line scrolls into view; Practice again / Got it; cast in order |
 | **D5** | **Isolation** | Own timer bag, stopped on tab-away, on close and in `resetToLobby()`; never `mpSendEnvelope`; never reads or writes live match state; opening it mid-game from the table's `[?]` disturbs nothing |
 | **D6** | **Reduced motion in JS** | Nothing travels with the setting on; end states still shown |
-| **D7** | **Practice harness** | `tools/verify-[abbr]-practice.js`: the script's claims are true for the fixed deal; both branches reach the end; gated controls stay gated; nothing is sent |
+| **D7** | **Practice harness** | `tools/verify-[abbr]-practice.js`: the coach's claims are true for the fixed setup (an Arena: the fixed opponent moves really are fixed, round after round); every branch or lesson reaches its end; gated controls stay gated; nothing is sent |
 | **D8** | **No regressions** | The game's existing harnesses (the **loopback** especially — the live stage now renders through a model) + `verify-mp-configs` + `verify-identity-docs` + `verify-build-fresh` all green |
 | **D9** | **visual-check** | **320×452 first**, then 375×548 and 375×667; a reduced-motion pass; Practice opened mid-game |
 | **D10** | **Owner hardware pass** | On a real phone, Practice end to end down **both** branches — plus whatever real-device testing the game's card says it still owes |
@@ -69,28 +73,30 @@ game — an S game does not need a 4,000-line plan.
 Status: ✅ done · 🔨 in progress · ⏳ up next · ☐ not started. **Order** is the suggested build order —
 priority first, then cheaper before harder within a band, so lessons from one game carry into the next.
 
-| Order | Game | Pri | Effort | Status | D1–D12 | Next action |
-|---:|------|:---:|:---:|:---:|--------|-------------|
-| — | **DYB** The Bluff | ref | — | ✅ | 11/12 — D10 open | Owner: confirm the hardware pass (§ 6.0) |
-| 1 | **CLD** Cold Shoulder | P1 | M | ⏳ | 0/12 | Intake + script; settle the aim-snap question (§ 5) |
-| 2 | **COMB** Honeycomb Hills | P1 | XL | ☐ | 0/12 | Settle "one Practice or lessons" (§ 5) before scripting |
-| 3 | **SS** Secret Signals | P2 | L | ☐ | 0/12 | Settles typed input for the suite (§ 5) |
-| 4 | **PKO** Pecking Order | P2 | L | ☐ | 0/12 | — |
-| 5 | **DSD** Deep-Sea Deploy | P2 | L | ☐ | 0/12 | — |
-| 6 | **GTH** Group Therapy | P2 | M | ☐ | 0/12 | — |
-| 7 | **NT** Net-Trace | P2 | L | ☐ | 0/12 | — |
-| 8 | **LTTP** Late to the Party | P2 | XL | ☐ | 0/12 | Last in P2 on purpose — it needs both § 5 answers |
-| 9 | **CJAR** Cookie Jar | P3 | M | ☐ | 0/12 | — |
-| 10 | **FRT** Fruit Salad | P3 | M | ☐ | 0/12 | — |
-| 11 | **SHP** Counting Sheep | P3 | M | ☐ | 0/12 | — |
-| 12 | **FLW** Flawless | P3 | M | ☐ | 0/12 | — |
-| 13 | **PASS** Pass | P3 | M | ☐ | 0/12 | — |
-| 14 | **BLD** Bailed | P3 | M | ☐ | 0/12 | — |
-| 15 | **NAT** Natural Selection | P3 | M | ☐ | 0/12 | — |
-| 16 | **JEC** Just Enough Cooks | P3 | M | ☐ | 0/12 | — |
-| 17 | **YGI** You Get It? | P4 | S | ☐ | 0/12 | — |
-| 18 | **GM** Great Minds | P4 | S | ☐ | 0/12 | — |
-| 19 | **LI5** Like I'm Five | P4 | S | ☐ | 0/12 | Maybe a short controls tour instead (§ 6.19) |
+**Form**: ✔ = decided by the owner; ? = the suggestion, confirmed at the game's intake (D1).
+
+| Order | Game | Pri | Effort | Form | Status | D1–D12 | Next action |
+|---:|------|:---:|:---:|------|:---:|--------|-------------|
+| — | **DYB** The Bluff | ref | — | Scripted hand ✔ | ✅ | 11/12 — D10 open | Owner: confirm the hardware pass (§ 6.0) |
+| 1 | **CLD** Cold Shoulder | P1 | M | Arena ✔ | ⏳ | 0/12 | Intake; write the two targets' fixed moves + the drills |
+| 2 | **COMB** Honeycomb Hills | P1 | XL | Lessons ✔ | ☐ | 0/12 | Pick the lesson list (§ 6.2) |
+| 3 | **SS** Secret Signals | P2 | L | Scripted + Autopilot ? | ☐ | 0/12 | — |
+| 4 | **PKO** Pecking Order | P2 | L | Scripted hand ? | ☐ | 0/12 | — |
+| 5 | **DSD** Deep-Sea Deploy | P2 | L | Scripted + Autopilot ? | ☐ | 0/12 | — |
+| 6 | **GTH** Group Therapy | P2 | M | Scripted hand ? | ☐ | 0/12 | — |
+| 7 | **NT** Net-Trace | P2 | L | Arena ? | ☐ | 0/12 | — |
+| 8 | **LTTP** Late to the Party | P2 | XL | Lessons ✔ + Autopilot | ☐ | 0/12 | Last in P2 — reuses COMB's picker and SS's autopilot |
+| 9 | **CJAR** Cookie Jar | P3 | M | Scripted hand ? | ☐ | 0/12 | — |
+| 10 | **FRT** Fruit Salad | P3 | M | Scripted hand ? | ☐ | 0/12 | — |
+| 11 | **SHP** Counting Sheep | P3 | M | Scripted hand ? | ☐ | 0/12 | — |
+| 12 | **FLW** Flawless | P3 | M | Scripted hand ? | ☐ | 0/12 | — |
+| 13 | **PASS** Pass | P3 | M | Scripted hand ? | ☐ | 0/12 | — |
+| 14 | **BLD** Bailed | P3 | M | Scripted hand ? | ☐ | 0/12 | — |
+| 15 | **NAT** Natural Selection | P3 | M | Autopilot ? | ☐ | 0/12 | — |
+| 16 | **JEC** Just Enough Cooks | P3 | M | Autopilot ? | ☐ | 0/12 | — |
+| 17 | **YGI** You Get It? | P4 | S | Autopilot ? | ☐ | 0/12 | — |
+| 18 | **GM** Great Minds | P4 | S | Autopilot ✔ | ☐ | 0/12 | — |
+| 19 | **LI5** Like I'm Five | P4 | S | Autopilot ✔ | ☐ | 0/12 | — |
 
 ### How priority and effort were scored
 
@@ -109,17 +115,18 @@ priority first, then cheaper before harder within a band, so lessons from one ga
 
 ---
 
-## 5. Questions to settle once — at the first game that hits them
+## 5. The forms, and the questions they settled (owner, 28 Sep 2026)
 
-Each answer goes into `ui-style.md` § Practice tab, so later games inherit it.
+The form **depends on the game** — there is no one shape. All of this is written into `ui-style.md`
+§ Practice tab.
 
-| Question | First hit | Games affected | Options |
-|----------|-----------|----------------|---------|
-| **Free aim / free gesture.** A scripted outcome can't survive a free drag | CLD | CLD, NT, GTH | Snap an input "close enough" to the scripted one (DYB's precedent: *Climb unlocks only on three 3s*) · or accept any input and let the script decide (GTH's drawing is never scored, so any stroke counts) |
-| **Too big for 90 s** | COMB | COMB, LTTP | One Practice with a **lesson picker** (Opening · A Turn) · a longer single script · Practice covers the core loop and the Rules tab carries the rest |
-| **Free-text input.** A script can't accept any word | SS | SS, JEC, NAT, YGI, GM, LTTP | Pre-typed answer the player confirms · pick from chips · accept any text and play on as if it were the scripted word |
-| **Role games — which seat is "You"?** | SS | SS, DSD, LTTP, BLD, NAT | Default: the role with the most to learn; the other role gets one coach beat, not a second script |
-| **No gallery tab** | SS | LI5, GM, SS, JEC, YGI, LTTP, NAT, DSD, GTH, BLD, NT, PASS | Two tabs, **Rules \| Practice** — fine as it stands; recorded so nobody invents a gallery just to fill a slot |
+| Question | Decision |
+|----------|----------|
+| **Free aim / free gesture** — a scripted result can't survive a free drag | **Don't script the result — build an Arena.** The opponents' moves are fixed (CLD: aim and strength), the player's are free, and the player practises counters against moves they know are coming. CLD is the first; NT is the likely second. GTH is different: its drawing is never scored, so it stays a Scripted hand and any stroke counts |
+| **Too big for 90 s** | **Lessons** — a picker with one lesson per key action a player takes (COMB, LTTP). A lesson that can't be interactive falls back to a step-through slideshow |
+| **Free-text input** | **Autopilot** — the answers are pre-typed or taken from an example, and the other players' replies are scripted (LI5: play a card, a scripted clue, a scripted call-out on a No-No word; GM: fully scripted). Per game: the full experience on autopilot, **or** lesson cards |
+| **Role games — which seat is "You"?** | The role with the most to learn; the other roles get a short explanation. Revisit only if a game badly needs something else |
+| **No gallery tab** | Keep it that way: **Rules \| Practice**. Don't invent a gallery just to fill the slot |
 
 ---
 
@@ -159,26 +166,35 @@ coexist.
 - **Why:** the suite's only physics-and-aim game. The drag-back shove, every penguin sliding at once,
   and the Berth afterlife (bumper, Snowball, Dive) are unlike anything else in the suite. The pass also
   catches up on its **phase-40 testing**.
+- **Form: Arena ✔** (owner). Not scripted — a practice arena. **Three penguins: You + two targets
+  (Sylvia, Sam)** whose aim and strength are **pre-set**. You see their shoves coming and try
+  counters: full power back at one, a slight angle to deflect, or getting out of the way entirely. You
+  choose; they don't. Round after round the targets do the same thing, so a counter can be tried,
+  adjusted and tried again.
 - **Teaches:** drag back from your penguin (further = harder) · release to arm, re-drag freely · **Lock
   It In** (final) · watching the simultaneous Slide · going in the Drink → the Berth: bumper, Snowball,
   Dive.
-- **Key decision (candidate):** from the Berth — **Snowball** a standing penguin, or **Dive** to a
-  better Berth.
+- **To write at D1:** each target's fixed aim + strength (one set, or a few drills to cycle through?);
+  the coach line that frames each counter; how to reset the floe (Resurface); whether the Berth
+  (Snowball / Dive) gets its own drill or appears only after you go in.
 - **Stage renderers today:** `cldDraw(dt)` reads `cldCtx`, `cldPenguins`, `cldFloeRadius`, `cldView*`,
   `cldClock`; `cldDrawAim`/`cldDrawOneAim`. The penguin seam `cldRenderPenguin` and `Physics.simulate`
   are already pure.
 - **The Floe tab is the drift the standard forbids.** `cldHowtoDrawFloe` hand-copies ~25 lines of
   `cldDraw`'s backdrop (`cld-impl-notes` DD-12). D2 makes `cldDraw` take a model and retires the copy.
-  **Owner call:** Practice replaces The Floe's Shove/Resurface sandbox, and **The Cast** stays as the
-  gallery → *Rules | Practice | The Cast*?
+  The Arena is the grown-up version of The Floe's Shove/Resurface sandbox, so it absorbs it.
+  **Owner call at D1:** does **The Cast** stay as the gallery → *Rules | Practice | The Cast*?
 - **Stage review:** aim readability and the power bar at 320 px; the commit tally; whether The Thaw's
   shrink reads on a real phone.
 - **Fold in:** phase-40 gate — **live multi-device session + offline install check**
   (`deferred-work.md` § Cold Shoulder, items 1–2); **RAF and reduced motion** for the floe sim
   (`deferred-work.md` § RAF animations — D6 makes this decision anyway, and the rule is "show the end
   state": here the resting position *is* the result).
-- **Gotchas:** the aim is free and the sim is exact, so snap the player's drag to the scripted impulse
-  within a tolerance (§ 5). `screen-cld-floe` is on the `h-screen` whitelist (drag must not scroll).
+- **Gotchas:** the targets' impulses are fixed, so the **only** variable is the player's drag, and
+  `Physics.simulate` is deterministic: the same counter always gives the same result, which is what
+  makes it practice. D7 asserts that (fixed impulses → identical outcome across runs). The Arena reads
+  and writes none of `cldPenguins`/`cldCommits`/`cldTimeline` — the DD-12 "state island" rule stands.
+  `screen-cld-floe` is on the `h-screen` whitelist (drag must not scroll).
 
 ### 6.2 COMB — Honeycomb Hills · P1 · XL
 
@@ -188,12 +204,14 @@ coexist.
 - **Teaches:** the opening snake — a Drone Cell on a corner, then a Comb Wall on an edge · the second
   cell paying out · the Scout Flight (automatic roll, no button) · collecting when *anyone* rolls ·
   the build picker (which piece → where) · a trade · the Wasp.
-- **Key decision (candidate):** spend now (build) or hold/trade for a bigger build.
+- **Form: Lessons ✔** (owner) — a picker with one lesson per key action. **Candidate list:** Place your
+  opening · The roll and collecting · Build (picker → where) · Trade · The Wasp · Instinct cards.
+  Settle the list at D1; any lesson that can't be interactive becomes a step-through slideshow.
 - **Stage renderers today:** `combDrawBoard(canvasEl, viewport)` + `combDrawStructure`/`Targets`/`Wall`
   read the board and ownership globals; `combRenderMeadow`, `PlayerPanel`, `RollResult`,
   `BuildPicker`, `Trade`, `InstinctList` too — about ten. The art seams (`combRenderHex`, `Resource`,
   `Instinct`, `Piece`, `Die`) already take arguments.
-- **First, settle "too big for 90 s" (§ 5).** It becomes a `ui-style.md` amendment and LTTP inherits it.
+- **The lesson picker is built here first** — LTTP reuses it, so keep it game-agnostic in shape.
 - **Stage review:** `deferred-work.md` § COMB gaps — **#2** the Season Log (one small 📜, not surfaced
   at gameover) and **#4** client standby shows no roster.
 - **Fold in:** the **reconnect real-device pass** (`deferred-work.md` § Reconnect — the Short Summer
@@ -214,7 +232,9 @@ coexist.
   `ssRenderCurrentClues(containerEl)`, `ssRenderCodeGuessUI(containerEl, guessArr, onSelect)` already
   take a container, but read their data from globals — halfway there. `ssRenderScoreboard`,
   `ssRenderResolution`.
-- **Settles for the suite:** typed input, and which role is "You" (§ 5).
+- **Form: Scripted hand + Autopilot ?** — the first Autopilot game, so the auto-typing is built here,
+  reusable by DSD, LTTP and the word games. "You" are the Encoder's team (the role with the most to
+  learn); the Intercept is the key decision.
 - **Fold in:** `deferred-work.md` § SS gaps.
 - **Gotchas:** the internal id is `sylly-signals`, and the file is `secret-signals.js`.
 
@@ -267,7 +287,9 @@ coexist.
   upgrade, a seal you're not allowed to make), and relative SER scoring isn't obvious.
 - **Teaches:** tap for a Firewall · long-press for a Honeypot · upgrade · tap to remove and refund · a
   placement that would seal the exit getting blocked · watching playback · reading SER.
-- **Key decision (candidate):** a Firewall (longer path) or a Honeypot (slow trap) in the same spot.
+- **Form: Arena ?** — the skill is feel, like CLD's: build freely on a fixed node, run the trace,
+  read your latency, change one block and run it again.
+- **Key decision (if scripted instead):** a Firewall (longer path) or a Honeypot (slow trap) in the same spot.
 - **Stage renderers today:** `ntRenderBuildGrid`, `ntRenderFrame(simMs)`, `ntRenderJourneyFrame(simMs)`
   and friends read globals; playback is a RAF.
 - **Stage review:** `deferred-work.md` — the allocation preview looks cruder than the build grid, and
@@ -286,8 +308,10 @@ coexist.
 - **Key decision (candidate):** the Last Drinks vote — the right suspect or the wrong one.
 - **Stage renderers today:** `lttpRenderPaneB`, `SmallTalkTabs`, `MapPane`, `PinGrid`, `VoteList`,
   `PlanLog` — all globals; the interrupts are overlays.
-- **Why last in P2:** it needs both COMB's "too big" answer and SS's typed-input answer (§ 5), and the
-  role question hits it hardest.
+- **Form: Lessons ✔ + Autopilot** — COMB's picker, with messages typing themselves. "You" are the
+  Gang (the common seat); the Friend of a Friend gets a short explanation, or a lesson of its own if
+  the pin needs one.
+- **Why last in P2:** it reuses COMB's lesson picker and SS's autopilot, so it comes after both.
 - **Fold in:** `deferred-work.md` § LTTP gaps.
 
 ### 6.9 CJAR — Cookie Jar · P3 · M
@@ -370,13 +394,15 @@ coexist.
 ### 6.18 GM — Great Minds · P4 · S
 
 - **Why:** two players converge on one word. The format is simple, and the controls are few.
-- **Key decision (candidate):** your word for the pair — Sam matches, or doesn't, and the pair moves on.
-- **Gotchas:** a two-player game: the cast is You + Sam. Typed input (§ 5).
+- **Form: Autopilot ✔ — fully scripted** (owner): both words type themselves; the player watches a
+  pair miss, become the new pair, and then match.
+- **Gotchas:** a two-player game: the cast is You + Sam.
 
 ### 6.19 LI5 — Like I'm Five · P4 · S
 
 - **Why:** Taboo, which everyone knows. What's worth showing is **Yay / Nay / Skip** under a
   running timer, and the Report Card.
-- **Candidate:** a short **controls tour** (4–5 beats) rather than a full scripted hand. Decide at
-  intake; if the tour is enough, record it as a sanctioned lighter form in `ui-style.md`.
+- **Form: Autopilot ✔** (owner's example): an example card with its No-No list, a scripted clue and
+  scripted guesses, the player tapping **Yay** / **Skip**, and a scripted call-out when a banned word
+  slips — the player taps **Nay**. Then the Report Card.
 - **Gotchas:** LI5's state is unprefixed (legacy) — name the Practice state `li5Pr*` anyway.

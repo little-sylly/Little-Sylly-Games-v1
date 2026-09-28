@@ -122,12 +122,20 @@ If `signInAnonymously` fails (network issue, auth service down), treat identical
 
 ### 2.7 Firebase Security Rules
 
-The database is structured as `/rooms/{roomCode}/`. Security rules enforce:
+**This block is the live console rules, exactly** — paste it whole into Firebase → Realtime
+Database → Rules. It was re-baselined from the owner's live copy on 28 Sep 2026 (BUG-26); the earlier
+v1.4 snippet had drifted (it named `settings`/`state`, which no code writes, and had no room-level
+`.write`, `events` or `private`). **Edit here first, then paste** — never the other way round.
 
-- Any authenticated device can **read** any room path (needed to join)
-- Only the device whose `uid` matches `hostUid` can **write** to `/rooms/{roomCode}/settings`, `/rooms/{roomCode}/state`, and `/rooms/{roomCode}/lifecycle`
-- Any authenticated device can write to its own player slot: `/rooms/{roomCode}/players/{playerIndex}` — but only if its `uid` matches the `uid` stored in that slot (set at join time)
-- Unauthenticated requests are denied entirely
+Who may write what (every write site in `engine-multiplayer.js`/`engine.js`, audited 28 Sep 2026):
+
+| Writer | Path | Granted by |
+|--------|------|-----------|
+| Host — create room, `lifecycle`, teardown, `seats`, clear `presence`, private host → seat | the room and anything under it | room `.write` (host; or a new room; or one older than 2 h) |
+| Anyone signed in — every game packet | `events` | `events` |
+| A client — its join slot, its rejoin slot `rj-{uid}`, a rename, leaving, its `onDisconnect` | `players/*` | `players/$playerIndex` (empty, or already its own) |
+| A client — its own connection marker | `presence/{uid}/*` | `presence/$uid` |
+| A client → the host — CLD's `CLD_COMMIT` (the only one) | `private/{hostUid}/*` | `private/$uid/$msg` (push-only, host's queue only, own `originId`) |
 
 ```json
 {
@@ -135,20 +143,30 @@ The database is structured as `/rooms/{roomCode}/`. Security rules enforce:
     "rooms": {
       "$roomCode": {
         ".read": "auth != null",
-        "settings": { ".write": "auth != null && data.parent().child('hostUid').val() === auth.uid" },
-        "state":    { ".write": "auth != null && data.parent().child('hostUid').val() === auth.uid" },
-        "lifecycle":{ ".write": "auth != null && data.parent().child('hostUid').val() === auth.uid" },
+        ".write": "auth != null && (!data.exists() || data.child('hostUid').val() === auth.uid || data.child('createdAt').val() < (now - 7200000))",
+        "events": {
+          ".write": "auth != null"
+        },
         "players": {
           "$playerIndex": {
-            ".write": "auth != null && (data.parent().parent().child('hostUid').val() === auth.uid || data.child('uid').val() === auth.uid || !data.exists())"
+            ".write": "auth != null && (root.child('rooms').child($roomCode).child('hostUid').val() === auth.uid || data.child('uid').val() === auth.uid || !data.exists())"
           }
         },
         "presence": {
           ".write": "auth != null && root.child('rooms').child($roomCode).child('hostUid').val() === auth.uid",
-          "$uid": { ".write": "auth != null && auth.uid === $uid" }
+          "$uid": {
+            ".write": "auth != null && auth.uid === $uid"
+          }
         },
         "seats": {
           ".write": "auth != null && root.child('rooms').child($roomCode).child('hostUid').val() === auth.uid"
+        },
+        "private": {
+          "$uid": {
+            "$msg": {
+              ".write": "auth != null && !data.exists() && $uid === root.child('rooms').child($roomCode).child('hostUid').val() && newData.child('originId').val() === auth.uid"
+            }
+          }
         }
       }
     }
@@ -165,6 +183,13 @@ uid (each client's own connection marker); `seats` is host-write-only (frozen at
 future addition of a new `rooms/{code}/<node>` path in the wire protocol must update this snippet
 **and** the live Firebase console rules in the same change — nothing in the build or a harness
 reads the live rules, so a gap here is invisible to every `tools/verify-*.js` check.
+
+**`private` addendum (SW v241, BUG-26).** The host writes every seat's private queue through the
+room-level host `.write`, so host → client private packets (FLW, PKO, CJAR, COMB, the rejoin reply)
+never needed a rule. Cold Shoulder's `CLD_COMMIT` is the suite's first **client → host** private
+write, and it fell through to that same host-only rule. The `$msg` rule above lets any signed-in
+device **push** (never overwrite — `!data.exists()`) into the **host's** queue only, stamped with its
+own uid (`originId`). A client still cannot write into another client's queue.
 
 ### 2.8 Sync Lock
 

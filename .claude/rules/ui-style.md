@@ -582,18 +582,29 @@ A How to Play overlay may carry a **Practice** tab: a hand the player plays with
 before a real game. It is the named pattern for every game's future tutorial rework
 (`docs/practice-rollout.md` tracks the retrofit — priority, effort and a definition of done per game).
 
-- A **scripted, deterministic** demo, 60–90 seconds — fixed hands, so every coach line is true.
+- **Pick the form that fits the game** (owner, 28 Sep 2026):
+  - **Scripted hand** (the default; DYB) — deterministic, 60–90 s, fixed hands so every coach line is
+    true, **both branches** at the key decision.
+  - **Arena** (CLD) — a sandbox for games whose skill is *feel*, not rules: the other players' moves
+    are fixed (CLD: each target's aim and strength), the player's are free, and the player practises
+    counters against moves they know are coming. The coach sets up the drill; it does not script the result.
+  - **Lessons** — a game too big for 90 s (COMB, LTTP) gets a **lesson picker**, one short lesson per
+    key action a player takes. The fallback, if a lesson can't be interactive, is a step-through slideshow.
+  - **Autopilot** — for typed input (LI5, GM, SS, JEC, NAT, YGI): the answers type themselves and the
+    other players' responses are scripted (LI5: the call-out when a No-No word is said), or the game uses
+    lesson cards instead. Decided per game.
+- **Role games:** "You" take the role with the most to learn; other roles get a short explanation.
 - Built from the game's **real renderers fed a model** (`dybRenderTable` / `dybPlayThrow` /
   `dybPlayReveal`), never a hand-built imitation. Build a new game's renderers model-fed from day one.
 - **Beats gated on the player doing the thing**, with a coach caption, a step counter ("3 / 7") and a
   soft ring (a `box-shadow` transition) on the control being taught. A new coach line scrolls back into view.
-- **Both branches** at the game's key decision.
 - Ends with **Practice again** / **Got it**.
 - **The Practice cast:** scripted players are drawn, in order, from **Sylvia, Sam, Shirley, Jeff**;
   the player is always "You".
 - **No multiplayer** (never `mpSendEnvelope`, never live match state); its timers live in their own
   bag, stopped on tab-away, on close and in `resetToLobby()`; reduced motion checked **in JS**.
-- Tab order: **Rules | Practice | gallery**.
+- Tab order: **Rules | Practice | gallery** — or just **Rules | Practice** for a game with no gallery.
+  Don't invent a gallery to fill the slot.
 
 ### Per-game reference
 

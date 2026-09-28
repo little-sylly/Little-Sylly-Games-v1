@@ -4116,6 +4116,32 @@ means. It was latent until a release changed a page's DOM *and* a script's expec
 
 ---
 
+**BUG-26 — a client's private write to the host was refused by the live rules, so Cold Shoulder hung
+after every non-host Lock In (28 Sep 2026, owner playtest, 3 players, SW v241).**
+
+*What happened.* Both non-host players locked in and the Slide never resolved. Each client's console
+showed `Uncaught (in promise) Error: PERMISSION_DENIED`.
+
+*Root cause.* The same gap as BUG-24, on a different node. `cldCommit()` sends `CLD_COMMIT` through
+`mpSendPrivate(cldHostUid(), …)` → `rooms/{code}/private/{hostUid}` (private so a rival cannot read
+an aim off the wire — CLD spec §11). The live rules have no `private` block, so the write falls
+through to the room's host-only `.write`. Every other private send in the suite goes **host →
+client**, which that rule allows, so CLD is the first **client → host** private write and the first
+to hit it. `verify-cld-loopback.js` (168) is green because its fake wire has no rules.
+`mpSendPrivate` also `await`ed the push with no `catch`, so the refusal surfaced only as an uncaught
+promise.
+
+*Fix.* (1) **Live rules (owner, Firebase console):** add the `private/$uid/$msg` block now in
+`multiplayer-feature-specification-v1.4.md` §2.7 — push-only, into the host's queue only, stamped
+with the writer's own `originId`. (2) `mpSendPrivate` catches the refusal and `console.warn`s the
+action and a pointer to §2.7.
+
+*Lesson.* BUG-24's lesson covered a new **node**. The same trap applies to a new **writer** on an
+existing node: any change that makes a *different role* write to a `rooms/{code}/…` path needs a rules
+line too. Ask "who writes here now, and does the live rule let them?", not only "is this path new?"
+
+---
+
 ## Multiplayer Lessons
 
 ### ML-01 — A lobby bound that reads game state reads it before the game has run [23 Aug 2026, SW v210]

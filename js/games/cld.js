@@ -7,8 +7,8 @@
 //             engine.js (showScreen, play*, activeGameId, resetToLobby)
 //
 // ── STAGE 2 OF 6 (spec §15 build order) ────────────────────────────────────
-// This file currently holds the RULES LAYER ONLY: constants, state, Berth
-// geometry, the multi-hop shunt, Dives, Berg placement, Slide resolution,
+// This file currently holds the RULES LAYER ONLY: constants, state, ring
+// geometry (where a Drowned penguin plugs), Throw-or-Dive, Berg placement, Slide resolution,
 // The Thaw, Washout and Fish scoring. There is deliberately NO DOM, NO canvas,
 // NO multiplayer and NO event wiring in it yet — Stage 4 adds the UI and the
 // render seam, Stage 5 the MP layer. Everything here is driven headlessly by
@@ -16,8 +16,9 @@
 // sandbox until then.
 //
 // The seam with js/lib/physics.js (spec §4A): the sim owns motion and only
-// ever *reports* a plunge. Everything a plunge MEANS — which Berth, which
-// slot, whether the Floe-Off just ended — is decided here, between runs.
+// ever *reports* a plunge (and, through params.seatOnPlunge, seats it where this
+// file says). Everything a plunge MEANS — which gap it plugs, who is displaced,
+// whether the Floe-Off just ended or an Ice Bath starts — is decided here.
 // ═══════════════════════════════════════════════════════════════════════════
 
 // ── Constants ──────────────────────────────────────────────────────────────
@@ -30,7 +31,7 @@ const CLD_RESULT_MS       = 2500;      // Floe-Off result beat
 const CLD_WASHOUT_MS      = 1500;      // brief Decision 21 — the joke needs the beat
 const CLD_COLLISION_SFX_MS = 90;       // min gap between collision sounds (§9 throttle)
 const CLD_PENGUIN_R       = 11;        // logical units — the collision circle IS the sprite
-const CLD_BERG_R          = 12;
+const CLD_BERG_R          = 16;        // SW v242 — was 12; the ring is ~80% ice now, not 3 chunks
 const CLD_SUBSTEP_MS      = 1000 / CLD_SIM_HZ;
 
 // ── Ice Conditions and floe geometry (§4B) ─────────────────────────────────
@@ -75,31 +76,27 @@ const CLD_FLOE_SIZE = { roomy: 150, standard: CLD_R_STD, cramped: 110 };
 
 // ── Rim, Berg and launch constants ─────────────────────────────────────────
 const CLD_TAU         = Math.PI * 2;
-// Two slots per Berth is the MINIMUM that satisfies both stated constraints at
-// once: §4C's "two Drowned penguins may share a Berth" needs ≥2, and Peck Off
-// (2 Berths, 4 penguins, up to 3 Drowned at once while both players are still
-// alive) needs rim capacity ≥ 3. At 2 the capacity invariant is stronger than
-// §4C claims — N·2 slots always exceeds the penguin count, in every mode — so
-// the shunt can never run out of rim. See cld-implementation-notes DD-11.
-const CLD_BERTH_SLOTS = 2;
 // Confirmed at Stage 3. 8 units/Slide bottoms out a Standard floe in 9 Slides
 // against a measured 4.21 Slides/Floe-Off under the Thaw, and halves Floe-Off
 // length (9.92 → 4.21). The ceiling is the Washout rate, not the shrink rate:
 // 12/16/24 take it to 15%/17%/23% of Floe-Offs voided, and a Washout is a joke
 // beat (§8) that stops being funny at one in five. 4 and 6 never bite.
 const CLD_THAW_STEP   = 8;      // logical units shed per Slide under The Thaw
-// Confirmed at Stage 3, and deliberately NOT raised. At 3 Bergs / Ice Breaker
-// 3 the sweep gives 0.31 rebounds per Slide against 0.37 plunges — a Berg
-// already saves nearly as many penguins as the edge takes. Raising it to 4
-// moves the share of Floe-Offs that see a shatter from 30.0% to 33.9%, which is
-// inside this instrument's bot-model noise and not worth a constant change; 6
-// reaches 57.2% but walls the rim in (0.52 rebounds/Slide). The "until they
-// shatter" arc is the ICE BREAKER setting's job, not the count's — at capacity
-// 1 a Berg breaks in 79% of Floe-Offs, at capacity 3 in 24%, which is the range
-// the setting exists to span. If playtest finds Bergs invisible, 4 is the next
-// value and § G of the balance instrument is the table to re-read.
-const CLD_BERG_COUNT  = 3;      // Bergs placed when Ice Breaker is on
+// ── The Berg ring (SW v242 — owner playtest, 28 Sep 2026) ────────────────────
+// Three Bergs (~10% of the rim) made a 3-player Floe-Off last a median 3 Slides
+// on Slush with the Thaw, 2 on Black Ice. The ring is now sized by COVERAGE of
+// its own circumference — so a Cramped floe gets fewer chunks than a Roomy one
+// and never overlaps — with 2–3 SLIP GAPS a penguin can fall through (random
+// widths, so some are easy and some are a squeeze) and hairline cracks between
+// the rest. At 80% and Ice Breaker 2 the instrument reads (3 players, mean
+// Slides/Floe-Off) Slush+Thaw 3.8 → 5.8, Slush 7.9 → 13.7, Black Ice 2.3 → 7.7.
+// The Thaw calves the ring as it shrinks, so it stays an EARLY barrier.
+// See cld-implementation-notes DD-16.
+const CLD_RING_COVER     = 0.80;  // share of the Berg circle's circumference that is ice
+const CLD_SLIP_GAPS      = [2, 3];                  // min, max slip gaps per Floe-Off
+const CLD_SLIP_GAP_WIDTH = [1.6, 2.4];              // × penguin diameter, arc length
 const CLD_START_RING  = 0.55;   // penguins start on this fraction of the floe radius
+const CLD_BATH_FLOOR_MULT = 1.25;   // Ice Bath radius floor, × cldMinRadius() — a tuning value (Task 8)
 const CLD_MIN_POWER   = 0.08;   // §7 — below this a drag is "Too soft", never a commit
 
 // ── Settings (persist between play-agains) ─────────────────────────────────
@@ -108,7 +105,7 @@ let cldFloeSize      = 'standard'; // 'roomy' | 'standard' | 'cramped'
 let cldFloeSizeTouched = false;    // false → auto-pre-select by player count at match start (§5)
 let cldFishToWin     = 3;          // 1 | 3 | 5
 let cldAimAssist     = true;
-let cldIceBreaker    = 3;          // 0 (Off) | 1 | 3  — Berg hit capacity
+let cldIceBreaker    = 2;          // 1 | 2 | 3 — Berg hit capacity (0 = no ring: harness-only, never offered)
 let cldPeckOff       = false;      // 1v1, two penguins each — forces room bounds to exactly 2
 let cldSyllyMode     = false;      // ✨ The Thaw — always last
 
@@ -124,9 +121,14 @@ let cldMatchStats  = [];   // [playerIdx] = { slidesStood, plunges } — the two
 // ── Floe-Off state (reset on every Resurface) ──────────────────────────────
 let cldSlideNo     = 0;
 let cldFloeRadius  = 0;    // shrinks under The Thaw; floored per §4B
-let cldPenguins    = [];   // [{ id, ownerIdx, x, y, drowned, berth, slot }]  id = `${ownerIdx}-${n}`
+// [{ id, ownerIdx, x, y, drowned, plug, angle, seq }]  id = `${ownerIdx}-${n}`
+// plug true = Plugged (a one-hit bumper in its gap); drowned && !plug = Knocked
+// back (bobbing outside the rim, not a body). angle/seq are null while Standing;
+// seq is the seat order within a Floe-Off (The Thaw's "later-seated").
+let cldPenguins    = [];
 let cldBergs       = [];   // [{ id, x, y, r, hits, angle }] — hits survive Slides, reset on Resurface
-let cldBerthCount  = 0;    // === cldPlayerCount, for the whole match. NEVER changes.
+let cldSeatSeq     = 0;    // monotonic seat counter, reset every Floe-Off
+let cldInBath      = false;// true while an Ice Bath is being played out (same Floe-Off)
 
 // ── Slide state (reset each Slide) ─────────────────────────────────────────
 let cldCommits     = [];   // [playerIdx] = commit object | null. HOST-LOCAL. Never broadcast.
@@ -135,7 +137,8 @@ let cldPlaybackT   = 0;    // ms into the current playback
 
 // ── Turn / input state (this device only) ──────────────────────────────────
 let cldMyAims      = [];   // [{ penguinId, dx, dy, power }] — armed, not committed
-let cldMyDive      = 0;    // -1 | 0 | +1
+let cldMyDive      = null; // null | { penguinId, angle } — a Knocked-back penguin's chosen spot
+let cldMyMode      = 'throw'; // 'throw' | 'dive' — the Knocked-back player's switch (spec §3.4)
 let cldMySnowball  = null; // { x, y } | null
 let cldCommitted   = false;// local double-tap guard (NOT the authority — see §11)
 let cldPowerLock   = null; // locked power 0..1, or null. Persists across Slides, resets on Resurface
@@ -187,25 +190,11 @@ function cldSimParams() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// Berth geometry (§4C)
-// Berth k is the arc [k·2π/N, (k+1)·2π/N). Each Berth holds CLD_BERTH_SLOTS
-// discrete positions, evenly spaced inside its own arc.
-//
-// CLOCKWISE means an INCREASING Berth index throughout this file. The canvas
-// y-axis points down, so a growing atan2 angle sweeps clockwise on screen.
+// Angles and the rim. CLOCKWISE means an INCREASING angle throughout this file:
+// the canvas y-axis points down, so a growing atan2 angle sweeps clockwise.
 // ═══════════════════════════════════════════════════════════════════════════
 
 function cldNormAngle(a) { return ((a % CLD_TAU) + CLD_TAU) % CLD_TAU; }
-function cldBerthArc()   { return CLD_TAU / cldBerthCount; }
-
-function cldBerthOfAngle(a) {
-  return Math.min(cldBerthCount - 1, Math.floor(cldNormAngle(a) / cldBerthArc()));
-}
-
-function cldSlotAngle(berth, slot) {
-  const arc = cldBerthArc();
-  return berth * arc + arc * (slot + 0.5) / CLD_BERTH_SLOTS;
-}
 
 function cldRimPos(angle, radius) {
   const r = (radius === undefined) ? cldFloeRadius : radius;
@@ -213,116 +202,6 @@ function cldRimPos(angle, radius) {
 }
 
 function cldDistFromCentre(x, y) { return Math.hypot(x - CLD_W / 2, y - CLD_H / 2); }
-
-function cldSlotTaken(berth, slot) {
-  return cldPenguins.some(p => p.drowned && p.berth === berth && p.slot === slot);
-}
-
-function cldFreeSlots(berth) {
-  let n = 0;
-  for (let s = 0; s < CLD_BERTH_SLOTS; s++) if (!cldSlotTaken(berth, s)) n++;
-  return n;
-}
-
-// Seeded, per §4C step 2. `rand` is always a Physics.rng stream — never a bare
-// Math.random(), or two devices resolve the same Slide differently.
-function cldPickFreeSlot(berth, rand) {
-  const free = [];
-  for (let s = 0; s < CLD_BERTH_SLOTS; s++) if (!cldSlotTaken(berth, s)) free.push(s);
-  if (!free.length) return -1;
-  return free[Math.min(free.length - 1, Math.floor(rand() * free.length))];
-}
-
-// Which way round the rim was this penguin travelling? The tangent in the
-// direction of increasing angle is (−sin a, cos a), so a positive projection
-// means clockwise. A dead-straight or zero-velocity exit — every thaw-drop is
-// one — falls through to the documented CLOCKWISE default.
-function cldShuntSide(exitAngle, vx, vy) {
-  const speed = Math.hypot(vx, vy);
-  const t = -vx * Math.sin(exitAngle) + vy * Math.cos(exitAngle);
-  // "Dead-straight" has to be a TOLERANCE, never an exact zero. A purely radial
-  // exit computes t as the difference of two products that are equal in real
-  // arithmetic but not in IEEE, so it lands a few ulps either side of zero with
-  // an arbitrary sign — two identical exits would shunt opposite ways. A true
-  // zero-velocity exit (every thaw-drop) falls in here too.
-  if (!(Math.abs(t) > speed * 1e-9)) return +1;
-  return t > 0 ? +1 : -1;
-}
-
-// ═══════════════════════════════════════════════════════════════════════════
-// Berth assignment — the multi-hop shunt (§4C). Never fails.
-//
-// There is deliberately NO "nowhere left to put them" fallback. Rim capacity
-// (N × CLD_BERTH_SLOTS) always exceeds the number of penguins in play, in every
-// mode, so the search cannot run out of rim. If it ever does, an invariant has
-// broken upstream and the correct response is a loud failure — never a silent
-// placement that quietly corrupts the rim.
-// ═══════════════════════════════════════════════════════════════════════════
-function cldAssignBerth(x, y, vx, vy, rand) {
-  const angle = Math.atan2(y - CLD_H / 2, x - CLD_W / 2);
-  const home  = cldBerthOfAngle(angle);
-  const N     = cldBerthCount;
-
-  const own = cldPickFreeSlot(home, rand);
-  if (own >= 0) return { berth: home, slot: own, hops: 0 };
-
-  const side = cldShuntSide(cldNormAngle(angle), vx, vy);
-
-  for (let h = 1; h <= Math.floor(N / 2); h++) {
-    const ccw = ((home - h) % N + N) % N;   // decreasing index
-    const cw  = (home + h) % N;             // increasing index — "clockwise"
-    const fCcw = cldFreeSlots(ccw);
-    const fCw  = cldFreeSlots(cw);
-
-    let pick;
-    if (ccw === cw)      pick = cw;                    // the antipode, at h = N/2
-    else if (fCw > fCcw) pick = cw;                    // prefer MORE free positions
-    else if (fCcw > fCw) pick = ccw;
-    else                 pick = (side > 0) ? cw : ccw; // tie (incl. both full) → travel direction
-
-    const slot = cldPickFreeSlot(pick, rand);
-    if (slot >= 0) return { berth: pick, slot: slot, hops: h };
-  }
-
-  throw new Error('cldAssignBerth: the rim is full at ' + cldPenguins.filter(p => p.drowned).length +
-                  ' Drowned across ' + N + ' Berths × ' + CLD_BERTH_SLOTS +
-                  ' slots — a §4C capacity invariant broke upstream');
-}
-
-// Move a Drowned penguin onto its Berth slot on the current rim.
-function cldSeatDrowned(p, berth, slot) {
-  p.berth = berth;
-  p.slot  = slot;
-  const pos = cldRimPos(cldSlotAngle(berth, slot));
-  p.x = pos.x;
-  p.y = pos.y;
-}
-
-// ═══════════════════════════════════════════════════════════════════════════
-// Dive (§4C) — voluntary, one Berth left or right, and ALLOWED TO FAIL.
-// No shunt, no search: a full target Berth means the penguin simply stays put.
-// The aiming UI renders a full direction as unavailable (Stage 4) rather than
-// letting it fail silently at resolution.
-// ═══════════════════════════════════════════════════════════════════════════
-function cldDiveTarget(p, dir) {
-  const N = cldBerthCount;
-  if (!p || !p.drowned || !dir || N < 2) return -1;
-  return ((p.berth + dir) % N + N) % N;
-}
-
-function cldDiveAvailable(p, dir) {
-  const t = cldDiveTarget(p, dir);
-  return t >= 0 && t !== p.berth && cldFreeSlots(t) > 0;
-}
-
-function cldApplyDive(p, dir, rand) {
-  const t = cldDiveTarget(p, dir);
-  if (t < 0 || t === p.berth) return false;
-  const slot = cldPickFreeSlot(t, rand);
-  if (slot < 0) return false;              // full → stays put. This is not an error.
-  cldSeatDrowned(p, t, slot);
-  return true;
-}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Bergs — placement is a GAME rule, so it lives here and not in physics.js.
@@ -332,23 +211,188 @@ function cldBergInset() { return cldFloeRadius - CLD_BERG_R; }
 
 function cldPlaceBergs(rand) {
   cldBergs = [];
-  if (!cldIceBreaker) return;                       // Ice Breaker Off — no Bergs at all
-  const share = CLD_TAU / CLD_BERG_COUNT;
-  for (let i = 0; i < CLD_BERG_COUNT; i++) {
-    // Jittered inside its own share of the rim, so two Bergs can never stack.
-    const angle = i * share + share * (0.25 + rand() * 0.5);
-    const pos   = cldRimPos(angle, cldBergInset());
+  if (!cldIceBreaker) return;                       // no ring at all (harness isolation only)
+  const inset = cldBergInset();
+  const circ  = CLD_TAU * inset;
+  // The arc a chunk occupies, measured so two chunks with a zero gap TOUCH (chord
+  // = 2r) — never the chord≈arc shortcut, which would count them as overlapping.
+  const chunk = 2 * inset * Math.asin(Math.min(1, CLD_BERG_R / inset));
+  const lo = CLD_SLIP_GAPS[0], hi = CLD_SLIP_GAPS[1];
+  const nSlip   = lo + Math.floor(rand() * (hi - lo + 1));
+  const minSlip = 2 * CLD_PENGUIN_R * CLD_SLIP_GAP_WIDTH[0];
+  // A small (Cramped) ring may not have the spare arc for its slip gaps at full
+  // coverage — then it loses a chunk, never a slip gap and never by overlapping.
+  let n = Math.floor(circ * CLD_RING_COVER / chunk);
+  while (n > nSlip && circ - n * chunk < nSlip * minSlip) n--;
+  // Slip gaps first — each a random width in penguin diameters — then whatever
+  // arc is left is split across the other gaps by random weights: hairline
+  // cracks, never wide enough to fall through, so the ring reads as chunks.
+  const gaps = new Array(n).fill(0);
+  const slipIdx = [];
+  while (slipIdx.length < nSlip) {
+    const k = Math.floor(rand() * n);
+    if (slipIdx.indexOf(k) < 0) slipIdx.push(k);
+  }
+  const w = CLD_SLIP_GAP_WIDTH;
+  slipIdx.forEach(k => { gaps[k] = 2 * CLD_PENGUIN_R * (w[0] + rand() * (w[1] - w[0])); });
+  // Wide draws that together overrun the spare arc are scaled back to fit —
+  // never below the minimum, which the loop above has already made room for.
+  const spare = circ - n * chunk, slipSum = gaps.reduce((t, g) => t + g, 0);
+  if (slipSum > spare) {
+    const over = slipSum - spare, room = slipSum - nSlip * minSlip;
+    slipIdx.forEach(k => { gaps[k] -= over * (gaps[k] - minSlip) / (room || 1); });
+  }
+  const left = Math.max(0, circ - n * chunk - gaps.reduce((t, g) => t + g, 0));
+  const wts  = gaps.map(g => g ? 0 : rand());
+  const sumW = wts.reduce((t, x) => t + x, 0) || 1;
+  wts.forEach((x, k) => { if (x) gaps[k] = left * x / sumW; });
+  // Walk the circle: chunk, then its gap. A random start so the slip gaps land
+  // anywhere, and the angle is kept so The Thaw can re-project it exactly.
+  let arc = rand() * circ;
+  for (let i = 0; i < n; i++) {
+    const angle = (arc + chunk / 2) / inset;
+    const pos   = cldRimPos(angle, inset);
     cldBergs.push({ id: 'berg-' + i, x: pos.x, y: pos.y, r: CLD_BERG_R,
-                    hits: cldIceBreaker, angle: angle });
+                    hits: cldIceBreaker, angle: cldNormAngle(angle) });
+    arc += chunk + gaps[i];
   }
 }
 
+// The Thaw carries the ring inward with the rim, and a smaller circle cannot
+// hold the same chunks — so the ring CALVES: walking round it, any Berg that
+// would now overlap the last one kept breaks off (the more-damaged of the pair
+// goes). The ring thins as the floe melts instead of piling up on itself.
 function cldProjectBergsToRim() {
   cldBergs.forEach(b => {
     const pos = cldRimPos(b.angle, cldBergInset());
     b.x = pos.x;
     b.y = pos.y;
   });
+  // Plugs are fixed: a chunk the shrinking ring squeezes into a plug calves (§3.5).
+  const plugs = cldPenguins.filter(p => p.drowned && p.plug);
+  cldBergs = cldBergs.filter(b => !plugs.some(p =>
+    Math.hypot(p.x - b.x, p.y - b.y) < CLD_PENGUIN_R + b.r - 0.01));
+  if (cldBergs.length < 2) return;
+  const ring = cldBergs.slice().sort((p, q) => p.angle - q.angle);
+  const keep = [ring[0]];
+  const hit  = (p, q) => Math.hypot(p.x - q.x, p.y - q.y) < p.r + q.r - 0.01;
+  for (let i = 1; i < ring.length; i++) {
+    const last = keep[keep.length - 1];
+    if (!hit(ring[i], last)) { keep.push(ring[i]); continue; }
+    if (ring[i].hits > last.hits) keep[keep.length - 1] = ring[i];
+  }
+  // Close the circle: the last kept chunk against the first.
+  if (keep.length > 1 && hit(keep[keep.length - 1], keep[0])) {
+    if (keep[keep.length - 1].hits > keep[0].hits) keep.shift(); else keep.pop();
+  }
+  const ids = new Set(keep.map(b => b.id));
+  cldBergs = cldBergs.filter(b => ids.has(b.id));
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Ring geometry (SW v243) — where a Drowned penguin can sit. A penguin can only
+// go in through a GAP, and it plugs the gap it went through. Plugs and chunks
+// share one circle (cldRingR): a plug out on the rim can be squeezed past in
+// the widest slip gaps, a plug on the ring circle, centred, cannot (the seal
+// harness proves it for every generated width). spec §3.1.
+// ═══════════════════════════════════════════════════════════════════════════
+const CLD_CENTRE_GAP_DIAM = 2;                  // open interval < this × penguin diameter → seat at its centre
+const CLD_BACK_OFFSET     = CLD_PENGUIN_R * 1.4; // a Knocked-back penguin bobs this far outside the rim
+
+function cldRingR() { return cldBergInset(); }
+function cldAngleOf(x, y) { return cldNormAngle(Math.atan2(y - CLD_H / 2, x - CLD_W / 2)); }
+function cldArcDist(a, b) {
+  const d = Math.abs(cldNormAngle(a) - cldNormAngle(b));
+  return Math.min(d, CLD_TAU - d);
+}
+
+// PURE. `anchors` are [{ x, y, r }] — chunks and Plugged Drowned, live. Returns
+// the free seat nearest `angle`, or null when the ring has no room anywhere.
+function cldSeatSpotFrom(anchors, angle) {
+  const R = cldRingR();
+  const a = cldNormAngle(angle);
+  const at = t => { const pos = cldRimPos(t, R); return { angle: cldNormAngle(t), x: pos.x, y: pos.y }; };
+  if (!anchors.length) return at(a);
+  // Each anchor forbids a centre-angle interval: the chord at which a penguin
+  // would touch it exactly (chord-exact, so touching is allowed, overlap not).
+  const bans = anchors.map(q => {
+    const c = cldAngleOf(q.x, q.y);
+    const half = 2 * Math.asin(Math.min(1, (q.r + CLD_PENGUIN_R) / (2 * R)));
+    return [c - half, c + half];
+  });
+  // Unroll onto [a0, a0 + τ) starting at the first ban's start, merge, invert.
+  const base = bans[0][0];
+  const norm = bans.map(([s, e]) => { const s2 = base + cldNormAngle(s - base); return [s2, s2 + (e - s)]; })
+                   .sort((p, q) => p[0] - q[0]);
+  const merged = [];
+  norm.forEach(iv => {
+    const last = merged[merged.length - 1];
+    if (last && iv[0] <= last[1]) last[1] = Math.max(last[1], iv[1]); else merged.push(iv.slice());
+  });
+  const open = [];
+  for (let i = 0; i < merged.length; i++) {
+    const s = merged[i][1];
+    const e = i + 1 < merged.length ? merged[i + 1][0] : merged[0][0] + CLD_TAU;
+    if (e >= s) open.push([s, e]);                  // a zero-width interval still fits exactly
+  }
+  if (!open.length) return null;
+  let best = null, bestD = Infinity;
+  open.forEach(([s, e]) => {
+    const widthUnits = (e - s) * R;
+    let t;
+    if (widthUnits < CLD_CENTRE_GAP_DIAM * 2 * CLD_PENGUIN_R) t = (s + e) / 2;
+    else {
+      const aa = s + cldNormAngle(a - s);           // a, unrolled into this interval's frame
+      t = aa <= e ? aa : (cldArcDist(a, s) < cldArcDist(a, e) ? s : e);
+    }
+    const d = cldArcDist(a, t);
+    if (d < bestD) { bestD = d; best = t; }
+  });
+  return at(best);
+}
+
+function cldRingAnchors(excludeId) {
+  const out = cldBergs.map(b => ({ id: b.id, x: b.x, y: b.y, r: b.r }));
+  cldPenguins.forEach(p => {
+    if (p.drowned && p.plug && p.id !== excludeId) out.push({ id: p.id, x: p.x, y: p.y, r: CLD_PENGUIN_R });
+  });
+  return out;
+}
+
+function cldSeatSpot(angle, excludeId) { return cldSeatSpotFrom(cldRingAnchors(excludeId), angle); }
+
+// ── Drowned placement ─────────────────────────────────────────────────────
+function cldPlaceDrowned(p) {
+  const r = p.plug ? cldRingR() : cldFloeRadius + CLD_BACK_OFFSET;
+  const pos = cldRimPos(p.angle, r);
+  p.x = pos.x; p.y = pos.y;
+}
+function cldSeatAt(p, spot) {
+  p.drowned = true; p.plug = true; p.angle = spot.angle; p.seq = ++cldSeatSeq;
+  p.x = spot.x; p.y = spot.y;
+}
+function cldKnockBack(p) { p.plug = false; cldPlaceDrowned(p); }
+function cldSurfaceAt(p, angle) {
+  p.drowned = true;
+  const spot = cldSeatSpot(angle, p.id);
+  if (spot) { cldSeatAt(p, spot); return true; }
+  p.plug = false; p.angle = cldNormAngle(angle); cldPlaceDrowned(p);
+  return false;
+}
+// "In that gap" = its plug would overlap the new one (spec §3.3 step 2).
+function cldDisplaceFrom(plugged, aftermath) {
+  const clash = 2 * Math.asin(Math.min(1, CLD_PENGUIN_R / cldRingR()));   // two penguins touching, chord-exact
+  cldPenguins.forEach(q => {
+    if (!q.drowned || q.plug || q.id === plugged.id) return;
+    if (cldArcDist(q.angle, plugged.angle) >= clash) return;
+    const plugs = cldSurfaceAt(q, q.angle);
+    aftermath.push({ type: 'displace', penguinId: q.id, x: q.x, y: q.y, plug: plugs });
+  });
+}
+// The physics callback — pure: reads only its arguments and the ring radius.
+function cldSeatOnPlunge(x, y, vx, vy, anchors) {
+  const s = cldSeatSpotFrom(anchors, cldAngleOf(x, y));
+  return s ? { x: s.x, y: s.y } : null;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -357,7 +401,6 @@ function cldProjectBergsToRim() {
 function cldStartMatch(names) {
   cldPlayerNames = names.slice();
   cldPlayerCount = cldPlayerNames.length;
-  cldBerthCount  = cldPlayerCount;      // fixed for the whole match — NEVER changes
   cldFish        = new Array(cldPlayerCount).fill(0);
   cldMatchStats  = [];
   for (let i = 0; i < cldPlayerCount; i++) cldMatchStats.push({ slidesStood: 0, plunges: 0 });
@@ -371,6 +414,8 @@ function cldStartFloeOff(seed) {
 
   cldFloeOffNo += 1;
   cldSlideNo    = 0;
+  cldSeatSeq    = 0;
+  cldInBath     = false;
   cldFloeRadius = CLD_FLOE_SIZE[cldFloeSize];
   cldPowerLock  = null;
   cldTimeline   = null;
@@ -386,7 +431,7 @@ function cldStartFloeOff(seed) {
       const angle = (seat / total) * CLD_TAU;
       const pos   = cldRimPos(angle, cldFloeRadius * CLD_START_RING);
       cldPenguins.push({ id: i + '-' + k, ownerIdx: i, x: pos.x, y: pos.y,
-                         drowned: false, berth: null, slot: null });
+                         drowned: false, plug: false, angle: null, seq: null });
     }
   }
 
@@ -397,17 +442,21 @@ function cldStartFloeOff(seed) {
 // ═══════════════════════════════════════════════════════════════════════════
 // Slide resolution — the host-authoritative core.
 //
-// A commit is { aims: [{ penguinId, dx, dy, power }], dive: -1|0|+1,
-//               snowball: { x, y } | null }.
+// A commit is { aims: [{ penguinId, dx, dy, power }],
+//               dive: null | { penguinId, angle }, snowball: { x, y } | null }.
+// dive and snowball are mutually exclusive — Throw OR Dive (spec §3.4).
 // ═══════════════════════════════════════════════════════════════════════════
 function cldBuildSlideInputs() {
   const bodies = [], impulses = [], events = [];
 
-  // Body order IS the wire contract — samples[] are positional (§4A).
-  cldPenguins.forEach(p => bodies.push({
-    id: p.id, x: p.x, y: p.y, r: CLD_PENGUIN_R,
-    kind: p.drowned ? 'drowned' : 'penguin',
-  }));
+  // Body order IS the wire contract — samples[] are positional (§4A), and the
+  // order travels as tl.bodyIds because Knocked-back penguins are NOT bodies.
+  cldPenguins.forEach(p => {
+    if (p.drowned && !p.plug) return;
+    bodies.push(p.drowned
+      ? { id: p.id, x: p.x, y: p.y, r: CLD_PENGUIN_R, kind: 'drowned', hits: 1 }
+      : { id: p.id, x: p.x, y: p.y, r: CLD_PENGUIN_R, kind: 'penguin' });
+  });
   cldBergs.forEach(b => bodies.push({
     id: b.id, x: b.x, y: b.y, r: b.r, kind: 'berg', hits: b.hits,
   }));
@@ -428,7 +477,7 @@ function cldBuildSlideInputs() {
       impulses.push({ bodyId: p.id, vx: (a.dx / len) * v, vy: (a.dy / len) * v });
     });
 
-    if (c.snowball) {
+    if (c.snowball && !c.dive) {
       // Thrown from one of this player's own penguins — a Standing one if they
       // have it, otherwise from the rim.
       const src = cldPenguins.find(q => q.ownerIdx === i && !q.drowned) ||
@@ -451,69 +500,90 @@ function cldBuildSlideInputs() {
   return { bodies: bodies, impulses: impulses, events: events };
 }
 
+// Throw or Dive (§3.4). Only a Knocked-back penguin Dives. Contested spots go to
+// the CLOSER penguin (the short arc on the ring circle), ties to seat order
+// (owner, 28 Sep 2026) — one ordering, so three Dives resolve like two.
+function cldResolveDives() {
+  const want = [];
+  for (let i = 0; i < cldPlayerCount; i++) {
+    const c = cldCommits[i];
+    if (!c || !c.dive) continue;
+    const p = cldPenguins.find(q => q.id === c.dive.penguinId && q.ownerIdx === i && q.drowned && !q.plug);
+    if (!p) continue;
+    const target = cldNormAngle(c.dive.angle);
+    want.push({ p: p, seat: i, target: target, dist: cldArcDist(p.angle, target) * cldRingR() });
+  }
+  want.sort((a, b) => { const d = a.dist - b.dist; return Math.abs(d) > 0.01 ? d : a.seat - b.seat; });
+  return want.map(w => {
+    const spot = cldSeatSpot(w.target, w.p.id);
+    if (spot) cldSeatAt(w.p, spot);
+    return { penguinId: w.p.id, moved: !!spot, x: w.p.x, y: w.p.y };
+  });
+}
+
 function cldResolveSlide(seed) {
   const rand = window.Physics.rng(seed);
   cldSlideNo += 1;
 
-  // ── 1. Dives resolve BEFORE the sim ──────────────────────────────────────
-  // A Dive repositions a rim bumper, so it has to be in place for the Slide it
-  // was committed alongside. It needs no aftermath beat: the moved body is
-  // already in the sim's frame 0.
-  const dives = [];
-  for (let i = 0; i < cldPlayerCount; i++) {
-    const c = cldCommits[i];
-    if (!c || !c.dive) continue;
-    const mine = cldPenguins.find(p => p.ownerIdx === i && p.drowned);
-    if (!mine) continue;
-    const moved = cldApplyDive(mine, c.dive, rand);
-    dives.push({ penguinId: mine.id, dir: c.dive, moved: moved,
-                 berth: mine.berth, x: mine.x, y: mine.y });
-  }
+  // Ice Bath roster (§4): who was Standing going into this Slide.
+  const standingBefore = cldStanding().map(p => p.id);
 
-  // ── 2. The Slide itself ──────────────────────────────────────────────────
+  // ── 1. Dives resolve BEFORE the sim (owner, 28 Sep 2026) ─────────────────
+  const dives = cldResolveDives();
+
+  // ── 2. The Slide itself — a plunge through a gap is SEATED mid-sim ───────
   const input = cldBuildSlideInputs();
   const res = window.Physics.simulate({
     world:    { cx: CLD_W / 2, cy: CLD_H / 2, radius: cldFloeRadius },
     bodies:   input.bodies,
     impulses: input.impulses,
     events:   input.events,
-    params:   cldSimParams(),
+    params:   Object.assign(cldSimParams(), { seatOnPlunge: cldSeatOnPlunge }),
     seed:     seed,
   });
 
-  // ── 3. Resting positions, Berg damage ────────────────────────────────────
+  // ── 3. Resting positions, chunk damage ───────────────────────────────────
   res.final.forEach(f => {
     const p = cldPenguins.find(q => q.id === f.id);
-    if (p) {
-      // No "skip the Drowned" guard here on purpose. A Drowned penguin enters
-      // the sim immovable, so it comes back at EXACTLY its input position and
-      // such a guard would be indistinguishable from its own absence — the
-      // dead-latch shape BUG-01 cost a mutation run to find. What actually
-      // protects the rim is that a Drowned penguin is immovable in the first
-      // place, and the harness asserts THAT: after every Slide, every Drowned
-      // penguin still sits on its own Berth slot's geometry.
-      if (!f.plunged) { p.x = f.x; p.y = f.y; }
-      return;
-    }
+    if (p) { if (!f.plunged || f.seated) { p.x = f.x; p.y = f.y; } return; }
     const b = cldBergs.find(q => q.id === f.id);
     if (b) { b.hits = f.hits; b.shattered = !!f.shattered; }
   });
-  cldBergs = cldBergs.filter(b => !b.shattered);   // a shattered Berg is gone for good
+  cldBergs = cldBergs.filter(b => !b.shattered);
 
-  // ── 4. Plunges → Drowned, in chronological order ─────────────────────────
-  // Earlier plunges claim their slots first, which is what makes the shunt's
-  // outcome a function of the timeline rather than of array order.
+  // ── 4. Seats, knock-backs and displacements, in timeline order ───────────
+  // TWO passes. The sim has already seated every arrival, so the ring's END
+  // state has to exist before anyone is moved: displacing inside the first
+  // pass would seat a knocked-back penguin on a spot a LATER plunge in the
+  // same Slide already holds (found by the Task 3 legality sweep, seed 77).
   const aftermath = [];
-  res.events.filter(e => e.type === 'plunge').forEach(e => {
+  const seatedIds = new Set(res.events.filter(e => e.type === 'seat').map(e => e.id));
+  res.events.forEach(e => {
     const p = cldPenguins.find(q => q.id === e.id);
-    if (!p || p.drowned) return;
-    const spot = cldAssignBerth(e.x, e.y, e.vx, e.vy, rand);
-    p.drowned = true;
-    cldMatchStats[p.ownerIdx].plunges += 1;
-    cldSeatDrowned(p, spot.berth, spot.slot);
-    aftermath.push({ type: 'surface', penguinId: p.id, berth: spot.berth,
-                     slot: spot.slot, hops: spot.hops, x: p.x, y: p.y });
+    if (!p) return;
+    if (e.type === 'seat' && !p.drowned) {
+      cldSeatAt(p, { angle: cldAngleOf(e.x, e.y), x: e.x, y: e.y });
+      cldMatchStats[p.ownerIdx].plunges += 1;
+    } else if (e.type === 'knockback' && p.drowned) {
+      cldKnockBack(p);
+      aftermath.push({ type: 'knockback', penguinId: p.id, x: p.x, y: p.y });
+    }
   });
+  res.events.forEach(e => {
+    const p = cldPenguins.find(q => q.id === e.id);
+    if (!p) return;
+    if (e.type === 'seat' && p.plug) {
+      cldDisplaceFrom(p, aftermath);            // still holding its gap at the end
+    } else if (e.type === 'plunge' && !p.drowned && !seatedIds.has(p.id)) {
+      // Seat refused (no room on the ring at all) — in, and surfaced wherever
+      // the settled ring has room, else Knocked back.
+      cldMatchStats[p.ownerIdx].plunges += 1;
+      cldSurfaceAt(p, cldAngleOf(e.x, e.y));
+      aftermath.push({ type: 'surface', penguinId: p.id, x: p.x, y: p.y, plug: p.plug });
+      if (p.plug) cldDisplaceFrom(p, aftermath);
+    }
+  });
+  const standingAfterSlide = cldStanding().map(p => p.id);
 
   // ── 5. Stat line — every player still Standing stood this Slide ──────────
   const stood = {};
@@ -533,6 +603,9 @@ function cldResolveSlide(seed) {
   // second guard here would be indistinguishable from its own absence — the
   // dead-latch shape BUG-01 cost a mutation run to find. One authority.
   const washout = cldCheckWashout();
+  // The bath is whoever went in at the step that washed out — the Thaw's melt
+  // if Standing penguins survived the Slide itself, otherwise the Slide.
+  const bathIds = washout ? (standingAfterSlide.length ? standingAfterSlide : standingBefore) : null;
   const outcome = cldResolveFloeOff();
   const floeOffOver = washout || outcome.winnerIdx >= 0;
   const winnerIdx   = outcome.winnerIdx;
@@ -546,10 +619,12 @@ function cldResolveSlide(seed) {
     events:     res.events,
     aftermath:  aftermath,
     dives:      dives,
+    bodyIds:    input.bodies.map(b => b.id),
     final:      res.final,
     durationMs: res.durationMs,
     radius:     cldFloeRadius,
     washout:    washout,
+    bathIds:    bathIds,
     floeOffOver: floeOffOver,
     winnerIdx:  winnerIdx,
     matchOver:  matchOver,
@@ -569,23 +644,27 @@ function cldThawStep(rand) {
 
   const beats = [{ type: 'thaw', newRadius: to, fromRadius: from }];
 
-  // Drowned penguins and surviving Bergs ride the rim inward — same angle, new
-  // radius — so nobody is ever stranded off the floe.
-  cldPenguins.forEach(p => { if (p.drowned) cldSeatDrowned(p, p.berth, p.slot); });
+  // Drowned ride inward at their angle. Two plugs a shrink pushes together: the
+  // LATER-seated one is knocked back. Then the ring calves around the plugs.
+  cldPenguins.forEach(p => { if (p.drowned) cldPlaceDrowned(p); });
+  const plugs = cldPenguins.filter(p => p.drowned && p.plug).sort((a, b) => a.seq - b.seq);
+  const kept = [];
+  plugs.forEach(p => {
+    if (kept.some(k => Math.hypot(k.x - p.x, k.y - p.y) < 2 * CLD_PENGUIN_R - 0.01)) {
+      cldKnockBack(p);
+      beats.push({ type: 'knockback', penguinId: p.id, x: p.x, y: p.y });
+    } else kept.push(p);
+  });
   cldProjectBergsToRim();
 
   // Standing penguins are NOT moved (§16 Q1). Anyone the ice has left behind
-  // plunges as its own beat — with ZERO exit velocity, which is what sends the
-  // shunt tie-break to its clockwise default.
+  // goes in as its own beat and surfaces at the nearest free seat (§3.5).
   const dropped = cldStanding().filter(p => cldDistFromCentre(p.x, p.y) > to);
   dropped.forEach(p => {
-    const spot = cldAssignBerth(p.x, p.y, 0, 0, rand);
     beats.push({ type: 'thaw-drop', penguinId: p.id, x: p.x, y: p.y });
-    p.drowned = true;
     cldMatchStats[p.ownerIdx].plunges += 1;
-    cldSeatDrowned(p, spot.berth, spot.slot);
-    beats.push({ type: 'surface', penguinId: p.id, berth: spot.berth,
-                 slot: spot.slot, hops: spot.hops, x: p.x, y: p.y });
+    cldSurfaceAt(p, cldAngleOf(p.x, p.y));
+    beats.push({ type: 'surface', penguinId: p.id, x: p.x, y: p.y, plug: p.plug });
   });
 
   return { from: from, to: to, shrunk: to < from,
@@ -609,6 +688,35 @@ function cldResolveFloeOff() {
   const w = alive[0];
   cldFish[w] += 1;
   return { winnerIdx: w, matchOver: cldFish[w] >= cldFishToWin };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// The Ice Bath (§4) — a Washout is sudden death, not a replay. The penguins
+// that went in together come back on a ringless floe sized to them; everyone
+// else keeps playing from the rim. Same Floe-Off, same Fish.
+// ═══════════════════════════════════════════════════════════════════════════
+function cldBathRadius(nBath, nTotal) {
+  return Math.max(CLD_BATH_FLOOR_MULT * cldMinRadius(),
+                  CLD_FLOE_SIZE[cldFloeSize] * Math.sqrt(nBath / Math.max(1, nTotal)));
+}
+
+function cldStartIceBath(bathIds, seed) {
+  const rand = window.Physics.rng(seed);
+  cldInBath     = true;
+  cldSlideNo    = 0;
+  cldTimeline   = null;
+  cldPowerLock  = null;
+  cldBergs      = [];
+  cldFloeRadius = cldBathRadius(bathIds.length, cldPenguins.length);
+  const inBath = cldPenguins.filter(p => bathIds.indexOf(p.id) >= 0);
+  const spin = rand() * CLD_TAU;
+  inBath.forEach((p, k) => {
+    const pos = cldRimPos(spin + (k / inBath.length) * CLD_TAU, cldFloeRadius * CLD_START_RING);
+    p.drowned = false; p.plug = false; p.angle = null; p.seq = null; p.x = pos.x; p.y = pos.y;
+  });
+  cldPenguins.filter(p => p.drowned).sort((a, b) => (a.seq || 0) - (b.seq || 0))
+             .forEach(p => { p.plug = false; cldSurfaceAt(p, p.angle); });
+  cldCommits = new Array(cldPlayerCount).fill(null);
 }
 
 function cldMatchWinner() {
@@ -1147,20 +1255,6 @@ function cldDraw(dt) {
   }
   ctx.restore();
 
-  // ── Berths — faint arc ticks on the rim, so a player can see where they'd
-  // surface and which way a Dive would take them.
-  if (cldBerthCount > 1) {
-    ctx.strokeStyle = 'rgba(42,107,133,0.35)';
-    ctx.lineWidth = 1;
-    for (let k = 0; k < cldBerthCount; k++) {
-      const a = k * cldBerthArc();
-      ctx.beginPath();
-      ctx.moveTo(cx + Math.cos(a) * (cldFloeRadius - 7), cy + Math.sin(a) * (cldFloeRadius - 7));
-      ctx.lineTo(cx + Math.cos(a) * (cldFloeRadius + 7), cy + Math.sin(a) * (cldFloeRadius + 7));
-      ctx.stroke();
-    }
-  }
-
   // ── Bergs. Never illustrated — a procedural chunk plus a crack overlay whose
   // density reads the remaining hits, so damage is visible before it shatters.
   cldBergs.forEach(b => cldDrawBerg(ctx, b));
@@ -1174,6 +1268,8 @@ function cldDraw(dt) {
     const drowned = p.drowned;
     let state = 'idle';
     if (drowned)                                  state = 'bob';
+    if (drowned && p.seatT !== undefined && cldPhase === 'resolving' &&
+        cldPlaybackT - p.seatT < 500)             state = 'plunge';   // tumbling in, bottom already blocking
     if (drowned && cldMySnowball && mine)         state = 'throw';
     if (!drowned && cldDragging && cldDragPenguin === p.id) state = 'lean';
     cldRenderPenguin(ctx, state, p.ownerIdx, p.x, p.y, CLD_PENGUIN_R, {
@@ -1182,9 +1278,37 @@ function cldDraw(dt) {
       ring: true,
       me: mine,
       ringDark: cldIsSecondPenguin(p),
-      dim: drowned,
+      dim: drowned && !p.plug,          // Plugged reads solid, Knocked back reads faded
     });
   });
+
+  // ── Dive mode: the free seats round the ring, and the ghost at the chosen one.
+  if (cldMyMode === 'dive' && cldPhase === 'aiming') {
+    const back = cldMyBackPenguin();
+    if (back) {
+      ctx.save();
+      ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+      ctx.setLineDash([3, 3]);
+      // Free seats, sampled round the ring and drawn once each, a penguin apart.
+      // A slip gap's seat is its CENTRE, which no sample angle lands on — so a
+      // sample is snapped to its seat, not tested against it.
+      const apart = 2 * Math.asin(Math.min(1, CLD_PENGUIN_R / cldRingR()));
+      const drawn = [];
+      for (let k = 0; k < 96; k++) {
+        const s = cldSeatSpot(k * CLD_TAU / 96, back.id);
+        if (!s || drawn.some(a => cldArcDist(a, s.angle) < apart)) continue;
+        drawn.push(s.angle);
+        ctx.beginPath(); ctx.arc(s.x, s.y, CLD_PENGUIN_R, 0, CLD_TAU); ctx.stroke();
+      }
+      ctx.restore();
+      if (cldMyDive) {
+        const g = cldRimPos(cldMyDive.angle, cldRingR());
+        ctx.save(); ctx.globalAlpha = 0.6;
+        cldRenderPenguin(ctx, 'bob', back.ownerIdx, g.x, g.y, CLD_PENGUIN_R, { t: cldClock, ring: true, me: true });
+        ctx.restore();
+      }
+    }
+  }
 
   // ── The snowball target marker — a crosshair the thrower can see, nobody else.
   if (cldMySnowball) {
@@ -1353,10 +1477,22 @@ function cldCurrentDragAim() {
   return { penguinId: cldDragPenguin, dx: dx, dy: dy, power: power };
 }
 
+// My Knocked-back penguin — the only one that can Dive (spec §3.4).
+function cldMyBackPenguin() { return cldMyPenguins().find(p => p.drowned && !p.plug) || null; }
+const CLD_BATH_LEAD = 'Nobody made it. Into the Ice Bath with';
+
 function cldPointerDown(e) {
   if (cldPhase !== 'aiming') return;
   if (cldPtrId !== null) return;                 // one pointer at a time
   const pt = cldToLogical(e);
+
+  // Dive mode: the tap picks a gap. It snaps to the free seat nearest the tap.
+  if (cldMyMode === 'dive') {
+    const back = cldMyBackPenguin();
+    const spot = back ? cldSeatSpot(cldAngleOf(pt.x, pt.y), back.id) : null;
+    if (spot) { cldMyDive = { penguinId: back.id, angle: spot.angle }; cldSfx('dive'); cldSyncFloeUI(); }
+    return;
+  }
 
   // A Drowned player's tap is a Snowball target, not a drag. Outside the floe
   // disc it is ignored entirely — no aim is set (§7).
@@ -1422,7 +1558,8 @@ function cldShowFloe() {
   cldPhase       = 'aiming';
   cldCommitted   = false;
   cldMyAims      = [];
-  cldMyDive      = 0;
+  cldMyDive      = null;
+  cldMyMode      = 'throw';
   cldMySnowball  = null;
   cldDragging    = false;
   cldPtrId       = null;
@@ -1436,25 +1573,34 @@ function cldShowFloe() {
 
 function cldSyncFloeUI() {
   const hdr = document.getElementById('cld-floe-header');
-  if (hdr) hdr.textContent = 'Floe-Off ' + cldFloeOffNo + ' · Slide ' + (cldSlideNo + 1);
+  if (hdr) hdr.textContent = 'Floe-Off ' + cldFloeOffNo + (cldInBath ? ' · Ice Bath' : '') + ' · Slide ' + (cldSlideNo + 1);
 
   const iAmDrowned = cldMyPenguins().length > 0 && cldMyPenguins().every(p => p.drowned);
 
-  // ── Dive row — Drowned only. A direction with no free position renders
-  // UNAVAILABLE rather than failing at resolution (brief §14, §4C).
-  const diveRow = document.getElementById('cld-dive-row');
-  if (diveRow) diveRow.style.display = (iAmDrowned && cldPhase === 'aiming') ? 'flex' : 'none';
-  if (iAmDrowned) {
-    const mine = cldMyPenguins().find(p => p.drowned);
-    document.querySelectorAll('[data-cld-dive]').forEach(btn => {
-      const dir = parseInt(btn.dataset.cldDive, 10);
-      const ok  = dir === 0 || (mine && cldDiveAvailable(mine, dir));
-      btn.classList.toggle('cld-dive-unavailable', !ok);
-      // Only pill-active-cld comes on and off — .pill carries every structural
-      // style and must NEVER be removed.
-      btn.classList.remove('pill-active-cld');
-      if (dir === cldMyDive) btn.classList.add('pill-active-cld');
-    });
+  // ── Throw · Dive — shown to anyone with a Drowned penguin. Dive is live only
+  // while Knocked back and while the ring has a free seat (amber reason = can't).
+  const row = document.getElementById('cld-drowned-row');
+  const anyDrowned = cldMyPenguins().some(p => p.drowned);
+  if (row) row.style.display = (anyDrowned && cldPhase === 'aiming') ? 'flex' : 'none';
+  if (anyDrowned) {
+    const back = cldMyBackPenguin();
+    const room = back ? cldSeatSpot(back.angle, back.id) : null;
+    const why  = !back ? 'You can Dive once you’re knocked back.'
+               : !room ? 'Every gap is taken — nowhere to Dive.' : '';
+    if (why && cldMyMode === 'dive') { cldMyMode = 'throw'; cldMyDive = null; }
+    const throwBtn = document.getElementById('btn-cld-mode-throw');
+    const diveBtn  = document.getElementById('btn-cld-mode-dive');
+    if (throwBtn) {
+      throwBtn.textContent = iAmDrowned ? 'Throw' : 'Aim';
+      throwBtn.classList.toggle('pill-active-cld', cldMyMode === 'throw');
+    }
+    if (diveBtn) {
+      diveBtn.classList.toggle('pill-active-cld', cldMyMode === 'dive');
+      diveBtn.classList.toggle('opacity-50', !!why);
+      diveBtn.classList.toggle('pointer-events-none', !!why);
+    }
+    const reason = document.getElementById('cld-dive-reason');
+    if (reason) { reason.textContent = why; reason.style.display = why ? 'block' : 'none'; }
   }
 
   // ── Power bar. Live during a drag; frozen at the locked value when locked.
@@ -1482,6 +1628,11 @@ function cldSyncFloeUI() {
   const tally = document.getElementById('cld-tally');
   if (tally) {
     const done = cldCommits.filter(c => c !== null).length;
+    if (cldPhase === 'washout' && cldTimeline && cldTimeline.bathIds) {
+      const names = [...new Set(cldTimeline.bathIds.map(id => (cldPenguins.find(p => p.id === id) || {}).ownerIdx))]
+        .map(i => cldPlayerNames[i] || 'Someone');
+      tally.textContent = CLD_BATH_LEAD + ' ' + names.join(' & ') + '.';
+    } else
     tally.textContent = cldPhase === 'resolving' ? 'Sliding…'
                       : done + ' of ' + cldPlayerCount + ' locked in';
   }
@@ -1518,6 +1669,14 @@ function cldSyncFloeUI() {
   if (help) help.className = (cldPhase === 'aiming' || cldPhase === 'waiting')
     ? 'text-stone-400 font-bold text-sm active:scale-90 transition-transform duration-100'
     : 'text-stone-200 font-bold text-sm';
+
+  // The Throw · Dive row and its reason line come and go with the phase, and
+  // the canvas is sized in px — so it is re-fitted whenever the stage it sits
+  // in has changed height. Sized only once, in cldShowFloe(), it spilled over
+  // the row the first time a player went in (visual-check, SW v243).
+  const stage = cldCanvas && cldCanvas.parentElement;
+  if (stage && stage.clientHeight &&
+      Math.round(parseFloat(cldCanvas.style.height) || 0) !== stage.clientHeight) cldResize();
 }
 
 // Which penguin's power the bar is showing when nothing is being dragged: the
@@ -1527,7 +1686,7 @@ function cldFirstUnarmedOrLast() {
   return cldMyAims[cldMyAims.length - 1].penguinId;
 }
 
-// A Drowned player can always commit (a Dive and/or a Snowball, or neither).
+// A Drowned player can always commit (a Dive or a Snowball, or neither).
 // A Standing player needs at least one aim at or above the minimum power.
 function cldCanCommit() {
   if (cldCommitted) return false;
@@ -1554,7 +1713,10 @@ function cldBuildMyCommit() {
   // too-soft check (§7).
   mine.filter(p => !p.drowned && !aims.some(a => a.penguinId === p.id))
       .forEach(p => aims.push({ penguinId: p.id, dx: 0, dy: 0, power: 0 }));
-  return { aims: aims, dive: cldMyDive, snowball: cldMySnowball };
+  // Throw OR Dive — only the mode on screen at Lock It In travels (spec §3.4).
+  return { aims: aims,
+           dive:     cldMyMode === 'dive'  ? cldMyDive     : null,
+           snowball: cldMyMode === 'throw' ? cldMySnowball : null };
 }
 
 function cldCommit() {
@@ -1647,7 +1809,7 @@ function cldBeginPlayback(tl) {
   cldLastSfxT         = -CLD_COLLISION_SFX_MS;
   cldWashoutUntil     = 0;
   cldPhase            = 'resolving';
-  cldMyAims = []; cldMySnowball = null; cldMyDive = 0;
+  cldMyAims = []; cldMySnowball = null; cldMyDive = null; cldMyMode = 'throw';
   cldSyncFloeUI();
   cldStartLoop();
 }
@@ -1666,10 +1828,13 @@ function cldAdvancePlayback(dtMs) {
   const f  = fIdx - i0;
   const s0 = tl.samples[i0], s1 = tl.samples[i1];
   if (s0 && s1) {
-    // Body order IS the wire contract — penguins first, then Bergs, in the same
-    // order cldBuildSlideInputs pushed them.
-    cldPenguins.forEach((p, k) => {
-      if (p.plungedThisSlide) return;   // frozen at the lip; the plunge beat owns it
+    // Samples are positional by tl.bodyIds — Knocked-back penguins are not
+    // bodies, so a penguin's index is NOT its index in cldPenguins.
+    const ids = tl.bodyIds || [];
+    cldPenguins.forEach(p => {
+      if (p.plungedThisSlide) return;   // frozen at the lip until its seat beat
+      const k = ids.indexOf(p.id);
+      if (k < 0) return;
       p.x = s0[k * 2]     + (s1[k * 2]     - s0[k * 2])     * f;
       p.y = s0[k * 2 + 1] + (s1[k * 2 + 1] - s0[k * 2 + 1]) * f;
     });
@@ -1714,6 +1879,14 @@ function cldPlayEvent(e) {
     cldFloatBark();
     return;
   }
+  if (e.type === 'seat') {
+    // Plugged mid-Slide: from here the samples hold it at its seat, and its
+    // bottom blocks the gap for everyone behind it.
+    const p = cldPenguins.find(q => q.id === e.id);
+    if (p) { p.plungedThisSlide = false; p.seatT = cldPlaybackT; }
+    return;
+  }
+  if (e.type === 'knockback') { cldSfx('rebound'); return; }
   if (e.type === 'shatter') {
     cldSfx('rebound');
     return;
@@ -1725,9 +1898,10 @@ function cldPlayEvent(e) {
 }
 
 function cldPlayAftermath(b) {
-  if (b.type === 'surface') {
+  if (b.type === 'surface' || b.type === 'displace' || b.type === 'knockback') {
     const p = cldPenguins.find(q => q.id === b.penguinId);
     if (p) { p.x = b.x; p.y = b.y; p.plungedThisSlide = false; }
+    if (b.type === 'displace') cldSfx('dive');
     return;
   }
   if (b.type === 'thaw')      { cldFloeRadius = b.newRadius; cldSfx('thaw'); return; }
@@ -1747,18 +1921,18 @@ function cldEndPlayback() {
 
   if (tl.washout) {
     // The joke needs the beat (brief Decision 21) — hold on WASHOUT! before
-    // replaying the Floe-Off.
+    // the Ice Bath (spec §4).
     cldPhase = 'washout';
     cldSfx('washout');
     cldFloatText('WASHOUT!');
     cldSyncFloeUI();
     cldResultTimer = setTimeout(() => {
       cldResultTimer = null;
-      // The replay is a Resurface, and a Resurface is host-authored. A client
-      // running cldStartFloeOffLocal() here would seed its own penguins and Bergs
-      // and diverge until the host's CLD_FLOEOFF_START overwrote them.
+      // The Ice Bath is host-authored like any Resurface. A client starting its
+      // own here would seed its own floe and diverge until the host's
+      // CLD_FLOEOFF_START overwrote it.
       if (window.syllyMultiplayerMode === 'client') { cldShowClientStandby(); return; }
-      cldStartFloeOffLocal();
+      cldStartIceBathLocal(tl.bathIds || []);
     }, CLD_WASHOUT_MS);
     return;
   }
@@ -1789,6 +1963,17 @@ function cldStartFloeOffLocal() {
     mpSendEnvelope({ type: 'SYNC', payload: cldFloeOffStartPayload() });
   }
   cldShowFloeOffIntro('intro');
+}
+
+// The Ice Bath is host-authored like any Resurface; clients wait for the packet.
+function cldStartIceBathLocal(bathIds) {
+  if (window.syllyMultiplayerMode === 'client') return;
+  cldStartIceBath(bathIds, (Date.now() ^ 0x1ceba7) >>> 0);
+  if (window.syllyMultiplayerMode === 'host') {
+    mpSendEnvelope({ type: 'SYNC', payload: cldFloeOffStartPayload() });
+  }
+  cldShowFloe();
+  cldFloatText('ICE BATH!');
 }
 
 function cldStartMatchLocal(names) {
@@ -1874,7 +2059,7 @@ function cldShowResult(tl) {
     : 'Washout!';
   if (s) s.textContent = winner >= 0
     ? 'That’s a Fish. 🐟'
-    : 'Nobody made it. No Fish — back on the ice.';
+    : CLD_BATH_LEAD + ' everyone still standing.';
 
   const box = document.getElementById('cld-result-plunges');
   if (box) {
@@ -2190,8 +2375,8 @@ function cldHowtoShove() {
 }
 
 // Apply the sim's resting state. A plunged penguin becomes Drowned and rides the
-// rim at its final angle — the real game's rule, minus the Berth bookkeeping the
-// reference doesn't need.
+// rim at its final angle — the real game's rule, minus the plug/knock-back
+// bookkeeping the reference doesn't need.
 function cldHowtoSettle() {
   const tl = cldHowtoTL; if (!tl) return;
   tl.final.forEach(f => {
@@ -2325,20 +2510,17 @@ function cldSyncSettingsUI() {
     slush:    'Slush — a full pull carries you about half the floe.',
     blackice: 'Black Ice — slippery. A full pull carries you most of the way across.',
   }[cldIceConditions] || '');
-  // Berth count reads the live player count once known, and falls back to the
-  // pre-selection band before the lobby has filled.
-  const berths = cldPlayerCount || (cldFloeSize === 'roomy' ? 4 : cldFloeSize === 'cramped' ? 8 : 6);
   setVal('cld-val-floe', {
-    roomy:    'Roomy — ' + berths + ' Berths, plenty of ice.',
-    standard: 'Standard — ' + berths + ' Berths, comfortable for 6.',
-    cramped:  'Cramped — ' + berths + ' Berths, elbows out.',
+    roomy:    'Roomy — plenty of ice.',
+    standard: 'Standard — comfortable for 6.',
+    cramped:  'Cramped — elbows out.',
   }[cldFloeSize] || '');
   setVal('cld-val-fish', cldFishToWin === 1
     ? 'One Floe-Off and it’s done.'
     : 'First to ' + cldFishToWin + ' Fish takes it.');
   setVal('cld-val-berg', {
-    0: 'No Bergs — the edge is the edge.',
     1: 'Each Berg saves you once, then shatters.',
+    2: 'Each Berg takes two hits before it shatters.',
     3: 'Each Berg takes three hits before it shatters.',
   }[cldIceBreaker] || '');
 
@@ -2420,8 +2602,8 @@ function cldWireList(v) {
   if (v && typeof v === 'object') return Object.keys(v).sort((a, b) => a - b).map(k => v[k]);
   return [];
 }
-// `berth: 0` and `winnerIdx: 0` are both real values, so a `|| fallback` here
-// would quietly rewrite Berth 0 and player 0 — hence a typeof test.
+// `angle: 0` and `winnerIdx: 0` are both real values, so a `|| fallback` here
+// would quietly rewrite angle 0 and player 0 — hence a typeof test.
 function cldWireNum(v, fill) { return typeof v === 'number' ? v : fill; }
 
 function cldWirePenguins(v) {
@@ -2431,8 +2613,9 @@ function cldWirePenguins(v) {
     x:        cldWireNum(p.x, 0),
     y:        cldWireNum(p.y, 0),
     drowned:  !!p.drowned,
-    berth:    cldWireNum(p.berth, null),   // null while Standing — erased in flight
-    slot:     cldWireNum(p.slot,  null),
+    plug:     !!p.plug,                    // false survives the wire; missing → false
+    angle:    cldWireNum(p.angle, null),   // null while Standing — erased in flight
+    seq:      cldWireNum(p.seq, null),
   }));
 }
 function cldWireBergs(v) {
@@ -2465,7 +2648,9 @@ function cldWireCommit(c) {
         dy:    cldWireNum(a.dy, 0),
         power: cldWireNum(a.power, 0),
       })),
-    dive: cldWireNum(c.dive, 0),
+    dive: (c.dive && typeof c.dive === 'object' && c.dive.penguinId !== undefined && c.dive.penguinId !== null)
+      ? { penguinId: String(c.dive.penguinId), angle: cldWireNum(c.dive.angle, 0) }
+      : null,                                            // erased in flight → null
     snowball: (c.snowball && typeof c.snowball === 'object')
       ? { x: cldWireNum(c.snowball.x, 0), y: cldWireNum(c.snowball.y, 0) }
       : null,
@@ -2492,6 +2677,12 @@ function cldShowClientStandby() {
 }
 
 // ── Payload builders ───────────────────────────────────────────────────────
+// One penguin serialiser for every packet that carries the floe.
+function cldPenguinsOut() {
+  return cldPenguins.map(p => ({ id: p.id, ownerIdx: p.ownerIdx, x: p.x, y: p.y,
+                                 drowned: p.drowned, plug: p.plug, angle: p.angle, seq: p.seq }));
+}
+
 // EVERY accumulator resets IN this payload, not just locally. The host resets
 // when it builds the Floe-Off; a client never does, and would carry the previous
 // Floe-Off's Fish, stats and rim forward until a field overwrote them.
@@ -2501,12 +2692,11 @@ function cldFloeOffStartPayload() {
     floeOffNo:   cldFloeOffNo,
     slideNo:     cldSlideNo,        // 0 — an accumulator, sent at its reset value
     radius:      cldFloeRadius,
-    berthCount:  cldBerthCount,
+    bath:        cldInBath,         // an Ice Bath restart of the SAME Floe-Off (spec §4)
     flavourIdx:  cldIntroIdx,       // host-picked, so players sitting together read one line
     floeSize:    cldFloeSize,       // the match-start pre-selection may have moved it
     playerNames: cldPlayerNames.slice(),
-    penguins:    cldPenguins.map(p => ({ id: p.id, ownerIdx: p.ownerIdx, x: p.x, y: p.y,
-                                         drowned: p.drowned, berth: p.berth, slot: p.slot })),
+    penguins:    cldPenguinsOut(),
     bergs:       cldBergs.map(b => ({ id: b.id, x: b.x, y: b.y, r: b.r,
                                       hits: b.hits, angle: b.angle })),
     fish:        cldFish.slice(),
@@ -2534,11 +2724,12 @@ function cldTimelinePayload(tl) {
     floeOffOver: tl.floeOffOver,
     winnerIdx:   tl.winnerIdx,
     matchOver:   tl.matchOver,
+    bodyIds:     tl.bodyIds,         // the sim's body order — samples are positional by it
+    bathIds:     tl.bathIds,         // null unless this Slide washed out (erased → null)
     // The post-Slide state. A client never simulates, so the resolved rim — who
-    // Drowned, which Berth they took, which Bergs survived — travels WITH the
+    // Drowned, who is Plugged and where, which Bergs survived — travels WITH the
     // timeline rather than being inferred from it.
-    penguins: cldPenguins.map(p => ({ id: p.id, ownerIdx: p.ownerIdx, x: p.x, y: p.y,
-                                      drowned: p.drowned, berth: p.berth, slot: p.slot })),
+    penguins: cldPenguinsOut(),
     bergs:    cldBergs.map(b => ({ id: b.id, x: b.x, y: b.y, r: b.r,
                                    hits: b.hits, angle: b.angle })),
     fish:     cldFish.slice(),
@@ -2563,6 +2754,8 @@ function cldTimelineFromPayload(p) {
     floeOffOver: !!p.floeOffOver,
     winnerIdx:   cldWireNum(p.winnerIdx, -1),
     matchOver:   !!p.matchOver,
+    bodyIds:     cldWireList(p.bodyIds).map(String),
+    bathIds:     p.bathIds ? cldWireList(p.bathIds).map(String) : null,
     post: {
       penguins: cldWirePenguins(p.penguins),
       bergs:    cldWireBergs(p.bergs),
@@ -2601,6 +2794,8 @@ function cldApplyCommit(playerIdx, commit, slideNo) {
   // (the PKO BUG-01 class).
   if (slideNo !== undefined && slideNo !== null && slideNo !== cldSlideNo) return false;
   if (cldCommits[playerIdx] !== null) return false;
+  // Throw OR Dive, never both — a commit carrying both keeps the Dive (§3.4).
+  if (commit && commit.dive && commit.snowball) commit = Object.assign({}, commit, { snowball: null });
   cldCommits[playerIdx] = commit;
   return true;
 }
@@ -2654,7 +2849,6 @@ function cldHandleEnvelope(env) {
         cldPlayerNames = mpPlayerSlots.map(s => s.nickname);
       }
       cldPlayerCount = cldPlayerNames.length;
-      cldBerthCount  = cldWireNum(p.berthCount, cldPlayerCount);
       cldFloeOffNo   = cldWireNum(p.floeOffNo, 1);
       cldSlideNo     = cldWireNum(p.slideNo, 0);
       cldFloeRadius  = cldWireNum(p.radius, CLD_FLOE_SIZE[cldFloeSize]);
@@ -2664,6 +2858,7 @@ function cldHandleEnvelope(env) {
       cldFish        = cldWireArr(p.fish, cldPlayerCount, 0);
       cldMatchStats  = cldWireStats(p.stats, cldPlayerCount);
       cldIntroIdx    = cldWireNum(p.flavourIdx, 0);
+      cldInBath      = !!p.bath;
       // Device-local accumulators the wire never carries — a Resurface clears the
       // locked power, the armed aims and the commit flag on every device.
       cldCommits    = new Array(cldPlayerCount).fill(null);
@@ -2671,9 +2866,16 @@ function cldHandleEnvelope(env) {
       cldPowerLock  = null;
       cldCommitted  = false;
       cldMyAims     = [];
-      cldMyDive     = 0;
+      cldMyDive     = null;
+      cldMyMode     = 'throw';
       cldMySnowball = null;
-      cldShowFloeOffIntro('intro');
+      if (cldInBath) {
+        // The Washout beat's own timer may still be pending here; it would park
+        // this device on standby AFTER the bath had already started.
+        if (cldResultTimer) { clearTimeout(cldResultTimer); cldResultTimer = null; }
+        cldShowFloe();
+        cldFloatText('ICE BATH!');
+      } else cldShowFloeOffIntro('intro');
       break;
     }
 
@@ -2718,7 +2920,8 @@ function cldResetState() {
 
   cldPenguins = []; cldBergs = []; cldCommits = []; cldTimeline = null;
   cldFish = []; cldMatchStats = []; cldFloeOffNo = 0; cldSlideNo = 0;
-  cldMyAims = []; cldMySnowball = null; cldMyDive = 0;
+  cldMyAims = []; cldMySnowball = null; cldMyDive = null; cldMyMode = 'throw';
+  cldInBath = false; cldSeatSeq = 0;
   cldCommitted = false; cldPowerLock = null;
   cldPhase = 'aiming'; cldIntroMode = 'intro';
   cldFloeRadius = 0; cldPlaybackT = 0; cldLastFrameT = 0; cldClock = 0;
@@ -2926,17 +3129,12 @@ document.addEventListener('DOMContentLoaded', () => {
     cldSyncFloeUI();
   });
 
-  document.querySelectorAll('[data-cld-dive]').forEach(btn => {
+  document.querySelectorAll('[data-cld-mode]').forEach(btn => {
     btn.addEventListener('click', () => {
       if (cldPhase !== 'aiming') return;
-      const dir = parseInt(btn.dataset.cldDive, 10);
-      const mine = cldMyPenguins().find(p => p.drowned);
-      // A direction with no free position is already non-interactive via
-      // .cld-dive-unavailable; this is the belt to that brace.
-      if (dir !== 0 && (!mine || !cldDiveAvailable(mine, dir))) return;
       playPillClick();
-      cldMyDive = dir;
-      if (dir !== 0) cldSfx('dive');
+      cldMyMode = btn.dataset.cldMode;
+      if (cldMyMode === 'throw') cldMyDive = null; else cldMySnowball = null;
       cldSyncFloeUI();
     });
   });

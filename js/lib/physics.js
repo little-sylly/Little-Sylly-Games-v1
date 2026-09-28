@@ -10,7 +10,8 @@
 //   Randomness enters ONLY through `seed`.
 //
 // What this module owns: integration, Coulomb friction, circle–circle collision,
-// restitution, immovable bodies, the arena boundary, breakable bodies (Bergs),
+// restitution, immovable bodies, the arena boundary, breakable anchors (Bergs,
+// and a body the caller SEATS on a plunge via params.seatOnPlunge),
 // scheduled point impulses (Snowballs), rest detection and the time cap.
 //
 // What it does NOT own: Berth geometry, Berth assignment, the multi-hop shunt,
@@ -35,6 +36,7 @@
     bergRestitution:    0.55,        // ≤ 1 — cushioned
     drownedRestitution: 1.35,        // > 1 — energetic
     contactIters:       2,           // positional de-overlap passes per substep
+    seatOnPlunge:       null,        // optional (x, y, vx, vy, anchors) → {x, y} | null
   };
 
   const PENGUIN_RESTITUTION = 1;
@@ -105,6 +107,8 @@
         lowCount:  0,
         plunged:   false,
         shattered: false,
+        seated:    false,
+        knocked:   false,
         exitVx:    0,
         exitVy:    0,
       };
@@ -141,13 +145,29 @@
       samples.push(f);
     }
 
-    function damageBerg(berg, t, cause) {
-      berg.hits -= 1;
-      if (berg.hits <= 0) {
-        berg.hits      = 0;
-        berg.active    = false;
-        berg.shattered = true;
-        out.push({ t: t, type: 'shatter', id: berg.id, x: berg.x, y: berg.y, cause: cause });
+    function anchorsNow() {
+      const a = [];
+      for (let j = 0; j < n; j++) {
+        const q = bodies[j];
+        if (q.active && q.invM === 0) a.push({ id: q.id, kind: q.kind, x: q.x, y: q.y, r: q.r });
+      }
+      return a;
+    }
+
+    // Any immovable body carrying a numeric `hits` is BREAKABLE. What breaking
+    // means is reported, never decided: a Berg shatters, anything else (a
+    // seated Drowned) is knocked back. Both leave the sim for the rest of it.
+    function damageAnchor(anchor, t, cause, byId) {
+      anchor.hits -= 1;
+      if (anchor.hits > 0) return;
+      anchor.hits   = 0;
+      anchor.active = false;
+      if (anchor.kind === 'berg') {
+        anchor.shattered = true;
+        out.push({ t: t, type: 'shatter', id: anchor.id, x: anchor.x, y: anchor.y, cause: cause });
+      } else {
+        anchor.knocked = true;
+        out.push({ t: t, type: 'knockback', id: anchor.id, x: anchor.x, y: anchor.y, by: byId });
       }
     }
 
@@ -183,7 +203,7 @@
           landing.hit = null;                             // open ice — the race-miss case
         } else if (hit.kind === 'berg') {
           landing.hit = 'berg'; landing.id = hit.id;
-          damageBerg(hit, tStamp, 'snowball');            // one hit, regardless of range
+          damageAnchor(hit, tStamp, 'snowball', null);            // one hit, regardless of range
         } else if (hit.invM === 0) {
           landing.hit = 'drowned'; landing.id = hit.id;   // nothing at all
         } else {
@@ -271,15 +291,16 @@
               const mover  = (a.invM === 0) ? b : a;
               out.push({ t: tStamp, type: 'rebound', id: mover.id, off: anchor.kind,
                          offId: anchor.id, x: cx, y: cy, speed: speed });
-              if (anchor.kind === 'berg') {
-                // ONE rebound, ONE hit — emitted together so the two can never
+              if (anchor.hits !== null) {
+                // ONE rebound, ONE hit — for every breakable anchor, not only Bergs.
+                // Emitted together so the two can never
                 // drift apart. What makes that once-per-CONTACT rather than
                 // once-per-substep is the `vrel >= 0` gate above: the impulse
                 // leaves the pair separating, so an overlap persisting over
                 // several substeps re-enters this branch exactly zero more
                 // times. The hit that empties a Berg still cushions THIS
                 // rebound; only LATER contacts pass through to open edge.
-                damageBerg(anchor, tStamp, 'collision');
+                damageAnchor(anchor, tStamp, 'collision', mover.id);
               }
             } else {
               out.push({ t: tStamp, type: 'collision', a: a.id, b: b.id,
@@ -297,11 +318,22 @@
         if (!b.active || b.invM === 0) continue;
         const dx = b.x - world.cx, dy = b.y - world.cy;
         if (dx * dx + dy * dy <= world.radius * world.radius) continue;
-        b.active  = false;
-        b.plunged = true;
         b.exitVx  = b.vx;
         b.exitVy  = b.vy;
         out.push({ t: tStamp, type: 'plunge', id: b.id, x: b.x, y: b.y, vx: b.vx, vy: b.vy });
+        b.plunged = true;
+        // Optional, generic: the caller may SEAT the body instead of losing it —
+        // it becomes a one-hit immovable at the returned spot, still in the sim.
+        // The callback must be pure; it sees only the live immovable bodies.
+        const seat = p.seatOnPlunge ? p.seatOnPlunge(b.x, b.y, b.vx, b.vy, anchorsNow()) : null;
+        if (seat) {
+          b.x = seat.x; b.y = seat.y; b.vx = 0; b.vy = 0;
+          b.invM = 0; b.kind = 'drowned'; b.rest = kindRestitution('drowned', p);
+          b.hits = 1; b.seated = true;
+          out.push({ t: tStamp, type: 'seat', id: b.id, x: b.x, y: b.y });
+          continue;
+        }
+        b.active = false;
       }
 
       // ── 5. Rest detection ────────────────────────────────────────────────
@@ -343,6 +375,8 @@
       const f = { id: b.id, x: b.x, y: b.y, plunged: b.plunged,
                   vx: b.vx, vy: b.vy, exitVx: b.exitVx, exitVy: b.exitVy };
       if (b.kind === 'berg') { f.hits = b.hits; f.shattered = b.shattered; }
+      if (b.seated)  f.seated  = true;
+      if (b.knocked) f.knocked = true;
       return f;
     });
 

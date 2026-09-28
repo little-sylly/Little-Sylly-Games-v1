@@ -19,6 +19,27 @@ Detail: pointer to the canonical doc (snapshot / impl note / spec / memory).
 ```
 
 
+## 2026-09-28 — Cold Shoulder: the Drowned plug the gaps; a Washout is an Ice Bath
+Category: Architecture
+Decision: A Drowned penguin plugs the ring gap it fell through, mid-Slide, as a one-hit bumper; knocked back, it Throws or Dives to any free gap; a Washout starts a sudden-death Ice Bath instead of a replay. Rim-slice Berths are retired.
+Why: the owner's first live session found Floe-Offs too fast, and fixed rim Berths no longer matched an 80% ice ring with 2–3 real gaps.
+Changed: `js/lib/physics.js` (generic `seatOnPlunge` + breakable anchors), `js/games/cld.js`, `src/screens/cld.html`, CLD harnesses + mutants + instrument; `MP_PROTOCOL_VERSION` → `'v243'`. Deferred: the pool-style drag + Practice Arena, then the art pass.
+Detail: `docs/superpowers/specs/2026-09-28-cld-drowned-plugs-design.md`; `cld-implementation-notes.md` DD-17.
+
+## 2026-09-28 — The repo holds the exact live Firebase rules; a new WRITER needs a rule, not only a new node
+Category: Process
+Decision: `multiplayer-feature-specification-v1.4.md` §2.7 is the live console rules verbatim plus a who-writes-what table — edit it first, then paste it whole into the console; any change that makes a different role write to an existing path gets a rules line too.
+Why: two playtests in a row stalled on `permission_denied` (BUG-24 presence, BUG-26 CLD's client→host private write); the spec snippet had drifted from the console, so neither side could be checked against the other.
+Changed: spec §2.7 re-baselined from the owner's live rules + `private/$uid/$msg`; `mpSendPrivate` warns on refusal. Deferred: nothing in the build reads the rules — still a manual step.
+Detail: `shared-implementation-notes.md` BUG-26.
+
+## 2026-09-28 — Practice comes in four forms, chosen per game
+Category: Process
+Decision: A Practice tab is a Scripted hand (default), an Arena (opponents' moves fixed, the player's free — CLD), Lessons (a picker, one per key action — COMB, LTTP) or Autopilot (typed input types itself — LI5, GM); "You" take the role with the most to learn; no gallery is invented to fill a tab.
+Why: one scripted shape can't teach a feel-based physics game, a 50-minute economy game or a typing game.
+Changed: ui-style.md § Practice tab; docs/practice-rollout.md § 5 + the Form column.
+Detail: docs/practice-rollout.md § 5.
+
 ## 2026-09-28 — Practice is the suite's tutorial standard (SW v241)
 Category: Process
 Decision: A game's How to Play may carry a Practice tab — a scripted, deterministic hand played on the game's REAL renderers fed a model, gated beats with a coach, both branches of the key decision, cast Sylvia · Sam · Shirley · Jeff — and every game's tutorial rework follows it.

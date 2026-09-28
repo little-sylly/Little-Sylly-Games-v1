@@ -84,6 +84,8 @@ Berg placement. A second, independently-written xorshift in `cld.js` would be a 
 can drift from the determinism contract for no benefit. One generator, exported.
 
 **DD-09 — `CLD_BERTH_SLOTS = 2`, forced from both directions, and it costs the shunt its depth.**
+*Superseded by DD-17 (SW v243): rim-slice Berths, the two-slot Berth, the shunt and this capacity
+invariant are all gone. Kept as history.*
 §4C leaves the number open and two stated constraints pin it:
 
 | Constraint | Implies |
@@ -283,6 +285,78 @@ it on every plain open. `visual-check` confirmed the RAF is null after a switch 
 close. **Lesson:** a "reference playground" is affordable when the game's seam and sim are already
 pure and callable — the cost is entirely in the isolation bookkeeping, not the feature.
 
+### DD-16 — the Berg ring: ~80% of the rim, random slip gaps, Ice Breaker 1/2/3 (SW v242)
+
+**Why.** The first live 3-player session (28 Sep 2026) found Floe-Offs over too fast. The
+instrument agreed: three r=12 Bergs guarded ~10% of the rim, and a 3-player Floe-Off lasted a
+median **3** Slides on Slush with the Thaw and **2** on Black Ice.
+
+**What changed (owner calls in bold).**
+- **The ring covers ~80% of its circumference** (`CLD_RING_COVER`), Bergs now r=16. The count is
+  derived from the floe's own circumference, never fixed, so Cramped gets fewer chunks than Roomy
+  and nothing overlaps (Standard ≈ 17).
+- **Gaps are random, not uniform.** 2–3 **slip gaps** of 1.6–2.4 penguin diameters (some easy, some a
+  squeeze) at random places; the rest of the spare arc is split into hairline cracks by random
+  weights. A small ring that can't fit its slip gaps at full width scales them back to the minimum,
+  then drops a chunk — never a slip gap, never an overlap.
+- **Ice Breaker is 1 / 2 / 3 hits, default 2.** Off is gone from the UI: with no ring a Floe-Off is
+  too short. `cldIceBreaker = 0` still means "no ring" internally, for harness isolation.
+- **The Thaw calves the ring** (`cldProjectBergsToRim`): after projecting inward, any Berg that
+  would overlap the last one kept breaks off (the more-damaged of the pair goes). Without this a
+  shrinking ring piled up on itself.
+
+**Measured** (`simulate-cld-balance.js 60`, 3 players, mean Slides/Floe-Off): Slush+Thaw 3.8 → 5.8,
+Slush 7.9 → 13.7, Black Ice 2.3 → 7.7, Black Ice+Thaw 1.6 → 5.2. Overall 8.08 → 13.04. **Watch:**
+Powder with no Thaw now runs 26–40 Slides with the neutral bots, and 2.3% of Floe-Offs hit the
+instrument's 60-Slide cap. Bots do not aim at each other, so a real table will run shorter, but
+Powder is the first place to look if a playtest drags. Thaw Washouts rose 14% → 16%.
+
+**Not changed yet (owner's design round):** where the Drowned sit relative to the ring. They still
+take the fixed Berths on the rim, so they overlap chunks visually. The owner's Drowned-plug-the-gap
+model and a Washout sudden-death floe are the next design pass. *(Done — DD-17, SW v243.)*
+
+### DD-17 — the Drowned plug the gaps; Throw or Dive; a Washout is an Ice Bath (SW v243)
+
+**Why.** With an 80% ring (DD-16) the fixed rim-slice Berths no longer matched the picture: the
+Drowned sat on top of chunks, and the slices had nothing to do with where anyone could fall. Spec:
+`docs/superpowers/specs/2026-09-28-cld-drowned-plugs-design.md`.
+
+**What changed (owner calls in bold).**
+- **A penguin goes in only through a gap and plugs it instantly, mid-Slide** — the first one's bottom
+  blocks the second. `js/lib/physics.js` gains one generic option, `params.seatOnPlunge(x, y, vx,
+  vy, anchors)`: the caller answers *where*, the sim makes the body a one-hit immovable there
+  (`seat` event). Absent → byte-identical to v242. Any immovable with numeric `hits` is breakable
+  (`damageAnchor`): a Berg `shatter`s, anything else `knockback`s.
+- **A plug absorbs one contact, then is Knocked back** (bobbing `CLD_BACK_OFFSET` outside the rim,
+  not a body). **Displacement is automatic; every arrival is Plugged.**
+- **Throw or Dive, only while Knocked back, resolved before the Slide**; **contested spots go to the
+  closer penguin** (short arc on the ring), ties to seat order. A commit carrying both keeps the Dive.
+- **Washout → the Ice Bath:** the penguins Standing going into the washing-out step (the Slide, or
+  the Thaw's melt) on a ringless floe `max(1.25 × cldMinRadius(), size × √(n/total))`; the rest
+  re-seated Plugged on its rim; same Floe-Off, same Fish. `CLD_FLOEOFF_START.bath`.
+- Spec-level calls (for owner review): plugs seat on the **chunks' own circle** (`cldBergInset()`)
+  and **centre** in any gap under 3 diameters — the seal harness proves a centred plug holds the widest
+  slip gap against a full-power shove at every offset; a Snowball on a plug does nothing; plugs beat
+  chunks when the Thaw squeezes them (the later-seated of two colliding plugs is knocked back).
+- One geometric primitive, `cldSeatSpotFrom(anchors, angle)`, answers every arrival path (plunge,
+  displacement, Dive, Thaw-drop). Wire: `dive: null | {penguinId, angle}`, penguins carry
+  `plug/angle/seq`, the timeline carries `bodyIds` (samples are positional by it — a Knocked-back
+  penguin is not a body) and `bathIds`. `MP_PROTOCOL_VERSION` → `'v243'`.
+
+**Measured** (`simulate-cld-balance.js 60`, CLD_SEED default, mean Slides/Floe-Off — a Floe-Off now
+runs through its baths): 3p Slush+Thaw 5.8 → **6.2**, 3p Slush 13.7 → **17.0**, 3p Black Ice 7.7 →
+**9.8**, 5p Slush 14.8 → **15.4**. Plugs 0.34/Slide, knock-backs 0.18/Slide. Ice Baths in 20.3% of
+Floe-Offs (Thaw off 7.3%, Thaw on 33.2%); a bath lasts **1.1 Slides** against 8.7 before the first
+one, so `CLD_BATH_FLOOR_MULT` stays **1.25** (the rule was: raise it only if a bath outlasts the
+Floe-Off that produced it). **Watch:** Powder with no Thaw is longer again — 3p 34.8 mean, p90 at the
+60-Slide cap (15 stalls across 2,160 Floe-Offs). Same caveat as DD-16: the bots do not aim at each
+other, so a real table runs shorter. Powder is still the first place to look if a playtest drags.
+
+**Found while building it** (all fixed before shipping): BUG-13 (displacement inside the timeline
+walk), BUG-14 (the canvas spilling over the Drowned row), the free-seat drawing that never drew a
+slip gap's centred seat, and a client's Washout timer that could park it on standby after the bath
+packet had already arrived (the `CLD_FLOEOFF_START` applier now clears it when `bath` is set).
+
 ---
 
 ## Bug Index
@@ -441,6 +515,28 @@ and the cost of the one-seam decision:** using one render function for gameplay 
 right (§10 — there is no second code path to diverge), but it means a shape tuned at 24 px gets
 enlarged 3× somewhere else in the game. Check the seam at both scales, not just the one the
 art decision was argued at.
+
+**BUG-12 — every non-host Lock In was refused by the live Firebase rules (28 Sep 2026, 3-player
+playtest).** `CLD_COMMIT` is the suite's first client → host private write; the live rules had no
+`private` block. Fixed in the rules plus a warn in `mpSendPrivate`. Detail:
+`shared-implementation-notes.md` BUG-26.
+
+**BUG-13 — displacing inside the timeline walk seated a penguin on a spot a LATER plunge held (SW
+v243 build, caught by the plug-legality sweep, seed 77).** What happened: the aftermath walked the
+sim's events once, and on each `seat` moved any knocked-back penguin in that gap to the nearest free
+seat — but a plunge later in the same Slide had already seated there in the sim, and was not on the
+ring yet in the rules state. Root cause: the sim's end state did not exist yet when a post-sim move
+consulted it. Fix: two passes — apply every seat and knock-back first (= the sim's end state), then
+displacements and refused-seat surfacing in timeline order. **Lesson:** anything decided *after* a
+simulation must read the simulation's *final* state, never a half-applied one.
+
+**BUG-14 — the canvas spilled over the Drowned row the first time a player went in (found by
+`visual-check`, SW v243; the v242 Dive row had the same ordering).** What happened: `cldResize()`
+sizes the canvas in px once, inside `cldShowFloe()`, and `cldSyncFloeUI()` reveals the row
+afterwards; the stage shrank, the canvas did not, and it painted over the Throw · Dive pills and
+pushed the header off. Root cause: a px-sized child of a flex-shrunk parent never learns the parent
+changed. Fix: `cldSyncFloeUI()` re-fits the canvas whenever the stage's height differs from the
+canvas's. No harness can see it — a mock element has no box.
 
 ---
 
@@ -685,3 +781,12 @@ untouched). Real-device readability of the shrink itself is part of the still-op
 **Lesson:** when a "timeline needs a new field" fix is proposed, check whether the value is already
 reachable from a beat the packet carries — here `fromRadius` was, and adding a field would have meant
 touching both timeline builders instead of one shared entry point.
+
+**TG-14 — A check that asks the function under test where the answer is can never see it move
+(SW v243, found by three surviving mutants).** `every seat sits on the ring circle` compared seats
+against `cldRingR()` — so moving the ring moved the check with it; `…on a ringless floe` cleared the
+Bergs by hand before the bath started; nothing measured a plug's rebound energy. Each passed a
+mutant that broke exactly what it named. Fix: measure against an independent source (the chunks' own
+circle, `cldBergInset()`), set up the state the code must produce rather than producing it in the
+test, and assert physics by its closed form (rest distance vs `v²/2a`). **Rule:** when a mutant
+survives, first ask whether the check reads its expected value from the thing it is checking.

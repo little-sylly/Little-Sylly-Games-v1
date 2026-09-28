@@ -2,7 +2,7 @@
 
 **Game 19** · `activeGameId: cld` · plugin `js/games/cld.js` · shared module `js/lib/physics.js`
 **Emoji:** 🐧 · **Brand:** glacier blue `#8ECAE6`, white ink · **Players:** 3–8 (Peck Off forces 2) · **Modes:** MDLM only
-**Status:** gold master · verified against SW v219 on 4 September 2026
+**Status:** gold master · verified against SW v219 on 4 September 2026 · Drowned model rewritten for SW v243 (28 September 2026)
 
 > **Change contract.** Each section is tagged **free** (reword freely — but it must stay true),
 > **paired** (change the doc and the code together, or you open a gap between them), or **derived**
@@ -34,15 +34,16 @@ Every Slide, every penguin aims at once and commits blind, and the ice resolves 
 one shove — yours, theirs, the rebound off the penguin already in the water, all of it. You are not
 reacting to a rival's move. You are **guessing** it, and being wrong is most of the fun.
 
-Getting knocked in is not the end of you. A **Drowned** penguin rides the rim at a **Berth**, does
-two jobs every Slide — it is a bumper the living can carom off, and it gets a **Snowball** to fling
-at a survivor's aim — and can **Dive** one Berth left or right to chase the action. So the floe is
-never quiet: it empties of standing penguins while the rim fills with spiteful ones, and the two
-pressures pull against each other until one player is left.
+Getting knocked in is not the end of you. You go in through a gap in the ice ring, and a **Drowned**
+penguin **plugs** the gap it went through — that is its **Berth**. The next penguin to hit it
+bounces off, once, and knocks it back into the water; from there, every Slide, it either flings a
+**Snowball** at a survivor's aim or **Dives** into any free gap and plugs that one instead. So the
+floe is never quiet: it empties of standing penguins while the rim fills with spiteful ones, and the
+two pressures pull against each other until one player is left.
 
 What the game actually produces is a table of people over-committing to a shove, watching the ice
 carry it somewhere they didn't intend, and howling. Nobody is ever really out. The worst thing that
-happens in Cold Shoulder is you spend three Slides at a Berth throwing snowballs and calling it
+happens in Cold Shoulder is you spend three Slides in the water throwing snowballs and calling it
 strategy.
 
 ---
@@ -62,20 +63,30 @@ worth one Fish. A Floe-Off is a series of **Slides**.
   every collision together. You will strike penguins you did not aim at.
 - **Repeat** until one player is the last with a penguin **Standing**.
 
-**Going in the Drink.** A penguin whose centre crosses the edge is **Drowned** for the rest of that
-Floe-Off. It surfaces at a **Berth** on the rim and from the *next* Slide on it plays from there:
+**Going in the Drink.** A penguin can only go in through a **gap** in the ice ring, and a penguin
+whose centre crosses the edge is **Drowned** for the rest of that Floe-Off. It **plugs** the gap it
+went through the instant it goes in — mid-Slide, so a second penguin sliding at the same gap bounces
+off the first one's bottom instead of following it in. That plug is its **Berth**:
 
-- it is a **bumper** — a living penguin that hits it is shoved back *harder*, not saved;
-- it gets one **Snowball** per Slide to lob at a standing penguin, stronger the closer the Berth;
-- it may **Dive** one Berth left or right to a new spot, or stay put. A Dive into a full Berth
-  simply doesn't happen — the aiming UI greys that direction out.
+- it is a **bumper** — a living penguin that hits it is shoved back *harder*, not saved — but only
+  **once**: the penguin that hits it is rebounded, and the plug is **knocked back** into the water,
+  leaving the gap open;
+- every Slide it may throw one **Snowball** at a standing penguin (stronger the closer it is);
+- once **knocked back**, it chooses **Throw or Dive** each Slide — the Snowball, *or* a Dive into any
+  free gap, which it plugs again. Dives land *before* the Slide, so a Dive can seal a gap before
+  anyone slides at it; two Dives at one spot go to the closer penguin;
+- if someone falls through the gap a knocked-back penguin is bobbing behind, it is **displaced** to
+  the nearest free gap, plugged again. Every arrival plugs.
 
 **Winning.** The last **player** with at least one penguin Standing takes the Floe-Off and **+1
 Fish**. First to the Fish to Win target wins the Match and is the **Final Floe**. Shoving someone in
 scores nothing — not off a rebound, not with a Snowball — so nobody can farm it.
 
-**Washout.** If a Slide (or, under The Thaw, a melt step) leaves *no* penguin Standing, the Floe-Off
-is voided: no Fish, everyone **Resurfaces**, and the same Floe-Off is replayed.
+**Washout → the Ice Bath.** If a Slide (or, under The Thaw, a melt step) leaves *no* penguin
+Standing, nobody scores yet. The ones who went in at that step go straight into the **Ice Bath** — a
+small floe with no ice ring, sized to them — and play it out as sudden death; everyone Drowned before
+it keeps playing from the rim. Same Floe-Off, same Fish: the last one Standing in the bath takes it.
+A Washout in the bath starts another bath, which can only be the same size or smaller.
 
 ---
 
@@ -114,14 +125,17 @@ the funniest thing that can happen to you, not the worst.
 | **Standing** | A penguin still on the ice. The win test is the last *player* with one Standing, not the last penguin. |
 | **The Drink** | The water. To be "in the Drink" is to be Drowned. |
 | **Drowned** | A penguin that went off the edge. Out of the standing contest for this Floe-Off, but not benched — it plays from the rim. |
-| **Berth** | A slice of the rim a Drowned penguin bobs at. Berth count equals player count and never changes; each Berth holds two spots. |
-| **Snowball** | The single throw a Drowned penguin gets each Slide, aimed at a standing penguin to nudge their Slide off line. Stronger from a closer Berth. Also takes one hit off a Berg. |
-| **Dive** | A Drowned penguin's optional move one Berth left or right to a new spot. Allowed to fail into a full Berth — no shunt, it just stays. |
-| **Resurface** | The reset of every penguin to Standing at the start of a Floe-Off (and after a Washout). |
-| **Washout** | A Slide or melt step that leaves nobody Standing. No Fish, everyone Resurfaces, replay the Floe-Off. |
+| **Berth** | A Drowned penguin **Plugged** in a gap of the ice ring — the gap it went through, or the one it Dived or was displaced to. |
+| **Plugged** | The Drowned state that blocks its gap: an immovable, energetic bumper that absorbs **one** contact. |
+| **Knocked back** | The Drowned state after that contact: bobbing just outside its gap, no longer a bumper, the gap open again. |
+| **Snowball** | The single throw a Drowned penguin gets each Slide, aimed at a standing penguin to nudge their Slide off line. Stronger the closer it lands to the thrower. Also takes one hit off a Berg; does nothing to a plug. |
+| **Dive** | A Knocked-back penguin's move into any free gap, *instead of* throwing that Slide (Throw or Dive). Resolves before the Slide; contested spots go to the closer penguin. Arrives Plugged. |
+| **Resurface** | The reset of every penguin to Standing at the start of a Floe-Off. Never used for surfacing at a Berth. |
+| **Washout** | A Slide or melt step that leaves nobody Standing. No Fish yet — it starts an Ice Bath. |
+| **Ice Bath** | The sudden-death floe a Washout starts: the penguins that went in at that step, on a small ringless floe; same Floe-Off, same Fish. |
 | **Fish** | The score. One per Floe-Off won; first to the Fish to Win target takes the Match. |
 | **The Final Floe** | The gameover screen — the Match is decided. |
-| **Berg** | A chunk of edge ice (Ice Breaker setting) that rebounds a would-be plunge instead of letting it through, until it takes enough hits and **shatters**. |
+| **Berg** | A chunk of the ice ring round the edge (Ice Breaker setting) that rebounds a would-be plunge instead of letting it through, until it takes enough hits and **shatters**. |
 | **Peck Off** | The two-player duel setting: two penguins each, and the room is forced to exactly two players. |
 | **The Thaw** | Sylly Mode — the floe shrinks a little after every Slide. See T8. |
 | **The Huddle** | The settings overlay's title, not an in-play term. |
@@ -147,15 +161,15 @@ The settings overlay is titled **The Huddle 🐧** — *"Set the ice, then get s
 | **Floe Size** | Roomy · Standard · Cramped | Standard | Starting radius of the floe. Smaller is faster and more brutal. Pre-selected by player count if the host never taps it (Roomy 3–4, Standard 5–6, Cramped 7–8); tapping any pill locks the choice. |
 | **Fish to Win** | 1 · 3 · 5 | 3 | How many Floe-Offs it takes to win the Match. At 1 the two gameover stat lines are hidden. |
 | **Aim Assist** | OFF / ON | ON | Draws a dotted line to where your first bounce lands while you aim. |
-| **Ice Breaker** | Off · 1 hit · 3 hits | 3 hits | Puts **Bergs** near the edge that rebound a plunge until they take that many hits and shatter. |
+| **Ice Breaker** | 1 hit · 2 hits · 3 hits | 2 hits | Rings the edge with **Bergs** (about 80% of it, with 2–3 random gaps a penguin can slip through) that rebound a plunge until they take that many hits and shatter. Under The Thaw the ring calves as it shrinks. No Off: without the ring a Floe-Off is over in a couple of Slides (SW v242). |
 | **Peck Off** | OFF / ON | OFF | A two-player duel, two penguins each. Turning it on forces the room to exactly two players. |
 | **✨ Sylly Mode (The Thaw)** | OFF / ON | OFF | The floe melts and shrinks after every Slide. See T8. |
 
 **Dynamic value lines.** Ice Conditions and Floe Size both carry a live descriptor line under the
 pill row, because their thematic labels deliberately hide the concrete value. Ice reads e.g.
-*"Slush — a full pull carries you about half the floe."*; Floe reads e.g. *"Standard — 6 Berths,
-comfortable for 6."*, with the Berth count filled from the live player count once the lobby is
-known. Both repaint from `cldSyncSettingsUI()` and from the pill click handler.
+*"Slush — a full pull carries you about half the floe."*; Floe reads e.g. *"Standard — comfortable
+for 6."* (it carried a Berth count until SW v243, when Berths stopped being rim slices). Both
+repaint from `cldSyncSettingsUI()` and from the pill click handler.
 
 **Ice Conditions is the difficulty slot.** Cold Shoulder draws nothing from `words.json`, so the
 usual word-difficulty setting does not apply (the documented non-word-bank exemption — PASS, DYB,
@@ -254,14 +268,17 @@ Waiting for the host to push everyone onto the ice.
 
 #### The floe
 
-Header is built at runtime as *"Floe-Off N · Slide M"*.
+Header is built at runtime as *"Floe-Off N · Slide M"* (*"Floe-Off N · Ice Bath · Slide M"* in a bath).
+The Throw · Dive pills show only to a player with a Drowned penguin; for a Peck Off player who still
+has one Standing, *Throw* reads *Aim*. On a Washout the tally line reads *"Nobody made it. Into the
+Ice Bath with {names}."*, the floe floats **WASHOUT!**, then **ICE BATH!** as the bath starts.
 
 ```copy
 # screen-cld-floe — controls
+Throw
 Dive
-← Left
-Stay
-Right →
+You can Dive once you’re knocked back.
+Every gap is taken — nowhere to Dive.
 Tap to lock power
 Power locked — tap to release
 Too soft
@@ -272,14 +289,15 @@ Sliding…
 
 #### Floe-Off result
 
-Heading and sub are built at runtime (*"{name} is the last one dry."* on a win). The Washout copy
-and the plunge list are fixed.
+Heading and sub are built at runtime (*"{name} is the last one dry."* on a win). The plunge list is
+fixed. Since SW v243 a Washout never reaches this screen — it starts an Ice Bath on the floe — so the
+Washout lines here are a fallback only.
 
 ```copy
 # screen-cld-result
 Washout!
 That’s a Fish. 🐟
-Nobody made it. No Fish — back on the ice.
+Nobody made it. Into the Ice Bath with
 ```
 
 #### Scoreboard
@@ -355,6 +373,7 @@ Draws a dotted line showing where your first bounce lands while you aim.
 Ice Breaker
 Puts chunks of ice near the edge that bounce you back instead of dumping you in — until they shatter.
 1 hit
+2 hits
 3 hits
 ```
 
@@ -468,16 +487,16 @@ computed floor, and it keeps shrinking for the rest of the Floe-Off.
   Ice Conditions every time, never a literal, so Black Ice (which needs more room) bottoms out at a
   larger floe than Powder.
 - **Drowned penguins and surviving Bergs ride the rim inward**, keeping their angle, so they are
-  never stranded off the ice.
+  never stranded off the ice. Plugs are fixed: a chunk squeezed into a plug calves, and of two plugs
+  a shrink pushes together, the later-seated one is knocked back.
 - **Standing penguins are not moved.** Any Standing penguin left outside the new radius plunges
-  immediately, as its own `thaw-drop` beat in the aftermath. The ice visibly calves out from under
+  immediately, as its own `thaw-drop` beat in the aftermath, and plugs the free gap nearest it. The ice visibly calves out from under
   you — and you can see the rim closing and choose to move in.
-- Berth **count** is untouched; each Berth's arc just narrows as the circumference shrinks.
 - The floe cracks audibly on each shrink (`playAbyssThud`).
 
 **What it does to the match.** A melt step can end a Floe-Off on its own — by dropping all but one
-penguin (that player wins) or by dropping everyone left (a Washout). It also makes rim shunts more
-common as a Floe-Off goes on, which is why the Berth search is multi-hop rather than one-hop. No
+penguin (that player wins) or by dropping everyone left (a Washout, which starts an Ice Bath of the
+penguins the melt took). As the ring tightens there are fewer free gaps to plug and to Dive into. No
 rule's *behaviour* changes — The Thaw is a geometry rule, not a rules rule, which is exactly why it
 composes cleanly with Peck Off and Ice Breaker.
 
@@ -504,7 +523,7 @@ owner confirmed the result is the permanent look, not a placeholder.
 | Render seam | What it draws |
 |---|---|
 | `cldRenderPenguin(ctx, state, colourIdx, x, y, r, opts)` | **The one primitive.** Draws to a canvas context and returns nothing — a canvas game has no DOM node to return. Every penguin pixel, in play and in chrome, goes through it. |
-| the floe, rim, Berth ticks, Bergs, snowballs, aim line | Plain canvas primitives in `cld.js` — not a shared or skinnable seam. |
+| the floe, rim, Bergs, snowballs, aim line, Dive-mode free seats + ghost | Plain canvas primitives in `cld.js` — not a shared or skinnable seam. |
 
 **Skin readiness is stubbed but unused.** `cldSkinArt` exists in the seam so a future raster skin
 could be slotted in, but it is an empty object for the whole of v1 and there is no `cldPreloadArt()`
@@ -546,7 +565,7 @@ shape).
 | **2 (Peck Off)** | A duel with two penguins each. Tighter and more deliberate — you are managing a pair, and you are only out when *both* of yours are in the Drink. Balance work was lighter here than at the mid sizes. |
 | **3** | Thin. Few enough penguins that a single well-read shove decides a Slide, and the rim fills slowly. Least-tested of the free-for-all sizes. |
 | **5–6** | The intended game. Enough penguins that the resolve is genuinely chaotic and you reliably hit someone you did not aim at, and enough Drowned at the rim for Snowballs to matter. |
-| **8** | The rim is crowded and the shunt works hard — Berths cluster full and a plunge can bounce several Berths out. More waiting per Slide, since all eight must lock in before anything moves. Nothing is tuned toward the mid sizes' precision (brief Decision 17). |
+| **8** | The rim is crowded — gaps plug fast, knock-backs are frequent, and Dives compete for the few free gaps. More waiting per Slide, since all eight must lock in before anything moves. Nothing is tuned toward the mid sizes' precision (brief Decision 17). |
 
 **Could it be Pass-the-Phone?** — ◇ *judgement, not spec*
 

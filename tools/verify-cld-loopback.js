@@ -25,7 +25,7 @@
 //      whole; a half-dense one comes back as an OBJECT keyed by index. Cold
 //      Shoulder broadcasts reset values on purpose, so this bites it repeatedly:
 //      `events: []` on a collision-free Slide, `aftermath: []` on a Slide with no
-//      surfacings, `bergs: []` with Ice Breaker off, `berth: null` while Standing,
+//      surfacings, `bergs: []` with Ice Breaker off, `angle: null` while Standing,
 //      `aims: []` from a Drowned player committing only a Dive.
 //
 //   2. A DOM OF REAL MOCK ELEMENTS. `getElementById: () => null` short-circuits
@@ -206,7 +206,6 @@ globalThis.__cld = {
   get bergs()      { return cldBergs; },
   get commits()    { return cldCommits; },
   get radius()     { return cldFloeRadius; },
-  get berths()     { return cldBerthCount; },
   get fish()       { return cldFish; },
   get stats()      { return cldMatchStats; },
   get names()      { return cldPlayerNames; },
@@ -227,6 +226,8 @@ globalThis.__cld = {
   set touched(v)   { cldFloeSizeTouched = v; },
   get myAims()     { return cldMyAims; },
   get myDive()     { return cldMyDive; },
+  get lastBodyIds() { return cldTimeline && cldTimeline.bodyIds; },
+  get inBath()     { return cldInBath; },
 
   // Entry points, exactly as the engine and the UI call them.
   startMatch(names)   { cldStartMatchLocal(names); },
@@ -239,7 +240,8 @@ globalThis.__cld = {
 
   // Arming an aim without a pointer: cldMyAims is what cldBuildMyCommit reads.
   arm(id, dx, dy, power) { cldMyAims = [{ penguinId: id, dx, dy, power }]; },
-  dive(d)                { cldMyDive = d; },
+  dive(d)                { cldMyDive = d; },         // null | { penguinId, angle }
+  mode(m)                { cldMyMode = m; },         // 'throw' | 'dive'
   snowball(x, y)         { cldMySnowball = { x, y }; },
   buildCommit()          { return cldBuildMyCommit(); },
   canCommit()            { return cldCanCommit(); },
@@ -250,6 +252,8 @@ globalThis.__cld = {
   applyCommit(i, c, s)   { return cldApplyCommit(i, c, s); },
   hostResolve()          { cldHostResolveSlide(); },
   floeOffPayload()       { return cldFloeOffStartPayload(); },
+  wirePenguins(v)        { return cldWirePenguins(v); },
+  wireCommit(c)          { return cldWireCommit(c); },
 
   // Rendered text, read back off the real mock elements.
   tally()      { return document.getElementById('cld-tally').textContent; },
@@ -320,15 +324,16 @@ check('all-false array round-trips',   wire({ a: [false, false] }),        { a: 
 check('half-dense → object',           wire({ a: [null, 'x', null, 'y'] }), { a: { 1: 'x', 3: 'y' } });
 check('mostly-dense → array + holes',  wire({ a: ['w', 'x', null, 'y'] }),  { a: ['w', 'x', null, 'y'] });
 // The exact shapes Cold Shoulder puts on the wire at their reset values.
-check('a Standing penguin keeps 0-valued fields, loses berth/slot',
-  wire({ p: { id: '0-0', ownerIdx: 0, x: 180, y: 108, drowned: false, berth: null, slot: null } }),
-  { p: { id: '0-0', ownerIdx: 0, x: 180, y: 108, drowned: false } });
+check('a Standing penguin keeps 0-valued fields and rebuilds plug/angle/seq',
+  wire({ p: { id: '0-0', ownerIdx: 0, x: 180, y: 108, drowned: false, plug: false, angle: null, seq: null } }),
+  { p: { id: '0-0', ownerIdx: 0, x: 180, y: 108, drowned: false, plug: false } });
 check('a Floe-Off-1 all-zero fish[] survives', wire({ fish: [0, 0, 0] }), { fish: [0, 0, 0] });
 check('an all-zero stats[] survives',
   wire({ stats: [{ slidesStood: 0, plunges: 0 }, { slidesStood: 0, plunges: 0 }] }),
   { stats: [{ slidesStood: 0, plunges: 0 }, { slidesStood: 0, plunges: 0 }] });
-check('a Drowned player’s aims: [] is erased',
-  wire({ commit: { aims: [], dive: 1, snowball: null } }), { commit: { dive: 1 } });
+check('a Drowned player’s aims: [] is erased, a Dive target survives',
+  wire({ commit: { aims: [], dive: { penguinId: '1-0', angle: 0 }, snowball: null } }),
+  { commit: { dive: { penguinId: '1-0', angle: 0 } } });
 check('a zero-power HOLD aim survives (penguinId keeps it non-empty)',
   wire({ aims: [{ penguinId: '1-1', dx: 0, dy: 0, power: 0 }] }),
   { aims: [{ penguinId: '1-1', dx: 0, dy: 0, power: 0 }] });
@@ -420,6 +425,16 @@ function playback(dev, br) {
 }
 const errs = () => [host.__errors, c1.__errors, c2.__errors].flat();
 
+section('1b. Cold Shoulder’s own normalisers rebuild what the wire erased (SW v243)');
+check('…a Standing penguin reads back plug/angle/seq as false / null / null, never undefined',
+  (() => { const p = H.wirePenguins([{ id: '0-0', ownerIdx: 0, x: 1, y: 2, drowned: false }])[0];
+           return [p.plug, p.angle, p.seq]; })(), [false, null, null]);
+check('dive: null is erased in flight and rebuilt as null',
+  H.wireCommit((wire({ c: { aims: [], dive: null, snowball: null } }) || {}).c || {}).dive, null);
+check('a Dive survives as { penguinId, angle }, angle 0 included',
+  H.wireCommit({ aims: [], dive: { penguinId: '1-0', angle: 0 }, snowball: null }).dive,
+  { penguinId: '1-0', angle: 0 });
+
 // ═══════════════════════════════════════════════════════════════════════════
 section('2. Match start — the clients follow the host onto the ice');
 C1.standby(); C2.standby();
@@ -436,8 +451,6 @@ check('nothing threw on any device', errs(), []);
 
 check('every device agrees on the roster',
   [H.names, C1.names, C2.names], [NAMES, NAMES, NAMES]);
-check('every device agrees on the Berth count',
-  [H.berths, C1.berths, C2.berths], [3, 3, 3]);
 check('every device agrees on the floe radius',
   [H.radius, C1.radius, C2.radius], [H.radius, H.radius, H.radius]);
 check('every device agrees on the penguins',
@@ -511,14 +524,14 @@ section('5. A duplicate commit is REJECTED, never applied');
 // genuinely puts two packets on the wire. The host is the only authority.
 const before = JSON.stringify(H.commits[1]);
 const dupe = { ...firstPriv.env, type: 'ACTION' };
-dupe.payload = { ...dupe.payload, commit: { aims: [{ penguinId: '1-0', dx: -1, dy: 0, power: 1 }], dive: 0 } };
+dupe.payload = { ...dupe.payload, commit: { aims: [{ penguinId: '1-0', dx: -1, dy: 0, power: 1 }], dive: null } };
 H.handle(dupe);
 check('the host kept the FIRST commit', JSON.stringify(H.commits[1]), before);
 check('…and sent no extra tally for it', sent.filter(a => a === 'CLD_SLIDE_TALLY').length, 2);
 check('a commit tagged with a stale Slide is rejected',
-  H.applyCommit(0, { aims: [], dive: 0, snowball: null }, 99), false);
+  H.applyCommit(0, { aims: [], dive: null, snowball: null }, 99), false);
 check('a commit from an unknown sender is rejected',
-  H.applyCommit(-1, { aims: [], dive: 0, snowball: null }, H.slideNo), false);
+  H.applyCommit(-1, { aims: [], dive: null, snowball: null }, H.slideNo), false);
 check('…and neither of those changed the array',
   H.commits.map(c => c === null ? null : 'set'), [null, 'set', 'set']);
 check('the gate is still shut with one seat outstanding', H.phase, 'aiming');
@@ -614,8 +627,8 @@ section('8. Ice Breaker Off — an empty bergs[] round trip');
   cc.__cld.handle(onWire);
   check('…and rebuilt as a real empty array', cc.__cld.bergs, []);
   check('…without throwing', cc.__errors, []);
-  check('a Standing penguin’s berth came back as null, not undefined',
-    cc.__cld.penguins.every(p => p.berth === null && p.slot === null), true);
+  check('a Standing penguin’s plug/angle/seq came back as false / null / null, not undefined',
+    cc.__cld.penguins.every(p => p.plug === false && p.angle === null && p.seq === null), true);
 }
 
 section('9. A Drowned player commits a Dive and nothing else');
@@ -637,29 +650,49 @@ section('9. A Drowned player commits a Dive and nothing else');
   };
   hd.__cld.touched = true; hd.__cld.startMatch(NAMES);
   step(hd); step(cd);
-  // Drown client 1's penguin directly, then let it commit a Dive with no aims.
-  vm.runInContext(`
-    var p = cldPenguins.find(q => q.ownerIdx === 1);
-    var spot = cldAssignBerth(p.x, p.y, 0, 0, window.Physics.rng(7));
-    p.drowned = true; cldSeatDrowned(p, spot.berth, spot.slot);
-    cldSyncFloeUI();
-  `, cd);
-  cd.__cld.dive(1);
-  check('a Drowned player can commit with no aims at all', cd.__cld.canCommit(), true);
-  check('…and its commit really is aim-less',
-    cd.__cld.buildCommit(), { aims: [], dive: 1, snowball: null });
+  // Knock client 1's penguin back — on the host AND that client, as a Slide would
+  // have — then let it commit a Dive with no aims and no Snowball.
+  const knock = "var p = cldPenguins[1]; p.drowned = true; p.plug = false; p.angle = 0.5; cldPlaceDrowned(p);";
+  vm.runInContext(knock, hd);
+  vm.runInContext(knock + ' cldSyncFloeUI();', cd);
+  cd.__cld.mode('dive');
+  cd.__cld.dive({ penguinId: '1-0', angle: 2.0 });
+  check('a Knocked-back player can commit with no aims at all', cd.__cld.canCommit(), true);
+  check('…and its commit is the Dive and nothing else',
+    cd.__cld.buildCommit(), { aims: [], dive: { penguinId: '1-0', angle: 2.0 }, snowball: null });
   cd.__cld.commit();
   check('…sent on the private channel', sentPriv !== null, true);
   const wireCommit = ((sentPriv || {}).payload || {}).commit;
   check('aims: [] and snowball: null were ERASED in flight',
     [wireCommit === undefined, (wireCommit || {}).aims, (wireCommit || {}).snowball],
     [false, undefined, undefined]);
-  // The host must not have drowned this penguin — but it must still accept the
-  // packet and rebuild the missing collections rather than store `undefined`.
   check('…and the host rebuilt them',
-    hd.__cld.commits[1], { aims: [], dive: 1, snowball: null });
-  check('the Dive direction survived', (hd.__cld.commits[1] || {}).dive, 1);
+    hd.__cld.commits[1], { aims: [], dive: { penguinId: '1-0', angle: 2.0 }, snowball: null });
+  check('the Dive target survived', (hd.__cld.commits[1] || {}).dive, { penguinId: '1-0', angle: 2.0 });
   check('nothing threw', [hd.__errors, cd.__errors].flat(), []);
+}
+
+section('9b. Switching Dive → Throw before Lock It In sends only the Throw (Review Focus 1)');
+{
+  // A client whose only penguin is Knocked back — the section-9 setup, without a relay.
+  function makeClientWithKnockedBack() {
+    const hk = makeDevice('host8', 'host', 0, SLOTS);
+    const d  = makeDevice('client8', 'client', 1, SLOTS);
+    hk.mpSendEnvelope = env => { try { d.__cld.handle(wire({ ...env, originId: 'u0', timestamp: Date.now() })); } catch (e) { d.__errors.push(e.message); } };
+    hk.mpSendPrivate = () => {}; d.mpSendPrivate = () => {}; d.mpSendEnvelope = () => {};
+    hk.__cld.touched = true; hk.__cld.startMatch(NAMES);
+    step(hk); step(d);
+    vm.runInContext("var p = cldPenguins[1]; p.drowned = true; p.plug = false; p.angle = 0.5; cldPlaceDrowned(p); cldSyncFloeUI();", d);
+    return d;
+  }
+  const d = makeClientWithKnockedBack();
+  d.__cld.mode('dive'); d.__cld.dive({ penguinId: '1-0', angle: 2 });
+  d.__cld.mode('throw'); vm.runInContext('cldMySnowball = { x: 180, y: 180 };', d);
+  check('the commit carries the Snowball and no Dive',
+    [d.__cld.buildCommit().dive, !!d.__cld.buildCommit().snowball], [null, true]);
+  d.__cld.mode('dive');
+  check('…and switching back to Dive drops the Snowball', d.__cld.buildCommit().snowball, null);
+  check('nothing threw', d.__errors, []);
 }
 
 section('10. Peck Off — the room bounds, and the zero-power HOLD');
@@ -719,8 +752,8 @@ section('11. Sylly Mode — a Thaw step crosses the wire whole');
   const r0 = hs.__cld.radius;
   // Every seat commits a real Slide; the host resolves and the Thaw appends.
   hs.__cld.arm('0-0', 1, 0, 0.9);
-  vm.runInContext('cldCommits[1] = { aims: [], dive: 0, snowball: null };' +
-                  'cldCommits[2] = { aims: [], dive: 0, snowball: null };', hs);
+  vm.runInContext('cldCommits[1] = { aims: [], dive: null, snowball: null };' +
+                  'cldCommits[2] = { aims: [], dive: null, snowball: null };', hs);
   hs.__cld.commit();
   const tl = relay[relay.length - 1];
   ok('the aftermath carries a thaw beat',
@@ -732,21 +765,133 @@ section('11. Sylly Mode — a Thaw step crosses the wire whole');
   check('nothing threw', [hs.__errors, cs.__errors].flat(), []);
 }
 
+section('11b. Plugs, knock-backs and the Ice Bath agree on every device (SW v243)');
+{
+  // Host + 2 clients over the wire, every Standing penguin shoved out at full
+  // power every Slide, until a Slide both seats a plug mid-sim AND washes out.
+  // Every Slide on the way is checked for agreement, so any knock-back the ring
+  // produces crosses the wire under the same assertion.
+  const seed = Number(process.env.CLD_SEED || 20260928);
+  function makeRoom() {
+    const h = makeDevice('host7', 'host', 0, SLOTS);
+    const a = makeDevice('client7a', 'client', 1, SLOTS);
+    const b = makeDevice('client7b', 'client', 2, SLOTS);
+    h.mpSendEnvelope = env => {
+      const w = wire({ ...env, originId: 'u0', timestamp: Date.now() });
+      [a, b].forEach(d => { try { d.__cld.handle(w); } catch (e) { d.__errors.push(e.message); } });
+    };
+    h.mpSendPrivate = () => { throw new Error('the host wrote the private channel'); };
+    [[a, 'u1'], [b, 'u2']].forEach(([d, uid]) => {
+      d.mpSendPrivate = (to, env) => {
+        const w = wire({ ...env, originId: uid, timestamp: Date.now() });
+        try { h.__cld.handle(w); } catch (e) { h.__errors.push(e.message); }
+      };
+      d.mpSendEnvelope = env => { publicFromClients.push({ from: uid, action: env.payload.action }); };
+    });
+    return { host: h, c1: a, c2: b, all: [h, a, b] };
+  }
+  const room = makeRoom();
+  const roomErrs = () => room.all.map(d => d.__errors).flat();
+  // A seeded Floe-Off, re-broadcast so the clients hold the same one.
+  function freshFloeOff(k) {
+    vm.runInContext('cldStartFloeOff(' + (seed + k) + '); mpSendEnvelope({ type: "SYNC", payload: cldFloeOffStartPayload() }); cldShowFloe();', room.host);
+    room.all.forEach(d => { d.__timers.length = 0; });
+    [room.c1, room.c2].forEach(d => d.__cld.showFloe());
+  }
+  const post = d => JSON.stringify(d.__cld.penguins.map(p => [p.id, p.drowned, p.plug, Math.round(p.x), Math.round(p.y)]));
+  function runUntil(pred, maxSlides) {
+    let fo = 1, agreed = true, knocks = 0;
+    for (let n = 0; n < maxSlides; n++) {
+      room.all.forEach(d => {
+        const br = d.__cld;
+        const mine = br.penguins.filter(p => p.ownerIdx === br.myIdx() && !p.drowned);
+        if (mine.length) {
+          const p = mine[0], len = Math.hypot(p.x - 180, p.y - 180) || 1;
+          br.arm(p.id, (p.x - 180) / len, (p.y - 180) / len, 1);
+        }
+        br.commit();
+      });
+      const tl = room.host.__cld.timeline;
+      if (!tl) return { hit: false, agreed: false, knocks };
+      room.all.forEach(d => playback(d, d.__cld));
+      if (post(room.c1) !== post(room.host) || post(room.c2) !== post(room.host)) agreed = false;
+      knocks += tl.events.filter(e => e.type === 'knockback').length;
+      if (pred(tl)) return { hit: true, agreed, knocks, tl };
+      if (tl.floeOffOver) freshFloeOff(++fo);
+    }
+    return { hit: false, agreed, knocks };
+  }
+  // A deterministic knock-back first, on an open rim and Black Ice (the long
+  // slide): seat 1 goes in and plugs, then seat 0 slides straight at the plug.
+  function slideWith(aimFor) {
+    room.all.forEach(d => {
+      const br = d.__cld;
+      const mine = br.penguins.filter(p => p.ownerIdx === br.myIdx() && !p.drowned);
+      if (mine.length) { const a = aimFor(br.myIdx(), mine[0]); br.arm(mine[0].id, a[0], a[1], a[2]); }
+      br.commit();
+    });
+    const tl = room.host.__cld.timeline;
+    room.all.forEach(d => playback(d, d.__cld));
+    return tl || { events: [] };
+  }
+  const unit = (dx, dy, pw) => { const l = Math.hypot(dx, dy) || 1; return [dx / l, dy / l, pw]; };
+  const nudgeIn = p => unit(180 - p.x, 180 - p.y, 0.1);
+  room.host.__cld.iceBreaker = 0; room.host.__cld.ice = 'blackice'; room.host.__cld.touched = true;
+  room.host.__cld.startMatch(NAMES);
+  freshFloeOff(0);
+  slideWith((i, p) => i === 1 ? unit(p.x - 180, p.y - 180, 1) : nudgeIn(p));
+  const plugA = room.host.__cld.penguins.find(p => p.ownerIdx === 1);
+  ok('seat 1 went in and plugged mid-Slide', plugA.drowned && plugA.plug);
+  const tlK = slideWith((i, p) => i === 0 ? unit(plugA.x - p.x, plugA.y - p.y, 1) : nudgeIn(p));
+  ok('seat 0 slid into the plug and knocked it back',
+    tlK.events.some(e => e.type === 'knockback' && e.id === plugA.id && e.by === '0-0'),
+    JSON.stringify(tlK.events.filter(e => e.type !== 'collision')));
+  check('every device agrees the plug is Knocked back, and where',
+    [post(room.c1), post(room.c2)], [post(room.host), post(room.host)]);
+  ok('…Knocked back on the clients too', room.c1.__cld.penguins.find(p => p.id === plugA.id).plug === false);
+
+  room.host.__cld.iceBreaker = 1; room.host.__cld.ice = 'slush';
+  freshFloeOff(1);
+  const run = runUntil(tl => tl.events.some(e => e.type === 'seat') && tl.washout, 60);
+  ok('a Slide seated a plug mid-sim and washed out', run.hit, 'not reached in 60 Slides');
+  check('every device held the same plugs after every Slide on the way', run.agreed, true);
+  check('host and both clients hold the same plugs after the washout Slide',
+    [post(room.c1), post(room.c2)], [post(room.host), post(room.host)]);
+  check('every device replayed the same body order',
+    [room.c1.__cld.lastBodyIds, room.c2.__cld.lastBodyIds].map(String),
+    [String(room.host.__cld.lastBodyIds), String(room.host.__cld.lastBodyIds)]);
+  console.log('        (' + run.knocks + ' knock-back(s) crossed the wire on the way)');
+  // Past CLD_WASHOUT_MS: clients park on standby, then the host authors the bath.
+  const noBefore = room.host.__cld.floeOffNo;
+  drainPending(room.c1); drainPending(room.c2); drainPending(room.host);
+  check('every device is in the Ice Bath on the same radius',
+    [room.c1.__cld.inBath, room.c2.__cld.inBath, room.c1.__cld.radius === room.host.__cld.radius],
+    [true, true, true]);
+  check('…and the Floe-Off number did not advance',
+    [room.c1.__cld.floeOffNo, room.c2.__cld.floeOffNo, room.host.__cld.floeOffNo], [noBefore, noBefore, noBefore]);
+  check('…on an identical rim', [post(room.c1), post(room.c2)], [post(room.host), post(room.host)]);
+  check('nothing threw in this room', roomErrs(), []);
+}
+
 section('12. Floe-Off end, the scoreboard, and the next Resurface');
 // Drive the main room to a Floe-Off win by drowning everyone but seat 0.
 {
+  // Seat 0 is put back on its feet in the middle first: the main room's ring is
+  // seeded from Date.now(), so § 6's shove occasionally finds a slip gap and
+  // this scenario would otherwise open with nobody Standing (a rare flake).
   vm.runInContext(`
-    var rand = window.Physics.rng(11);
     cldPenguins.forEach(function (p) {
-      if (p.ownerIdx === 0 || p.drowned) return;
-      var spot = cldAssignBerth(p.x, p.y, 0, 0, rand);
-      p.drowned = true; cldSeatDrowned(p, spot.berth, spot.slot);
+      if (p.ownerIdx === 0) { p.drowned = false; p.plug = false; p.angle = null; p.seq = null;
+                              p.x = 180; p.y = 180; return; }
+      if (p.drowned) return;
+      p.drowned = true; p.plug = true;
+      p.angle = cldSeatSpot(Math.atan2(p.y - 180, p.x - 180), p.id).angle; cldPlaceDrowned(p);
     });
   `, host);
   H.showFloe();
   H.arm('0-0', 0, -1, 0.2);
-  vm.runInContext('cldCommits[1] = { aims: [], dive: 0, snowball: null };' +
-                  'cldCommits[2] = { aims: [], dive: 0, snowball: null };', host);
+  vm.runInContext('cldCommits[1] = { aims: [], dive: null, snowball: null };' +
+                  'cldCommits[2] = { aims: [], dive: null, snowball: null };', host);
   H.commit();
   const tl = H.timeline;
   check('the Floe-Off ended on this Slide', tl.floeOffOver, true);
@@ -788,32 +933,31 @@ section('12. Floe-Off end, the scoreboard, and the next Resurface');
   check('nothing threw', errs(), []);
 }
 
-section('12b. Washout — the replay is host-authored, on every device');
+section('12b. Washout — the Ice Bath is host-authored, on every device');
 {
-  // A Washout is reached deterministically through the Thaw rather than through a
-  // lucky Slide: everyone but seat 0 is already Drowned, seat 0 sits one unit
-  // inside the rim, and the shrink takes it in. No collision outcome to get right,
-  // and it exercises the one path a Slide-only scenario cannot — cldCheckWashout()
-  // firing AFTER the Thaw step (spec §12).
-  // Drain the intro auto-advance each device armed at the end of § 12 — this
-  // scenario jumps straight to the floe, and a leftover timer would make the
-  // "exactly one Washout timer per device" count meaningless.
+  // A Washout reached deterministically through the Thaw rather than through a
+  // lucky Slide: seat 2 is already Drowned, seats 0 and 1 sit one unit inside
+  // the rim, and the shrink takes both in. It exercises the one path a
+  // Slide-only scenario cannot — cldCheckWashout() firing AFTER the Thaw step
+  // (spec §12) — and since SW v243 the bath roster that path hands over: the
+  // two penguins the melt took, never the one already in the water.
+  // Drain the intro auto-advance each device armed at the end of § 12.
   [host, c1, c2].forEach(d => { d.__timers.length = 0; });
-  const sentBefore = allSent.length;
   vm.runInContext(`
     cldSyllyMode = true;
     cldBergs = [];
-    var rand = window.Physics.rng(23);
     cldPenguins.forEach(function (p) {
-      if (p.ownerIdx === 0 || p.drowned) return;
-      var spot = cldAssignBerth(p.x, p.y, 0, 0, rand);
-      p.drowned = true; cldSeatDrowned(p, spot.berth, spot.slot);
+      if (p.ownerIdx !== 2 || p.drowned) return;
+      p.drowned = true; p.plug = true;
+      p.angle = cldSeatSpot(Math.atan2(p.y - 180, p.x - 180), p.id).angle; cldPlaceDrowned(p);
     });
-    var me = cldPenguins.find(function (p) { return !p.drowned; });
-    me.x = 180; me.y = 180 - (cldFloeRadius - 1);
-    cldCommits = [{ aims: [], dive: 0, snowball: null },
-                  { aims: [], dive: 0, snowball: null },
-                  { aims: [], dive: 0, snowball: null }];
+    cldPenguins.filter(function (p) { return !p.drowned; }).forEach(function (p, k) {
+      var a = k === 0 ? -Math.PI / 2 : Math.PI / 2;
+      p.x = 180 + (cldFloeRadius - 1) * Math.cos(a); p.y = 180 + (cldFloeRadius - 1) * Math.sin(a);
+    });
+    cldCommits = [{ aims: [], dive: null, snowball: null },
+                  { aims: [], dive: null, snowball: null },
+                  { aims: [], dive: null, snowball: null }];
   `, host);
   H.showFloe();
   vm.runInContext('cldHostResolveSlide();', host);
@@ -828,33 +972,32 @@ section('12b. Washout — the replay is host-authored, on every device');
     [C1.penguins.every(p => p.drowned), C2.penguins.every(p => p.drowned)], [true, true]);
   check('nothing threw', errs(), []);
 
-  // Every device armed its own replay timer. Only the host's may author one.
-  // Two timers each: the floating WASHOUT! text and the replay. Asserted as
-  // "every device armed the same set" rather than as a magic number, so adding or
-  // removing a purely presentational beat does not fail this check.
   const armed = [host.__timers.length, c1.__timers.length, c2.__timers.length];
   check('every device armed the same Washout beat', [armed[1], armed[2]], [armed[0], armed[0]]);
   ok('…and it really did arm one', armed[0] > 0, 'armed=' + armed[0]);
   const sentAfterResolve = allSent.length;
   drainPending(c1); drainPending(c2);
   check('the clients broadcast nothing when their timers fired', allSent.length, sentAfterResolve);
-  check('…and parked on standby instead of seeding their own floe',
+  check('…and parked on standby instead of seeding their own bath',
     [C1.introMode, C2.introMode], ['standby', 'standby']);
   check('…with no auto-advance armed, so they cannot march past it',
     [c1.__timers.length, c2.__timers.length], [0, 0]);
-  const floeOffBefore = C1.floeOffNo;
-  check('…and no Floe-Off of their own', [C1.floeOffNo, C2.floeOffNo],
-    [floeOffBefore, floeOffBefore]);
+  const floeOffBefore = H.floeOffNo;
   drainPending(host);
-  check('the host’s timer authored the replay', allSent.length, sentAfterResolve + 1);
-  check('…as a Floe-Off start', allSent[allSent.length - 1].action, 'CLD_FLOEOFF_START');
-  // A Washout replays the SAME Floe-Off — no Fish changed hands, so the number
-  // still advances (a Resurface is a Resurface) but the scoreboard did not move.
-  check('every device is on the new floe together',
-    [C1.floeOffNo, C2.floeOffNo], [H.floeOffNo, H.floeOffNo]);
+  check('the host’s timer authored the Ice Bath', allSent.length, sentAfterResolve + 1);
+  const bathPkt = allSent[allSent.length - 1];
+  check('…as a Floe-Off start flagged bath', [bathPkt.action, bathPkt.payload.bath], ['CLD_FLOEOFF_START', true]);
+  check('the Floe-Off number did NOT advance — same Floe-Off, same Fish',
+    [H.floeOffNo, C1.floeOffNo, C2.floeOffNo], [floeOffBefore, floeOffBefore, floeOffBefore]);
+  check('every device is in the bath, on the floe',
+    [H.inBath, C1.inBath, C2.inBath, lastScreen(c1), lastScreen(c2)],
+    [true, true, true, 'screen-cld-floe', 'screen-cld-floe']);
   check('…on an identical rim',
     [JSON.stringify(C1.penguins), JSON.stringify(C2.penguins)],
     [JSON.stringify(H.penguins), JSON.stringify(H.penguins)]);
+  check('…with exactly the two melted penguins Standing again',
+    H.penguins.filter(p => !p.drowned).map(p => p.ownerIdx).sort(), [0, 1]);
+  check('…ringless', [H.bergs, C1.bergs], [[], []]);
   check('…with the Fish untouched by the Washout', JSON.stringify(C1.fish), fishBefore);
   check('nothing threw', errs(), []);
   vm.runInContext('cldSyllyMode = false;', host);
@@ -878,7 +1021,7 @@ section('13. A client never authors a Resurface');
   check('…and it broadcast nothing', allSent.length, beforeSent);
   check('…and the host was untouched', JSON.stringify(H.commits), beforeCommits);
   check('a client rejects a commit even applied directly',
-    C1.applyCommit(0, { aims: [], dive: 0, snowball: null }, C1.slideNo), false);
+    C1.applyCommit(0, { aims: [], dive: null, snowball: null }, C1.slideNo), false);
 
   // ── The host must ignore a SYNC it authored ──────────────────────────────
   // The engine's originId === syllyDeviceUid dedup guard already stops delivery
