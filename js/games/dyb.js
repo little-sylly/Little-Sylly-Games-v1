@@ -1069,45 +1069,11 @@ function dybRenderAllHandsOnShowdown() {
 // Returns ordered list of {pIdx, dieIdx} for dice that contribute positively to a face count.
 // Loaded dice appear twice (they contribute +2). Snake/Cracked/negative phantoms are excluded.
 function dybGetCountingDice(face) {
-  const wildOnes = dybWildcardsStyle !== 'strict' && !dybOnesStripped;
-  const list = [];
-  for (let pIdx = 0; pIdx < dybPlayerCount; pIdx++) {
-    const roll         = dybAllRolls[pIdx]         || [];
-    const types        = dybAllSpecialTypes[pIdx]  || [];
-    const slicks       = dybAllSlickFaces[pIdx]    || [];
-    const phantomTypes = dybAllPhantomTypes[pIdx]  || [];
-    roll.forEach((val, dieIdx) => {
-      const type        = types[dieIdx] || 'standard';
-      const matchesFace = val === face || (wildOnes && val === 1 && face !== 1);
-
-      if (type === 'phantom') {
-        const secondary = phantomTypes[dieIdx] || null;
-        if (!secondary) {
-          // Pure phantom — counts normally (+1)
-          if (matchesFace) list.push({ pIdx, dieIdx });
-        } else if (secondary === 'loaded') {
-          // Phantom+Loaded counts +2: push twice
-          if (matchesFace) { list.push({ pIdx, dieIdx }); list.push({ pIdx, dieIdx }); }
-        } else if (secondary === 'slick') {
-          // Phantom+Slick: face locked at roll time
-          if ((slicks[dieIdx] !== undefined ? slicks[dieIdx] : -1) === face) list.push({ pIdx, dieIdx });
-        }
-        // cracked/snake compound phantoms contribute 0 or negative — excluded
-        return;
-      }
-
-      if (type === 'cracked' || type === 'snake') return;
-      if (type === 'slick') {
-        if ((slicks[dieIdx] !== undefined ? slicks[dieIdx] : -1) === face) list.push({ pIdx, dieIdx });
-        return;
-      }
-      if (matchesFace) {
-        list.push({ pIdx, dieIdx });
-        if (type === 'loaded') list.push({ pIdx, dieIdx }); // second entry for +2
-      }
-    });
-  }
-  return list;
+  const out = [];
+  dybCountEvents(face, dybHandsNow(), dybRulesNow()).forEach(e => {
+    for (let k = 0; k < e.delta; k++) out.push({ pIdx: e.pIdx, dieIdx: e.dieIdx });
+  });
+  return out;
 }
 
 function dybAdvanceFromShowdown() {
@@ -1316,61 +1282,53 @@ function dybGenerateRoll(count) {
   return roll;
 }
 
-// Compute real count of a face value across all rolls
-function dybComputeRealCount(face) {
-  const wildOnes = dybWildcardsStyle !== 'strict' && !dybOnesStripped;
-  let total = 0;
-
-  for (let pIdx = 0; pIdx < dybPlayerCount; pIdx++) {
-    const roll         = dybAllRolls[pIdx]         || [];
-    const types        = dybAllSpecialTypes[pIdx]  || [];
-    const slicks       = dybAllSlickFaces[pIdx]    || [];
-    const phantomTypes = dybAllPhantomTypes[pIdx]  || [];
-
-    roll.forEach((val, j) => {
-      const type        = types[j] || 'standard';
-      const matchesFace = val === face || (wildOnes && val === 1 && face !== 1);
-
-      if (type === 'phantom') {
-        const secondary = phantomTypes[j] || null;
-        if (!secondary) {
-          // Pure phantom — counts normally
-          if (matchesFace) total += 1;
-        } else if (secondary === 'cracked') {
-          // counts 0
-        } else if (secondary === 'loaded') {
-          if (matchesFace) total += 2;
-        } else if (secondary === 'snake') {
-          if (matchesFace) total -= 1;
-        } else if (secondary === 'slick') {
-          // Phantom+Slick: locked face at roll time, cannot be reassigned
-          const locked = slicks[j] !== undefined ? slicks[j] : -1;
-          if (locked === face) total += 1;
-        }
-        return;
-      }
-
-      if (type === 'cracked') return; // counts 0
-      if (type === 'slick') {
-        const assigned = slicks[j] !== undefined ? slicks[j] : -1;
-        if (assigned === face) total += 1;
-        return;
-      }
-      if (type === 'snake') {
-        if (matchesFace) total -= 1;
-        return;
-      }
-      if (type === 'loaded') {
-        if (matchesFace) total += 2;
-        return;
-      }
-      // standard — counts normally
-      if (matchesFace) total += 1;
-    });
-  }
-
-  return total;
+/// ── Counting — ONE source for the verdict and the reveal ────────────────────
+// hands: { n, rolls, types, slicks, phantoms }, each indexed [pIdx][dieIdx].
+// After the wire any of them may be an index-keyed OBJECT (an eliminated seat
+// leaves a hole), so everything here indexes 0..n-1 and never calls forEach on
+// the outer collection.
+function dybHandsNow() {
+  return { n: dybPlayerCount, rolls: dybAllRolls, types: dybAllSpecialTypes,
+           slicks: dybAllSlickFaces, phantoms: dybAllPhantomTypes };
 }
+
+// One die's contribution to a count of `face`: 2 | 1 | 0 | -1, or null when it
+// takes no part (a 0 is a Cracked die that WOULD have counted — it shudders).
+function dybDieDelta(val, type, slick, secondary, face, rules) {
+  const wild    = rules.wildcards !== 'strict' && !rules.onesStripped;
+  const matches = val === face || (wild && val === 1 && face !== 1);
+  const eff     = type === 'phantom' ? (secondary || 'standard') : type;
+  switch (eff) {
+    case 'cracked': return matches ? 0 : null;
+    case 'slick':   return slick === face ? 1 : null;     // a Slick counts only its chosen face, never wild
+    case 'snake':   return matches ? -1 : null;
+    case 'loaded':  return matches ? 2 : null;
+    default:        return matches ? 1 : null;
+  }
+}
+
+// Ordered for the reveal: every positive first, then the shudders, then the
+// knocks — so a Snake always has a filled slot to knock out if one exists.
+function dybCountEvents(face, hands, rules) {
+  const pos = [], zero = [], neg = [];
+  for (let pIdx = 0; pIdx < hands.n; pIdx++) {
+    const roll = (hands.rolls || {})[pIdx];
+    if (!roll) continue;
+    const types = (hands.types || {})[pIdx] || [], slicks = (hands.slicks || {})[pIdx] || [];
+    const phantoms = (hands.phantoms || {})[pIdx] || [];
+    for (let dieIdx = 0; dieIdx < roll.length; dieIdx++) {
+      const s = slicks[dieIdx];
+      const d = dybDieDelta(roll[dieIdx], types[dieIdx] || 'standard', s === undefined || s === null ? -1 : s,
+                            phantoms[dieIdx] || null, face, rules);
+      if (d === null) continue;
+      (d > 0 ? pos : d === 0 ? zero : neg).push({ pIdx, dieIdx, delta: d });
+    }
+  }
+  return [...pos, ...zero, ...neg];
+}
+function dybCountSum(events) { return events.reduce((s, e) => s + e.delta, 0); }
+
+function dybComputeRealCount(face) { return dybCountSum(dybCountEvents(face, dybHandsNow(), dybRulesNow())); }
 
 // ── Hand dock rendering ───────────────────────────────────────────────────────
 function dybRenderHandDock(containerId) {
