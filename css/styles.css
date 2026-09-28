@@ -1457,124 +1457,58 @@ body.flash-red   { background-color: #fecaca; }
 }
 .dyb-spirit-flash { animation: dybSpiritFlash 0.8s ease-out forwards; }
 
-/* ── DYB Shake cup animation ─────────────────────────────────────────────── */
-@keyframes dybCupShake {
-  0%, 100% { transform: translate(0, 0) rotate(0deg); }
-  10% { transform: translate(-8px, 2px) rotate(-5deg); }
-  25% { transform: translate(8px, -4px) rotate(5deg); }
-  40% { transform: translate(-6px, 3px) rotate(-3deg); }
-  55% { transform: translate(6px, -2px) rotate(3deg); }
-  70% { transform: translate(-3px, 2px) rotate(-1deg); }
-  85% { transform: translate(2px, -1px) rotate(1deg); }
-}
-.dyb-cup-shaking { animation: dybCupShake 0.55s ease-in-out; }
-
-/* ── DYB CSS Dice ────────────────────────────────────────────────────────── */
+/* ── DYB procedural dice (SW v241) — js/games/dyb-dice.js ─────────────────
+   One recipe → one markup string. Size is --dyb-s; colours arrive as custom
+   properties per die. Only transform/opacity animate. */
 .dyb-die {
-  width: 52px;
-  height: 52px;
-  border-radius: 10px;
-  border-width: 2px;
-  border-style: solid;
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  grid-template-rows: repeat(3, 1fr);
-  padding: 7px;
-  box-sizing: border-box;
-  flex-shrink: 0;
+  --dyb-s: 44px;
+  position: relative; flex-shrink: 0; box-sizing: border-box;
+  width: var(--dyb-s); height: var(--dyb-s);
+  display: grid; grid-template: repeat(3, 1fr) / repeat(3, 1fr);
+  padding: calc(var(--dyb-s) * 0.13);
+  border-radius: calc(var(--dyb-s) * (0.18 + var(--dyb-edge) * 0.08));
+  background: radial-gradient(circle at 30% 24%, var(--dyb-body-l), transparent 55%), var(--dyb-body);
+  box-shadow: inset 0 calc(var(--dyb-s) * -0.07) 0 var(--dyb-body-d),
+              inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 2px 3px rgba(40, 26, 14, 0.28);
+  overflow: hidden;
 }
-.dyb-pip {
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  margin: auto;
-  display: block;
+.dyb-finish-stone {
+  background:
+    radial-gradient(circle at 30% 24%, var(--dyb-body-l), transparent 55%),
+    radial-gradient(rgba(0, 0, 0, calc(var(--dyb-speckle) * 0.16)) 1px, transparent 1.6px) 0 0 / 5px 5px,
+    radial-gradient(rgba(255, 255, 255, calc(var(--dyb-speckle) * 0.14)) 1px, transparent 1.6px) 2px 3px / 7px 7px,
+    var(--dyb-body);
 }
-.dyb-die.dyb-die-sm { width: 38px; height: 38px; border-radius: 8px; padding: 5px; }
-.dyb-die.dyb-die-xs { width: 26px; height: 26px; border-radius: 6px; padding: 3px; border-width: 1.5px; }
-.dyb-die.dyb-die-dim { opacity: 0.2; transition: opacity 0.25s ease; }
-/* Asset-pack (skin) die face/back — overrides the pip grid with a pack image.
-   Render seam: dybDieHTML (standard faces) + dybDieBackHTML. Keeps .dyb-die sizing. */
-.dyb-die-asset {
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-  border-color: transparent;
-  padding: 0;
-  display: block;
+.dyb-finish-plain { background: linear-gradient(160deg, var(--dyb-body-l), var(--dyb-body) 60%); }
+.dyb-finish-glass {
+  background: radial-gradient(circle at 30% 20%, rgba(255, 255, 255, 0.55), transparent 40%),
+              linear-gradient(160deg, var(--dyb-body-l), var(--dyb-body) 55%, var(--dyb-body-d));
 }
-
-/* Framed asset die — pack art for a SPECIAL die, drawn inside the engine's own
-   type chrome so loaded/snake/slick/phantom stay legible under any skin. The
-   frame is the type; the image is the face. A pack may opt out per type with
-   "frame": false, which routes it back through .dyb-die-asset above. */
-.dyb-die.dyb-die-framed {
-  display: block;
-  padding: 3px;
-}
-.dyb-die-art {
-  display: block;
-  width: 100%;
-  height: 100%;
-  border-radius: 6px;
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-}
-
-/* Snake die — sinister dark toxic green, diamond pips */
-.dyb-die.dyb-die-snake {
-  border-color: #064E3B;
-  background-color: rgba(6, 78, 59, 0.07);
-  box-shadow: 0 0 8px rgba(6, 78, 59, 0.4);
-}
-.dyb-pip.dyb-pip-snake {
-  background-color: #064E3B;
-  border-radius: 0;
-  width: 7px;
-  height: 7px;
-  transform: rotate(45deg);
-}
-
-/* Loaded die — amber glow with slow breathing pulse (glow only, not the die itself) */
-@keyframes dybLoadedGlow {
-  0%, 100% { box-shadow: 0 0 6px 1px rgba(251, 191, 36, 0.4); }
-  50%       { box-shadow: 0 0 14px 3px rgba(251, 191, 36, 0.75); }
-}
-.dyb-die.dyb-die-loaded {
-  border-color: #F59E0B;
-  background-color: rgba(251, 191, 36, 0.08);
-  animation: dybLoadedGlow 2.4s ease-in-out infinite;
-}
-
-/* Phantom die — ghostly purple tint, lavender border, neon indigo ? glyph */
-.dyb-die.dyb-die-phantom {
-  border-color: #C4B5FD;
-  background-color: rgba(139, 92, 246, 0.08);
-}
-.dyb-phantom-glyph {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: #4338CA;
-  text-shadow: 0 0 6px rgba(99, 102, 241, 0.7), 0 0 12px rgba(99, 102, 241, 0.35);
-}
-
-/* Phantom-ring glow — additive indigo ring for compound phantom dice at the Overlook */
-.dyb-die-phantom-ring {
-  box-shadow: 0 0 0 2px #818cf8, 0 0 12px rgba(99, 102, 241, 0.6);
-}
-
-/* Slick die — tilde breathing animation for unassigned face */
-@keyframes dybTildePulse {
-  0%, 100% { opacity: 0.55; }
-  50%       { opacity: 1; }
-}
-.dyb-tilde-breathe {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: #0891B2;
-  animation: dybTildePulse 1.8s ease-in-out infinite;
-}
+.dyb-pip { display: block; width: 72%; height: 72%; margin: auto; border-radius: 50%; background: var(--dyb-pip); }
+.dyb-pip-carved { box-shadow: inset 0 1.5px 1.5px rgba(0, 0, 0, 0.55), 0 1px 0 rgba(255, 255, 255, 0.35); }
+.dyb-pip-bronze { background: radial-gradient(circle at 35% 30%, #F3D08A, #B07A2A 60%, #6E4712); box-shadow: 0 1px 1px rgba(0, 0, 0, 0.45); }
+.dyb-pip-serpent { position: relative; background: #C9D94A; }
+.dyb-pip-serpent::after { content: ''; position: absolute; left: 42%; top: 10%; width: 16%; height: 80%; border-radius: 50%; background: #14210A; }
+.dyb-die-faded .dyb-pip { opacity: 0.35; }
+.dyb-form-loaded { box-shadow: inset 0 calc(var(--dyb-s) * -0.07) 0 var(--dyb-body-d),
+                               inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 4px 6px rgba(40, 26, 14, 0.45); }
+.dyb-die-glyph { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+                 font-weight: 700; font-size: calc(var(--dyb-s) * 0.42); color: rgba(90, 80, 120, 0.6); }
+.dyb-ov { position: absolute; inset: 0; pointer-events: none; border-radius: inherit; }
+.dyb-ov-mist { background: radial-gradient(circle at 30% 40%, rgba(236, 232, 244, 0.92), transparent 60%),
+                           radial-gradient(circle at 70% 65%, rgba(214, 210, 228, 0.88), transparent 55%),
+                           rgba(226, 222, 236, 0.6); }
+/* The fog lifts at The Overlook — delayed until the cups have lifted. */
+.dyb-ov-mist-lift { animation: dybMistLift 500ms ease-out 600ms both; }
+@keyframes dybMistLift { from { opacity: 1; transform: scale(1); } to { opacity: 0.12; transform: scale(1.15); } }
+.dyb-ov-fissure path { fill: none; stroke: rgba(20, 12, 6, 0.8); stroke-width: 5; stroke-linejoin: round; }
+.dyb-ov-sheen { background: linear-gradient(115deg, transparent 30%, rgba(255, 255, 255, 0.55) 42%, transparent 54%); }
+.dyb-ov-pick { inset: auto 2px 2px auto; padding: 0 3px; border-radius: 6px; background: #0e7490; color: #fff;
+               font-size: calc(var(--dyb-s) * 0.2); font-weight: 700; line-height: 1.4; }
+.dyb-die.dyb-die-dim { opacity: 0.3; transition: opacity 250ms ease-out; }
+.dyb-mini { display: inline-block; width: 8px; height: 8px; border-radius: 2px; background: var(--dyb-body);
+            box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.25); }
+.dyb-mini-foothold { border-radius: 1px; transform: rotate(45deg) scale(0.8); }
 
 /* ── Team score boxes — twin transition ──────────────────────────────────── */
 .team-box {
