@@ -34,7 +34,8 @@ The Bluff is Liar's Dice with these differences, confirmed in `js/games/dyb.js`:
 - **No 1s-halving rule.** A raise is a higher quantity of any face, or the same quantity of a
   higher face — nothing else.
 - **Classic Wilds** bans claiming 1s outright (1s count toward every other face).
-- **Volatile Wilds** allows claiming 1s; doing so strips wilds for the rest of the Shake.
+- **Volatile Wilds** allows claiming 1s; doing so strips wilds for the rest of the Shake — and from
+  then on **only 1s may be raised** (the shipped picker's behaviour; the new face row keeps it).
 - **Strict** — 1s are plain 1s.
 - **No "exact" call.** The loser of The Overlook opens the next Shake.
 - **The Tempest** (Sylly Mode): Loaded ×2, Cracked 0, Snake −1, Slick (owner picks the face, once),
@@ -88,8 +89,13 @@ All dice render through **one seam**. `js/games/dyb-dice.js` holds three layers:
 | Layer | API (indicative) | Pure? |
 |---|---|---|
 | **Recipe** | `dybDieRecipe({ set, tint, face, type, secondary, state })` → `{ body, edge, pip: { colour, style, positions[] }, overlays[], key }` | **Yes** — no DOM, no canvas, no `window`; Node-testable |
-| **Painter** | `dybPaintDie(recipe, px)` → a cached image (object URL or canvas), keyed by `recipe.key` + `px` | No (canvas) |
-| **Cube** | `dybDieCube(faces[6], landingFace)` → a CSS `preserve-3d` element; `.roll(ms)` | No (DOM) |
+| **Painter** | `dybDieMarkup(recipe, px)` → an HTML string: CSS custom properties + gradients for the body, pip spans, inline SVG for overlays | **Yes** — a string, so it runs under Node and inside the loopback's mock DOM |
+| **Cube** | `dybCubeMarkup(recipeForFace, landFace, px)` + `dybRollCube(el, ms)` → a CSS `preserve-3d` element | No (DOM) |
+
+**Plan-time amendment (28 Sep 2026): the painter draws HTML/CSS + inline SVG, not canvas.** It is
+vector-crisp at every device pixel ratio, needs no object-URL cache or async paint, and — the
+deciding reason — renders inside the loopback's mock DOM, so the reveal's render code actually
+executes under test. The recipe, its leak guard and every visual decision above are unchanged.
 
 - `state` is one of `'face'` (visible), `'concealed'` (owner/spectator view of a Phantom),
   `'revealing'` (Phantom mist clearing), `'unpicked'` (Slick before commit).
@@ -433,7 +439,7 @@ tutorial rework:
 | `tools/verify-dyb-dice.js` (**rewritten**) | Every set × tint × face × type × state recipe is valid and deterministic; pips meet a contrast floor on all 8 tints of every set; a `concealed` Phantom recipe **carries no face**; the `diceSet` schema, incl. the three packs' manifests |
 | `tools/verify-dyb-rules.js` (**new**) | `dybLegalRaise` / `dybMinQty` under all three Wildcards styles and `onesStripped`; `dybYouHold` incl. Phantom exclusion and Loaded/Snake/Cracked/Slick; `dybCountEvents` sums equal the current `dybComputeRealCount` on seeded random tables (run across several seeds) before that function is removed |
 | `tools/verify-dyb-practice.js` (**new**) | The script's claims agree with its fixed hands (the reveal totals five 3s); both decision branches reach the end; Climb unlocks only on the suggested bid; Practice never calls `mpSendEnvelope` |
-| `tools/verify-dyb-loopback.js` (**new**) | Host + 2 clients over a Firebase-shaped wire, real mock DOM: no applier throws on any device across several Shakes (shake, claim, reveal, gameover); all devices agree on claim, count and loser; no client learns another hand before `DYB_SHOWDOWN`; the Tempest on and off; accepts `DYB_SRC=` / `DYB_SEED=` |
+| `tools/verify-dyb-loopback.js` (**new**) | Host + 2 clients over a Firebase-shaped wire, real mock DOM: no applier throws on any device across several Shakes (shake, claim, reveal, gameover); all devices agree on claim, count and loser; no **active** client holds another hand in its state or screen before `DYB_SHOWDOWN` (the wire is not private — `DYB_SPIRIT_SHAKE` broadcasts every roll for The Depths, the suite's couch-security model; this build does not change that); the Tempest on and off; accepts `DYB_SRC=` / `DYB_SEED=` |
 | `visual-check` | Table at 4 and **8 players** (the 40-dice fit), shake, reveal, Practice — at the owner's **iPhone SE (2nd gen)** sizes **375×667, 375×548, 320×452** (320×452 first — the hardest), plus a reduced-motion pass |
 
 Unchanged harnesses that must stay green: `verify-mp-configs.js`, `verify-identity-docs.js`,
