@@ -334,6 +334,43 @@ function cldCueAim(o) {
   return { dx: dir.x, dy: dir.y, power: power, dir: dir };
 }
 
+// PURE (spec § 2.3). March along the aim to the FIRST contact and stop there —
+// one contact deep, never further (brief § 14: everyone slides at once, so any
+// deeper prediction would be a lie). The ghost is the last free position; a
+// struck Standing penguin also gets a fixed-length stub along the centre line
+// (the pool object-ball line): direction only, never distance.
+function cldAimGuide(m, aim) {
+  const p = m.penguins.find(q => q.id === aim.penguinId);
+  if (!p) return null;
+  const len = Math.hypot(aim.dx, aim.dy) || 1;
+  const ux = aim.dx / len, uy = aim.dy / len;
+  const step = (m.reach * aim.power) / CLD_ASSIST_STEPS;
+  let hx = p.x, hy = p.y, kind = null, struck = null;
+  for (let k = 0; k < CLD_ASSIST_STEPS && !kind; k++) {
+    const nx = hx + ux * step, ny = hy + uy * step;
+    if (Math.hypot(nx - CLD_W / 2, ny - CLD_H / 2) > m.radius) { kind = 'rim'; break; }
+    for (let j = 0; j < m.penguins.length; j++) {
+      const q = m.penguins[j];
+      if (q.id === p.id || (q.drowned && !q.plug)) continue;   // Knocked back is not a body
+      if (Math.hypot(q.x - nx, q.y - ny) < CLD_PENGUIN_R * 2) { kind = q.drowned ? 'plug' : 'penguin'; struck = q; break; }
+    }
+    if (!kind) for (let j = 0; j < m.bergs.length; j++) {
+      const b = m.bergs[j];
+      if (Math.hypot(b.x - nx, b.y - ny) < b.r + CLD_PENGUIN_R) { kind = 'berg'; break; }
+    }
+    if (!kind) { hx = nx; hy = ny; }
+  }
+  const end = { x: hx, y: hy };
+  if (!kind) return { end: end, ghost: null, stub: null, kind: null };
+  let stub = null;
+  if (kind === 'penguin') {
+    const sx = struck.x - hx, sy = struck.y - hy, sl = Math.hypot(sx, sy) || 1;
+    stub = { x1: struck.x, y1: struck.y,
+             x2: struck.x + (sx / sl) * CLD_GUIDE_STUB, y2: struck.y + (sy / sl) * CLD_GUIDE_STUB };
+  }
+  return { end: end, ghost: { x: hx, y: hy }, stub: stub, kind: kind };
+}
+
 // PURE. `anchors` are [{ x, y, r }] — chunks and Plugged Drowned, live. Returns
 // the free seat nearest `angle`, or null when the ring has no room anywhere.
 function cldSeatSpotFrom(anchors, angle) {

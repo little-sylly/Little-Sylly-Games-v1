@@ -170,6 +170,49 @@ if (!TUNE) {
   ok('touch-down on the penguin, pull left → shot right with power', a && near(a.dx, 1) && a.power > 0.5, JSON.stringify(a));
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// B. The aim guide (spec § 2.3)
+// ═══════════════════════════════════════════════════════════════════════════
+if (!TUNE) {
+  section('B. The aim guide');
+  const guide = (m, a) => RUN('cldAimGuide')(m, a);
+  const R = G('CLD_PENGUIN_R'), STUB = G('CLD_GUIDE_STUB');
+  const me = { id: '0-0', x: 120, y: 180, drowned: false, plug: false };
+  const base = extra => Object.assign({ penguins: [me], bergs: [], radius: 130, reach: 130 }, extra);
+  const aimR = { penguinId: '0-0', dx: 1, dy: 0, power: 1 };
+
+  // Head-on: a penguin 60 ahead.
+  let g = guide(base({ penguins: [me, { id: '1-0', x: 180, y: 180, drowned: false, plug: false }] }), aimR);
+  check('head-on: first contact is a penguin', g && g.kind, 'penguin');
+  ok('the ghost sits one diameter short of the struck penguin', g && g.ghost && near(g.ghost.x, 180 - 2 * R, 2) && near(g.ghost.y, 180, 1e-6),
+     JSON.stringify(g && g.ghost));
+  ok('the stub is exactly CLD_GUIDE_STUB long', g && g.stub && near(Math.hypot(g.stub.x2 - g.stub.x1, g.stub.y2 - g.stub.y1), STUB, 1e-6));
+  ok('head-on: the stub carries straight on (+x)', g && g.stub && near(g.stub.y2, 180, 1e-6) && g.stub.x2 > g.stub.x1);
+
+  // Oblique: the struck penguin sits 12 below the line → it is pushed down-right,
+  // along the centre line ghost → struck, never along the aim.
+  g = guide(base({ penguins: [me, { id: '1-0', x: 180, y: 192, drowned: false, plug: false }] }), aimR);
+  ok('oblique: the stub follows the centre line, not the aim', g && g.stub && g.stub.y2 > g.stub.y1 + 1,
+     JSON.stringify(g && g.stub));
+
+  g = guide(base({ bergs: [{ x: 200, y: 180, r: 16 }] }), aimR);
+  ok('a Berg: ghost only, no stub', g && g.kind === 'berg' && g.ghost && g.stub === null, JSON.stringify(g));
+
+  g = guide(base({ penguins: [me, { id: '1-0', x: 180, y: 180, drowned: true, plug: true }] }), aimR);
+  ok('a plug: ghost only, no stub', g && g.kind === 'plug' && g.stub === null, JSON.stringify(g));
+
+  g = guide(base({ penguins: [me, { id: '1-0', x: 180, y: 180, drowned: true, plug: false }] }), aimR);
+  ok('a Knocked-back penguin is not a body — no contact', g && g.kind !== 'penguin' && g.kind !== 'plug', JSON.stringify(g));
+
+  g = guide(base({}), { penguinId: '0-0', dx: 1, dy: 0, power: 0.3 });
+  ok('nothing in reach: no ghost, the line ends at reach × power', g && g.ghost === null && near(g.end.x, 120 + 130 * 0.3, 2),
+     JSON.stringify(g));
+
+  g = guide(base({}), { penguinId: '0-0', dx: -1, dy: 0, power: 1 });
+  ok('heading off the floe: kind rim, ghost at the lip, no stub', g && g.kind === 'rim' && g.ghost && g.stub === null &&
+     Math.hypot(g.ghost.x - 180, g.ghost.y - 180) <= 130, JSON.stringify(g));
+}
+
 // ── Report (keep LAST in the file) ─────────────────────────────────────────
 if (!TUNE) {
   console.log('\n' + '='.repeat(70));
