@@ -2691,6 +2691,27 @@ body.flash-red   { background-color: #fecaca; }
   user-select: none;
 }
 #cld-canvas { display: block; touch-action: none; }
+/* The Practice Arena's stage (SW v244). Square, never taller than 46vh, so the
+   whole stage is on screen before a drag starts inside the scrolling overlay.
+   touch-action:none is load-bearing for the same reason as #cld-stage: without
+   it a drag scrolls the overlay instead of aiming. */
+#cld-pr-stage {
+  width: min(100%, 46vh);
+  aspect-ratio: 1 / 1;
+  margin: 0 auto;
+  background: #0e2536;
+  touch-action: none;
+  user-select: none; -webkit-user-select: none;
+}
+#cld-pr-canvas { display: block; touch-action: none; }
+/* The coach's soft ring — a box-shadow TRANSITION, never an animation, so the
+   global reduced-motion block already zeroes it. One rule carries the press
+   too: an id rule would otherwise override a Tailwind transition utility. */
+#cld-pr-stage, #btn-cld-pr-power, #btn-cld-pr-commit, #btn-cld-pr-resurface,
+#btn-cld-pr-mode-throw, #btn-cld-pr-mode-dive {
+  transition: box-shadow 160ms ease-out, transform 100ms ease-out;
+}
+.cld-pr-ring { box-shadow: 0 0 0 3px rgba(142, 202, 230, 0.95); }
 
 /* Power bar — the bar IS the lock control (brief §14), so the two states have to
    be unmistakable at a glance: live is soft and unoutlined, locked is outlined

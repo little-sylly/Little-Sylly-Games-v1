@@ -634,6 +634,26 @@ if (!TUNE) {
   check('Arena: a stand-still Head-on walks the coach 1 → 4 → B1', G('cldPrUi').coach.at, 'B1');
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// J. The tabs (spec § 6.1)
+// ═══════════════════════════════════════════════════════════════════════════
+if (!TUNE) {
+  section('J. The tabs');
+  const $ = id => S.document.getElementById(id);
+  const shown = () => ['rules', 'practice', 'cast'].filter(t => $('cld-howto-body-' + t).style.display === 'flex');
+  RUN("cldSetHowtoTab('practice')"); check('Practice shows only its own body', shown(), ['practice']);
+  RUN("cldSetHowtoTab('cast')");     check('The Cast shows only its own body', shown(), ['cast']);
+  RUN("cldSetHowtoTab('rules')");    check('The Rules shows only its own body', shown(), ['rules']);
+  ok('The Floe sandbox is gone', RUN("['cldHowtoSeed','cldHowtoShove','cldHowtoSettle','cldHowtoDrawFloe']" +
+     ".every(n => { try { eval(n); return false; } catch (_) { return true; } })"));
+  ok('its constants are gone too', RUN("typeof CLD_HOWTO_RADIUS === 'undefined' && typeof CLD_HOWTO_N === 'undefined'"));
+  const html = fs.readFileSync(path.join(ROOT, 'src/screens/cld.html'), 'utf8');
+  ok('the markup has the three tabs and no Floe tab',
+     /data-cld-howto-tab="practice"/.test(html) && /data-cld-howto-tab="cast"/.test(html) &&
+     !/data-cld-howto-tab="floe"/.test(html) && !/cld-howto-floe-canvas/.test(html));
+  ok('How to Play step 2 teaches the cue', /Pull back to aim, like a pool cue/.test(html) && !/like a slingshot/.test(html));
+}
+
 // ── Report (keep LAST in the file) ─────────────────────────────────────────
 if (!TUNE) {
   console.log('\n' + '='.repeat(70));

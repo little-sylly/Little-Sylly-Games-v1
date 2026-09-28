@@ -827,8 +827,6 @@ const CLD_SWAP_EXEMPT = [
   'cldIntroIdx', 'cldFloatTimer', 'cldClock',
   // How to Play's The Cast loop.
   'cldHowtoRaf', 'cldHowtoLastT', 'cldHowtoClock', 'cldHowtoCast',
-  // The Floe tab's sandbox — deleted in Task 10 (and from this list with it).
-  'cldHowtoCtx', 'cldHowtoPeng', 'cldHowtoTL', 'cldHowtoPlayT',
   // The Arena's own state.
   'cldPrFloe', 'cldPrUi', 'cldPrView', 'cldPrRaf', 'cldPrLastT', 'cldPrClock',
   'cldPrFloatTimer', 'cldPrSwapDepth',
@@ -2509,40 +2507,33 @@ function cldOpenHowTo(tab) {
   cldOpenOverlay('cld-how-to-overlay');
 }
 
-// Rules and The Floe are two tabs of ONE overlay; bodies are siblings toggled by
-// display so each keeps its own scroll position across a flick. The Floe's RAF
-// loop only runs while its tab is showing — started here, stopped on any switch
-// away, on close, and in cldResetState() (§ Timer Lifecycle: a RAF is a timer).
+// The Rules, Practice and The Cast are three tabs of ONE overlay; bodies are
+// siblings toggled by display. Each tab's loop runs only while it is showing —
+// started here, stopped on any switch away, on close, and in cldResetState()
+// (§ Timer Lifecycle: a RAF is a timer).
 function cldSetHowtoTab(tab) {
-  const rules = document.getElementById('cld-howto-body-rules');
-  const floe  = document.getElementById('cld-howto-body-floe');
-  if (rules) rules.style.display = tab === 'floe' ? 'none' : 'flex';
-  if (floe)  floe.style.display  = tab === 'floe' ? 'flex' : 'none';
+  const bodies = { rules: 'cld-howto-body-rules', practice: 'cld-howto-body-practice', cast: 'cld-howto-body-cast' };
+  if (!bodies[tab]) tab = 'rules';
+  Object.keys(bodies).forEach(k => {
+    const el = document.getElementById(bodies[k]);
+    if (el) el.style.display = k === tab ? 'flex' : 'none';
+  });
   document.querySelectorAll('[data-cld-howto-tab]').forEach(b => {
     b.classList.remove('pill-active-cld');   // .pill is the base — never removed
     if (b.dataset.cldHowtoTab === tab) b.classList.add('pill-active-cld');
   });
-  const body = tab === 'floe' ? floe : rules;
+  const body = document.getElementById(bodies[tab]);
   if (body) body.scrollTop = 0;
-  if (tab === 'floe') cldHowtoStart(); else cldHowtoStop();
+  if (tab === 'cast') cldHowtoStart(); else cldHowtoStop();
+  if (tab === 'practice') cldPracticeStart(); else cldPracticeStop();
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// "The Floe" — the How-to reference tab: a live practice sim plus the cast of
-// poses. A STATE ISLAND — everything is cldHowto*-prefixed and shares nothing
-// with the live game (no cldPenguins, no cldTimeline, no cldFloeRadius, no
-// commits, no packets), and it never branches on syllyMultiplayerMode. It
-// borrows exactly two things the game already owns: window.Physics.simulate()
-// and cldRenderPenguin() — so the poses shown here cannot drift from the ones
-// played, and the sim shown here IS the sim.
-//
-// Deviation, logged (cld-implementation-notes): ui-style.md says a how-to tab
-// should not carry "live running state". The practice floe does. Owner call.
+// "The Cast" — the How-to pose reference: the six cldPose states, each drawn
+// through cldRenderPenguin, so the poses shown here cannot drift from the
+// ones played. (The Floe's practice sandbox was absorbed by the Practice
+// Arena at SW v244 — spec 2026-09-28-cld-cue-arena.)
 // ═══════════════════════════════════════════════════════════════════════════
-const CLD_HOWTO_N       = 5;     // penguins on the practice floe
-const CLD_HOWTO_RADIUS  = 130;   // fixed (CLD_R_STD) — deliberately not a settings mirror
-const CLD_HOWTO_HOLD_MS = 700;   // beat held after the last sample before settling
-
 const CLD_HOWTO_CAST = [
   { pose: 'idle',   name: 'Idle',   note: 'waiting to aim' },
   { pose: 'lean',   name: 'Lean',   note: 'winding up' },
@@ -2553,13 +2544,9 @@ const CLD_HOWTO_CAST = [
 ];
 const CLD_HOWTO_TILE_R = 72;   // cast-tile penguin radius, logical units (fills the tile)
 
-let cldHowtoCtx   = null;
 let cldHowtoRaf   = null;
 let cldHowtoLastT = 0;
 let cldHowtoClock = 0;      // wall seconds — drives idle sway + the plunge tile cycle
-let cldHowtoPeng  = [];     // [{ id, x, y, drowned }]
-let cldHowtoTL    = null;   // active playback { samples, durationMs, final } or null
-let cldHowtoPlayT = 0;      // playback clock, ms
 let cldHowtoCast  = [];     // [{ el, ctx, pose, colour }] — the six cast-tile canvases
 
 function cldHowtoBuildCast() {
@@ -2599,128 +2586,20 @@ function cldHowtoFit(cv, ctx) {
                    (w - CLD_W * scale) / 2 * dpr, (h - CLD_W * scale) / 2 * dpr);
 }
 
-function cldHowtoSeed() {
-  cldHowtoTL = null; cldHowtoPlayT = 0;
-  cldHowtoPeng = [];
-  for (let i = 0; i < CLD_HOWTO_N; i++) {
-    const a = (i / CLD_HOWTO_N) * CLD_TAU - Math.PI / 2;
-    const r = CLD_HOWTO_RADIUS * CLD_START_RING;
-    cldHowtoPeng.push({ id: i, x: CLD_W / 2 + r * Math.cos(a), y: CLD_H / 2 + r * Math.sin(a), drowned: false });
-  }
-}
-
-function cldHowtoShove() {
-  if (cldHowtoTL) return;                      // already resolving — ignore the tap
-  const stand = cldHowtoPeng.filter(p => !p.drowned);
-  if (stand.length < 2) { cldHowtoSeed(); return; }   // nothing left to shove
-  const bodies = cldHowtoPeng.map(p => ({
-    id: p.id, x: p.x, y: p.y, r: CLD_PENGUIN_R,
-    kind: p.drowned ? 'drowned' : 'penguin',
-  }));
-  const impulses = stand.map(p => {
-    const a = Math.random() * CLD_TAU;
-    const v = (0.55 + Math.random() * 0.45) * CLD_V_MAX;
-    return { bodyId: p.id, vx: Math.cos(a) * v, vy: Math.sin(a) * v };
-  });
-  cldHowtoTL = window.Physics.simulate({
-    world:    { cx: CLD_W / 2, cy: CLD_H / 2, radius: CLD_HOWTO_RADIUS },
-    bodies:   bodies,
-    impulses: impulses,
-    events:   [],
-    params:   { decel: cldDecel('slush'), substepMs: CLD_SUBSTEP_MS, capMs: CLD_SIM_CAP_MS, sampleHz: CLD_SAMPLE_HZ },
-    seed:     (Math.random() * 0xffffffff) >>> 0,
-  });
-  cldHowtoPlayT = 0;
-  cldSfx('collide');
-}
-
-// Apply the sim's resting state. A plunged penguin becomes Drowned and rides the
-// rim at its final angle — the real game's rule, minus the plug/knock-back
-// bookkeeping the reference doesn't need.
-function cldHowtoSettle() {
-  const tl = cldHowtoTL; if (!tl) return;
-  tl.final.forEach(f => {
-    const p = cldHowtoPeng.find(q => q.id === f.id);
-    if (!p) return;
-    if (f.plunged) {
-      const a = Math.atan2(f.y - CLD_H / 2, f.x - CLD_W / 2);
-      p.drowned = true;
-      p.x = CLD_W / 2 + CLD_HOWTO_RADIUS * Math.cos(a);
-      p.y = CLD_H / 2 + CLD_HOWTO_RADIUS * Math.sin(a);
-    } else {
-      p.x = f.x; p.y = f.y;
-    }
-  });
-  cldHowtoTL = null; cldHowtoPlayT = 0;
-}
-
 function cldHowtoLoop(now) {
   cldHowtoRaf = null;
   if (!cldHowtoLastT) cldHowtoLastT = now;
   const dt = Math.min((now - cldHowtoLastT) / 1000, 0.05);
   cldHowtoLastT = now;
   cldHowtoClock += dt;
-
-  if (cldHowtoTL) {
-    const tl = cldHowtoTL;
-    cldHowtoPlayT += dt * 1000;
-    const sampleMs = 1000 / CLD_SAMPLE_HZ;
-    const fIdx = Math.min(cldHowtoPlayT / sampleMs, tl.samples.length - 1);
-    const i0 = Math.floor(fIdx), i1 = Math.min(i0 + 1, tl.samples.length - 1);
-    const f  = fIdx - i0;
-    const s0 = tl.samples[i0], s1 = tl.samples[i1];
-    if (s0 && s1) {
-      cldHowtoPeng.forEach((p, k) => {
-        if (p.drowned) return;
-        p.x = s0[k * 2]     + (s1[k * 2]     - s0[k * 2])     * f;
-        p.y = s0[k * 2 + 1] + (s1[k * 2 + 1] - s0[k * 2 + 1]) * f;
-      });
-    }
-    if (cldHowtoPlayT >= tl.durationMs + CLD_HOWTO_HOLD_MS) cldHowtoSettle();
-  }
-
-  cldHowtoDrawFloe();
   cldHowtoDrawCast();
-
   if (!cldHowtoRaf) cldHowtoRaf = requestAnimationFrame(cldHowtoLoop);
 }
 
-function cldHowtoDrawFloe() {
-  const ctx = cldHowtoCtx;
-  const cv  = document.getElementById('cld-howto-floe-canvas');
-  if (!ctx || !cv) return;
-  cldHowtoFit(cv, ctx);
-  const cx = CLD_W / 2, cy = CLD_H / 2, R = CLD_HOWTO_RADIUS;
-
-  ctx.clearRect(-CLD_W, -CLD_W, CLD_W * 3, CLD_W * 3);
-  const water = ctx.createLinearGradient(0, 0, 0, CLD_H);
-  water.addColorStop(0, '#1c3f57');
-  water.addColorStop(1, '#0e2536');
-  ctx.fillStyle = water;
-  ctx.fillRect(-CLD_W, -CLD_W, CLD_W * 3, CLD_W * 3);
-
-  ctx.strokeStyle = 'rgba(142,202,230,0.10)';
-  ctx.lineWidth = 1.5;
-  for (let k = 0; k < 4; k++) {
-    const ph = (cldHowtoClock * 0.25 + k * 0.25) % 1;
-    ctx.globalAlpha = 1 - ph;
-    ctx.beginPath();
-    ctx.arc(cx, cy, R + 6 + ph * 46, 0, CLD_TAU);
-    ctx.stroke();
-  }
-  ctx.globalAlpha = 1;
-
-  ctx.beginPath(); ctx.arc(cx, cy + 3, R, 0, CLD_TAU);
-  ctx.fillStyle = 'rgba(0,0,0,0.28)'; ctx.fill();
-  const ice = ctx.createRadialGradient(cx - R * 0.3, cy - R * 0.35, R * 0.1, cx, cy, R);
-  ice.addColorStop(0, '#f2f9fc'); ice.addColorStop(1, '#cfe4ee');
-  ctx.beginPath(); ctx.arc(cx, cy, R, 0, CLD_TAU);
-  ctx.fillStyle = ice; ctx.fill();
-
-  cldHowtoPeng.forEach(p => {
-    cldRenderPenguin(ctx, p.drowned ? 'bob' : 'idle', p.id, p.x, p.y, CLD_PENGUIN_R,
-      { t: cldHowtoClock, ring: true, me: p.id === 0 });
-  });
+function cldHowtoStart() {
+  cldHowtoBuildCast();
+  cldHowtoLastT = 0;
+  if (!cldHowtoRaf) cldHowtoRaf = requestAnimationFrame(cldHowtoLoop);
 }
 
 function cldHowtoDrawCast() {
@@ -2735,19 +2614,13 @@ function cldHowtoDrawCast() {
   });
 }
 
-function cldHowtoStart() {
-  const cv = document.getElementById('cld-howto-floe-canvas');
-  cldHowtoCtx = cv && cv.getContext ? cv.getContext('2d') : null;
-  cldHowtoBuildCast();
-  if (!cldHowtoPeng.length) cldHowtoSeed();
-  cldHowtoLastT = 0;
-  if (!cldHowtoRaf) cldHowtoRaf = requestAnimationFrame(cldHowtoLoop);
-}
-
 function cldHowtoStop() {
   if (cldHowtoRaf) { cancelAnimationFrame(cldHowtoRaf); cldHowtoRaf = null; }
   cldHowtoLastT = 0;
 }
+
+function cldPracticeStart() {}
+function cldPracticeStop() {}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // The Practice Arena (spec § 6) — You, Sylvia and Sam on a fixed floe. The
@@ -3364,8 +3237,8 @@ function cldResetState() {
   // All four timers. A requestAnimationFrame IS a timer (§ Timer Lifecycle) and
   // a live loop repaints against the next screen's state.
   if (cldRafHandle)   { cancelAnimationFrame(cldRafHandle); cldRafHandle = null; }
-  cldHowtoStop();                       // The Floe's reference loop — a RAF is a timer
-  cldHowtoPeng = []; cldHowtoTL = null; cldHowtoPlayT = 0;
+  cldHowtoStop();                       // The Cast's loop — a RAF is a timer
+  cldPracticeStop();                    // the Practice Arena's loop and bark timer
   if (cldIntroTimer)  { clearTimeout(cldIntroTimer);  cldIntroTimer  = null; }
   if (cldResultTimer) { clearTimeout(cldResultTimer); cldResultTimer = null; }
   if (cldFloatTimer)  { clearTimeout(cldFloatTimer);  cldFloatTimer  = null; }
@@ -3496,17 +3369,17 @@ document.addEventListener('DOMContentLoaded', () => {
   const cldCloseHowTo = () => {
     playDone();
     cldHowtoStop();
+    cldPracticeStop();
     const ov = document.getElementById('cld-how-to-overlay');
     if (ov) ov.style.display = 'none';
   };
   on('btn-cld-howto-close', cldCloseHowTo);
-  on('btn-cld-howto-close-floe', cldCloseHowTo);
+  on('btn-cld-howto-close-practice', cldCloseHowTo);
+  on('btn-cld-howto-close-cast', cldCloseHowTo);
 
   document.querySelectorAll('[data-cld-howto-tab]').forEach(b => {
     b.addEventListener('click', () => { playPillClick(); cldSetHowtoTab(b.dataset.cldHowtoTab); });
   });
-  on('btn-cld-howto-shove',     () => { playPillClick(); cldHowtoShove(); });
-  on('btn-cld-howto-resurface', () => { playPillClick(); cldHowtoSeed(); });
 
   on('btn-cld-menu-settings', () => { playDone(); cldSyncSettingsUI(); cldOpenOverlay('cld-settings-overlay'); });
   on('btn-cld-settings-close', () => {
