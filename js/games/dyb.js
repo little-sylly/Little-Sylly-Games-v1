@@ -670,20 +670,46 @@ function dybRenderTableScreen() {
   dybRenderAscentPreview();
 }
 
-// Canonical raise rule (single source of truth for picker floors + button gate):
-// a raise is legal if the quantity goes UP (any face), or the quantity stays the
-// same AND the face goes up. Quantity must never decrease.
-function dybIsLegalRaise(face, qty) {
-  const minFace = dybOnesStripped ? 1 : (dybWildcardsStyle === 'classic' ? 2 : 1);
-  if (face < minFace || qty < 1) return false;
-  return qty > dybCurrentQty || (qty === dybCurrentQty && face > dybCurrentFace);
+// ── Pure rules — no globals; the live table and Practice both call these ─────
+// claim / bid: { qty, face } — qty 0 means "no claim yet".
+// rules: { wildcards: 'strict'|'classic'|'volatile', onesStripped: bool }
+function dybRulesNow() { return { wildcards: dybWildcardsStyle, onesStripped: dybOnesStripped }; }
+function dybClaimNow() { return { qty: dybCurrentQty, face: dybCurrentFace }; }
+
+// Which faces may be claimed at all. Volatile after a 1s claim allows ONLY 1s —
+// the shipped picker's behaviour ("they strip and lock"), kept deliberately.
+function dybFaceAllowed(face, rules) {
+  if (face < 1 || face > 6) return false;
+  if (rules.onesStripped) return face === 1;
+  if (rules.wildcards === 'classic') return face !== 1;
+  return true;
 }
 
-// Lowest legal quantity for a given face against the standing allegation.
-// Higher face → may keep the same quantity; same/lower face → must raise quantity.
-function dybMinQtyForFace(face) {
-  return face > dybCurrentFace ? Math.max(1, dybCurrentQty) : dybCurrentQty + 1;
+// Higher face → may keep the quantity; same/lower face → must raise it.
+function dybMinQty(claim, face) {
+  return face > claim.face ? Math.max(1, claim.qty) : claim.qty + 1;
 }
+
+function dybLegalRaise(claim, bid, rules) {
+  if (!dybFaceAllowed(bid.face, rules) || bid.qty < 1) return false;
+  return bid.qty > claim.qty || (bid.qty === claim.qty && bid.face > claim.face);
+}
+
+const DYB_FACE_REASON = {
+  wildOnes: "1s are wild, so they can't be claimed.",
+  stripped: '1s were claimed. Only 1s from here this Shake.',
+  volatile: 'Claiming 1s switches wilds off for this Shake.',
+};
+// The line under the face row after a tap: why a face is closed, or a warning.
+function dybFaceNote(face, rules) {
+  if (!dybFaceAllowed(face, rules)) return rules.onesStripped ? DYB_FACE_REASON.stripped : DYB_FACE_REASON.wildOnes;
+  if (face === 1 && rules.wildcards === 'volatile' && !rules.onesStripped) return DYB_FACE_REASON.volatile;
+  return null;
+}
+
+// Old call sites (the picker, until Task 10 replaces it) delegate here.
+function dybIsLegalRaise(face, qty) { return dybLegalRaise(dybClaimNow(), { face, qty }, dybRulesNow()); }
+function dybMinQtyForFace(face) { return dybMinQty(dybClaimNow(), face); }
 
 function dybRenderBidPicker() {
   // Compute legal face range
