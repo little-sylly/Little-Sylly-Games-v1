@@ -1,0 +1,867 @@
+<title>Cold Shoulder Style Prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap">
+<style>
+  :root {
+    --sea: #0d3a5a;
+    --ink: #2b2a38;
+    --glacier: #8ECAE6;
+    --glacier-dark: #2a6b85;
+    --frost: rgba(240, 249, 253, 0.88);
+    --stone-200: #e7e5e4;
+    --stone-500: #78716c;
+    --amber: #d97706;
+    color-scheme: light;
+  }
+  html, body { height: 100%; }
+  body {
+    margin: 0; background: var(--sea); color: var(--ink);
+    font-family: 'Fredoka', ui-rounded, 'Segoe UI', system-ui, sans-serif;
+    -webkit-tap-highlight-color: transparent; overflow: hidden;
+  }
+  #app { position: relative; height: 100%; max-width: 520px; margin: 0 auto; overflow: hidden; }
+  #stage { position: absolute; inset: 0; touch-action: none; }
+  #cv { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+
+  /* ── Header floats over the water ─────────────────────────────────────── */
+  #hdr {
+    position: absolute; left: 0; right: 0; top: 0; z-index: 3;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 16px 10px; pointer-events: none;
+    background: linear-gradient(rgba(8,36,56,0.55), rgba(8,36,56,0));
+  }
+  #hdr-title { color: #fff; font-weight: 600; font-size: 13px; letter-spacing: 0.14em; text-transform: uppercase;
+               text-shadow: 0 1px 2px rgba(0,0,0,0.35); }
+  .hdr-icons { display: flex; gap: 14px; align-items: center; color: #fff; font-weight: 700; font-size: 15px; opacity: 0.9; }
+
+  /* ── The prototype's own switch — not part of the game ────────────────── */
+  #proto {
+    position: absolute; top: 44px; left: 50%; transform: translateX(-50%); z-index: 4;
+    display: flex; gap: 4px; padding: 4px; border-radius: 999px;
+    background: rgba(8,36,56,0.55); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  }
+  #proto button { border: 0; border-radius: 999px; padding: 5px 12px; font: 600 12px 'Fredoka', sans-serif;
+                  color: #cfe9f4; background: transparent; cursor: pointer; }
+  #proto button[aria-pressed="true"] { background: #fff; color: #174a63; }
+
+  /* ── Float text: chunky, inked, pops and drifts ───────────────────────── */
+  #float { position: absolute; left: 0; right: 0; top: 96px; z-index: 3; display: flex; justify-content: center; pointer-events: none; }
+  .bark {
+    font-weight: 700; font-size: 26px; color: #fff; letter-spacing: 0.02em;
+    text-shadow: 2px 0 0 #123b4c, -2px 0 0 #123b4c, 0 2px 0 #123b4c, 0 -2px 0 #123b4c,
+                 2px 2px 0 #123b4c, -2px 2px 0 #123b4c, 2px -2px 0 #123b4c, -2px -2px 0 #123b4c,
+                 0 5px 0 rgba(18,59,76,0.55);
+    animation: bark 1.5s cubic-bezier(.2,.9,.3,1.2) forwards;
+  }
+  .bark.big { font-size: 40px; }
+  @keyframes bark {
+    0% { transform: translateY(8px) scale(0.6); opacity: 0; }
+    14% { transform: translateY(0) scale(1.08); opacity: 1; }
+    24% { transform: scale(1); }
+    80% { opacity: 1; }
+    100% { transform: translateY(-14px) scale(1); opacity: 0; }
+  }
+
+  /* ── The controls: a frosted ice shelf over the water ─────────────────── */
+  #controls {
+    position: absolute; left: 0; right: 0; bottom: 0; z-index: 3;
+    padding: 14px 16px calc(16px + env(safe-area-inset-bottom, 0px));
+    background: var(--frost);
+    backdrop-filter: blur(10px) saturate(1.1); -webkit-backdrop-filter: blur(10px) saturate(1.1);
+    border-radius: 24px 24px 0 0;
+    box-shadow: 0 -1px 0 rgba(255,255,255,0.9) inset, 0 -8px 24px rgba(4,26,44,0.25);
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  /* a snow lip along the shelf's top edge */
+  #controls::before {
+    content: ''; position: absolute; left: 18px; right: 18px; top: -9px; height: 12px;
+    background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='64' height='12' viewBox='0 0 64 12'><path d='M0 12 C3 6 8 4 12 7 C16 2 24 1 28 6 C32 3 37 4 40 8 C44 2 54 1 58 6 C60 4 62 5 64 7 L64 12 Z' fill='white'/></svg>") 0 0 / 64px 12px repeat-x;
+    pointer-events: none;
+  }
+  .row { display: flex; gap: 8px; }
+  .pill { flex: 1; padding: 0.5rem 0; border: 0; border-radius: 9999px; font: 600 0.95rem 'Fredoka', sans-serif;
+          background: var(--stone-200); color: var(--stone-500); cursor: pointer; }
+  .pill-active-cld { background: var(--glacier); color: #fff; }
+  .pill[disabled] { opacity: 0.5; pointer-events: none; }
+  .reason { color: var(--amber); font-size: 12px; margin: -4px 2px 0; }
+
+  #power { display: flex; flex-direction: column; gap: 5px; border: 0; background: none; padding: 2px 0; cursor: pointer; font: inherit; }
+  .power-labels { display: flex; justify-content: space-between; font-size: 12px; color: #5b7d8e; }
+  .power-labels b { font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; }
+  .track {
+    position: relative; height: 18px; border-radius: 999px; overflow: hidden;
+    background: linear-gradient(#cfe6f0, #e8f5fa);
+    box-shadow: inset 0 2px 3px rgba(20,70,100,0.25), 0 1px 0 #fff;
+  }
+  .fill {
+    position: absolute; inset: 2px auto 2px 2px; width: 0; border-radius: 999px;
+    background: linear-gradient(#fff6, #fff0 55%), var(--tint, var(--glacier));
+    box-shadow: inset 0 -2px 0 rgba(0,0,0,0.12);
+  }
+  .fill::after {   /* frost ticks every tenth */
+    content: ''; position: absolute; inset: 0;
+    background: repeating-linear-gradient(90deg, transparent 0 calc(10% - 1px), rgba(255,255,255,0.55) calc(10% - 1px) 10%);
+  }
+  .track.locked { box-shadow: inset 0 2px 3px rgba(20,70,100,0.25), 0 0 0 2px var(--glacier-dark); }
+  .lock { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); font-size: 11px; display: none; }
+  .track.locked .lock { display: block; }
+
+  #tally { display: flex; align-items: center; justify-content: center; gap: 8px; color: #4b6b7b; font-size: 13px; min-height: 20px; }
+  .heads { display: flex; gap: 3px; }
+  .head { width: 14px; height: 14px; border-radius: 50%; background: #cfe0e8; box-shadow: inset 0 0 0 1.5px #9fbccb; position: relative; }
+  .head.in { background: #2e4a5c; box-shadow: none; }
+  .head.in::after { content: ''; position: absolute; left: 3px; right: 3px; top: 5px; height: 6px; border-radius: 50%; background: #fdf6ea; }
+
+  .cld-cta { min-height: 56px; width: 100%; border: 0; border-radius: 1rem; font: 600 1.25rem 'Fredoka', sans-serif;
+             background: var(--glacier); color: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+  .cld-cta:active { transform: scale(0.97); }
+  .cld-cta[disabled] { opacity: 0.5; pointer-events: none; }
+  .cld-cta.waiting { background: var(--stone-200); color: var(--stone-500); }
+
+  /* ── Secondary buttons, in the game's own material: a block of sea ice ── */
+  .ice-btn {
+    position: relative; min-height: 46px; padding: 0 20px; border-radius: 14px; cursor: pointer;
+    font: 600 16px 'Fredoka', sans-serif; color: #164a62; letter-spacing: 0.01em;
+    border: 1px solid #a8d3e6;
+    background: linear-gradient(170deg, #fbfeff 0%, #e2f3fa 45%, #c6e6f3 100%);
+    box-shadow: inset 0 2px 0 rgba(255,255,255,0.95), inset 0 -4px 0 rgba(88,160,196,0.28),
+                0 4px 0 #86bfd8, 0 8px 16px rgba(6,34,56,0.28);
+    transition: transform 120ms ease-out, box-shadow 120ms ease-out;
+  }
+  .ice-btn::before {   /* snow settled on top */
+    content: ''; position: absolute; left: 8px; right: 8px; top: -6px; height: 9px;
+    background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='64' height='12' viewBox='0 0 64 12'><path d='M0 12 C3 6 8 4 12 7 C16 2 24 1 28 6 C32 3 37 4 40 8 C44 2 54 1 58 6 C60 4 62 5 64 7 L64 12 Z' fill='white'/></svg>") 0 0 / 48px 9px repeat-x;
+    filter: drop-shadow(0 1px 0 rgba(120,180,210,0.5));
+  }
+  .ice-btn::after {    /* a glint across the face */
+    content: ''; position: absolute; left: 12%; top: 7px; width: 22%; height: 3px; border-radius: 3px; background: rgba(255,255,255,0.9);
+  }
+  .ice-btn:active { transform: translateY(3px); box-shadow: inset 0 2px 0 rgba(255,255,255,0.95), inset 0 -3px 0 rgba(88,160,196,0.28), 0 1px 0 #86bfd8, 0 3px 8px rgba(6,34,56,0.25); }
+
+  /* ── End card ─────────────────────────────────────────────────────────── */
+  #end { position: absolute; inset: 0; z-index: 5; display: none; align-items: center; justify-content: center; padding: 16px;
+         background: rgba(6,30,48,0.35); }
+  .end-card { width: 100%; max-width: 330px; border-radius: 26px; padding: 20px 20px 22px; text-align: center;
+              background: linear-gradient(#fbfeff, #e6f5fb); box-shadow: 0 1px 0 #fff inset, 0 18px 40px rgba(0,20,40,0.45);
+              display: flex; flex-direction: column; gap: 12px; align-items: stretch; }
+  .end-card canvas { width: 120px; height: 120px; align-self: center; }
+  .end-card h2 { margin: 0; font-size: 26px; color: #123b4c; text-wrap: balance; }
+  .end-card p { margin: 0; color: #4b6b7b; font-size: 15px; }
+
+  /* ── The Cast sheet ───────────────────────────────────────────────────── */
+  #cast { position: absolute; inset: 0; z-index: 2; display: none; overflow-y: auto; padding: 96px 16px 24px;
+          background: linear-gradient(#dff1f8, #f6fbfd); }
+  #cast h3 { margin: 18px 0 8px; font-size: 13px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--glacier-dark); }
+  #cast h3:first-child { margin-top: 0; }
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .tile { background: #fff; border-radius: 16px; box-shadow: 0 1px 3px rgba(20,60,90,0.15); padding: 6px 4px 8px; text-align: center; }
+  .tile canvas { width: 100%; aspect-ratio: 1; display: block; }
+  .tile span { font-size: 12px; color: #4b6b7b; }
+  .strip { background: #fff; border-radius: 16px; box-shadow: 0 1px 3px rgba(20,60,90,0.15); overflow: hidden; }
+  .strip canvas { width: 100%; display: block; }
+  .note { font-size: 13px; color: #4b6b7b; margin: 6px 2px 0; line-height: 1.45; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .bark { animation-duration: 0.01ms; animation-fill-mode: forwards; }
+    * { transition-duration: 0.01ms !important; }
+  }
+</style>
+
+<div id="app">
+  <div id="stage"><canvas id="cv"></canvas></div>
+
+  <div id="hdr">
+    <span id="hdr-title">Floe-Off 1 · Slide 1</span>
+    <span class="hdr-icons" aria-hidden="true"><span>[?]</span><span>🔊</span><span>✕</span></span>
+  </div>
+  <div id="proto" role="group" aria-label="Prototype view">
+    <button id="v-floe" aria-pressed="true">The floe</button>
+    <button id="v-cast" aria-pressed="false">The cast</button>
+  </div>
+  <div id="float"></div>
+
+  <div id="cast">
+    <h3>Poses</h3>
+    <div class="grid" id="cast-poses"></div>
+    <h3>Faces</h3>
+    <div class="grid" id="cast-faces"></div>
+    <h3>All eight, at real size on the ice</h3>
+    <div class="strip"><canvas id="cast-strip"></canvas></div>
+    <p class="note">The strip is drawn at the scale an iPhone SE shows a Standard floe on the aim camera. Pinch the floe to see them closer.</p>
+  </div>
+
+  <div id="controls">
+    <div id="drowned-row" style="display:none">
+      <div class="row">
+        <button class="pill pill-active-cld" id="m-throw">Throw</button>
+        <button class="pill" id="m-dive" disabled>Dive</button>
+      </div>
+      <p class="reason" id="dive-reason">Dive works in the real game — this prototype only throws.</p>
+    </div>
+    <button id="power" aria-label="Power — tap to lock">
+      <span class="power-labels"><span id="power-hint">Tap to lock power</span><b>Power</b></span>
+      <span class="track" id="track"><span class="fill" id="fill"></span><span class="lock">🔒</span></span>
+    </button>
+    <div id="tally"><span class="heads" id="heads"></span><span id="tally-text"></span></div>
+    <button class="cld-cta" id="cta" disabled>Lock It In</button>
+  </div>
+
+  <div id="end">
+    <div class="end-card">
+      <canvas id="end-art" width="240" height="240"></canvas>
+      <h2 id="end-title">Last one dry!</h2>
+      <p id="end-sub"></p>
+      <button class="ice-btn" id="btn-resurface">Resurface</button>
+    </div>
+  </div>
+</div>
+
+<script src="physics.js"></script>
+<script src="cld-art.js"></script>
+<script>
+(function () {
+  'use strict';
+  // ── The world (Phase 1 numbers: a bigger floe, a stronger shove) ────────
+  const CX = 240, CY = 240;
+  const R_STD = 170, PR = 11, BR = 16, SBR = 8;
+  const V_MAX = 195, REACH = R_STD, DECEL = V_MAX * V_MAX / (2 * REACH);
+  const SNOW_SPEED = 780;
+  const RING_COVER = 0.80, SLIP = [3, 4], SLIP_W = [1.6, 1.8];
+  const PLUG_OUT = PR, BACK_OUT = 2.2 * PR;          // plug touches the edge from the water; knocked back drifts further
+  const PULL_PX = 96, TAP_PX = 4, MIN_POWER = 0.08, STEPS = 90, STUB = 30;
+  const TAU = Math.PI * 2;
+  const TINTS = ['#E4572E', '#2E86AB', '#F4B942', '#6A4C93', '#1B998B', '#E4459B', '#5C6F82', '#8FBF3F'];
+  const NAMES = ['You', 'Sylvia', 'Sam', 'Shirley', 'Jeff', 'Max'];
+  const BARKS = ['Into the Drink!', 'Off you pop.', 'Splash.', 'That’ll be cold.', 'Straight in.', 'See you at the bottom.'];
+  const reduced = (() => { try { return matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (_) { return false; } })();
+
+  const $ = id => document.getElementById(id);
+  const stage = $('stage'), cv = $('cv'), ctx = cv.getContext('2d');
+  const fx = CldArt.makeFx(); fx.setReduced(reduced);
+
+  const norm = a => ((a % TAU) + TAU) % TAU;
+  const arcDist = (a, b) => { const d = Math.abs(norm(a) - norm(b)); return Math.min(d, TAU - d); };
+  const angleOf = (x, y) => norm(Math.atan2(y - CY, x - CX));
+  const rimPos = (a, r) => ({ x: CX + r * Math.cos(a), y: CY + r * Math.sin(a) });
+
+  // ── State ────────────────────────────────────────────────────────────────
+  let R = R_STD, pens = [], bergs = [], floeArt = null, seed = 11, slideNo = 1;
+  let phase = 'aim';             // 'aim' | 'slide' | 'end'
+  let aim = null, lock = null, drag = null, snowTarget = null, T = 0;
+  let play = null;               // the replay: { res, ids, t, evPtr, snow[], done }
+  const pointers = new Map(); let pinch = null, lastTap = 0;
+
+  // ── The ring (the real placement rule, Phase 1 widths) ──────────────────
+  function placeBergs(rand) {
+    bergs = [];
+    const inset = R - BR, circ = TAU * inset;
+    const chunk = 2 * inset * Math.asin(BR / inset);
+    const nSlip = SLIP[0] + Math.floor(rand() * (SLIP[1] - SLIP[0] + 1));
+    const minSlip = 2 * PR * SLIP_W[0];
+    let n = Math.floor(circ * RING_COVER / chunk);
+    while (n > nSlip && circ - n * chunk < nSlip * minSlip) n--;
+    const gaps = new Array(n).fill(0), slipIdx = [];
+    while (slipIdx.length < nSlip) { const k = Math.floor(rand() * n); if (slipIdx.indexOf(k) < 0) slipIdx.push(k); }
+    slipIdx.forEach(k => { gaps[k] = 2 * PR * (SLIP_W[0] + rand() * (SLIP_W[1] - SLIP_W[0])); });
+    const spare = circ - n * chunk, slipSum = gaps.reduce((t, g) => t + g, 0);
+    if (slipSum > spare) { const over = slipSum - spare, room = slipSum - nSlip * minSlip; slipIdx.forEach(k => { gaps[k] -= over * (gaps[k] - minSlip) / (room || 1); }); }
+    const left = Math.max(0, circ - n * chunk - gaps.reduce((t, g) => t + g, 0));
+    const wts = gaps.map(g => g ? 0 : rand()), sumW = wts.reduce((t, x) => t + x, 0) || 1;
+    wts.forEach((x, k) => { if (x) gaps[k] = left * x / sumW; });
+    let arc = rand() * circ;
+    for (let i = 0; i < n; i++) {
+      const a = (arc + chunk / 2) / inset, pos = rimPos(a, inset);
+      bergs.push({ id: 'berg-' + i, x: pos.x, y: pos.y, r: BR, hits: 2, angle: norm(a), gone: false });
+      arc += chunk + gaps[i];
+    }
+  }
+
+  // ── Phase 1's seat rule: a plug floats in the Drink, touching the edge. A
+  // seat is legal where a penguin could pass the chunk ring at that angle and
+  // no other plug overlaps it — each anchor's ban is taken at its OWN radius.
+  function seatSpotFrom(anchors, angle) {
+    const S = R + PLUG_OUT, a = norm(angle);
+    const at = t => { const p = rimPos(t, S); return { angle: norm(t), x: p.x, y: p.y }; };
+    if (!anchors.length) return at(a);
+    const bans = anchors.map(q => {
+      const c = angleOf(q.x, q.y), d = Math.hypot(q.x - CX, q.y - CY);
+      const half = 2 * Math.asin(Math.min(1, (q.r + PR) / (2 * d)));
+      return [c - half, c + half];
+    });
+    const base = bans[0][0];
+    const nb = bans.map(([s, e]) => { const s2 = base + norm(s - base); return [s2, s2 + (e - s)]; }).sort((p, q) => p[0] - q[0]);
+    const merged = [];
+    nb.forEach(iv => { const l = merged[merged.length - 1]; if (l && iv[0] <= l[1]) l[1] = Math.max(l[1], iv[1]); else merged.push(iv.slice()); });
+    const open = [];
+    for (let i = 0; i < merged.length; i++) {
+      const s = merged[i][1], e = i + 1 < merged.length ? merged[i + 1][0] : merged[0][0] + TAU;
+      if (e >= s) open.push([s, e]);
+    }
+    if (!open.length) return null;
+    let best = null, bestD = Infinity;
+    open.forEach(([s, e]) => {
+      let t;
+      if ((e - s) * (R - BR) < 4 * PR) t = (s + e) / 2;
+      else { const aa = s + norm(a - s); t = aa <= e ? aa : (arcDist(a, s) < arcDist(a, e) ? s : e); }
+      const d = arcDist(a, t);
+      if (d < bestD) { bestD = d; best = t; }
+    });
+    return at(best);
+  }
+  function ringAnchors(excl) {
+    const out = bergs.filter(b => !b.gone).map(b => ({ x: b.x, y: b.y, r: b.r }));
+    pens.forEach(p => { if (p.drowned && p.plug && p.id !== excl) out.push({ x: p.x, y: p.y, r: PR }); });
+    return out;
+  }
+
+  // ── A fresh Floe-Off ─────────────────────────────────────────────────────
+  function resurface() {
+    seed = (seed * 48271 + 7) % 2147483647;
+    const rand = Physics.rng(seed);
+    R = R_STD; slideNo = 1; phase = 'aim'; aim = null; lock = null; drag = null; snowTarget = null; play = null;
+    pens = NAMES.map((n, i) => {
+      const a = i / NAMES.length * TAU + Math.PI / 2, p = rimPos(a, R * 0.55);
+      return { id: i + '-0', owner: i, x: p.x, y: p.y, drowned: false, plug: false, angle: null, seed: i * 1.7, splat: 0 };
+    });
+    placeBergs(rand);
+    floeArt = CldArt.makeFloe(CX, CY, R, seed, 3);
+    fx.clear();
+    $('end').style.display = 'none';
+    camOverview(true);
+    sync();
+  }
+
+  // ── Aiming (the pool-style gesture; power is thumb travel in CSS px) ────
+  function me() { return pens[0]; }
+  function aimFrom(d) {
+    const P = w2s(me()), F = d.now, D = d.down;
+    const ex = P.x - F.x, ey = P.y - F.y, dist = Math.hypot(ex, ey);
+    let dir = d.dir;
+    if (dist >= 2 * PR * view.s) dir = { x: ex / dist, y: ey / dist };
+    if (!dir) return null;
+    const pull = dist - Math.hypot(P.x - D.x, P.y - D.y);
+    const power = lock !== null ? lock : Math.max(0, Math.min(1, pull / PULL_PX));
+    return { dx: dir.x, dy: dir.y, power: power, dir: dir };
+  }
+  function guide(from, a) {
+    const step = REACH * a.power / STEPS;
+    let hx = from.x, hy = from.y, kind = null, struck = null;
+    for (let k = 0; k < STEPS && !kind; k++) {
+      const nx = hx + a.dx * step, ny = hy + a.dy * step;
+      if (Math.hypot(nx - CX, ny - CY) > R) { kind = 'rim'; break; }
+      for (const q of pens) {
+        if (q === from || (q.drowned && !q.plug)) continue;
+        if (Math.hypot(q.x - nx, q.y - ny) < 2 * PR) { kind = q.drowned ? 'plug' : 'penguin'; struck = q; break; }
+      }
+      if (!kind) for (const b of bergs) { if (!b.gone && Math.hypot(b.x - nx, b.y - ny) < b.r + PR) { kind = 'berg'; break; } }
+      if (!kind) { hx = nx; hy = ny; }
+    }
+    const out = { end: { x: hx, y: hy }, ghost: kind ? { x: hx, y: hy } : null, stub: null, kind: kind };
+    if (kind === 'penguin') {
+      const sx = struck.x - hx, sy = struck.y - hy, sl = Math.hypot(sx, sy) || 1;
+      out.stub = { x1: struck.x, y1: struck.y, x2: struck.x + sx / sl * STUB, y2: struck.y + sy / sl * STUB };
+    }
+    return out;
+  }
+
+  // ── Bots for the prototype: shove someone, or throw from the Drink ──────
+  function botCommit(p, rand) {
+    const standing = pens.filter(q => !q.drowned && q !== p);
+    if (!standing.length) return null;
+    const tgt = standing[Math.floor(rand() * standing.length)];
+    if (p.drowned) return rand() < 0.7 ? { snow: { x: tgt.x + (rand() - 0.5) * 20, y: tgt.y + (rand() - 0.5) * 20 } } : null;
+    const a = Math.atan2(tgt.y - p.y, tgt.x - p.x) + (rand() - 0.5) * 0.3;
+    return { dx: Math.cos(a), dy: Math.sin(a), power: 0.5 + rand() * 0.5 };
+  }
+
+  function lockIn() {
+    if (phase !== 'aim') return;
+    const rand = Physics.rng(seed * 31 + slideNo);
+    const bodies = [], impulses = [], events = [], snow = [];
+    pens.forEach(p => {
+      if (p.drowned && !p.plug) return;
+      bodies.push(p.drowned ? { id: p.id, x: p.x, y: p.y, r: PR, kind: 'drowned', hits: 1 } : { id: p.id, x: p.x, y: p.y, r: PR, kind: 'penguin' });
+    });
+    bergs.forEach(b => { if (!b.gone) bodies.push({ id: b.id, x: b.x, y: b.y, r: b.r, kind: 'berg', hits: b.hits }); });
+    const throwFrom = (p, tgt) => {
+      const d = Math.hypot(tgt.x - p.x, tgt.y - p.y);
+      const ev = { t: d / SNOW_SPEED * 1000, type: 'snowball', x: tgt.x, y: tgt.y, radius: SBR,
+                   force: (0.40 - 0.20 * Math.min(1, d / (2 * R))) * V_MAX, from: { x: p.x, y: p.y } };
+      events.push(ev); snow.push({ from: { x: p.x, y: p.y }, to: { x: tgt.x, y: tgt.y }, t: ev.t, owner: p.owner });
+    };
+    pens.forEach(p => {
+      let c = null;
+      if (p.owner === 0) {
+        if (!p.drowned && aim) c = aim;
+        if (p.drowned && snowTarget) c = { snow: snowTarget };
+      } else c = botCommit(p, rand);
+      if (!c) return;
+      if (c.snow) throwFrom(p, c.snow);
+      else if (!p.drowned) impulses.push({ bodyId: p.id, vx: c.dx * c.power * V_MAX, vy: c.dy * c.power * V_MAX });
+    });
+    const res = Physics.simulate({
+      world: { cx: CX, cy: CY, radius: R }, bodies: bodies, impulses: impulses, events: events,
+      params: { decel: DECEL, substepMs: 1000 / 120, capMs: 5000, sampleHz: 20,
+                seatOnPlunge: (x, y, vx, vy, anchors) => { const s = seatSpotFrom(anchors, angleOf(x, y)); return s ? { x: s.x, y: s.y } : null; } },
+      seed: seed * 7 + slideNo,
+    });
+    play = { res: res, ids: bodies.map(b => b.id), t: 0, evPtr: 0, snow: snow, trails: {}, seatT: {}, knockT: {}, squash: {}, shatterT: {} };
+    res.events.forEach(e => {
+      if (e.type === 'seat') play.seatT[e.id] = e.t;
+      if (e.type === 'knockback') play.knockT[e.id] = e.t;
+      if (e.type === 'shatter') play.shatterT[e.id] = e.t;
+    });
+    phase = 'slide';
+    aim = null; drag = null;
+    cam.holdUntil = T + 0.35;
+    sync();
+  }
+
+  // Apply the settled Slide: seats become plugs, knock-backs drift out, and a
+  // knocked-back penguin whose gap just got plugged is displaced.
+  function trailRuns(tr) { const runs = [[]]; tr.forEach(p => { if (p.gap) runs.push([]); else runs[runs.length - 1].push(p); }); return runs; }
+  function settle() {
+    const res = play.res;
+    Object.keys(play.trails).forEach(id => trailRuns(play.trails[id]).forEach(run => CldArt.floeMark(floeArt, 'groove', run, 8)));
+    res.final.forEach(f => {
+      const p = pens.find(q => q.id === f.id);
+      if (p) { if (!f.plunged || f.seated) { p.x = f.x; p.y = f.y; } return; }
+      const b = bergs.find(q => q.id === f.id);
+      if (b) { b.hits = f.hits; if (f.shattered) b.gone = true; }
+    });
+    res.events.forEach(e => {
+      const p = pens.find(q => q.id === e.id);
+      if (!p) return;
+      if (e.type === 'seat' && !p.drowned) { p.drowned = true; p.plug = true; p.angle = angleOf(e.x, e.y); p.x = e.x; p.y = e.y; }
+      else if (e.type === 'knockback' && p.drowned) { p.plug = false; const q = rimPos(p.angle, R + BACK_OUT); p.x = q.x; p.y = q.y; }
+    });
+    pens.forEach(p => {
+      if (!p.drowned || !p.plug) return;
+      pens.forEach(q => {
+        if (q === p || !q.drowned || q.plug || arcDist(q.angle, p.angle) > 0.08) return;
+        const s = seatSpotFrom(ringAnchors(q.id), q.angle);
+        if (s) { q.plug = true; q.angle = s.angle; q.x = s.x; q.y = s.y; }
+      });
+    });
+    play = null; snowTarget = null; lock = null;
+    const owners = new Set(pens.filter(p => !p.drowned).map(p => p.owner));
+    if (owners.size <= 1) {
+      phase = 'end';
+      const w = owners.size ? [...owners][0] : -1;
+      showEnd(w);
+    } else {
+      phase = 'aim'; slideNo += 1;
+      camOverview(false);
+    }
+    sync();
+  }
+
+  function showEnd(w) {
+    $('end-title').textContent = w < 0 ? 'Washout!' : w === 0 ? 'Last one dry!' : NAMES[w] + ' is the last one dry.';
+    $('end-sub').textContent = w < 0 ? 'Everyone went in. The real game settles that in the Ice Bath.'
+                             : w === 0 ? 'That’s a Fish. 🐟' : 'Better luck on the next floe.';
+    $('end').style.display = 'flex';
+    const c = $('end-art'), g = c.getContext('2d');
+    let t0 = performance.now();
+    (function loop(now) {
+      if ($('end').style.display === 'none') return;
+      g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, 240, 240);
+      g.setTransform(4.2, 0, 0, 4.2, 120, 170);
+      g.fillStyle = '#dff1f8'; g.beginPath(); g.ellipse(0, 4, 26, 8, 0, 0, TAU); g.fill();
+      CldArt.penguin(g, { x: 0, y: 0, r: 11, tint: TINTS[Math.max(0, w)], t: (now - t0) / 1000, pose: w < 0 ? 'bob' : 'win', px: 8, seed: 1 });
+      if (!reduced) requestAnimationFrame(loop);
+    })(t0);
+  }
+
+  // ── The camera: overview → aim cam, a director during the Slide ──────────
+  const cam = { x: CX, y: CY, z: 1, tx: CX, ty: CY, tz: 1, manual: false, holdUntil: 0 };
+  const view = { s: 1, ox: 0, oy: 0, x: 0, y: 0, w: 0, h: 0 };
+  let box = { x: 0, y: 0, w: 1, h: 1 }, SW = 1, SH = 1, DPR = 1;
+  function baseScale() { return Math.min(box.w, box.h) / (2 * (R + BACK_OUT + PR + 4)); }
+  function camOverview(snap) {
+    cam.manual = false;
+    cam.tx = CX; cam.ty = CY; cam.tz = 1;
+    cam.holdUntil = T + 0.8;
+    if (snap || reduced) { cam.x = CX; cam.y = CY; cam.z = 1; }
+  }
+  function camTarget() {
+    if (cam.manual || T < cam.holdUntil || drag) return;   // never move the world under a finger
+    let pts = null, zmax = 1.5;
+    if (phase === 'aim') {
+      const m = me();
+      if (!m.drowned) {
+        // Lean in on you, a little: most of the floe is within a full pull anyway.
+        cam.tx = CX + (m.x - CX) * 0.32; cam.ty = CY + (m.y - CY) * 0.32; cam.tz = 1.14;
+      } else { cam.tx = CX; cam.ty = CY; cam.tz = 1; }
+      return;
+    } else if (phase === 'slide' && play) {
+      pts = [];
+      const now = frameAt(play.t + 60), prev = frameAt(play.t);
+      const mi = play.ids.indexOf(me().id); if (mi >= 0 && !me().drowned) pts.push(now[mi]);
+      play.ids.forEach((id, i) => {
+        if (!now[i] || !prev[i]) return;
+        if (Math.hypot(now[i].x - prev[i].x, now[i].y - prev[i].y) > 0.6) pts.push(now[i]);
+      });
+      if (pts.length < 2) return;
+      zmax = 1.25;
+    } else { cam.tx = CX; cam.ty = CY; cam.tz = 1; return; }
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    pts.forEach(p => { x0 = Math.min(x0, p.x); y0 = Math.min(y0, p.y); x1 = Math.max(x1, p.x); y1 = Math.max(y1, p.y); });
+    const pad = 90, w = x1 - x0 + 2 * pad, h = y1 - y0 + 2 * pad;
+    const s0 = baseScale();
+    const z = Math.max(1, Math.min(zmax, Math.min(box.w / (w * s0), box.h / (h * s0))));
+    let cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+    const lim = R * 0.55, dx = cx - CX, dy = cy - CY, dl = Math.hypot(dx, dy);
+    if (dl > lim) { cx = CX + dx / dl * lim; cy = CY + dy / dl * lim; }
+    cam.tx = cx; cam.ty = cy; cam.tz = z;
+  }
+  function camStep(dt) {
+    camTarget();
+    const k = reduced ? 1 : 1 - Math.exp(-dt * 3.2);
+    cam.x += (cam.tx - cam.x) * k; cam.y += (cam.ty - cam.y) * k; cam.z += (cam.tz - cam.z) * k;
+    view.s = baseScale() * cam.z;
+    view.ox = box.x + box.w / 2 - cam.x * view.s;
+    view.oy = box.y + box.h / 2 - cam.y * view.s;
+    view.x = -view.ox / view.s; view.y = -view.oy / view.s; view.w = SW / view.s; view.h = SH / view.s;
+  }
+  const w2s = p => ({ x: p.x * view.s + view.ox, y: p.y * view.s + view.oy });
+  const s2w = p => ({ x: (p.x - view.ox) / view.s, y: (p.y - view.oy) / view.s });
+
+  // ── The replay ───────────────────────────────────────────────────────────
+  function frameAt(tMs) {
+    const S = play.res.samples, f = tMs / 50, i = Math.min(S.length - 1, Math.floor(f)), j = Math.min(S.length - 1, i + 1), u = Math.min(1, f - i);
+    return play.ids.map((id, k) => ({ x: S[i][2 * k] + (S[j][2 * k] - S[i][2 * k]) * u, y: S[i][2 * k + 1] + (S[j][2 * k + 1] - S[i][2 * k + 1]) * u }));
+  }
+  function stepPlay(dt) {
+    const prevT = play.t;
+    play.t += dt * 1000;
+    const evs = play.res.events;
+    while (play.evPtr < evs.length && evs[play.evPtr].t <= play.t) {
+      const e = evs[play.evPtr++];
+      if (e.type === 'collision') {
+        const pw = Math.min(1, e.speed / 160);
+        if (pw > 0.12) { fx.puff(e.x, e.y, pw); play.squash[e.a] = play.t; play.squash[e.b] = play.t; }
+      } else if (e.type === 'rebound') {
+        const pw = Math.min(1, e.speed / 160);
+        fx.puff(e.x, e.y, pw); play.squash[e.id] = play.t;
+        if (e.off === 'drowned') bark('Boing!');
+      } else if (e.type === 'seat') {
+        fx.splash(e.x, e.y, 1); bark(BARKS[Math.floor(Math.random() * BARKS.length)]);
+      } else if (e.type === 'knockback') {
+        fx.splash(e.x, e.y, 0.6);
+      } else if (e.type === 'shatter') {
+        fx.shatter(e.x, e.y);
+      } else if (e.type === 'landing') {
+        fx.landing(e.x, e.y);
+        if (e.hit === 'penguin') { const p = pens.find(q => q.id === e.id); if (p) p.splat = 1; }
+        else if (!e.hit && Math.hypot(e.x - CX, e.y - CY) < R) CldArt.floeMark(floeArt, 'splat', { x: e.x, y: e.y });
+      }
+    }
+    // Belly-slide grooves and spray.
+    const a = frameAt(prevT), b = frameAt(play.t);
+    play.ids.forEach((id, k) => {
+      const p = pens.find(q => q.id === id);
+      if (!p || p.drowned || play.seatT[id] !== undefined && play.t >= play.seatT[id]) return;
+      const vx = (b[k].x - a[k].x) / Math.max(1e-3, dt), vy = (b[k].y - a[k].y) / Math.max(1e-3, dt);
+      const tr = play.trails[id] || (play.trails[id] = []);
+      if (Math.hypot(vx, vy) > 45) {
+        const last = tr[tr.length - 1];
+        if (!last || last.gap) tr.push({ x: a[k].x, y: a[k].y });
+        tr.push({ x: b[k].x, y: b[k].y });
+        if (Math.random() < 0.7) fx.spray(b[k].x, b[k].y, vx, vy, 1);
+      } else if (tr.length && !tr[tr.length - 1].gap) tr.push({ gap: true });
+    });
+    if (play.t > play.res.durationMs + 900) settle();
+  }
+
+  // ── Drawing ──────────────────────────────────────────────────────────────
+  function penguinState(p, pos, vel) {
+    if (phase === 'slide' && play) {
+      const sT = play.seatT[p.id], kT = play.knockT[p.id];
+      if (sT !== undefined && play.t >= sT) {
+        const k = (play.t - sT) / 420;
+        if (kT !== undefined && play.t >= kT) return { pose: 'back' };
+        return k < 1 ? { pose: 'plunge', k: k, outward: Math.cos(angleOf(pos.x, pos.y)) } : { pose: 'bob' };
+      }
+      if (p.drowned) return { pose: kT !== undefined && play.t >= kT ? 'back' : (p.plug ? 'bob' : 'back') };
+      const sq = play.squash[p.id];
+      if (sq !== undefined && play.t - sq < 240) return { pose: 'squash', k: (play.t - sq) / 240 };
+      const sp = Math.hypot(vel.x, vel.y);
+      if (sp > 40) return { pose: 'slide', vel: vel };
+      return { pose: 'idle', look: Math.atan2(vel.y, vel.x) };
+    }
+    if (p.drowned) return { pose: p.plug ? (p.owner === 0 && snowTarget ? 'throw' : 'bob') : (p.owner === 0 && snowTarget ? 'throw' : 'back'),
+                            look: angleOf(p.x, p.y) + Math.PI };
+    if (p.owner === 0) {
+      const a = drag ? aimFrom(drag) : null;
+      if (a) return { pose: 'aim', power: a.power, look: Math.atan2(a.dy, a.dx) };
+      if (aim) return { pose: 'idle', look: Math.atan2(aim.dy, aim.dx) };
+    }
+    if (phase === 'end') return { pose: 'win' };
+    return { pose: 'idle', look: Math.PI / 2 + Math.sin(T * 0.45 + p.seed) * 0.9 };
+  }
+
+  function draw() {
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    ctx.clearRect(0, 0, SW, SH);
+    ctx.setTransform(view.s * DPR, 0, 0, view.s * DPR, view.ox * DPR, view.oy * DPR);
+    CldArt.water(ctx, view, T, CX, CY, R, reduced);
+    CldArt.scenery(ctx, view, T, CX, CY, R, reduced);
+    fx.draw(ctx, 'ground');
+    CldArt.floe(ctx, floeArt, T, reduced);
+    if (phase === 'slide' && play) Object.keys(play.trails).forEach(id => trailRuns(play.trails[id]).forEach(run => CldArt.groove(ctx, run, 8)));
+
+    // Positions this frame.
+    let pos = pens.map(p => ({ x: p.x, y: p.y })), vel = pens.map(() => ({ x: 0, y: 0 }));
+    if (phase === 'slide' && play) {
+      const a = frameAt(play.t), b = frameAt(play.t + 50);
+      play.ids.forEach((id, k) => {
+        const i = pens.findIndex(q => q.id === id);
+        if (i < 0) return;
+        pos[i] = a[k]; vel[i] = { x: (b[k].x - a[k].x) * 20, y: (b[k].y - a[k].y) * 20 };
+        const kT = play.knockT[id];
+        if (kT !== undefined && play.t >= kT) {                       // drifting back out
+          const ang = angleOf(a[k].x, a[k].y), u = Math.min(1, (play.t - kT) / 500), q = rimPos(ang, R + PLUG_OUT + (BACK_OUT - PLUG_OUT) * u);
+          pos[i] = q;
+        }
+      });
+    }
+
+    // Aim UI lies on the ice, under everyone.
+    const m = me(), px = view.s;
+    if (phase === 'aim' && !m.drowned) {
+      const a = drag ? aimFrom(drag) : aim;
+      if (a && a.power >= 0.02) {
+        CldArt.aim(ctx, { x: m.x, y: m.y, r: PR, dx: a.dx, dy: a.dy, power: a.power, tint: TINTS[0], live: !!drag,
+                          locked: lock !== null, finger: drag ? s2w(drag.now) : null, guide: guide(m, a), t: T, px: px, reduced: reduced });
+      }
+    }
+
+    // Everything that stands up, painted back to front.
+    const objs = [];
+    bergs.forEach(b => {
+      if (b.gone) return;
+      if (phase === 'slide' && play && play.shatterT[b.id] !== undefined && play.t >= play.shatterT[b.id]) return;
+      objs.push({ y: b.y, draw: () => CldArt.berg(ctx, b, 2, T) });
+    });
+    pens.forEach((p, i) => {
+      const st = penguinState(p, pos[i], vel[i]);
+      objs.push({ y: pos[i].y, draw: () => CldArt.penguin(ctx, Object.assign({
+        x: pos[i].x, y: pos[i].y, r: PR, tint: TINTS[p.owner], t: T, me: p.owner === 0, seed: p.seed, px: px,
+        splat: p.splat, dim: p.drowned && !p.plug && phase !== 'slide' }, st)) });
+    });
+    objs.sort((a, b) => a.y - b.y).forEach(o => o.draw());
+
+    // Snowballs in flight.
+    if (phase === 'slide' && play) play.snow.forEach(s => {
+      const k = play.t / s.t;
+      if (k >= 0 && k < 1) CldArt.snowball(ctx, s.from, s.to, k, SBR * 0.7);
+    });
+    fx.draw(ctx, 'air');
+
+    if (phase === 'aim') {
+      if (m.drowned && snowTarget) CldArt.reticle(ctx, { x: snowTarget.x, y: snowTarget.y, tint: TINTS[0], t: T, from: m, reduced: reduced });
+      if (!m.drowned && slideNo === 1 && !aim && !drag) CldArt.meMarker(ctx, m.x, m.y, PR, TINTS[0], T, px);
+    }
+
+    // Mini-map whenever the camera is in close.
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    if (cam.z > 1.18 || cam.manual) {
+      const mr = 30, mx = 16 + mr, my = box.y + 8 + mr, k = mr / (R + 6);
+      ctx.globalAlpha = cam.manual ? 1 : Math.min(1, (cam.z - 1.18) * 8);
+      ctx.fillStyle = 'rgba(8,36,56,0.55)'; ctx.beginPath(); ctx.arc(mx, my, mr + 6, 0, TAU); ctx.fill();
+      ctx.fillStyle = '#e9f6fb'; ctx.beginPath(); ctx.arc(mx, my, mr, 0, TAU); ctx.fill();
+      pens.forEach((p, i) => {
+        ctx.fillStyle = TINTS[p.owner];
+        ctx.beginPath(); ctx.arc(mx + (pos[i].x - CX) * k, my + (pos[i].y - CY) * k, p.owner === 0 ? 3.2 : 2.4, 0, TAU); ctx.fill();
+        if (p.owner === 0) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.2; ctx.stroke(); }
+      });
+      const vx0 = Math.max(-R, view.x - CX), vy0 = Math.max(-R, (box.y - view.oy) / view.s - CY);
+      const vx1 = Math.min(R, view.x + view.w - CX), vy1 = Math.min(R, (box.y + box.h - view.oy) / view.s - CY);
+      ctx.strokeStyle = 'rgba(255,255,255,0.9)'; ctx.lineWidth = 1.2;
+      ctx.strokeRect(mx + vx0 * k, my + vy0 * k, (vx1 - vx0) * k, (vy1 - vy0) * k);
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  // ── The loop ─────────────────────────────────────────────────────────────
+  let lastT = 0;
+  function loop(now) {
+    const dt = Math.min(0.05, lastT ? (now - lastT) / 1000 : 0);
+    lastT = now; T += dt;
+    if (viewMode === 'floe') {
+      if (phase === 'slide' && play) stepPlay(dt);
+      pens.forEach(p => { if (p.splat > 0) p.splat = Math.max(0, p.splat - dt * 0.35); });
+      fx.step(dt);
+      camStep(dt);
+      draw();
+    }
+    requestAnimationFrame(loop);
+  }
+
+  // ── The controls ─────────────────────────────────────────────────────────
+  function sync() {
+    const m = me();
+    $('hdr-title').textContent = 'Floe-Off 1 · Slide ' + slideNo;
+    $('drowned-row').style.display = (m.drowned && phase === 'aim') ? 'flex' : 'none';
+    $('drowned-row').style.flexDirection = 'column'; $('drowned-row').style.gap = '8px';
+    const a = drag ? aimFrom(drag) : aim;
+    const shown = lock !== null ? lock : (a ? a.power : 0);
+    $('fill').style.width = 'calc(' + Math.round(shown * 100) + '% - 4px)';
+    $('fill').style.setProperty('--tint', TINTS[0]);
+    $('track').classList.toggle('locked', lock !== null);
+    const soft = drag && a && a.power < MIN_POWER && lock === null;
+    $('power-hint').textContent = phase !== 'aim' || m.drowned ? (m.drowned && phase === 'aim' ? 'Tap the ice to aim a Snowball' : '')
+                                : lock !== null ? 'Power locked — tap to release' : soft ? 'Too soft' : 'Tap to lock power';
+    $('power-hint').style.color = soft ? 'var(--amber)' : '';
+    $('power').style.display = m.drowned ? 'none' : 'flex';
+    const heads = $('heads'); heads.innerHTML = '';
+    const locked = phase === 'aim' ? NAMES.length - 1 : NAMES.length;
+    for (let i = 0; i < NAMES.length; i++) { const h = document.createElement('span'); h.className = 'head' + (i < locked ? ' in' : ''); heads.appendChild(h); }
+    $('tally-text').textContent = phase === 'slide' ? 'Sliding…' : locked + ' of ' + NAMES.length + ' locked in';
+    const cta = $('cta');
+    if (phase === 'slide') { cta.textContent = 'Sliding…'; cta.disabled = true; cta.classList.add('waiting'); }
+    else {
+      cta.classList.remove('waiting');
+      cta.textContent = 'Lock It In';
+      cta.disabled = !(m.drowned || (aim && aim.power >= MIN_POWER));
+    }
+  }
+
+  let barkTimer = null;
+  function bark(text, big) {
+    const f = $('float'); f.innerHTML = '';
+    const el = document.createElement('div'); el.className = 'bark' + (big ? ' big' : ''); el.textContent = text;
+    f.appendChild(el);
+    clearTimeout(barkTimer); barkTimer = setTimeout(() => { f.innerHTML = ''; }, 1500);
+  }
+
+  // ── Input: one finger aims, two fingers move the camera ─────────────────
+  const local = e => { const b = stage.getBoundingClientRect(); return { x: e.clientX - b.left, y: e.clientY - b.top }; };
+  stage.addEventListener('pointerdown', e => {
+    stage.setPointerCapture && stage.setPointerCapture(e.pointerId);
+    pointers.set(e.pointerId, local(e));
+    if (pointers.size === 2) {
+      drag = null;
+      const [p, q] = [...pointers.values()];
+      pinch = { d: Math.hypot(p.x - q.x, p.y - q.y), z: cam.z, mid: { x: (p.x + q.x) / 2, y: (p.y + q.y) / 2 }, cx: cam.x, cy: cam.y };
+      cam.manual = true; sync(); return;
+    }
+    if (pointers.size > 1 || phase !== 'aim') return;
+    const pt = local(e), now = performance.now();
+    if (now - lastTap < 300) { camOverview(false); cam.holdUntil = 0; lastTap = 0; return; }   // double-tap: back to auto
+    lastTap = now;
+    const m = me();
+    if (m.drowned) {
+      const w = s2w(pt);
+      if (Math.hypot(w.x - CX, w.y - CY) <= R) snowTarget = w;
+      sync(); return;
+    }
+    const d = aim ? Math.hypot(aim.dx, aim.dy) || 1 : 1;
+    drag = { id: e.pointerId, down: pt, now: pt, dir: aim ? { x: aim.dx / d, y: aim.dy / d } : null };
+    sync();
+  });
+  stage.addEventListener('pointermove', e => {
+    if (!pointers.has(e.pointerId)) return;
+    pointers.set(e.pointerId, local(e));
+    if (pinch && pointers.size >= 2) {
+      const [p, q] = [...pointers.values()];
+      const d = Math.hypot(p.x - q.x, p.y - q.y), mid = { x: (p.x + q.x) / 2, y: (p.y + q.y) / 2 };
+      cam.z = cam.tz = Math.max(0.8, Math.min(2.6, pinch.z * d / pinch.d));
+      const s = baseScale() * cam.z;
+      cam.x = cam.tx = pinch.cx - (mid.x - pinch.mid.x) / s;
+      cam.y = cam.ty = pinch.cy - (mid.y - pinch.mid.y) / s;
+      return;
+    }
+    if (drag && e.pointerId === drag.id) {
+      drag.now = local(e);
+      const a = aimFrom(drag); if (a) drag.dir = a.dir;
+      sync();
+    }
+  });
+  const up = e => {
+    pointers.delete(e.pointerId);
+    if (pointers.size < 2) pinch = null;
+    if (drag && e.pointerId === drag.id) {
+      const a = aimFrom(drag);
+      if (a && a.power >= MIN_POWER && Math.hypot(drag.now.x - drag.down.x, drag.now.y - drag.down.y) >= TAP_PX) aim = { dx: a.dx, dy: a.dy, power: a.power };
+      drag = null; sync();
+    }
+  };
+  stage.addEventListener('pointerup', up);
+  stage.addEventListener('pointercancel', up);
+
+  $('power').addEventListener('click', () => {
+    if (lock !== null) lock = null; else if (aim && aim.power >= MIN_POWER) lock = aim.power;
+    sync();
+  });
+  $('cta').addEventListener('click', lockIn);
+  $('btn-resurface').addEventListener('click', resurface);
+
+  // ── Layout: the camera frames the water between the header and the shelf ─
+  function resize() {
+    const b = stage.getBoundingClientRect();
+    SW = b.width; SH = b.height; DPR = Math.min(window.devicePixelRatio || 1, 2);
+    cv.width = Math.round(SW * DPR); cv.height = Math.round(SH * DPR);
+    const top = 64, bottom = $('controls').getBoundingClientRect().height;
+    box = { x: 0, y: top, w: SW, h: Math.max(120, SH - top - bottom) };
+  }
+  window.addEventListener('resize', resize);
+
+  // ── The Cast sheet ───────────────────────────────────────────────────────
+  let viewMode = 'floe';
+  function tile(host, label, opts) {
+    const d = document.createElement('div'); d.className = 'tile';
+    const c = document.createElement('canvas'); c.width = 220; c.height = 220;
+    const s = document.createElement('span'); s.textContent = label;
+    d.appendChild(c); d.appendChild(s); host.appendChild(d);
+    return { c: c, opts: opts };
+  }
+  const tiles = [];
+  function buildCast() {
+    const P = $('cast-poses'), F = $('cast-faces');
+    [['Idle', { pose: 'idle' }], ['Winding up', { pose: 'aim', power: 0.85, look: 0.3 }], ['Belly-slide', { pose: 'slide', vel: { x: 1, y: -0.4 } }],
+     ['Bonk', { pose: 'squash', k: 0.5 }], ['Going in', { pose: 'plunge', k: 0.45, outward: 1 }], ['Plugging a gap', { pose: 'bob' }],
+     ['Knocked back', { pose: 'back' }], ['Snowball', { pose: 'throw' }], ['Last one dry', { pose: 'win' }]]
+      .forEach(([l, o], i) => tiles.push(tile(P, l, Object.assign({ tint: TINTS[i % 8] }, o))));
+    [['Happy', 'happy'], ['Focused', 'focus'], ['Straining', 'strain'], ['Shocked', 'shock'], ['Grumpy', 'grumpy'], ['Dizzy', 'dizzy']]
+      .forEach(([l, e], i) => tiles.push(tile(F, l, { pose: 'idle', expr: e, tint: TINTS[(i + 1) % 8] })));
+  }
+  function drawCast() {
+    tiles.forEach((tl, i) => {
+      const g = tl.c.getContext('2d'), o = tl.opts;
+      g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, 220, 220);
+      const water = ['plunge', 'bob', 'back', 'throw'].indexOf(o.pose) >= 0;
+      g.fillStyle = water ? '#2a86ab' : '#eef7fb'; g.fillRect(0, 0, 220, 220);
+      if (water) { g.fillStyle = '#f1f8fb'; g.fillRect(0, 0, 220, 70); g.fillStyle = '#5aa3c2'; g.fillRect(0, 70, 220, 5); }
+      g.setTransform(5.6, 0, 0, 5.6, 110, 158);
+      CldArt.penguin(g, Object.assign({ x: 0, y: 0, r: 11, t: T, px: 6, seed: i }, o));
+    });
+    const c = $('cast-strip'), w = c.clientWidth || 340, h = 96;
+    if (c.width !== w * 2) { c.width = w * 2; c.height = h * 2; c.style.height = h + 'px'; }
+    const g = c.getContext('2d');
+    g.setTransform(2, 0, 0, 2, 0, 0);
+    const bg = g.createLinearGradient(0, 0, 0, h); bg.addColorStop(0, '#ffffff'); bg.addColorStop(1, '#dcedf5');
+    g.fillStyle = bg; g.fillRect(0, 0, w, h);
+    const s = 1.05;                                  // ≈ the SE aim-cam scale on a Standard floe
+    g.setTransform(2 * s, 0, 0, 2 * s, 0, 0);
+    for (let i = 0; i < 8; i++) {
+      CldArt.penguin(g, { x: (w / s) * (i + 0.5) / 8, y: h / s * 0.68, r: 11, tint: TINTS[i], t: T, pose: 'idle', seed: i, px: s, me: i === 0 });
+    }
+  }
+  function castLoop() { if (viewMode === 'cast') { drawCast(); requestAnimationFrame(castLoop); } }
+  function setView(v) {
+    viewMode = v;
+    $('v-floe').setAttribute('aria-pressed', v === 'floe'); $('v-cast').setAttribute('aria-pressed', v === 'cast');
+    $('cast').style.display = v === 'cast' ? 'block' : 'none';
+    $('controls').style.display = v === 'cast' ? 'none' : 'flex';
+    if (v === 'cast') { if (!tiles.length) buildCast(); castLoop(); } else resize();
+  }
+  $('v-floe').addEventListener('click', () => setView('floe'));
+  $('v-cast').addEventListener('click', () => setView('cast'));
+
+  resize();
+  resurface();
+  requestAnimationFrame(loop);
+})();
+</script>

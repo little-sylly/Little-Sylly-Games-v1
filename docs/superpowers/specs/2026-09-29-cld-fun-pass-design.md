@@ -65,7 +65,7 @@ The owner's review of SW v244 (29 Sep 2026), in their words, then as outcomes:
 **Slip gaps:** `CLD_SLIP_GAP_WIDTH = [1.6, 1.8]` (was `[1.6, 2.4]`). The count and ring cover are re-tuned in § 3.2.
 
 **Proof (harness):** `verify-cld-loop.js`'s seal section is re-run on the new geometry:
-- A centred plug holds the widest generated gap (1.8 diameters) against a full-power shove at every lateral offset and every approach angle within ±60°, on Roomy, Standard, Cramped and the smallest Ice Bath.
+- A centred plug holds the widest generated gap (1.8 diameters) against a full-power shove at every lateral offset and every approach angle within ±60°, on Roomy, Standard and Cramped (an Ice Bath has no ring, so no gap to seal).
 - Two penguins arriving at one gap in the same Slide: the second rebounds off the first's plug.
 - Every seat any path produces passes the chunk-passability test, and no two plugs overlap.
 
@@ -84,7 +84,7 @@ The floe grows about 1.3×. Penguins, chunks and snowballs keep their size, so t
 | `CLD_SNOWBALL_SPEED` | 600 | **780** | arrival stays the same fraction of a Slide (DD-13's race) |
 | `CLD_THAW_STEP` | 8 | **10** | the melt keeps its pace per Slide |
 | `cldMinRadius()` | 0.5·D | unchanged formula | scales on its own |
-| `CLD_W` / `CLD_H` | 360 | **480** (centre 240, 240) | keeps every position positive on the Roomy rim |
+| `CLD_W` / `CLD_H` | 360 | **360** (centre stays 180, 180) | the camera, not a fixed fit, decides what shows; a Roomy rim bobber may sit at a small negative x/y, which neither the sim nor the wire minds. Moving the centre would break every harness that places bodies around (180, 180) |
 | `CLD_PENGUIN_R`, `CLD_BERG_R`, `CLD_SNOWBALL_R` | 11, 16, 8 | unchanged | the room comes from the floe, not smaller bodies |
 
 The chunk count is derived from the circumference, so a bigger ring simply gets more chunks.
@@ -145,7 +145,7 @@ The view no longer has to hold the whole floe. Each canvas view (the live floe's
 - Every drill ends naturally, well inside the cap, against four scripted players: hold still, random, shove the nearest, head for the centre. Across several seeds.
 - The swap's isolation proof holds with every new top-level `let` classified.
 - `--tune` re-derives each drill's `ringSeed` so its opening reads right:
-  - Head-on: both bots reach you on Slide 1 if you hold still.
+  - Head-on: holding still, you are hit on Slide 1 and in the Drink within three Slides.
   - Crossfire: their paths cross your start.
   - Edge: holding still gets you cut toward a gap by Slide 2.
 
