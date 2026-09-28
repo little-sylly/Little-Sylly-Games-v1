@@ -73,6 +73,8 @@ const DYB_COPY = {
   deciding:  'is deciding…',
   youOpen:   'No claim yet. You open.',
   enough:    'enough on your own',
+  shakeHint: 'Hold the cup to shake, let go to throw.',
+  yourHand:  'Your hand.',
 };
 const DYB_NUM_WORDS = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'];
 function dybBidText(qty, face) { return `${DYB_NUM_WORDS[qty] || qty} ${face}${qty === 1 ? '' : 's'}`; }
@@ -220,12 +222,16 @@ document.addEventListener('DOMContentLoaded', () => {
     dybStartGame();
   });
 
-  // ── Shake screen
-  document.getElementById('dyb-shake-cup-area').addEventListener('click', () => {
+  // ── Shake screen: press to rattle, release to throw (tap = a short hold)
+  const dybStage = document.getElementById('dyb-shake-stage');
+  // preventDefault only before the throw: afterwards the dice in this box need the
+  // mouse fallback events that bindCardHold (tap-and-hold) listens for on desktop.
+  dybStage.addEventListener('pointerdown', e => {
     if (dybMyRoll && dybMyRoll.length) return;
-    playWhoosh();
-    dybHandleCupTap();
+    e.preventDefault();
+    dybCupPress();
   });
+  ['pointerup', 'pointerleave', 'pointercancel'].forEach(ev => dybStage.addEventListener(ev, dybCupRelease));
   document.getElementById('btn-dyb-ready').addEventListener('click', () => {
     playDone();
     dybSubmitRoll();
@@ -485,59 +491,88 @@ function dybInitShake() {
 }
 
 function dybRenderShakeScreen() {
-  const myIdx = mpMyPlayerIdx;
+  const myIdx = mpMyPlayerIdx, set = dybActiveSet();
   const openerName = dybPlayerNames[dybCurrentOpenerIdx] || 'Player';
-  const isOpener = dybCurrentOpenerIdx === myIdx;
-
-  document.getElementById('dyb-shake-opener-label').textContent = isOpener
-    ? 'Your deal — open the table.'
-    : `${openerName}'s deal.`;
+  document.getElementById('dyb-shake-opener-label').textContent = dybCurrentOpenerIdx === myIdx
+    ? 'Your deal — open the table.' : `${openerName}'s deal.`;
   document.getElementById('dyb-shake-number').textContent = `Shake #${dybShakeNumber}`;
-
-  const diceRow = document.getElementById('dyb-shake-dice-counts');
-  diceRow.innerHTML = dybActivePlayers.map(i => {
-    const name  = dybPlayerNames[i] || ('P' + (i + 1));
-    const count = dybFootholdsMode ? dybLives[i] : dybDiceInHand[i];
-    const unit  = dybFootholdsMode ? (count === 1 ? 'foothold' : 'footholds') : (count === 1 ? 'die' : 'dice');
-    return `<span class="text-stone-500 text-sm">${name}: ${count} ${unit}</span>`;
-  }).join('<span class="text-stone-300 mx-1">|</span>');
-
-  // Render face-down dice in cup area
-  const count = dybDiceInHand[myIdx];
-  document.getElementById('dyb-hand-dock-shake').innerHTML = Array.from({ length: count }, () =>
-    dybDieBackHTML()
-  ).join('');
-  document.getElementById('dyb-shake-cup-label').textContent = "Tap to shake 'em up";
-  // Show the Tempest guide [?] before rolling too, so players can review special dice
+  document.getElementById('dyb-shake-climbers').innerHTML = dybClimbersHTML(dybPlayersModel(dybCurrentOpenerIdx), set);
+  const cup = document.getElementById('dyb-shake-cup');
+  cup.innerHTML = dybCupMarkup(set);
+  cup.className = '';
+  document.getElementById('dyb-shake-dice').innerHTML = '';
+  document.getElementById('dyb-shake-cup-label').textContent = DYB_COPY.shakeHint;
   document.getElementById('btn-dyb-tempest-guide').style.display = dybSyllyMode ? '' : 'none';
-
   const readyBtn = document.getElementById('btn-dyb-ready');
   readyBtn.disabled = false;
   readyBtn.textContent = 'Ready!';
   document.getElementById('dyb-roll-waiting').style.display = 'none';
 }
 
-function dybHandleCupTap() {
-  if (dybMyRoll && dybMyRoll.length) return;
-  const cup = document.getElementById('dyb-shake-cup-area');
-  cup.classList.remove('dyb-cup-shaking');
-  void cup.offsetWidth;
-  cup.classList.add('dyb-cup-shaking');
-  setTimeout(() => {
-    cup.classList.remove('dyb-cup-shaking');
-    dybDoRoll();
-  }, 550);
+// ── The throw — shared with Practice ────────────────────────────────────────
+// els: { cup, dice }. Lifts the cup, tumbles the hand as cubes, lands on the real
+// faces, then calls onDone. Under reduced motion nothing travels: onDone at once.
+function dybPlayThrow(els, hand, set, tint, bag, onDone) {
+  const cupEl = els.cup.firstElementChild || els.cup;
+  if (cupEl.classList) { cupEl.classList.remove('rattle'); cupEl.classList.add('lift'); }
+  dybSound('cupLift');
+  if (dybReducedMotion()) { onDone(); return; }
+  els.dice.innerHTML = (hand.roll || []).map((val, i) => {
+    const type = (hand.types || [])[i] || 'standard';
+    const concealed = type === 'phantom';
+    const s = (hand.slicks || [])[i];
+    const assigned = (hand.slickAssigned || [])[i] !== false;
+    const state = concealed ? 'concealed' : (type === 'slick' && !assigned ? 'unpicked' : 'face');
+    const land = concealed ? 1 : (type === 'slick' && s > 0 ? s : val);
+    return dybCubeMarkup(f => dybDieRecipe({ set, tint, face: f, type, state }), land, 44);
+  }).join('');
+  const cubes = els.dice.querySelectorAll ? els.dice.querySelectorAll('.dyb-cube') : [];
+  dybLater(bag, () => { cubes.forEach((c, i) => dybRollCube(c, 1000, i * 7 + 3)); }, 120);
+  dybLater(bag, () => { dybSound('land'); onDone(); }, 1180);
 }
 
+function dybShowShakeHand() {
+  const box = document.getElementById('dyb-shake-dice');
+  box.innerHTML = dybCupDiceHTML(dybMyHand(), dybActiveSet(), dybTintFor(mpMyPlayerIdx), 44);
+  box.onclick = e => {
+    const b = e.target && e.target.closest ? e.target.closest('[data-act="slick"]') : null;
+    if (!b) return;
+    if (b.dataset.held === '1') { delete b.dataset.held; return; }
+    dybOpenSlickPicker(parseInt(b.dataset.die, 10));
+  };
+  dybBindHandHolds(box);
+  const cup = document.getElementById('dyb-shake-cup').firstElementChild;
+  if (cup && cup.classList) cup.classList.add('lift');
+  document.getElementById('dyb-shake-cup-label').textContent = DYB_COPY.yourHand;
+}
+
+function dybCupPress() {
+  if ((dybMyRoll && dybMyRoll.length) || dybShakeHeld) return;
+  dybShakeHeld = true;
+  const cup = document.getElementById('dyb-shake-cup').firstElementChild;
+  if (cup && cup.classList && !dybReducedMotion()) cup.classList.add('rattle');
+  const tick = () => { if (!dybShakeHeld) return; dybSound('rattle'); dybLater(dybAnimTimers, tick, 180); };
+  tick();
+  dybLater(dybAnimTimers, dybCupRelease, 3000);    // a held cup throws itself after 3 s
+}
+function dybCupRelease() {
+  if (!dybShakeHeld) return;
+  dybShakeHeld = false;
+  dybThrow();
+}
+function dybThrow() {
+  if (dybMyRoll && dybMyRoll.length) return;
+  dybMyRoll = dybGenerateRoll(dybDiceInHand[mpMyPlayerIdx]);
+  const els = { cup: document.getElementById('dyb-shake-cup'), dice: document.getElementById('dyb-shake-dice') };
+  dybPlayThrow(els, dybMyHand(), dybActiveSet(), dybTintFor(mpMyPlayerIdx), dybAnimTimers, dybShowShakeHand);
+}
+
+// Ready without shaking — roll at once, no animation.
 function dybDoRoll() {
   if (dybMyRoll && dybMyRoll.length) return;
-  const count = dybDiceInHand[mpMyPlayerIdx];
-  dybMyRoll = dybGenerateRoll(count);
-  dybRenderHandDock('dyb-hand-dock-shake');
-  document.getElementById('dyb-shake-cup-label').textContent = "Your hand.";
-  if (dybSyllyMode) {
-    document.getElementById('btn-dyb-tempest-guide').style.display = '';
-  }
+  dybStopChoreography();
+  dybMyRoll = dybGenerateRoll(dybDiceInHand[mpMyPlayerIdx]);
+  dybShowShakeHand();
 }
 
 function dybSubmitRoll() {
@@ -602,11 +637,11 @@ function dybBroadcastShakeActive() {
     payload: { action: 'DYB_SHAKE_ACTIVE', openerIdx: dybCurrentOpenerIdx },
   });
   dybCurrentBidderIdx = dybCurrentOpenerIdx;
+  dybStopChoreography();
   dybRenderTableScreen();
   showScreen('screen-dyb-table');
 }
 
-// ── Table phase ───────────────────────────────────────────────────────────────
 // ── Table phase — live wiring over the shared renderers ────────────────────
 function dybTableCtx() { return { claim: dybClaimNow(), rules: dybRulesNow(), tableTotal: dybTableTotal() }; }
 function dybRenderTableScreen(extra) {
@@ -1472,46 +1507,6 @@ function dybBindHandHolds(box) {
   });
 }
 
-// ── Hand dock rendering ───────────────────────────────────────────────────────
-function dybRenderHandDock(containerId) {
-  const container = document.getElementById(containerId);
-  if (!container) return;
-  container.innerHTML = dybMyRoll.map((val, i) => {
-    const type     = dybSpecialTypes[i]  || 'standard';
-    const slick    = dybSlickFaces[i]    !== undefined ? dybSlickFaces[i] : -1;
-    const assigned = dybSlickAssigned[i] || false;
-    return dybDieHTML(val, type, slick, i, assigned); // always visible — MDLM, own device
-  }).join('');
-
-  // Sylly Mode: long-press any special die for info; tap Slick to assign face.
-  // Each die gets its own _lpTimer / _didLP so a long-press on one die never
-  // blocks a subsequent tap on a different die (shared-variable bug fixed).
-  if (dybSyllyMode) {
-    const dieDivs = container.querySelectorAll('.dyb-die'); // scoped lookup prevents ID collision when both docks are in the DOM (BUG-25)
-    dybMyRoll.forEach((_, i) => {
-      const el   = dieDivs[i];
-      const type = dybSpecialTypes[i] || 'standard';
-      if (!el || type === 'standard') return;
-
-      let _lpTimer = null; // per-die
-      let _didLP   = false; // per-die
-
-      const startLP  = () => { _lpTimer = setTimeout(() => { _didLP = true; dybShowDieInfo(type); }, 500); };
-      const cancelLP = () => clearTimeout(_lpTimer);
-      el.addEventListener('touchstart',  startLP,  { passive: true });
-      el.addEventListener('touchend',    cancelLP);
-      el.addEventListener('touchmove',   cancelLP);
-      el.addEventListener('mousedown',   startLP);
-      el.addEventListener('mouseup',     cancelLP);
-      el.addEventListener('mouseleave',  cancelLP);
-
-      if (type === 'slick') {
-        el.addEventListener('click', () => { if (_didLP) { _didLP = false; return; } dybOpenSlickPicker(i); });
-      }
-    });
-  }
-}
-
 // ── Dice render seam — every die in the game goes through here ─────────────
 // dieIdx >= 0 : an owner's live hand (a Phantom stays concealed)
 // dieIdx === -1: The Overlook (a Phantom is revealed; its mist lifts)
@@ -1648,7 +1643,7 @@ function dybAssignSlickFace(dieIdx, face) {
     dybAllSlickFaces[mpMyPlayerIdx][dieIdx] = face;
   }
   const shakeScreen = document.getElementById('screen-dyb-shake');
-  if (shakeScreen && shakeScreen.style.display !== 'none') dybRenderHandDock('dyb-hand-dock-shake');
+  if (shakeScreen && shakeScreen.style.display !== 'none') dybShowShakeHand();
   else dybRenderTableScreen();
 }
 
@@ -1793,6 +1788,7 @@ function dybHandleEnvelope(env) {
         dybCurrentBidderIdx = payload.openerIdx;
         dybCurrentOpenerIdx = payload.openerIdx;
         mpUnlockSync();
+        dybStopChoreography();
         dybRenderTableScreen();
         showScreen('screen-dyb-table');
         break;

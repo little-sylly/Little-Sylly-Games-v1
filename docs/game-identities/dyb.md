@@ -206,7 +206,8 @@ Waiting for host to deal the seats…
 
 ```copy
 # screen-dyb-shake
-Tap to shake 'em up
+Hold the cup to shake, let go to throw.
+Your hand.
 Ready!
 Waiting for others…
 ```

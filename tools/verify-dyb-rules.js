@@ -342,6 +342,25 @@ section('Choreography timers stop cleanly');
 }
 check('every DYB_SOUND moment names a real engine sound', Object.values(run('DYB_SOUND')).every(n => typeof S[n] === 'function'), true);
 
+section('The shake — press, release, throw');
+{
+  S.mpMyPlayerIdx = 0;
+  run(`dybPlayerCount = 3; dybDiceInHand = [4, 5, 5]; dybSyllyMode = false; dybMyRoll = []; dybShakeHeld = false;`);
+  S.dybCupRelease();
+  check('a release with no press does nothing', run('dybMyRoll.length'), 0);
+  S.dybCupPress();
+  check('a press holds the cup', run('dybShakeHeld'), true);
+  S.dybCupRelease();
+  check('the release throws: exactly your dice are rolled', [run('dybShakeHeld'), run('dybMyRoll.length')], [false, 4]);
+  const before = JSON.stringify(run('dybMyRoll'));
+  S.dybCupPress();
+  check('a press after the throw is ignored', [run('dybShakeHeld'), JSON.stringify(run('dybMyRoll'))], [false, before]);
+  run('dybMyRoll = [];');
+  S.dybDoRoll();
+  check('Ready without shaking rolls at once', run('dybMyRoll.length'), 4);
+  S.dybStopChoreography();
+}
+
 // ── Later tasks append their sections above this line ──────────────────────
 
 console.log(`\n${failures ? `${failures} FAILED` : 'ALL PASS'}`);

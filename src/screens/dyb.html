@@ -56,9 +56,9 @@ Deal the Dice
     </div>
   </section>
 
-  <!-- DYB SHAKE -->
+  <!-- DYB SHAKE — hold the cup to rattle, let go to throw -->
   <section id="screen-dyb-shake" style="display:none"
-    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    class="dyb-warm flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
     <div class="flex flex-col w-full max-w-sm gap-4">
       <div class="flex items-center justify-between">
         <div>
@@ -71,13 +71,14 @@ Deal the Dice
           <button class="btn-dyb-quit-open text-stone-400 font-bold text-xl active:scale-90 transition-transform duration-100">✕</button>
         </div>
       </div>
-      <div id="dyb-shake-dice-counts" class="flex flex-wrap gap-2 justify-center text-stone-400 text-sm"></div>
-      <div id="dyb-shake-cup-area" class="flex flex-col items-center gap-3 cursor-pointer active:scale-95 transition-transform duration-150 px-4 py-5 rounded-3xl bg-stone-100" role="button">
-        <div id="dyb-hand-dock-shake" class="flex gap-2 flex-wrap justify-center"></div>
-        <div class="flex items-center gap-1.5">
-          <p id="dyb-shake-cup-label" class="text-stone-400 text-sm font-semibold">Tap to shake 'em up</p>
-          <button id="btn-dyb-tempest-guide" class="text-stone-300 font-bold text-xs leading-none active:scale-90 transition-transform duration-100" style="display:none">[?]</button>
-        </div>
+      <div id="dyb-shake-climbers" class="dyb-climbers"></div>
+      <div id="dyb-shake-stage" class="dyb-shake-stage" role="button" aria-label="Shake the cup">
+        <div id="dyb-shake-cup"></div>
+        <div id="dyb-shake-dice" class="dyb-shake-dice"></div>
+      </div>
+      <div class="flex items-center justify-center gap-1.5">
+        <p id="dyb-shake-cup-label" class="text-stone-500 text-sm font-semibold">Hold the cup to shake, let go to throw.</p>
+        <button id="btn-dyb-tempest-guide" class="text-stone-400 font-bold text-xs leading-none active:scale-90 transition-transform duration-100" style="display:none">[?]</button>
       </div>
       <button id="btn-dyb-ready" class="min-h-14 w-full rounded-2xl dyb-cta active:scale-95 text-white text-xl font-semibold transition-all duration-150 btn-mp-action">
         Ready!
