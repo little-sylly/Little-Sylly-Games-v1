@@ -98,6 +98,16 @@ const CLD_SLIP_GAP_WIDTH = [1.6, 2.4];              // × penguin diameter, arc 
 const CLD_START_RING  = 0.55;   // penguins start on this fraction of the floe radius
 const CLD_BATH_FLOOR_MULT = 1.25;   // Ice Bath radius floor, × cldMinRadius() — a tuning value (Task 8)
 const CLD_MIN_POWER   = 0.08;   // §7 — below this a drag is "Too soft", never a commit
+// ── The cue (SW v244 — pool-style drag; spec 2026-09-28-cld-cue-arena § 2) ──
+// Touch anywhere; the finger is the butt of the cue. Power is the pull-back
+// since touch-down in CSS PIXELS, so full power is the same thumb travel on
+// every phone. All five are tunables (spec § 9) — change them here only.
+const CLD_CUE_PULL_PX = 96;                   // CSS px of pull-back for full power
+const CLD_CUE_DEAD    = 2 * CLD_PENGUIN_R;    // logical — inside this the aim holds still
+const CLD_CUE_LEN     = 58;                   // cue stick length, logical
+const CLD_CUE_GAP_MAX = 22;                   // cue tip stand-off at full power, logical
+const CLD_GUIDE_STUB  = 30;                   // deflection stub, logical (~1.4 diameters)
+const CLD_GRAB_R      = CLD_PENGUIN_R * 3.2;  // touch this close to one of mine to pick it
 
 // ── Settings (persist between play-agains) ─────────────────────────────────
 let cldIceConditions = 'slush';    // 'powder' | 'slush' | 'blackice'
@@ -304,6 +314,24 @@ function cldAngleOf(x, y) { return cldNormAngle(Math.atan2(y - CLD_H / 2, x - CL
 function cldArcDist(a, b) {
   const d = Math.abs(cldNormAngle(a) - cldNormAngle(b));
   return Math.min(d, CLD_TAU - d);
+}
+
+// PURE (spec § 2.2). The cue runs from the finger THROUGH the penguin, so the
+// shot goes away from the finger. Swinging the finger turns the aim; the pull
+// since touch-down (in CSS px) sets the power, so a touch-down is always 0 and
+// a stray touch can never fire. Inside CLD_CUE_DEAD the direction holds
+// (`lastDir`) instead of flipping under the finger. null = no direction yet.
+function cldCueAim(o) {
+  const P = o.penguin, F = o.now, D = o.down;
+  const ex = P.x - F.x, ey = P.y - F.y;
+  const dist = Math.hypot(ex, ey);
+  let dir = o.lastDir || null;
+  if (dist >= CLD_CUE_DEAD) dir = { x: ex / dist, y: ey / dist };
+  if (!dir) return null;
+  const pullUnits = dist - Math.hypot(P.x - D.x, P.y - D.y);
+  const byPull = Math.max(0, Math.min(1, (pullUnits * o.scale) / CLD_CUE_PULL_PX));
+  const power = (o.lock !== null && o.lock !== undefined) ? o.lock : byPull;
+  return { dx: dir.x, dy: dir.y, power: power, dir: dir };
 }
 
 // PURE. `anchors` are [{ x, y, r }] — chunks and Plugged Drowned, live. Returns
