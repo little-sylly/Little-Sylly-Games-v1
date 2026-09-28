@@ -162,3 +162,46 @@ function dybMiniMarkup(set, tint, cls = '') {
 function dybCupMarkup(set) {
   return `<div class="dyb-cup" style="--dyb-cup:${set.cup.body};--dyb-cup-rim:${set.cup.rim}"><span class="dyb-cup-rim"></span></div>`;
 }
+
+// ═══ DOM helpers — the ONLY impure part of this file ════════════════════════
+// A scripted animation is invisible to the global reduced-motion CSS block,
+// so anything this file (or dyb.js) animates by hand asks here first.
+function dybReducedMotion() {
+  return !!(typeof window !== 'undefined' && window.matchMedia &&
+            window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+}
+
+// ── The cube — six painted faces on a CSS preserve-3d box ───────────────────
+// Face placement: 1 front, 6 back, 2 right, 5 left, 3 top, 4 bottom. To bring
+// face k to the front the INNER box turns by DYB_CUBE_LAND[k]. Every entry names
+// both rotateX and rotateY so a transition from a spun state interpolates per
+// function (a mismatched list would fall back to matrix interpolation: no spin).
+const DYB_CUBE_LAND = {
+  1: 'rotateX(0deg) rotateY(0deg)',   2: 'rotateX(0deg) rotateY(-90deg)',
+  3: 'rotateX(-90deg) rotateY(0deg)', 4: 'rotateX(90deg) rotateY(0deg)',
+  5: 'rotateX(0deg) rotateY(90deg)',  6: 'rotateX(0deg) rotateY(180deg)',
+};
+// recipeForFace(face) → recipe. A concealed Phantom passes one recipe for all six
+// and landFace 1, so neither the faces nor data-land can leak its value.
+function dybCubeMarkup(recipeForFace, landFace, px) {
+  let faces = '';
+  for (let f = 1; f <= 6; f++) faces += `<div class="dyb-cube-face dyb-cube-f${f}">${dybDieMarkup(recipeForFace(f), px)}</div>`;
+  return `<div class="dyb-cube" style="--dyb-s:${px}px"><div class="dyb-cube-inner" data-land="${landFace}">${faces}</div></div>`;
+}
+function dybRollCube(cubeEl, ms, seed) {
+  const inner = cubeEl.querySelector('.dyb-cube-inner');
+  if (!inner) return;
+  const land = DYB_CUBE_LAND[inner.dataset.land] || DYB_CUBE_LAND[1];
+  const sx = 360 * (2 + (seed % 2)), sy = 360 * (1 + ((seed >> 1) % 2));
+  inner.style.transition = 'none';
+  inner.style.transform = `rotateX(${sx}deg) rotateY(${sy}deg) ${land}`;
+  void inner.offsetWidth;                                   // commit the spun start state
+  inner.style.transition = `transform ${ms}ms cubic-bezier(0.2, 0.7, 0.25, 1)`;
+  inner.style.transform = `rotateX(0deg) rotateY(0deg) ${land}`;
+}
+function dybLandCube(cubeEl) {
+  const inner = cubeEl.querySelector('.dyb-cube-inner');
+  if (!inner) return;
+  inner.style.transition = 'none';
+  inner.style.transform = `rotateX(0deg) rotateY(0deg) ${DYB_CUBE_LAND[inner.dataset.land] || DYB_CUBE_LAND[1]}`;
+}

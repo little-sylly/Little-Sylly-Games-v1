@@ -1510,6 +1510,17 @@ body.flash-red   { background-color: #fecaca; }
             box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.25); }
 .dyb-mini-foothold { border-radius: 1px; transform: rotate(45deg) scale(0.8); }
 
+/* ── DYB cube — the shake's 3D throw ──────────────────────────────────────── */
+.dyb-cube { width: var(--dyb-s); height: var(--dyb-s); perspective: calc(var(--dyb-s) * 6); flex-shrink: 0; }
+.dyb-cube-inner { position: relative; width: 100%; height: 100%; transform-style: preserve-3d; }
+.dyb-cube-face { position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+.dyb-cube-f1 { transform: translateZ(calc(var(--dyb-s) / 2)); }
+.dyb-cube-f6 { transform: rotateY(180deg) translateZ(calc(var(--dyb-s) / 2)); }
+.dyb-cube-f2 { transform: rotateY(90deg) translateZ(calc(var(--dyb-s) / 2)); }
+.dyb-cube-f5 { transform: rotateY(-90deg) translateZ(calc(var(--dyb-s) / 2)); }
+.dyb-cube-f3 { transform: rotateX(90deg) translateZ(calc(var(--dyb-s) / 2)); }
+.dyb-cube-f4 { transform: rotateX(-90deg) translateZ(calc(var(--dyb-s) / 2)); }
+
 /* ── Team score boxes — twin transition ──────────────────────────────────── */
 .team-box {
   border: 2px solid transparent;

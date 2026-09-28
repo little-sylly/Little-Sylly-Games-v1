@@ -193,6 +193,20 @@ check('the replace-prefix contract holds', Sx.dybDieHTML(4, 'standard', -1).star
 check('dybEsc neutralises markup', Sx.dybEsc(`<b>"Sam" & 'Jo'</b>`), '&lt;b&gt;&quot;Sam&quot; &amp; &#39;Jo&#39;&lt;/b&gt;');
 check('art.js no longer exports assetSpecial', typeof Sx.assetSpecial, 'undefined');
 
+section('The cube');
+{
+  const rf = f => Sx.dybDieRecipe({ set: SETS[0], tint: 1, face: f });
+  const m = Sx.dybCubeMarkup(rf, 4, 44);
+  check('six faces', (m.match(/class="dyb-cube-face /g) || []).length, 6);
+  check('lands on the face asked for', m.includes('data-land="4"'), true);
+  const hidden = f => Sx.dybDieRecipe({ set: SETS[0], tint: 1, face: f, type: 'phantom', state: 'concealed' });
+  const hm = Sx.dybCubeMarkup(hidden, 1, 44);
+  check('a concealed Phantom cube: all six faces identical', new Set(hm.match(/<div class="dyb-cube-face [^"]*">[\s\S]*?<\/div><\/div>/g).map(s => s.replace(/dyb-cube-f\d/, ''))).size, 1);
+  check('every landing transform names rotateX and rotateY (so transitions interpolate)',
+        FACES.every(f => /rotateX\(/.test(Rx('DYB_CUBE_LAND')[f]) && /rotateY\(/.test(Rx('DYB_CUBE_LAND')[f])), true);
+}
+check('dybReducedMotion is false without matchMedia', Sx.dybReducedMotion(), false);
+
 // ── Result ────────────────────────────────────────────────────────────────
 console.log(`\n${failures === 0 ? 'ALL CHECKS PASSED' : `${failures} CHECK(S) FAILED`}`);
 process.exit(failures === 0 ? 0 : 1);
