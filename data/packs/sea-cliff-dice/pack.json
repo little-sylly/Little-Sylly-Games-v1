@@ -2,20 +2,18 @@
   "id": "sea-cliff-dice",
   "label": "SEA CLIFF DICE",
   "locked": false,
-  "games": [
-    "dyb"
-  ],
+  "games": ["dyb"],
   "assets": {
     "kind": "dyb",
-    "basePath": "img/",
-    "faces": {
-      "1": "1.png",
-      "2": "2.png",
-      "3": "3.png",
-      "4": "4.png",
-      "5": "5.png",
-      "6": "6.png"
-    },
-    "back": "back.png"
+    "diceSet": {
+      "id": "sea-cliff", "label": "Sea Cliff", "finish": "stone", "pip": "carved", "edge": 0.8, "speckle": 0.35,
+      "tints": [
+        { "name": "salt",      "body": "#EEEAE2" }, { "name": "limestone", "body": "#D8D2C2" },
+        { "name": "lichen",    "body": "#C7B96A" }, { "name": "rust",      "body": "#A8583A" },
+        { "name": "seagrass",  "body": "#6F8A6A" }, { "name": "stormcloud","body": "#6A7A86" },
+        { "name": "driftwood", "body": "#7A6552" }, { "name": "flint",     "body": "#34383C" }
+      ],
+      "cup": { "body": "#4E5A62", "rim": "#30383E" }
+    }
   }
 }

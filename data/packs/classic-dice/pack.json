@@ -1,0 +1,19 @@
+{
+  "id": "classic-dice",
+  "label": "CLASSIC DICE",
+  "locked": false,
+  "games": ["dyb"],
+  "assets": {
+    "kind": "dyb",
+    "diceSet": {
+      "id": "classic", "label": "Classic", "finish": "plain", "pip": "printed", "edge": 0, "speckle": 0,
+      "tints": [
+        { "name": "ivory", "body": "#F5F1E8" }, { "name": "sand",  "body": "#E4CFA3" },
+        { "name": "amber", "body": "#D9A441" }, { "name": "coral", "body": "#C8664A" },
+        { "name": "sage",  "body": "#8A9A68" }, { "name": "steel", "body": "#667784" },
+        { "name": "cocoa", "body": "#7A5238" }, { "name": "charcoal", "body": "#3E3C3A" }
+      ],
+      "cup": { "body": "#4A4744", "rim": "#2F2D2B" }
+    }
+  }
+}

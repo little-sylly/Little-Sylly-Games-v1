@@ -2,45 +2,18 @@
   "id": "deep-ocean-dice",
   "label": "DEEP OCEAN DICE",
   "locked": false,
-  "games": [
-    "dyb"
-  ],
+  "games": ["dyb"],
   "assets": {
     "kind": "dyb",
-    "basePath": "img/",
-    "faces": {
-      "1": "1.svg",
-      "2": "2.svg",
-      "3": "3.svg",
-      "4": "4.svg",
-      "5": "5.svg",
-      "6": "6.svg"
-    },
-    "back": "back.svg",
-    "specials": {
-      "loaded": {
-        "1": "loaded-1.svg",
-        "2": "loaded-2.svg",
-        "3": "loaded-3.svg",
-        "4": "loaded-4.svg",
-        "5": "loaded-5.svg",
-        "6": "loaded-6.svg"
-      },
-      "snake": {
-        "frame": false,
-        "1": "snake-1.svg",
-        "2": "snake-2.svg",
-        "3": "snake-3.svg",
-        "4": "snake-4.svg",
-        "5": "snake-5.svg",
-        "6": "snake-6.svg"
-      },
-      "phantom": {
-        "blank": "ghost.svg"
-      },
-      "cracked": {
-        "blank": "broken.svg"
-      }
+    "diceSet": {
+      "id": "deep-ocean", "label": "Deep Ocean", "finish": "glass", "pip": "printed", "edge": 0.2, "speckle": 0,
+      "tints": [
+        { "name": "foam",    "body": "#DCEFF0" }, { "name": "shallows", "body": "#9FD3D6" },
+        { "name": "lagoon",  "body": "#5FB3B3" }, { "name": "coral",    "body": "#D9826B" },
+        { "name": "kelp",    "body": "#5E8C61" }, { "name": "reef",     "body": "#3E7C99" },
+        { "name": "trench",  "body": "#2B4F6E" }, { "name": "abyss",    "body": "#1B2A3A" }
+      ],
+      "cup": { "body": "#23465E", "rim": "#14293A" }
     }
   }
 }

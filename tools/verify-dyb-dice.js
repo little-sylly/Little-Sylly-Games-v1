@@ -443,6 +443,28 @@ Sx.assetDiceSet = () => ({ label: 'broken' });
 check('an invalid skin set falls back to Rocky', Sx.dybActiveSet().id, 'rocky');
 Sx.assetDiceSet = realAssetDiceSet;
 
+section('Dice-set skin packs');
+{
+  const reg = JSON.parse(fs.readFileSync(path.join(ROOT, 'data/packs/registry.json'), 'utf8'));
+  const dybPacks = reg.map(id => ({ id, m: JSON.parse(fs.readFileSync(path.join(ROOT, `data/packs/${id}/pack.json`), 'utf8')) }))
+    .filter(p => p.m.assets && p.m.assets.kind === 'dyb');
+  check('the three DYB packs are registered', dybPacks.map(p => p.id).sort(), ['classic-dice', 'deep-ocean-dice', 'sea-cliff-dice']);
+  dybPacks.forEach(p => {
+    check(`${p.id}: diceSet validates`, Sx.dybValidateDiceSet(p.m.assets.diceSet), []);
+    check(`${p.id}: no image maps left`, ['faces', 'back', 'specials', 'basePath'].filter(k => k in p.m.assets), []);
+    check(`${p.id}: the folder holds only pack.json`, fs.readdirSync(path.join(ROOT, `data/packs/${p.id}`)), ['pack.json']);
+    p.m.assets.diceSet.tints.forEach((t, i) => {
+      const ratio = Sx.dybContrast(Sx.dybPipFor(t), t.body);
+      check(`${p.id} tint ${i} (${t.name}) pip contrast ${ratio.toFixed(2)} ≥ 3`, ratio >= 3, true);
+    });
+  });
+  Sx.window.activeAssetPack = { id: 'sea-cliff-dice', assets: dybPacks.find(p => p.id === 'sea-cliff-dice').m.assets };
+  check('assetDiceSet resolves the active skin', Sx.assetDiceSet('dyb').label, dybPacks.find(p => p.id === 'sea-cliff-dice').m.assets.diceSet.label);
+  check('…and nothing for another kind', Sx.assetDiceSet('pko'), null);
+  Sx.window.activeAssetPack = null;
+  check('no skin → null', Sx.assetDiceSet('dyb'), null);
+}
+
 // ── Result ────────────────────────────────────────────────────────────────
 console.log(`\n${failures === 0 ? 'ALL CHECKS PASSED' : `${failures} CHECK(S) FAILED`}`);
 process.exit(failures === 0 ? 0 : 1);

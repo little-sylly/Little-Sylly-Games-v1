@@ -105,6 +105,14 @@ function assetExtra(kind, key) {
   return null;
 }
 
+// A procedural dice SET from the active skin pack's `diceSet` block, or null →
+// the game's built-in default. First (and only) user: The Bluff (SW v241). There
+// is no core-art tier: a procedural default is code, not a file.
+function assetDiceSet(kind) {
+  const skin = artSkin(kind);
+  return (skin && skin.assets.diceSet) || null;
+}
+
 // The image for a MODIFIED face — a face that carries a type on top of its value.
 // First user: DYB's Tempest dice (loaded / phantom / slick / cracked / snake).
 // `id` is a face value, or the reserved string 'blank' for a variant that shows no
