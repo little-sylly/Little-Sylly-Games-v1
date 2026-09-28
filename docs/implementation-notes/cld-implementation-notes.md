@@ -411,9 +411,9 @@ remembered. And a layout bug in a pane no harness renders is found only by a rea
 
 ### DD-19 — plugs in the Drink, a bigger floe, a camera, and Practice plans (SW v245)
 
-Spec:  § 3; plan: .
+Spec: `docs/superpowers/specs/2026-09-29-cld-fun-pass-design.md` § 3; plan: `docs/superpowers/plans/2026-09-29-cld-fun-pass-phase1.md`.
 
-**Balance** (,  default, mean Slides/Floe-Off; target ±15% of v244):
+**Balance** (`simulate-cld-balance.js 60`, `CLD_SEED` default, mean Slides/Floe-Off; target ±15% of v244):
 
 | config | v244 | target band | v245 first cut (gaps [2,3], cover 0.80) | [3,4] 0.80 | [3,4] 0.75 **shipped (provisional)** | [4,5] 0.80 | [4,5] 0.75 | [3,4] 0.85 | [2,3] 0.75 | [3,4] 0.70 | [3,4] 0.65 | [4,5] 0.70 |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -428,7 +428,7 @@ of their band; the Thaw-OFF rows run ~30% long whatever the two allowed levers d
 penguin, and gaps capped at 1.8 so one floating plug seals them — and the instrument's neutral bots do not
 aim at each other, so a real table runs shorter (the DD-16/DD-17 caveat). Shipped provisionally at
 [3,4] / 0.75, the closest overall. Levers outside the spec's two, for the owner: a longer full pull
-(), a smaller floe scale than ×1.3, or accepting longer Thaw-off Floe-Offs.
+(`CLD_ICE_MULT`), a smaller floe scale than ×1.3, or accepting longer Thaw-off Floe-Offs.
 
 ---
 
