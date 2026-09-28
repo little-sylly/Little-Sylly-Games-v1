@@ -142,12 +142,29 @@ The database is structured as `/rooms/{roomCode}/`. Security rules enforce:
           "$playerIndex": {
             ".write": "auth != null && (data.parent().parent().child('hostUid').val() === auth.uid || data.child('uid').val() === auth.uid || !data.exists())"
           }
+        },
+        "presence": {
+          ".write": "auth != null && root.child('rooms').child($roomCode).child('hostUid').val() === auth.uid",
+          "$uid": { ".write": "auth != null && auth.uid === $uid" }
+        },
+        "seats": {
+          ".write": "auth != null && root.child('rooms').child($roomCode).child('hostUid').val() === auth.uid"
         }
       }
     }
   }
 }
 ```
+
+**`presence`/`seats` addendum (SW v236, Client Reconnect — see `logic-engine.md` § Client
+Reconnect).** These two nodes were added to the wire protocol at v236 but omitted from this
+snippet and from the live rules until BUG-24 (`shared-implementation-notes.md`) surfaced the gap on
+28 Sep 2026 as a silent `permission_denied` on every client's presence write. `presence` is
+host-write-whole-node (clearing it between matches) with a per-`$uid` child writable only by that
+uid (each client's own connection marker); `seats` is host-write-only (frozen at `GAME_START`). Any
+future addition of a new `rooms/{code}/<node>` path in the wire protocol must update this snippet
+**and** the live Firebase console rules in the same change — nothing in the build or a harness
+reads the live rules, so a gap here is invisible to every `tools/verify-*.js` check.
 
 ### 2.8 Sync Lock
 

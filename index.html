@@ -5709,8 +5709,9 @@ Launch Sequence
   </div>
 
   <!-- mp-away-overlay (decision modal z-[100]) — a seat dropped mid-match (SW v236).
-       Host: End session. Client: Leave. Deliberately NO cancel/close id — the backdrop
-       tap-to-dismiss must never hide a table that is genuinely waiting. -->
+       Host: End session (+ Keep waiting once a non-adopter's grace runs out, SW v240).
+       Client: Leave. Deliberately NO cancel/close id — the backdrop tap-to-dismiss must
+       never hide a table that is genuinely waiting, nor choose Keep waiting for the host. -->
   <div id="mp-away-overlay" style="display:none"
     class="fixed inset-0 bg-black/40 z-[100] flex items-center justify-center px-6">
     <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-cyan-300">
@@ -5720,6 +5721,10 @@ Launch Sequence
       <button id="btn-mp-away-end"
         class="min-h-14 w-full rounded-2xl bg-red-500 hover:bg-red-600 active:scale-95 text-white font-semibold text-lg transition-all duration-150">
         End session
+      </button>
+      <button id="btn-mp-away-wait" style="display:none"
+        class="min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-lg transition-all duration-150">
+        Keep waiting
       </button>
       <button id="btn-mp-away-leave"
         class="min-h-14 w-full rounded-2xl bg-red-500 hover:bg-red-600 active:scale-95 text-white font-semibold text-lg transition-all duration-150">

@@ -554,8 +554,13 @@ standby → live and be idempotent — **re-arming phase-scoped UI** (COMB: the 
 Resume re-arms through a **clock-only** packet (`COMB_DAYLIGHT`, `FLW_CLOCK`, `CJAR_CLOCK`), never the
 phase-start packet, whose applier resets half-made input. In a loopback, build the rejoining device
 **after** resume — that public broadcast may be lost to it in reality. **A game
-without the hook** still gets detection: a 20 s grace (`MP_AWAY_GRACE_MS`), then the host ends the
-session with `HOST_END_GAME { reason: 'dropped', name }`.
+without the hook** still gets detection: a 60 s grace (`MP_AWAY_GRACE_MS`), then the **host is asked**
+— Keep waiting (another grace) or End session (`HOST_END_GAME { reason: 'dropped', name }`). **Nothing
+ends on its own** (owner, SW v240). `MP_AWAY_STATE` carries `asking` so clients read "the host is deciding".
+
+**`MP_PROTOCOL_VERSION`** (`engine.js`, SW v240 — was `SYLLY_VERSION`) gates `HANDSHAKE` and `MP_REJOIN`.
+It is the **wire** version, not the app version: bump it only when a packet changes shape or meaning,
+to the SW version that ships the change. A release that touches no packet leaves it alone.
 
 **Rejoin.** A client of an adopting game writes `sylly_rejoin` at `GAME_START`; on reload the boot
 prompt (`#mp-rejoin-overlay`) sends `ACTION MP_REJOIN { version }`, checked by `originId` against

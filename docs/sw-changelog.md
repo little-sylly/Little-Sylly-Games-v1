@@ -4,6 +4,13 @@ Historical SW release notes, moved out of `CLAUDE.md` (1 Aug 2026) so they stop 
 The **current** version and its notes stay in `CLAUDE.md` § Current Focus — append the outgoing entry here on each bump.
 
 
+## v239 — runtime caches keep only a complete reply (28 Sep 2026).
+
+`sw.js`'s six runtime-cache writes (packs, music, stickers + lamp; manifest and file each) now go
+through `swKeep()`, which stores a `200` only. A 404 for a file requested before it was pushed was
+being kept under a cache-first key for the whole version, and on a network-first manifest it
+overwrote the good copy. No game code touched. Detail: `shared-implementation-notes.md` BUG entry (SW v239).
+
 ## v238 — the three menu layouts brought up to the rooms; the jukebox and stickerbook get a phone door (27 Sep 2026).
 
 Shelves, Classic and TV carry 🎵 Jukebox / 📒 Stickers (router `jukeboxOpen`/`stickerbookOpen`, closing back

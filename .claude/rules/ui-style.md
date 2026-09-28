@@ -861,7 +861,10 @@ known bad string finds only the sites that still contain it. Audit both `index.h
 ## Thumb-Friendly UI
 **Trigger:** Any new button, link, or interactive element.
 
-1. Minimum touch target: 44×44px (`min-h-11 min-w-11` in Tailwind)
+1. Minimum touch target: 44×44px (`min-h-11 min-w-11` in Tailwind). **Exemption: `.pill` (39 px,
+   owner call 28 Sep 2026)** — settings pills and how-to tab bars are tapped once, not under a clock,
+   and raising the shared class would re-space every settings overlay in 20 games for 5 px. A pill
+   tapped **repeatedly or against a running timer** still takes `min-h-11` (NT's allocation brushes).
 2. Buttons in Active Play must be in the bottom 60% of screen (thumb zone)
 3. No two destructive actions adjacent without spacing
 

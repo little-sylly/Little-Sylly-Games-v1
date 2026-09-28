@@ -241,7 +241,7 @@ function boot(name, uid, phone, skew = 0) {
     clearTimeout:  id => { const i = timers.findIndex(t => t.id === id); if (i >= 0) timers.splice(i, 1); },
     clearInterval: id => { const i = timers.findIndex(t => t.id === id); if (i >= 0) timers.splice(i, 1); },
     showScreen: id => { screens.push(id); if (typeof S.mpNoteScreen === 'function') S.mpNoteScreen(id); },
-    SYLLY_VERSION: 'vTEST',
+    MP_PROTOCOL_VERSION: 'vTEST',
     __rc: [], __resets: 0, __left: 0, __leftForGame: 0,
   };
   ['playLaunch', 'playExit', 'playDone', 'playSuccess', 'playBoing', 'playWhoosh', 'playPillClick', 'playTick']
@@ -481,18 +481,38 @@ async function startMatch(game, names) {
       check('no errors', errorsOf([host]), []);
     }
 
-    section('10. A game without reconnect: 20 s of grace, then a reasoned end');
+    section('10. A game without reconnect: 60 s of grace, then the HOST decides (never an automatic end)');
     {
       const { host, clients } = await startMatch('plain', ['Ali', 'Bec', 'Cam']);
       const [c1, c2] = clients;
+      host.run('mpWireReconnect();');
       c1.net.kill();
       advance(3000); await flush();
       ok('the table is waiting', c2.shown('mp-away-overlay'));
-      check('with a countdown', c2.el('mp-away-sub').textContent, 'The game ends in 20s if they are not back.');
-      advance(19999); await flush();
-      check('the host has not given up yet', host.S.__resets, 0);
+      check('with a countdown', c2.el('mp-away-sub').textContent, 'Holding their seat for 60s.');
+      check('no Keep waiting while the grace runs', host.el('btn-mp-away-wait').style.display, 'none');
+      advance(59999); await flush();
+      check('the host has not been asked yet', host.run('mpAwayAsking'), false);
       advance(1); await flush();
-      check('then the host ends the session', host.S.__resets, 1);
+      check('the grace ran out: the host is ASKED, the session did NOT end', [host.run('mpAwayAsking'), host.S.__resets], [true, 0]);
+      check('  …Keep waiting shown on the host', host.el('btn-mp-away-wait').style.display, '');
+      check('  …and End session with it', host.el('btn-mp-away-end').style.display, '');
+      check('  …the host is asked in words', host.el('mp-away-sub').textContent,
+            'Still not back after a minute. Keep waiting, or end the session?');
+      check('the other client is told the host is deciding', c2.el('mp-away-sub').textContent,
+            'The host is deciding whether to keep waiting.');
+      check('  …and gets no Keep waiting of its own', c2.el('btn-mp-away-wait').style.display, 'none');
+      advance(600000); await flush();
+      check('left unanswered for ten minutes, still nothing ends', host.S.__resets, 0);
+
+      host.el('btn-mp-away-wait').click(); await flush();
+      check('Keep waiting: a fresh grace, no longer asking', [host.run('mpAwayAsking'), host.run('mpAwayTimer') !== null], [false, true]);
+      check('  …the client sees the countdown again', c2.el('mp-away-sub').textContent, 'Holding their seat for 60s.');
+      advance(60000); await flush();
+      check('a second grace runs out: asked again', [host.run('mpAwayAsking'), host.S.__resets], [true, 0]);
+
+      host.el('btn-mp-away-end').click(); await flush();
+      check('End session: the host ends it', host.S.__resets, 1);
       ok('the other client saw the disconnect overlay', c2.shown('mp-host-disconnected-overlay'));
       check('  …with the reason', c2.el('mp-host-disconnected-body').textContent,
             "Bec dropped out, so the game can't carry on. You'll be returned to the lobby.");
@@ -629,7 +649,7 @@ async function startMatch(game, names) {
     {
       const { host, clients, code } = await startMatch('rcgame', ['Ali', 'Bec']);
       const back = reload(clients[0]);
-      back.S.SYLLY_VERSION = 'vOLD';
+      back.S.MP_PROTOCOL_VERSION = 'vOLD';
       back.run(`mpRejoinRoom('${code}')`); await flush();
       check('a different version is refused', back.el('mp-rejoin-sub').textContent,
             "Your app is a different version from the host's. Refresh it, then try again.");

@@ -23,6 +23,8 @@ const MUTANTS = [
   ['pause only on the FIRST away seat', 'const first = mpAwaySeats.size === 0;', 'const first = true;'],
   ['resume only when the LAST seat is back', 'if (mpAwaySeats.size === 0) {\n    if (mpAwayTimer)', 'if (true) {\n    if (mpAwayTimer)'],
   ['the Away debounce', 'MP_AWAY_DEBOUNCE_MS  = 3000;', 'MP_AWAY_DEBOUNCE_MS  = 0;'],
+  ['an expired grace ASKS the host, never ends', '  mpAwayAsking = true;\n  mpBroadcastAway();', '  mpEndSessionForDrop();'],
+  ['Keep waiting re-arms the grace', '  mpArmAwayGrace();\n  mpBroadcastAway();\n}', '  mpBroadcastAway();\n}'],
   ['the host is skipped by uid', "if (!uid || uid === window.syllyDeviceUid) return;", 'if (!uid || idx === 0) return;'],
   ['teardown clears the rejoin key', 'mpEndMatchLocal();\n  mpClearRejoinKey();\n  const h', 'mpEndMatchLocal();\n  const h'],
   ['resume BEFORE the snapshot', "  mpMarkBack(idx);\n  // 3.", "  // 3."],

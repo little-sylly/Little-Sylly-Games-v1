@@ -13,7 +13,10 @@ let sfxEnabled   = localStorage.getItem('sylly-sfx') !== 'false';
 
 // ── Gamebox routing ───────────────────────────────────────────────────────────
 let activeGameId = null;  // set by each plugin on entry; cleared by resetToLobby
-const SYLLY_VERSION = 'v83'; // must match CACHE_NAME in sw.js — bump both together
+// The MULTIPLAYER WIRE version, not the app version (was SYLLY_VERSION, stuck at 'v83' — 28 Sep 2026).
+// Two devices join one room only if these match. Bump it ONLY when a packet changes shape or
+// meaning, to the SW version that ships the change — so the value says when the wire last moved.
+const MP_PROTOCOL_VERSION = 'v240';
 
 // ── Who Goes First shared utility ─────────────────────────────────────────────
 let whoFirstConfig      = null;

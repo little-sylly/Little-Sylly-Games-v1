@@ -1,7 +1,7 @@
 # Natural Selection
 
 **Game 7** · `activeGameId: nat` · plugin `js/games/nat.js`
-**Emoji:** 🦁 · **Brand:** `lime-600` · **Players:** 4–8 in Pass-the-Phone, 3–8 in Lobby Mode · **Modes:** PTP · MDLM (recommended)
+**Emoji:** 🦁 · **Brand:** `lime-600` · **Players:** 4–8 · **Modes:** PTP · MDLM (recommended)
 **Status:** gold master · verified against SW v205 on 23 August 2026
 
 > **Change contract.** Each section is tagged **free** (reword freely — but it must stay true),
@@ -400,12 +400,10 @@ Stay at Camp
 
 **◇ judgement, not spec.**
 
-**Pass-the-Phone can't reach the Lobby Mode floor.** `getMinPlayers()` for Natural Selection returns
-3, but the Researcher-count pills on `screen-nat-setup` only offer 4 through 8 — there is no way to
-start a 3-player expedition in Pass-the-Phone. Whether that's an intentional floor for the
-single-device mode (three roles at three players leaves no spare Field Researcher, which may simply
-play badly) or a pill row that never got updated to match the engine minimum isn't recorded
-anywhere.
+**Pass-the-Phone can't reach the Lobby Mode floor.** **RESOLVED 28 Sep 2026 (SW v240).**
+`getMinPlayers()` returned 3 while the Pass-the-Phone pills offered 4–8. Owner's call: three players
+can't properly play (three roles leaves no spare Field Researcher), so the lobby floor was the error —
+it now returns 4, and `verify-mp-configs.js` checks it against the pills like every other game.
 
 **Mid-game quit didn't dissolve the Lobby Mode session for the rest of the group.** **RESOLVED 23 Aug 2026 (SW v210).**
 `natConfirmQuit()` cleared `natHabitatIntroTimer`, closed the overlay and called
@@ -474,8 +472,8 @@ tier 1, Rare draws tiers 1–2, Exotic opens the full tier 1–3 pool.
 **Modes.** Pass-the-Phone and Multi-Device Lobby Mode (recommended) are both supported. There is no
 Team Lobby Mode — Natural Selection has no teams, only individual roles.
 
-**Players.** 4 to 8 in Pass-the-Phone (see T7c on the PTP/MDLM floor mismatch); 3 to 8 in Lobby
-Mode.
+**Players.** 4 to 8, in both Pass-the-Phone and Lobby Mode. Three roles at three players leaves no
+spare Field Researcher, so three is not a game.
 
 **Devices.** Pass-the-Phone shares one device for the whole expedition, handed off at every
 handover gate. MDLM gives one device per player, with the handover screen skipped entirely — each

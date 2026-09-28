@@ -4040,6 +4040,50 @@ fallbacks as BUG-22 (the emoji badge, the lobby theme) make it look like nothing
 
 ---
 
+**BUG-24 — the live Firebase security rules were never updated for `presence`/`seats`, so every
+client's reconnect presence write was silently refused. [28 Sep 2026, owner playtest, SW v236–v240]**
+
+*What happened.* Every match, ~3 s after `GAME_START`, the host's away-detector marked every
+non-host seat Away and showed `#mp-away-overlay` ("Waiting for …") on all devices — including the
+seated player's own phone, which read as "Waiting for [my own name]".
+
+*Root cause.* SW v236 added `rooms/{code}/presence/{uid}/{pushId}` (each client's per-connection
+presence marker) and `rooms/{code}/seats` (the host's frozen seat list) — see § Client Reconnect,
+`logic-engine.md`. Neither node was ever added to the project's live Firebase security rules. The
+rules documented in `docs/multiplayer-feature-specification-v1.4.md` §2.7 (written for v1.4, before
+reconnect existed) only cover `settings`/`state`/`lifecycle`/`players`; the deployed rules the owner
+actually pulled from the Firebase console also lacked `presence`/`seats` and fell through to the
+room's parent `.write` rule (host-or-new-room-or-expired-only). A client writing its own presence
+marker is neither the host nor creating the room, so every write was refused with
+`permission_denied` — silently, because `mpStartPresence()` (`engine-multiplayer.js`) never checked
+the write's result. The host's presence watcher then correctly read "nobody here" and, working as
+designed, marked the seat Away 3 s later.
+
+**Invisible to every existing check.** `tools/verify-mp-reconnect.js` (152 checks) and
+`tools/mutate-mp-reconnect.js` (13/13) both drive a fake in-memory Firebase with no security rules
+at all — there is nothing there to refuse the write. This is a live-database configuration gap, not
+a code defect the suite's harnesses are positioned to catch; it needed a real device + Firebase
+console session to surface (§ Verification harnesses, CLAUDE.md: "no clock skew, no Firebase
+ordering... and no judgement about how anything feels" — the confirmation on the live database is
+in the same category).
+
+*Fix — two parts.* (1) The refused write is no longer silent: `mpStartPresence()` now `.catch`es the
+`set()` and `console.warn`s a rule-pointing message (`engine-multiplayer.js`). (2) The owner added
+`presence` (host-write-whole-node, `$uid`-write-own-child) and `seats` (host-write) blocks to the
+live rules, alongside the existing `.write` fallthrough. Confirmed fixed live.
+
+*Lesson.* **A new Firebase node in the wire protocol needs its security-rules line in the same
+change, not just the client code.** `players` and `settings` got theirs at v1.x; `presence` and
+`seats` shipped four SW versions (v236→v240) without anyone updating the rules doc or the live
+console, because nothing in the change touches a file the build or a harness reads — the rules live
+only in the Firebase console, outside the repo entirely. **Elevate this to a checklist item**: any
+change adding a `rooms/{code}/<newNode>` path needs an explicit "update live Firebase rules" step
+noted in the PR/commit, the same way a new SW asset needs a `PRECACHE_URLS` line. `docs/multiplayer-feature-specification-v1.4.md`
+§2.7's rules snippet is now stale (pre-dates reconnect) and should be refreshed to match the live
+rules the next time that doc is touched.
+
+---
+
 ## Multiplayer Lessons
 
 ### ML-01 — A lobby bound that reads game state reads it before the game has run [23 Aug 2026, SW v210]

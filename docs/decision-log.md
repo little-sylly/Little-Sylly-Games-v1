@@ -19,6 +19,25 @@ Detail: pointer to the canonical doc (snapshot / impl note / spec / memory).
 ```
 
 
+## 2026-09-28 — Live Firebase rules are project state, not just repo state — a new wire node needs both updated together
+Category: Process
+Decision: Any change adding a `rooms/{code}/<node>` path to the MP wire protocol must update the
+Firebase console's live security rules AND the rules snippet in `multiplayer-feature-specification-v1.4.md`
+§2.7 in the same change, not just the client code.
+Why: `presence`/`seats` (SW v236, Client Reconnect) shipped four SW versions with no rules coverage,
+so every client's presence write was silently `permission_denied` — invisible to `verify-mp-reconnect.js`
+because its fake Firebase has no rules to refuse anything. Found live, SW v240, owner playtest.
+Changed: live Firebase console rules (owner-applied); `multiplayer-feature-specification-v1.4.md` §2.7;
+`engine-multiplayer.js` (`mpStartPresence()` now warns on a refused write instead of failing silently).
+Detail: `shared-implementation-notes.md` BUG-24.
+
+## 2026-09-28 — A drop is the host's call; the handshake checks a wire version, not the app version
+Category: Architecture
+Decision: A non-reconnect game holds a dropped seat 60 s, then the host chooses Keep waiting or End session (never an automatic end); `SYLLY_VERSION` becomes `MP_PROTOCOL_VERSION`, bumped only when a packet changes.
+Why: 20 s ended tables shorter than a phone call; the version's "bump with every SW" comment had been ignored for 150+ releases because a wire version is what the handshake actually needs.
+Changed: `engine-multiplayer.js`, `engine.js`, `src/screens/_mp.html`, both reconnect harnesses, `logic-engine.md`. Also NAT's lobby floor 3 → 4 and a `.pill` 44 px exemption (`ui-style.md`). DYB's Phantom question re-scoped into a procedural dice rework (deferred).
+Detail: `shared-implementation-notes.md` DD-51 · supersedes DD-47's 20 s grace.
+
 ## 2026-09-28 — Cleanup round: `wip/` leaves git, shipped specs leave the repo, deferred-work splits
 Category: Process
 Decision: `wip/` is git-ignored (a local sandbox, never deployed); a shipped game's tech spec, superpowers plan, Stage 1 brief and `wip/` lab move to the owner's external archive at its phase gate; `deferred-work.md` holds open items only, with resolved ones moved to `deferred-work-log.md`.

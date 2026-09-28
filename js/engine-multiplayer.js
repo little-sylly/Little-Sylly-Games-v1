@@ -1,6 +1,6 @@
 // js/engine-multiplayer.js
 // Multiplayer Sync Module — Phase 22
-// Depends on: engine.js (SYLLY_VERSION, showScreen, resetToLobby, play* audio)
+// Depends on: engine.js (MP_PROTOCOL_VERSION, showScreen, resetToLobby, play* audio)
 // Sprint 1: global variable declarations.
 // Sprint 2: config registry, shared screen show functions, event wiring, nickname helpers, room code generator.
 // Sprint 3: Firebase lazy-loader, room creation/join, handshake, sync lock, teardown, data hygiene.
@@ -42,11 +42,12 @@ let mpPresenceRef      = null;      // client: this connection's own presence ch
 let mpAwayTimer        = null;      // host: setTimeout handle — a non-adopter's grace
 let mpAwayTick         = null;      // any: setInterval handle — the overlay's countdown text
 let mpAwayGraceEndsAt  = 0;         // host: when a non-adopter's grace runs out
+let mpAwayAsking       = false;     // host: the grace ran out — Keep waiting / End session is on screen
 let mpRejoinTimer      = null;      // client: setTimeout handle — a rejoin nobody answered
 let mpReleasedSeats    = new Set(); // host: seats whose player LEFT on purpose (MP_SEAT_RELEASED) — never Away
 let mpRejoinNonce      = null;      // client: names THIS rejoin attempt; the host echoes it in ACCEPT / REFUSE
 const MP_AWAY_DEBOUNCE_MS  = 3000;    // a blip shorter than this never pauses the table
-const MP_AWAY_GRACE_MS     = 20000;   // games without reconnect: how long the table waits
+const MP_AWAY_GRACE_MS     = 60000;   // games without reconnect: how long before the host is asked (owner, 28 Sep 2026)
 const MP_REJOIN_TIMEOUT_MS = 15000;   // a rejoin the host never answers
 const MP_REJOIN_KEY        = 'sylly_rejoin';
 const MP_REJOIN_TTL_MS     = 7200000; // 2 h — mpCleanupStaleRooms()'s own age limit
@@ -209,7 +210,7 @@ const MP_GAME_CONFIGS = {
     lobbyCtaLabel:   'Begin Observation',
     rosterConfig: { type: 'individual', showTeamNamesInPreLobby: false, defaultTeamNames: null, hasCaptain: false },
     getMaxPlayers: () => 8,
-    getMinPlayers: () => 3,
+    getMinPlayers: () => 4,   // was 3 — never playable (owner, 28 Sep 2026); matches the PTP pills
   },
   dsd: {
     gameName:        'Deep-Sea Deploy',
@@ -1117,7 +1118,9 @@ function mpStartPresence() {
     if (snap.val() !== true || mpActiveRoomCode !== code) return;
     const mine = fb.push(fb.ref(`rooms/${code}/presence/${uid}`));
     fb.onDisconnect(mine).remove();
-    fb.set(mine, true);
+    // A refused write is SILENT otherwise — and the host then reads this seat as Away
+    // 3 s into every match. The fake Firebase in the harness has no rules to refuse it.
+    Promise.resolve(fb.set(mine, true)).catch(e => console.warn('[MP] presence write refused — check the database rules for rooms/$code/presence', e));
     mpPresenceRef = mine;
   });
 }
@@ -1184,6 +1187,7 @@ function mpMarkBack(idx) {
   if (!mpAwaySeats.delete(idx)) return;
   if (mpAwaySeats.size === 0) {
     if (mpAwayTimer) { clearTimeout(mpAwayTimer); mpAwayTimer = null; }
+    mpAwayAsking = false;
     const rc = mpActiveGameConfig?.reconnect;
     if (rc) { try { rc.resume(); } catch (e) { console.warn('[MP] reconnect.resume', e); } }
   }
@@ -1193,10 +1197,12 @@ function mpMarkBack(idx) {
 // One packet carries the WHOLE away set; an empty set closes every overlay.
 // seats: [] is ERASED by Firebase — the receiver rebuilds it with `|| []`.
 function mpBroadcastAway() {
-  const seats = [...mpAwaySeats].sort((a, b) => a - b);
-  const grace = (seats.length && !mpActiveGameConfig?.reconnect) ? mpAwayGraceEndsAt : 0;
-  try { mpSendEnvelope({ type: 'LOBBY', payload: { action: 'MP_AWAY_STATE', seats, graceEndsAt: grace } }); } catch (_) {}
-  mpShowAwayOverlay(seats, grace);   // the host's own copy — its sends never come back to it
+  const seats  = [...mpAwaySeats].sort((a, b) => a - b);
+  const plain  = seats.length && !mpActiveGameConfig?.reconnect;
+  const grace  = (plain && !mpAwayAsking) ? mpAwayGraceEndsAt : 0;
+  const asking = !!(plain && mpAwayAsking);
+  try { mpSendEnvelope({ type: 'LOBBY', payload: { action: 'MP_AWAY_STATE', seats, graceEndsAt: grace, asking } }); } catch (_) {}
+  mpShowAwayOverlay(seats, grace, asking);   // the host's own copy — its sends never come back to it
 }
 
 function mpAwayNames(seats) {
@@ -1205,7 +1211,9 @@ function mpAwayNames(seats) {
   return n.slice(0, -1).join(', ') + ' and ' + n[n.length - 1];
 }
 
-function mpShowAwayOverlay(seats, graceEndsAt) {
+// Three states for a game WITHOUT reconnect: counting (graceEndsAt), then asking — the
+// host picks Keep waiting (another MP_AWAY_GRACE_MS) or End session. Nothing ends on its own.
+function mpShowAwayOverlay(seats, graceEndsAt, asking) {
   if (mpAwayTick) { clearInterval(mpAwayTick); mpAwayTick = null; }
   const ov = document.getElementById('mp-away-overlay');
   if (!ov) return;
@@ -1214,11 +1222,18 @@ function mpShowAwayOverlay(seats, graceEndsAt) {
   const host = window.syllyMultiplayerMode === 'host';
   document.getElementById('btn-mp-away-end').style.display   = host ? '' : 'none';
   document.getElementById('btn-mp-away-leave').style.display = host ? 'none' : '';
+  const wait = document.getElementById('btn-mp-away-wait');
+  if (wait) wait.style.display = (host && asking) ? '' : 'none';
   const sub = document.getElementById('mp-away-sub');
   const paint = () => {
+    if (asking) {
+      sub.textContent = host ? 'Still not back after a minute. Keep waiting, or end the session?'
+                             : 'The host is deciding whether to keep waiting.';
+      return;
+    }
     if (!graceEndsAt) { sub.textContent = 'Their seat is saved. The game picks up the moment they are back.'; return; }
     const s = Math.max(0, Math.ceil((graceEndsAt - Date.now()) / 1000));
-    sub.textContent = `The game ends in ${s}s if they are not back.`;
+    sub.textContent = `Holding their seat for ${s}s.`;
   };
   paint();
   if (graceEndsAt) mpAwayTick = setInterval(paint, 1000);
@@ -1227,17 +1242,34 @@ function mpShowAwayOverlay(seats, graceEndsAt) {
 
 function mpArmAwayGrace() {
   if (mpAwayTimer) clearTimeout(mpAwayTimer);
+  mpAwayAsking = false;
   mpAwayGraceEndsAt = Date.now() + MP_AWAY_GRACE_MS;
   mpAwayTimer = setTimeout(mpAwayGraceExpired, MP_AWAY_GRACE_MS);
 }
 
+// The grace ran out: ASK the host rather than end the table for it (owner, 28 Sep 2026).
 function mpAwayGraceExpired() {
   mpAwayTimer = null;
   if (!mpAwaySeats.size || window.syllyMultiplayerMode !== 'host') return;
-  // Say WHY first. resetToLobby()'s own HOST_END_GAME carries no reason, and a client
-  // keeps this copy because the plain packet never overwrites the text.
-  const name = mpAwayNames([...mpAwaySeats]);
-  try { mpSendEnvelope({ type: 'LOBBY', payload: { action: 'HOST_END_GAME', reason: 'dropped', name } }); } catch (_) {}
+  mpAwayAsking = true;
+  mpBroadcastAway();
+}
+
+// Host: "Keep waiting" — another full grace, then ask again.
+function mpAwayKeepWaiting() {
+  if (!mpAwaySeats.size || window.syllyMultiplayerMode !== 'host') return;
+  mpArmAwayGrace();
+  mpBroadcastAway();
+}
+
+// Host: End session while a seat is away. Say WHY first — resetToLobby()'s own
+// HOST_END_GAME carries no reason, and a client keeps this copy because the plain
+// packet never overwrites the text.
+function mpEndSessionForDrop() {
+  if (mpAwaySeats.size && window.syllyMultiplayerMode === 'host') {
+    const name = mpAwayNames([...mpAwaySeats]);
+    try { mpSendEnvelope({ type: 'LOBBY', payload: { action: 'HOST_END_GAME', reason: 'dropped', name } }); } catch (_) {}
+  }
   resetToLobby();
 }
 
@@ -1248,9 +1280,9 @@ function mpEndMatchLocal() {
   mpClearAwayPending();
   if (mpAwayTimer)   { clearTimeout(mpAwayTimer);   mpAwayTimer   = null; }
   if (mpRejoinTimer) { clearTimeout(mpRejoinTimer); mpRejoinTimer = null; }
-  mpSeats = []; mpMatchLive = false; mpAwayGraceEndsAt = 0; mpReleasedSeats.clear();
+  mpSeats = []; mpMatchLive = false; mpAwayGraceEndsAt = 0; mpAwayAsking = false; mpReleasedSeats.clear();
   mpAwaySeats.clear();
-  mpShowAwayOverlay([], 0);              // also clears the countdown interval
+  mpShowAwayOverlay([], 0, false);       // also clears the countdown interval
 }
 
 // Everything reconnect owns, from resetToLobby(). Every deliberate exit ends here.
@@ -1329,7 +1361,7 @@ async function mpRejoinRoom(code) {
   mpStartPresence();
   mpArmRejoinTimeout();
   mpRejoinNonce = Math.random().toString(36).slice(2) + Date.now().toString(36);
-  await mpSendEnvelope({ type: 'ACTION', payload: { action: 'MP_REJOIN', version: SYLLY_VERSION, nonce: mpRejoinNonce } });
+  await mpSendEnvelope({ type: 'ACTION', payload: { action: 'MP_REJOIN', version: MP_PROTOCOL_VERSION, nonce: mpRejoinNonce } });
   return { ok: true };
 }
 
@@ -1360,7 +1392,7 @@ function mpHostHandleRejoin(uid, version, nonce) {
   const refuse = reason => mpSendPrivate(uid, { type: 'LOBBY', payload: { action: 'MP_REJOIN_REFUSE', reason, nonce } });
   const idx = mpSeats.indexOf(uid);
   if (!mpMatchLive || idx < 0)   { refuse('not-seated');  return; }
-  if (version !== SYLLY_VERSION) { refuse('version');     return; }
+  if (version !== MP_PROTOCOL_VERSION) { refuse('version');     return; }
   const rc = mpActiveGameConfig?.reconnect;
   if (!rc)                       { refuse('unsupported'); return; }
   mpReleasedSeats.delete(idx);            // a player who left and came back is watched again
@@ -1527,7 +1559,11 @@ function mpWireReconnect() {
   document.getElementById('btn-mp-away-end').addEventListener('click', () => {
     playExit();
     document.getElementById('mp-away-overlay').style.display = 'none';
-    resetToLobby();                      // host: HOST_END_GAME + room teardown
+    mpEndSessionForDrop();               // host: reasoned HOST_END_GAME + room teardown
+  });
+  document.getElementById('btn-mp-away-wait').addEventListener('click', () => {
+    playDone();
+    mpAwayKeepWaiting();
   });
   document.getElementById('btn-mp-away-leave').addEventListener('click', () => {
     playExit();
@@ -1760,7 +1796,7 @@ function mpHandleEnvelope(env) {
       mpSendPrivate(env.originId, { type: 'LOBBY', payload: { action: 'MP_REJOIN_REFUSE', reason: 'in-progress' } });
       return;
     }
-    if (env.payload.version !== SYLLY_VERSION) {
+    if (env.payload.version !== MP_PROTOCOL_VERSION) {
       document.getElementById('mp-version-mismatch-overlay').style.display = 'flex';
       return;
     }
@@ -1786,7 +1822,7 @@ function mpHandleEnvelope(env) {
     }
     if (env.payload.action === 'MP_AWAY_STATE' && window.syllyMultiplayerMode === 'client') {
       const seats = Array.isArray(env.payload.seats) ? env.payload.seats.map(Number) : [];
-      mpShowAwayOverlay(seats, Number(env.payload.graceEndsAt) || 0);
+      mpShowAwayOverlay(seats, Number(env.payload.graceEndsAt) || 0, env.payload.asking === true);
     }
     if (env.payload.action === 'MP_REJOIN_ACCEPT' && window.syllyMultiplayerMode === 'client') {
       mpApplyRejoinAccept(env.payload, env.timestamp);
@@ -3299,7 +3335,7 @@ function mpClientJoinRoom() {
       mpJoinListenFrom = Date.now();
       await mpSendEnvelope({
         type:    'HANDSHAKE',
-        payload: { version: SYLLY_VERSION, nickname },
+        payload: { version: MP_PROTOCOL_VERSION, nickname },
       });
 
       // Listen for LOBBY/SYNC events from Host

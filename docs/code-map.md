@@ -2086,7 +2086,8 @@ Run.**
 | `mpAwaySeats` / `mpAwayPending` | Set / Map | empty | Host: seat indices currently Away / seat → the 3 s debounce handle |
 | `mpPresenceListener` / `mpConnListener` / `mpPresenceRef` | fn / fn / ref | `null` | Host's watcher on `rooms/{code}/presence`; a client's `.info/connected` listener and its current connection's presence child |
 | `mpAwayTimer` / `mpAwayTick` / `mpAwayGraceEndsAt` / `mpRejoinTimer` | handles / ms | `null` / `0` | Non-adopter grace, the overlay countdown, the grace deadline, an unanswered rejoin. All cleared in `mpEndMatchLocal()` |
-| `MP_AWAY_DEBOUNCE_MS` / `MP_AWAY_GRACE_MS` / `MP_REJOIN_TIMEOUT_MS` / `MP_REJOIN_TTL_MS` | const | 3000 / 20000 / 15000 / 7200000 | Reconnect timings; `MP_REJOIN_KEY = 'sylly_rejoin'` |
+| `mpAwayAsking` | bool | `false` | Host (SW v240): a non-adopter's grace ran out and **Keep waiting / End session** is on screen. Rides `MP_AWAY_STATE` as `asking`; cleared by Keep waiting, the last seat back, and `mpEndMatchLocal()` |
+| `MP_AWAY_DEBOUNCE_MS` / `MP_AWAY_GRACE_MS` / `MP_REJOIN_TIMEOUT_MS` / `MP_REJOIN_TTL_MS` | const | 3000 / 60000 / 15000 / 7200000 | Reconnect timings; `MP_REJOIN_KEY = 'sylly_rejoin'` |
 
 ### Multiplayer Mode Classification
 Three named modes (Phase 23). Each game has a `recommendedMode` and `supportedModes[]` in `MP_GAME_CONFIGS`:
@@ -2096,7 +2097,7 @@ Three named modes (Phase 23). Each game has a `recommendedMode` and `supportedMo
 | `tlm` | Team Lobby Mode | Each team shares one device. Host/Join with room code. |
 | `mdlm` | Multi-device Lobby Mode | Each player uses their own phone. Host/Join with room code. |
 
-Per-game: LI5 `ptp`★/`tlm` · GM `ptp`★/`mdlm` · SS `tlm`★/`mdlm`/`ptp` · JEC `mdlm`★/`ptp` · YGI `mdlm`★/`ptp` · LTTP `mdlm`★/`ptp` · NAT `mdlm`★/`ptp` · DSD `tlm`★/`mdlm`/`ptp` · GTH `mdlm`★ (MP-only, 4–8) · DYB `mdlm`★ (MP-only, 3–8) · BLD `mdlm`★ (MP-only, 4–10 per `getMinPlayers`) · PASS `mdlm`★ (MP-only, 3–6) · NT `mdlm`★/`ptp` (2–8; DNP requires min 4) · FRT `mdlm`★ (MP-only, 2–8) · SHP `mdlm`★ (MP-only, 3–8) · FLW `mdlm`★ (MP-only, 3–4) (★ = recommended)
+Per-game: LI5 `ptp`★/`tlm` · GM `ptp`★/`mdlm` · SS `tlm`★/`mdlm`/`ptp` · JEC `mdlm`★/`ptp` · YGI `mdlm`★/`ptp` · LTTP `mdlm`★/`ptp` · NAT `mdlm`★/`ptp` (4–8) · DSD `tlm`★/`mdlm`/`ptp` · GTH `mdlm`★ (MP-only, 4–8) · DYB `mdlm`★ (MP-only, 3–8) · BLD `mdlm`★ (MP-only, 4–10 per `getMinPlayers`) · PASS `mdlm`★ (MP-only, 3–6) · NT `mdlm`★/`ptp` (2–8; DNP requires min 4) · FRT `mdlm`★ (MP-only, 2–8) · SHP `mdlm`★ (MP-only, 3–8) · FLW `mdlm`★ (MP-only, 3–4) (★ = recommended)
 
 ### Multiplayer Screens
 | Screen ID | Purpose |
@@ -2112,11 +2113,11 @@ Per-game: LI5 `ptp`★/`tlm` · GM `ptp`★/`mdlm` · SS `tlm`★/`mdlm`/`ptp` �
 | Overlay ID | Pattern | z-index | Trigger |
 |------------|---------|---------|---------|
 | `mp-network-error-overlay` | Decision modal | z-[90] | Firebase load timeout on mode screen |
-| `mp-version-mismatch-overlay` | Decision modal | z-[90] | Handshake: client SW version !== host SW version |
+| `mp-version-mismatch-overlay` | Decision modal | z-[90] | Handshake (and `MP_REJOIN`): client `MP_PROTOCOL_VERSION` !== host's. A **wire** version, not the app version — `js/engine.js`, bumped only when a packet changes (SW v240; was `SYLLY_VERSION`, stuck at `'v83'`) |
 | `mp-host-disconnected-overlay` | Decision modal | z-[100] | Firebase `.onDisconnect()` sentinel fires on all client devices. `#mp-host-disconnected-heading` / `-body` are rewritten to "Game Over" / "{name} dropped out…" by `HOST_END_GAME { reason: 'dropped' }`, reset by `mpReconnectTeardown()` |
 | `mp-lttp-message-interrupt-overlay` | Decision modal | z-[105] | `SYNC: LTTP_MESSAGE_INTERRUPT` — fires on ALL LTTP devices simultaneously |
 | `mp-host-prelobby-overlay` | Decision modal | z-[90] | Host selects "Host Lobby" — nickname entry before room code generation |
-| `mp-away-overlay` | Decision modal | z-[100] | `MP_AWAY_STATE` with a non-empty set (and the host's own copy) — "Waiting for …"; host gets **End session**, a client **Leave**; a non-adopter shows the grace countdown. No cancel id, so a backdrop tap never hides it |
+| `mp-away-overlay` | Decision modal | z-[100] | `MP_AWAY_STATE` with a non-empty set (and the host's own copy) — "Waiting for …"; host gets **End session**, a client **Leave**; a non-adopter shows the 60 s grace countdown, then the host alone gets **Keep waiting** (`btn-mp-away-wait`) beside End session — nothing ends on its own (SW v240). No cancel id, so a backdrop tap never hides it |
 | `mp-rejoin-overlay` | Decision modal | z-[90] | Boot, when `sylly_rejoin` is fresh (`mpOfferRejoin()`) — **Rejoin** (game's `brandBtnClass`) / **Not now** (`btn-mp-rejoin-cancel`); also carries a failed rejoin's reason (`mpRejoinFailed()`) |
 
 ### Key Functions
@@ -2151,8 +2152,8 @@ Per-game: LI5 `ptp`★/`tlm` · GM `ptp`★/`mdlm` · SS `tlm`★/`mdlm`/`ptp` �
 | `mpStartPresence()` / `mpRemovePresence()` | Client: one presence child per connection, re-pushed on every `.info/connected === true` (heals a blip) / tear it down |
 | `mpStartPresenceWatcher()` | Host: `onValue` on `rooms/{code}/presence`; a seat (skipped by uid if it is the host) with no children is debounced 3 s into `mpMarkAway()`; its return runs `mpMarkBack()` |
 | `mpMarkAway(idx)` / `mpMarkBack(idx)` | Away set changes; `reconnect.pause()` on the first away / `resume()` on the last back (or `mpArmAwayGrace()` for a non-adopter); each broadcasts `mpBroadcastAway()` |
-| `mpBroadcastAway()` / `mpShowAwayOverlay(seats, graceEndsAt)` / `mpAwayNames(seats)` | `MP_AWAY_STATE` out + the host's own overlay / paint `#mp-away-overlay` / "Bec and Cam" |
-| `mpArmAwayGrace()` / `mpAwayGraceExpired()` | Non-adopter: 20 s, then `HOST_END_GAME { reason: 'dropped', name }` + `resetToLobby()` |
+| `mpBroadcastAway()` / `mpShowAwayOverlay(seats, graceEndsAt, asking)` / `mpAwayNames(seats)` | `MP_AWAY_STATE { seats, graceEndsAt, asking }` out + the host's own overlay / paint `#mp-away-overlay` (counting → asking) / "Bec and Cam" |
+| `mpArmAwayGrace()` / `mpAwayGraceExpired()` / `mpAwayKeepWaiting()` / `mpEndSessionForDrop()` | Non-adopter (SW v240): 60 s, then **ask** the host (`mpAwayAsking`) — never an automatic end / Keep waiting re-arms another 60 s / End session sends `HOST_END_GAME { reason: 'dropped', name }` when a seat is away, then `resetToLobby()` |
 | `mpEndMatchLocal()` / `mpReconnectTeardown()` | Every reconnect handle and listener cleared (`LOBBY_RESET`, abandon) / that + the rejoin key + overlay copy, from `resetToLobby()` |
 | `mpWriteRejoinKey()` / `mpClearRejoinKey()` / `mpReadRejoinKey()` | `sylly_rejoin` — written only for adopters; read returns null (and clears) unless well-formed, < 2 h old and naming an adopter; all try/catch |
 | `mpRejoinRoom(code)` | Client: room + seat check, becomes a client with `mpActiveGame = null`, starts listeners + presence + the 15 s timeout, sends `MP_REJOIN`. Also reached from `mpClientJoinRoom()` when `roomData.seats` holds this uid (manual re-typing) |

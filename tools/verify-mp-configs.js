@@ -203,10 +203,8 @@ const PILL_SOURCES = {
   nat:  pills('data-count', 'nat-count-group'),
 };
 // Documented, deliberate divergences. Anything NOT listed here must agree.
-const PILL_EXCEPTIONS = {
-  nat: 'pills offer 4-8, lobby floor is 3 — unresolved whether the PTP floor is intentional ' +
-       '(three roles at three players leaves no spare Field Researcher). docs/deferred-work.md § NAT gaps.',
-};
+// (NAT's 3-vs-4 floor was the one entry; resolved 28 Sep 2026 — the lobby floor was the error.)
+const PILL_EXCEPTIONS = {};
 for (const [id, vals] of Object.entries(PILL_SOURCES)) {
   ok(id + ': found its count pills in index.html', vals.length > 0);
   if (!vals.length) continue;

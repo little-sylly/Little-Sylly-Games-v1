@@ -292,11 +292,11 @@ On every bump the outgoing SW entry moves **verbatim** to `docs/sw-changelog.md`
 "keep the last three". **A second `**SW v…**` paragraph appearing here means that move didn't
 happen: do it before anything else.**
 
-**SW v239 — runtime caches keep only a complete reply (28 Sep 2026).**
-`sw.js`'s six runtime-cache writes (packs, music, stickers + lamp; manifest and file each) now go
-through `swKeep()`, which stores a `200` only. A 404 for a file requested before it was pushed was
-being kept under a cache-first key for the whole version, and on a network-first manifest it
-overwrote the good copy. No game code touched. Detail: `shared-implementation-notes.md` BUG entry (SW v239).
+**SW v240 — a dropped player no longer ends the game on a timer (28 Sep 2026).**
+A game without reconnect holds a dropped seat **60 s** (was 20), then asks the **host**: Keep waiting
+(another 60 s) or End session — nothing ends on its own. `SYLLY_VERSION` → `MP_PROTOCOL_VERSION`
+(`'v240'`), a wire version bumped only when a packet changes. NAT's lobby floor 3 → 4, matching its
+PTP pills. `.pill` exempted from the 44 px rule. Detail: `shared-implementation-notes.md` DD-51.
 
 **Previous versions: `docs/sw-changelog.md`** — continuous, v238 back to v167.
 
@@ -373,8 +373,8 @@ Re-run a game's full set after touching its appliers, deck/data, packets or rend
 | JEC | `node tools/verify-jec-loop.js` — the four tiers, the Golden-only Signature double, Crutch resolution + the never-in-pool invariant, the Instructions deck, the Fusion name vote | 77 |
 | JEC | `node tools/verify-jec-loopback.js` — host↔client over a Firebase-shaped wire with a real mock DOM; accepts `JEC_SRC=` | 164 |
 | **All 20 / MP** | `node tools/verify-mp-configs.js` — `MP_GAME_CONFIGS` entry schema, player-count bounds (sanity, **purity** — a bound may read nothing but `window.mpLobbyStyle` or a pre-lobby setting in `ALLOWED_SETTINGS` (`frtPearOff`, `cldPeckOff`), and agreement with each game's own PTP count pills), the balanced-teams invariant, and the Mid-Game Quit Contract. Runs no game logic; accepts `MP_SRC=`. **Re-run after touching `MP_GAME_CONFIGS`, any quit-confirm handler, or the roster screen** | 20 games |
-| **MP reconnect** | `node tools/verify-mp-reconnect.js` — the REAL `engine-multiplayer.js` on N devices over a fake Firebase with **sockets** (drop / heal / kill, on-time or LATE `onDisconnect`): frozen seats, per-connection presence + the stale-socket race, the 3 s Away debounce, pause/resume once each, the non-adopter's 20 s grace + reasoned end, reload → rejoin into the same seat, refusals (stranger, version, non-adopter, unanswered), `sylly_rejoin` + the boot prompt, a deliberate exit and an end screen never read as a drop, per-device clock skew on a rejoin, the rejoiner back on `/players`. Accepts `MP_SRC=`. **Re-run after touching seats, presence, rejoin, `mpConfirmRoster` or `MP_END_SCREENS`** | 141 |
-| **MP reconnect** | `node tools/mutate-mp-reconnect.js` — reverts each load-bearing reconnect line in a temp copy and drives the harness above; a survivor means a line nothing watches | 11/11 |
+| **MP reconnect** | `node tools/verify-mp-reconnect.js` — the REAL `engine-multiplayer.js` on N devices over a fake Firebase with **sockets** (drop / heal / kill, on-time or LATE `onDisconnect`): frozen seats, per-connection presence + the stale-socket race, the 3 s Away debounce, pause/resume once each, the non-adopter's 60 s grace → the host's Keep waiting / End session (never an automatic end), reload → rejoin into the same seat, refusals (stranger, version, non-adopter, unanswered), `sylly_rejoin` + the boot prompt, a deliberate exit and an end screen never read as a drop, per-device clock skew on a rejoin, the rejoiner back on `/players`. Accepts `MP_SRC=`. **Re-run after touching seats, presence, rejoin, `mpConfirmRoster` or `MP_END_SCREENS`** | 152 |
+| **MP reconnect** | `node tools/mutate-mp-reconnect.js` — reverts each load-bearing reconnect line in a temp copy and drives the harness above; a survivor means a line nothing watches | 13/13 |
 | Identity docs | `node tools/verify-identity-docs.js` — every `copy` block in `docs/game-identities/` against the shipped `index.html` + plugin file | per-doc |
 | Identity docs | `node tools/verify-identity-docs.js --self-test` — proves the checker still detects planted drift | 1 |
 | FLW | `node tools/verify-flw-loopback.js` — host↔client over a Firebase-shaped wire, incl. the private-channel hand packets and reconnect (clock pause, a rejoin mid-turn and mid-Deep-Vault) | 113 |
