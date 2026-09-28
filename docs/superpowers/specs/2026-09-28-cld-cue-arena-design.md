@@ -47,10 +47,11 @@ Dive taps and the Peck Off hold are unchanged.
 1. **Touch down anywhere on the stage.** The penguin being aimed:
    - the penguin touched, if the touch lands within `CLD_PENGUIN_R × 3.2` of one of *mine* (Peck Off
      uses this to switch);
-   - otherwise the **selected** penguin: my only Standing penguin, or in Peck Off the first without an
-     armed aim, else the last one aimed (`cldFirstUnarmedOrLast()` already answers this). New state
-     `cldSelPenguin` (this device only, reset in `cldShowFloe()`).
-   The selected penguin wears a **soft highlight ring** (drawn by the renderer, § 4).
+   - otherwise the **default** penguin: my only Standing penguin, or in Peck Off the first without an
+     armed aim, else the last one aimed. Derived, never stored: the pure `cldDefaultPenguin(standing,
+     aims)` answers it (planning, 29 Sep 2026 — no `cldSelPenguin` state).
+   When there is a choice (Peck Off), the default penguin wears a **soft highlight ring** (drawn by
+   the renderer, § 4).
 2. **Direction** — the cue runs from the finger through the penguin; the shot goes **away from the
    finger**: `dir = unit(P − F)`. Swinging the finger sideways swings the aim; the further the finger is
    from the penguin, the finer the angle (the lever).
@@ -63,7 +64,10 @@ Dive taps and the Peck Off hold are unchanged.
 5. **Power lock** is unchanged in its control (tap the bar) and grows a use: while locked, dragging
    only swings the aim — the "aim, then power" two-step for anyone who wants it.
 6. **Release arms** (unchanged). A new drag replaces that penguin's armed aim; below `CLD_MIN_POWER` it
-   reads *Too soft* and arms nothing — so a plain tap never wipes an armed aim. **Lock It In** commits.
+   reads *Too soft* and arms nothing. A touch must also travel `CLD_CUE_TAP_PX` (4 CSS px) before its
+   release can arm (planning, 29 Sep 2026) — with the bar locked, power no longer comes from the pull,
+   so without this a plain tap would re-aim at the locked power. So a plain tap never changes an armed
+   aim. **Lock It In** commits.
 
 **Wire unchanged.** An armed aim is still `{ penguinId, dx, dy, power }` with `(dx, dy)` along the shot;
 `cldBuildSlideInputs` normalises it. Nothing on the wire changes, so the loopback's packet assertions
@@ -78,7 +82,8 @@ cldCueAim({ down, now, penguin, scale, lock, lastDir }) → { dx, dy, power, dir
 `down`/`now`/`penguin` are logical points; `scale` is the view's CSS px per logical unit; `lock` is
 `cldPowerLock`; `lastDir` feeds the dead zone. No globals, no DOM. The live pointer handlers
 (`cldPointerDown/Move/Up`) become thin wrappers that feed it; the Arena's handlers call the same function.
-`cldCurrentDragAim()` is retired in favour of it.
+`cldCurrentDragAim()` survives as a five-line wrapper that feeds it the live drag state, and a pure
+`cldReleaseAim(aim, down, now, scale)` decides what a release arms for both surfaces.
 
 ### 2.3 The picture
 
@@ -120,7 +125,7 @@ row, the tally's privacy contract, `screen-cld-floe` on the `h-screen` whitelist
 
 ### 4.2 The model
 
-`cldDraw(view, m, dt)` draws **only** from `m`:
+`cldDraw(view, m)` draws **only** from `m` (the caller advances `m.clock`; the renderer takes no `dt`):
 
 | Field | Carries |
 |---|---|
@@ -218,7 +223,9 @@ cldStepPlayback(dtMs, hooks) → 'playing' | 'done'
 4. **The real controls, same classes as the floe** — `#cld-pr-drowned-row` (Throw · Dive + amber reason),
    the power bar (`cld-power-track`/`cld-power-fill`, its hint), `#btn-cld-pr-commit` (`cld-cta`,
    **Lock It In** while aiming, **Go again** after a Slide), and a small neutral **Resurface**.
-5. **Practice again / Got it** — appear under the coach card once step 5 has been reached (§ 6.5).
+5. **Practice again** sits beside Resurface and appears once step 5 (or B3) has been reached; **Got it**
+   closes the overlay from the bottom of the pane at all times — the How-to rule that every tab body
+   carries its own close button (planning, 29 Sep 2026).
 
 Soft ring = a `box-shadow` transition class `cld-pr-ring` on the control being taught (never `animation`;
 reduced motion already zeroes transitions).
