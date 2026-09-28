@@ -1392,11 +1392,6 @@ function dybRenderHandDock(containerId) {
   }
 }
 
-// Pip-position grid (1-indexed): 1=top-left  2=top-mid  3=top-right
-//                                  4=mid-left  5=center   6=mid-right
-//                                  7=bot-left  8=bot-mid  9=bot-right
-const DYB_PIP_LAYOUTS = { 1:[5], 2:[3,7], 3:[3,5,7], 4:[1,3,7,9], 5:[1,3,5,7,9], 6:[1,3,4,6,7,9] };
-
 // dieIdx >= 0 : owner's live hand (phantom shows ?)
 // dieIdx === -1: showdown reveal (phantom unmasked — compound type shown with ring)
 // dieIdx === -2: spectator view — Spirit Board (phantom shows ?)

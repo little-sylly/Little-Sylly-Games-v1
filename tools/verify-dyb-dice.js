@@ -61,6 +61,7 @@ function load(rel) {
   }
 }
 load('js/lib/art.js');
+load('js/games/dyb-dice.js');
 load('js/games/dyb.js');
 
 for (const fn of ['assetFace', 'dybDieHTML', 'assetSpecial', 'assetSpecialFrame']) {
@@ -76,7 +77,7 @@ function setSkin(assets) { sandbox.window.activeAssetPack = assets ? { id: 'test
 function setCore(assets) { sandbox.window.coreArt = assets ? { dyb: { id: 'dyb', assets } } : {}; }
 function noArt() { setSkin(null); setCore(null); }
 
-const FACES = {
+const FACES_FIXTURE = {
   kind: 'dyb', basePath: 'img/',
   faces: { '1': '1.svg', '2': '2.svg', '3': '3.svg', '4': '4.svg', '5': '5.svg', '6': '6.svg' },
   back: 'back.svg',
@@ -173,7 +174,7 @@ check('slick assigned → pips at the ASSIGNED face, not the roll',
   (dybDieHTML(9, 'slick', 2, 0, true).match(/dyb-pip/g) || []).length, 2);
 
 section('Characterisation — skin with faces only (the shipped seam)');
-setSkin(FACES);
+setSkin(FACES_FIXTURE);
 check('standard 4 → skin image, edge-to-edge asset class',
   [imgUrl(dybDieHTML(4, 'standard', -1)),
    hasClass(dybDieHTML(4, 'standard', -1), 'dyb-die-asset')],
@@ -199,7 +200,7 @@ noArt();
 check('no tiers → null', assetSpecial('dyb', 'loaded', 3), null);
 check('no tiers → frame defaults true', assetSpecialFrame('dyb', 'loaded'), true);
 
-setSkin(FACES);
+setSkin(FACES_FIXTURE);
 check('skin without a specials block → null', assetSpecial('dyb', 'loaded', 3), null);
 check('skin without a specials block → frame true', assetSpecialFrame('dyb', 'loaded'), true);
 
@@ -371,6 +372,76 @@ const bareCracked = dybDieHTML(4, 'phantom', -1, -1, true, 'cracked');
 check('phantom+cracked with no art → ✕ glyph plus the ring',
   [glyphText(bareCracked), hasClass(bareCracked, 'dyb-die-phantom-ring')],
   ['✕', true]);
+
+// ═══ The procedural dice layer (dyb-dice.js) ═══════════════════════════════
+const Sx = sandbox;
+// A script-level const is NOT a property of the global object — read constants through the context.
+const Rx = src => vm.runInContext(src, sandbox);
+const SETS = ['rocky', 'classic'].map(k => Rx('DYB_DICE_SETS')[k]);
+const FACES = [1, 2, 3, 4, 5, 6];
+
+section('Built-in sets are valid');
+SETS.forEach(s => check(`${s.id} validates`, Sx.dybValidateDiceSet(s), []));
+check('a set needs exactly 8 tints', Sx.dybValidateDiceSet({ ...SETS[0], tints: SETS[0].tints.slice(0, 7) }).length > 0, true);
+check('a tint needs a #rrggbb body', Sx.dybValidateDiceSet({ ...SETS[0], tints: SETS[0].tints.map((t, i) => i ? t : { body: 'red' }) }).length > 0, true);
+check('an unknown finish is rejected', Sx.dybValidateDiceSet({ ...SETS[0], finish: 'neon' }).length > 0, true);
+
+section('Pips contrast on every tint of every built-in set (≥ 3:1)');
+SETS.forEach(s => s.tints.forEach((t, i) => {
+  const ratio = Sx.dybContrast(Sx.dybPipFor(t), t.body);
+  check(`${s.id} tint ${i} (${t.name}) pip contrast ${ratio.toFixed(2)}`, ratio >= 3, true);
+}));
+
+section('Recipes are deterministic and complete');
+{
+  let bad = 0; const keys = new Set(); let count = 0;
+  for (const s of SETS) for (let tint = 0; tint < 8; tint++) for (const face of FACES)
+    for (const type of ['standard', 'loaded', 'slick', 'cracked', 'snake']) {
+      const a = JSON.stringify(Sx.dybDieRecipe({ set: s, tint, face, type }));
+      const b = JSON.stringify(Sx.dybDieRecipe({ set: s, tint, face, type }));
+      const r = JSON.parse(a);
+      if (a !== b || JSON.stringify(r.positions) !== JSON.stringify(Rx('DYB_PIP_LAYOUTS')[face])) bad++;
+      keys.add(r.key); count++;
+    }
+  check('same input → same recipe, pips at the layout for the face', bad, 0);
+  check('every distinct die has a distinct key', keys.size, count);
+}
+check('markup draws exactly `face` pips', FACES.map(f =>
+  (Sx.dybDieMarkup(Sx.dybDieRecipe({ set: SETS[0], tint: 1, face: f }), 40).match(/class="dyb-pip /g) || []).length), FACES);
+check('markup opens with the replace-prefix contract', Sx.dybDieMarkup(Sx.dybDieRecipe({ set: SETS[0], tint: 1, face: 3 }), 40).startsWith('<div class="dyb-die '), true);
+
+section('Tempest forms read through form, not colour');
+const rec = (type, extra = {}) => Sx.dybDieRecipe({ set: SETS[0], tint: 4, face: 4, type, ...extra });
+check('Loaded → bronze pips', rec('loaded').pipStyle, 'bronze');
+check('Snake → serpent pips', rec('snake').pipStyle, 'serpent');
+check('Cracked → fissure, faded', [rec('cracked').overlays, rec('cracked').faded], [['fissure'], true]);
+check('Slick → sheen', rec('slick').overlays, ['sheen']);
+check('Slick unpicked → sheen + pick badge', rec('slick', { state: 'unpicked' }).overlays, ['sheen', 'pick-badge']);
+check('Phantom revealed → the mist lifts', rec('phantom').overlays, ['mist-lift']);
+check('Phantom revealed with a Loaded core → mist lifts, bronze underneath', [rec('phantom', { secondary: 'loaded' }).overlays, rec('phantom', { secondary: 'loaded' }).pipStyle], [['mist-lift'], 'bronze']);
+check('the body keeps the owner tint whatever the type', ['loaded', 'snake', 'cracked', 'slick'].map(t => rec(t).body), Array(4).fill(SETS[0].tints[4].body));
+
+section('THE LEAK GUARD — a concealed Phantom carries no face');
+{
+  const r = Sx.dybDieRecipe({ set: SETS[0], tint: 2, face: 6, type: 'phantom', secondary: 'loaded', state: 'concealed' });
+  check('face is null, no pip positions, no form', [r.face, r.positions, r.form], [null, [], null]);
+  const marks = new Set();
+  for (const face of FACES) for (const sec of [null, 'loaded', 'slick', 'cracked', 'snake'])
+    marks.add(Sx.dybDieMarkup(Sx.dybDieRecipe({ set: SETS[0], tint: 2, face, type: 'phantom', secondary: sec, state: 'concealed' }), 40));
+  check('markup is byte-identical for every face and every hidden secondary', marks.size, 1);
+}
+
+section('dybActiveSet — skin first, Rocky otherwise');
+// A function-declared global cannot be deleted, so save and restore it — from
+// Task 5 on, art.js defines the real assetDiceSet and later sections need it.
+const realAssetDiceSet = Sx.assetDiceSet;
+Sx.assetDiceSet = () => null;
+check('no skin → Rocky', Sx.dybActiveSet().id, 'rocky');
+Sx.assetDiceSet = () => ({ ...SETS[1], id: 'test-skin' });
+check('a valid skin set wins', Sx.dybActiveSet().id, 'test-skin');
+Sx.assetDiceSet = () => ({ label: 'broken' });
+check('an invalid skin set falls back to Rocky', Sx.dybActiveSet().id, 'rocky');
+Sx.assetDiceSet = realAssetDiceSet;
 
 // ── Result ────────────────────────────────────────────────────────────────
 console.log(`\n${failures === 0 ? 'ALL CHECKS PASSED' : `${failures} CHECK(S) FAILED`}`);

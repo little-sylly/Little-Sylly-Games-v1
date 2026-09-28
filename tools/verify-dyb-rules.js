@@ -43,7 +43,7 @@ function load(rel) {
   vm.runInContext(fs.readFileSync(path.isAbsolute(rel) ? rel : path.join(ROOT, rel), 'utf8'), sandbox, { filename: rel });
 }
 const DICE = path.join(ROOT, 'js/games/dyb-dice.js');
-if (fs.existsSync(DICE)) load(DICE);                     // joins in Task 4
+load(DICE);
 load(process.env.DYB_SRC || 'js/games/dyb.js');
 const run = src => vm.runInContext(src, sandbox);
 const S = sandbox;
