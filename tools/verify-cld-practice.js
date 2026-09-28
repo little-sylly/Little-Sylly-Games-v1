@@ -234,6 +234,54 @@ if (!TUNE) {
   ok('the old view globals are gone', RUN("typeof cldViewScale === 'undefined' && typeof cldCanvas === 'undefined'"));
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// D. The render model (spec § 4.2)
+// ═══════════════════════════════════════════════════════════════════════════
+if (!TUNE) {
+  section('D. The render model');
+  const pen = (id, owner, x, y, extra) => Object.assign({ id, ownerIdx: owner, x, y, drowned: false, plug: false, angle: null, seq: null }, extra || {});
+
+  // Pure penguin picking (Peck Off — Review Focus 5).
+  const A = pen('0-0', 0, 100, 180), B = pen('0-1', 0, 260, 180);
+  const pick = (st, pt, aims) => RUN('cldPickPenguin')(st, pt, aims);
+  check('a touch on a penguin picks it', pick([A, B], { x: 262, y: 181 }, []).id, '0-1');
+  check('an anywhere-touch picks the first unarmed', pick([A, B], { x: 180, y: 40 }, [{ penguinId: '0-0', dx: 1, dy: 0, power: 0.5 }]).id, '0-1');
+  check('both armed → the most recently aimed', pick([A, B], { x: 180, y: 40 },
+        [{ penguinId: '0-1', dx: 1, dy: 0, power: 0.5 }, { penguinId: '0-0', dx: 1, dy: 0, power: 0.5 }]).id, '0-0');
+
+  // Live model.
+  SET('cldPenguins', [pen('0-0', 0, 140, 180), pen('1-0', 1, 220, 180), pen('2-0', 2, 180, 60, { drowned: true, plug: true, angle: 0 })]);
+  SET('cldBergs', []); SET('cldFloeRadius', 130); SET('cldIceConditions', 'slush'); SET('cldIceBreaker', 2);
+  SET('cldPhase', 'aiming'); SET('cldMyMode', 'throw'); SET('cldMySnowball', null); SET('cldMyDive', null);
+  SET('cldDragging', false);
+  SET('cldMyAims', [{ penguinId: '0-0', dx: 1, dy: 0, power: 0.6 }]);
+  let m = RUN('cldFloeModel()');
+  check('three penguins in the model', m.penguins.length, 3);
+  ok('mine is flagged me', m.penguins[0].me === true && m.penguins[1].me === false);
+  ok('the armed penguin faces along its aim', near(m.penguins[0].facing, 0, 1e-9));
+  check('a plug is drawn bob, not dim', [m.penguins[2].state, m.penguins[2].dim], ['bob', false]);
+  check('the armed aim is in m.aims as mine, not live', m.aims.map(a => [a.penguinId, a.live, a.rival]), [['0-0', false, false]]);
+  ok('reach is the full-power slide distance', near(m.reach, RUN("cldFullSlideDist('slush')")));
+  check('one Standing penguin of mine → no selection ring', m.penguins.filter(p => p.selected).length, 0);
+  ok('the model carries no live-state references (a copy)', m.penguins[0] !== G('cldPenguins')[0]);
+
+  // Rendering executes end to end on a mock view, rival aim + guide included.
+  const box = S.document.createElement('div'); box.clientWidth = 320; box.clientHeight = 320;
+  const cv = S.document.createElement('canvas'); box.appendChild(cv);
+  const v = RUN('cldMakeView')(cv); RUN('cldResize')(v);
+  m.aims.push({ penguinId: '1-0', dx: -1, dy: 0, power: 1, live: false, rival: true });
+  m.assist = true;
+  let threw = null;
+  try { RUN('cldDraw')(v, m); } catch (e) { threw = e; }
+  ok('cldDraw(view, m) renders without throwing', threw === null, threw && threw.stack);
+  ok('cldDraw reads no live globals: an empty live floe still draws the model', (() => {
+    SET('cldPenguins', []); SET('cldFloeRadius', 0);
+    try { RUN('cldDraw')(v, m); return true; } catch (e) { return false; }
+  })());
+  ok('the old aim/facing helpers are gone',
+     RUN("typeof cldDrawAim === 'undefined' && typeof cldDrawOneAim === 'undefined' && typeof cldFacingOf === 'undefined'"));
+}
+
 // ── Report (keep LAST in the file) ─────────────────────────────────────────
 if (!TUNE) {
   console.log('\n' + '='.repeat(70));

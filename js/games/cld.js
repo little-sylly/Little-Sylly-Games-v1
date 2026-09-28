@@ -1228,7 +1228,8 @@ function cldLoop(now) {
   const paused = !!so && so.style.display !== 'none' && so.style.display !== '';
 
   if (!paused && cldPhase === 'resolving') cldAdvancePlayback(dt * 1000);
-  cldDraw(paused ? 0 : dt);
+  if (!paused) cldClock += dt;
+  cldDraw(cldView, cldFloeModel());
 
   // A phase transition inside cldAdvancePlayback may have scheduled its own
   // next frame; standing down here is what stops two loops running alongside
@@ -1252,48 +1253,47 @@ function cldStopLoop() {
 // ═══════════════════════════════════════════════════════════════════════════
 let cldClock = 0;   // seconds of wall time on this screen — drives idle sway
 
-function cldDraw(dt) {
-  if (!cldView || !cldView.ctx) return;
-  cldClock += dt;
-  const ctx = cldView.ctx;
+function cldDraw(view, m) {
+  if (!view || !view.ctx) return;
+  const ctx = view.ctx;
   const cx = CLD_W / 2, cy = CLD_H / 2;
 
-  ctx.clearRect(cldView.x, cldView.y, cldView.w, cldView.h);
+  ctx.clearRect(view.x, view.y, view.w, view.h);
 
   // ── The Drink — a cold gradient with slow concentric swell rings. Animated by
   // phase, not by frames. Painted across the whole VISIBLE region, which is wider
   // than the 360x360 world on any non-square stage.
-  const water = ctx.createLinearGradient(0, cldView.y, 0, cldView.y + cldView.h);
+  const water = ctx.createLinearGradient(0, view.y, 0, view.y + view.h);
   water.addColorStop(0, '#1c3f57');
   water.addColorStop(1, '#0e2536');
   ctx.fillStyle = water;
-  ctx.fillRect(cldView.x, cldView.y, cldView.w, cldView.h);
+  ctx.fillRect(view.x, view.y, view.w, view.h);
   ctx.strokeStyle = 'rgba(142,202,230,0.10)';
   ctx.lineWidth = 1.5;
   for (let k = 0; k < 4; k++) {
-    const ph = (cldClock * 0.25 + k * 0.25) % 1;
+    const ph = (m.clock * 0.25 + k * 0.25) % 1;
     ctx.globalAlpha = 1 - ph;
     ctx.beginPath();
-    ctx.arc(cx, cy, cldFloeRadius + 6 + ph * 46, 0, CLD_TAU);
+    ctx.arc(cx, cy, m.radius + 6 + ph * 46, 0, CLD_TAU);
     ctx.stroke();
   }
   ctx.globalAlpha = 1;
 
-  if (!cldFloeRadius) return;
+  if (!m.radius) return;
 
   // ── The floe. A ring of shadow, then the ice, then a few procedural cracks.
   ctx.beginPath();
-  ctx.arc(cx, cy + 3, cldFloeRadius, 0, CLD_TAU);
+  ctx.arc(cx, cy + 3, m.radius, 0, CLD_TAU);
   ctx.fillStyle = 'rgba(0,0,0,0.28)';
   ctx.fill();
 
-  const ice = ctx.createRadialGradient(cx - cldFloeRadius * 0.3, cy - cldFloeRadius * 0.35,
-                                       cldFloeRadius * 0.1, cx, cy, cldFloeRadius);
+  const ice = ctx.createRadialGradient(cx - m.radius * 0.3, cy - m.radius * 0.35,
+                                       m.radius * 0.1, cx, cy, m.radius);
   ice.addColorStop(0, '#ffffff');
   ice.addColorStop(0.72, '#eaf6fb');
   ice.addColorStop(1, '#c9e4f0');
   ctx.beginPath();
-  ctx.arc(cx, cy, cldFloeRadius, 0, CLD_TAU);
+  ctx.arc(cx, cy, m.radius, 0, CLD_TAU);
   ctx.fillStyle = ice;
   ctx.fill();
   ctx.strokeStyle = '#8ECAE6';
@@ -1304,14 +1304,14 @@ function cldDraw(dt) {
   // and they visibly redraw when The Thaw shrinks the floe.
   ctx.save();
   ctx.beginPath();
-  ctx.arc(cx, cy, cldFloeRadius, 0, CLD_TAU);
+  ctx.arc(cx, cy, m.radius, 0, CLD_TAU);
   ctx.clip();
   ctx.strokeStyle = 'rgba(120,170,195,0.22)';
   ctx.lineWidth = 0.9;
   for (let k = 0; k < 9; k++) {
-    const a  = (k * 2.399963) + cldFloeRadius * 0.013;   // golden-angle scatter
-    const r0 = cldFloeRadius * (0.18 + (k % 4) * 0.20);
-    const r1 = r0 + cldFloeRadius * 0.20;                // SHORT — a crack, not a
+    const a  = (k * 2.399963) + m.radius * 0.013;        // golden-angle scatter
+    const r0 = m.radius * (0.18 + (k % 4) * 0.20);
+    const r1 = r0 + m.radius * 0.20;                     // SHORT — a crack, not a
     const a1 = a + 0.34;                                 // scratch across the floe
     ctx.beginPath();
     ctx.moveTo(cx + Math.cos(a) * r0, cy + Math.sin(a) * r0);
@@ -1322,76 +1322,57 @@ function cldDraw(dt) {
 
   // ── Bergs. Never illustrated — a procedural chunk plus a crack overlay whose
   // density reads the remaining hits, so damage is visible before it shatters.
-  cldBergs.forEach(b => cldDrawBerg(ctx, b));
+  m.bergs.forEach(b => cldDrawBerg(ctx, b, m.iceBreaker));
 
-  // ── Aim assist + the drag vector, under the penguins so nothing is hidden.
-  cldDrawAim(ctx);
+  // ── Cues + the aim guide, under the penguins so nothing is hidden.
+  m.aims.forEach(a => cldDrawCue(ctx, m, a));
 
   // ── Penguins. EVERY one goes through the seam — no bypass anywhere.
-  cldPenguins.forEach(p => {
-    const mine    = cldIsMine(p);
-    const drowned = p.drowned;
-    let state = 'idle';
-    if (drowned)                                  state = 'bob';
-    if (drowned && p.seatT !== undefined && cldPhase === 'resolving' &&
-        cldPlaybackT - p.seatT < 500)             state = 'plunge';   // tumbling in, bottom already blocking
-    if (drowned && cldMySnowball && mine)         state = 'throw';
-    if (!drowned && cldDragging && cldDragPenguin === p.id) state = 'lean';
-    cldRenderPenguin(ctx, state, p.ownerIdx, p.x, p.y, CLD_PENGUIN_R, {
-      t: cldClock,
-      facing: cldFacingOf(p),
-      ring: true,
-      me: mine,
-      ringDark: cldIsSecondPenguin(p),
-      dim: drowned && !p.plug,          // Plugged reads solid, Knocked back reads faded
+  m.penguins.forEach(p => {
+    if (p.selected) {
+      // Peck Off: which penguin an anywhere-touch will aim (spec § 2.1).
+      ctx.save();
+      ctx.strokeStyle = 'rgba(255,255,255,0.75)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(p.x, p.y, CLD_PENGUIN_R + 5, 0, CLD_TAU); ctx.stroke();
+      ctx.restore();
+    }
+    cldRenderPenguin(ctx, p.state, p.ownerIdx, p.x, p.y, CLD_PENGUIN_R, {
+      t: m.clock, facing: p.facing, ring: true, me: p.me, ringDark: p.ringDark, dim: p.dim,
     });
   });
 
   // ── Dive mode: the free seats round the ring, and the ghost at the chosen one.
-  if (cldMyMode === 'dive' && cldPhase === 'aiming') {
-    const back = cldMyBackPenguin();
-    if (back) {
-      ctx.save();
-      ctx.strokeStyle = 'rgba(255,255,255,0.55)';
-      ctx.setLineDash([3, 3]);
-      // Free seats, sampled round the ring and drawn once each, a penguin apart.
-      // A slip gap's seat is its CENTRE, which no sample angle lands on — so a
-      // sample is snapped to its seat, not tested against it.
-      const apart = 2 * Math.asin(Math.min(1, CLD_PENGUIN_R / cldRingR()));
-      const drawn = [];
-      for (let k = 0; k < 96; k++) {
-        const s = cldSeatSpot(k * CLD_TAU / 96, back.id);
-        if (!s || drawn.some(a => cldArcDist(a, s.angle) < apart)) continue;
-        drawn.push(s.angle);
-        ctx.beginPath(); ctx.arc(s.x, s.y, CLD_PENGUIN_R, 0, CLD_TAU); ctx.stroke();
-      }
+  if (m.dive) {
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+    ctx.setLineDash([3, 3]);
+    m.dive.seats.forEach(s => { ctx.beginPath(); ctx.arc(s.x, s.y, CLD_PENGUIN_R, 0, CLD_TAU); ctx.stroke(); });
+    ctx.restore();
+    if (m.dive.ghost) {
+      ctx.save(); ctx.globalAlpha = 0.6;
+      cldRenderPenguin(ctx, 'bob', m.dive.ghost.ownerIdx, m.dive.ghost.x, m.dive.ghost.y, CLD_PENGUIN_R,
+                       { t: m.clock, ring: true, me: true });
       ctx.restore();
-      if (cldMyDive) {
-        const g = cldRimPos(cldMyDive.angle, cldRingR());
-        ctx.save(); ctx.globalAlpha = 0.6;
-        cldRenderPenguin(ctx, 'bob', back.ownerIdx, g.x, g.y, CLD_PENGUIN_R, { t: cldClock, ring: true, me: true });
-        ctx.restore();
-      }
     }
   }
 
   // ── The snowball target marker — a crosshair the thrower can see, nobody else.
-  if (cldMySnowball) {
+  if (m.snowball) {
+    const s = m.snowball;
     ctx.save();
     ctx.strokeStyle = 'rgba(255,255,255,0.9)';
     ctx.lineWidth = 1.5;
     ctx.beginPath();
-    ctx.arc(cldMySnowball.x, cldMySnowball.y, 7, 0, CLD_TAU);
-    ctx.moveTo(cldMySnowball.x - 11, cldMySnowball.y);
-    ctx.lineTo(cldMySnowball.x + 11, cldMySnowball.y);
-    ctx.moveTo(cldMySnowball.x, cldMySnowball.y - 11);
-    ctx.lineTo(cldMySnowball.x, cldMySnowball.y + 11);
+    ctx.arc(s.x, s.y, 7, 0, CLD_TAU);
+    ctx.moveTo(s.x - 11, s.y); ctx.lineTo(s.x + 11, s.y);
+    ctx.moveTo(s.x, s.y - 11); ctx.lineTo(s.x, s.y + 11);
     ctx.stroke();
     ctx.restore();
   }
 }
 
-function cldDrawBerg(ctx, b) {
+function cldDrawBerg(ctx, b, iceBreaker) {
   ctx.save();
   ctx.beginPath();
   // A five-point irregular chunk, deterministic from the Berg's own angle so it
@@ -1411,7 +1392,7 @@ function cldDrawBerg(ctx, b) {
   ctx.stroke();
   // Damage cracks — one per hit already taken, so a Berg about to shatter LOOKS
   // about to shatter rather than only being a number in the rules layer.
-  const taken = Math.max(0, cldIceBreaker - b.hits);
+  const taken = Math.max(0, iceBreaker - b.hits);
   ctx.strokeStyle = 'rgba(60,100,120,0.55)';
   ctx.lineWidth = 1;
   for (let k = 0; k < taken; k++) {
@@ -1424,69 +1405,56 @@ function cldDrawBerg(ctx, b) {
   ctx.restore();
 }
 
-// The drag vector plus, with Aim Assist on, a dotted trace to the FIRST bounce
-// only. It deliberately does not predict beyond that and never predicts a
-// Snowball's flight — either would solve the game (brief §14).
-function cldDrawAim(ctx) {
-  // Every aim I currently hold: the ones already armed, plus the one being dragged
-  // right now (which supersedes that penguin's armed aim while the finger is down).
-  const live = cldDragging ? cldCurrentDragAim() : null;
-  const aims = cldMyAims.filter(a => !live || a.penguinId !== live.penguinId);
-  if (live) aims.push(live);
-  aims.forEach(a => cldDrawOneAim(ctx, a, live && a.penguinId === live.penguinId));
-}
+// The cue (spec § 2.3). The stick sits BEHIND the penguin on the finger's side
+// and stands off by CLD_CUE_GAP_MAX × power — the gap IS the power reading, so
+// it stays readable while the thumb covers the penguin. A rival's cue (the
+// Practice Arena) is the same drawing in its owner's colour at lower alpha.
+function cldDrawCue(ctx, m, a) {
+  const p = m.penguins.find(q => q.id === a.penguinId);
+  if (!p || p.drowned || a.power < CLD_MIN_POWER) return;   // a too-soft pull draws nothing
+  const len = Math.hypot(a.dx, a.dy) || 1;
+  const ux = a.dx / len, uy = a.dy / len;
+  const alpha = a.live ? 0.95 : (a.rival ? 0.5 : 0.62);
 
-function cldDrawOneAim(ctx, aim, isLive) {
-  if (!aim) return;
-  const p = cldPenguins.find(q => q.id === aim.penguinId);
-  if (!p || p.drowned) return;
-  if (aim.power < CLD_MIN_POWER) return;   // a too-soft drag draws nothing
-
-  const len = Math.hypot(aim.dx, aim.dy) || 1;
-  const ux = aim.dx / len, uy = aim.dy / len;
-
-  // The pull-back line — drawn BEHIND the penguin, the slingshot convention.
   ctx.save();
-  ctx.strokeStyle = isLive ? 'rgba(228,87,46,0.95)' : 'rgba(228,87,46,0.62)';
-  ctx.lineWidth = isLive ? 2.5 : 2;
+  ctx.globalAlpha = alpha;
+  ctx.lineCap = 'round';
   ctx.setLineDash([]);
+  const gap  = CLD_PENGUIN_R + 2 + CLD_CUE_GAP_MAX * a.power;
+  const tipX = p.x - ux * gap, tipY = p.y - uy * gap;
+  ctx.strokeStyle = a.rival ? cldTintOf(p.ownerIdx) : '#e4572e';
+  ctx.lineWidth = a.live ? 4 : 3;
   ctx.beginPath();
-  ctx.moveTo(p.x, p.y);
-  ctx.lineTo(p.x - ux * aim.power * 46, p.y - uy * aim.power * 46);
+  ctx.moveTo(tipX, tipY);
+  ctx.lineTo(tipX - ux * CLD_CUE_LEN, tipY - uy * CLD_CUE_LEN);
+  ctx.stroke();
+  ctx.strokeStyle = '#ffffff';                              // the pale tip
+  ctx.beginPath();
+  ctx.moveTo(tipX, tipY);
+  ctx.lineTo(tipX - ux * 5, tipY - uy * 5);
   ctx.stroke();
 
-  if (cldAimAssist) {
-    // March forward until the first contact with a body or the rim. Cheap, and
-    // exactly as far as the brief allows the prediction to go.
-    const step = (cldFullSlideDist() * aim.power) / CLD_ASSIST_STEPS;
-    let hx = p.x, hy = p.y;
-    for (let k = 0; k < CLD_ASSIST_STEPS; k++) {
-      hx += ux * step; hy += uy * step;
-      if (cldDistFromCentre(hx, hy) > cldFloeRadius) break;
-      let hit = false;
-      for (let j = 0; j < cldPenguins.length; j++) {
-        const q = cldPenguins[j];
-        if (q.id === p.id) continue;
-        if (Math.hypot(q.x - hx, q.y - hy) < CLD_PENGUIN_R * 2) { hit = true; break; }
+  // Aim Assist: forward to the FIRST contact only (cldAimGuide), never beyond.
+  if (m.assist) {
+    const g = cldAimGuide(m, a);
+    if (g) {
+      ctx.lineWidth = 2;
+      ctx.setLineDash([4, 5]);
+      ctx.strokeStyle = 'rgba(255,255,255,0.8)';
+      ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(g.end.x, g.end.y); ctx.stroke();
+      ctx.setLineDash([]);
+      if (g.ghost) {
+        ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.arc(g.ghost.x, g.ghost.y, CLD_PENGUIN_R, 0, CLD_TAU); ctx.stroke();
+      } else {
+        ctx.fillStyle = 'rgba(255,255,255,0.9)';
+        ctx.beginPath(); ctx.arc(g.end.x, g.end.y, 4, 0, CLD_TAU); ctx.fill();
       }
-      if (!hit) for (let j = 0; j < cldBergs.length; j++) {
-        const b = cldBergs[j];
-        if (Math.hypot(b.x - hx, b.y - hy) < b.r + CLD_PENGUIN_R) { hit = true; break; }
+      if (g.stub) {
+        ctx.lineWidth = 2.5;
+        ctx.beginPath(); ctx.moveTo(g.stub.x1, g.stub.y1); ctx.lineTo(g.stub.x2, g.stub.y2); ctx.stroke();
       }
-      if (hit) break;
     }
-    ctx.setLineDash([4, 5]);
-    ctx.strokeStyle = 'rgba(255,255,255,0.75)';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(p.x, p.y);
-    ctx.lineTo(hx, hy);
-    ctx.stroke();
-    ctx.setLineDash([]);
-    ctx.beginPath();
-    ctx.arc(hx, hy, 4, 0, CLD_TAU);
-    ctx.fillStyle = 'rgba(255,255,255,0.9)';
-    ctx.fill();
   }
   ctx.restore();
 }
@@ -1505,21 +1473,110 @@ function cldIsMine(p) { return !!p && p.ownerIdx === cldMyIdx(); }
 // Peck Off's second penguin — id is `${ownerIdx}-${n}`, so n>0 is the second.
 function cldIsSecondPenguin(p) { return !!p && String(p.id).split('-')[1] !== '0'; }
 
-// A penguin faces along its armed aim while aiming, and outward from the centre
-// otherwise — so a bobbing Drowned penguin faces the ice it wants back.
-function cldFacingOf(p) {
-  const aim = cldArmedAimFor(p.id);
-  if (aim && !p.drowned) return Math.atan2(aim.dy, aim.dx);
-  if (p.drowned) return Math.atan2(CLD_H / 2 - p.y, CLD_W / 2 - p.x);
-  return Math.atan2(p.y - CLD_H / 2, p.x - CLD_W / 2);
-}
-
 function cldArmedAimFor(penguinId) {
   if (!penguinId) return null;
   return cldMyAims.find(a => a.penguinId === penguinId) || null;
 }
 
 function cldMyPenguins() { return cldPenguins.filter(p => cldIsMine(p)); }
+
+// PURE. Which of my Standing penguins an anywhere-touch aims (spec § 2.1):
+// the first with no armed aim, else the one aimed most recently (a new drag is
+// always pushed to the END of cldMyAims). A penguin I actually touched wins.
+function cldDefaultPenguin(standing, aims) {
+  const unarmed = standing.find(p => !aims.some(a => a.penguinId === p.id));
+  if (unarmed) return unarmed;
+  for (let i = aims.length - 1; i >= 0; i--) {
+    const p = standing.find(q => q.id === aims[i].penguinId);
+    if (p) return p;
+  }
+  return standing[0] || null;
+}
+function cldPickPenguin(standing, pt, aims) {
+  if (!standing.length) return null;
+  let best = null, bestD = Infinity;
+  standing.forEach(p => {
+    const d = Math.hypot(p.x - pt.x, p.y - pt.y);
+    if (d < bestD) { bestD = d; best = p; }
+  });
+  if (best && bestD <= CLD_GRAB_R) return best;
+  return cldDefaultPenguin(standing, aims);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// The render model (spec § 4.2). cldDraw reads ONLY this — so the live floe
+// and the Practice Arena are drawn by one renderer, never a hand-built copy.
+// ═══════════════════════════════════════════════════════════════════════════
+// The floe as the globals hold it right now — the live match, or the Arena's
+// record while cldArenaRun has it swapped in.
+function cldCurrentSrc() {
+  return { penguins: cldPenguins, bergs: cldBergs, radius: cldFloeRadius,
+           iceBreaker: cldIceBreaker, ice: cldIceConditions };
+}
+
+// PURE over its arguments. Every pose and facing decision the old cldDraw
+// made inline is made here, so the renderer has nothing left to decide.
+function cldBuildModel(src, ui) {
+  const aims = ui.aims || [];
+  const aimFor = id => aims.find(a => a.penguinId === id) || null;
+  const penguins = src.penguins.map(p => {
+    const mine = p.ownerIdx === ui.meIdx;
+    let state = 'idle';
+    if (p.drowned) state = 'bob';
+    if (p.drowned && p.seatT !== undefined && ui.phase === 'resolving' &&
+        ui.playbackT - p.seatT < 500)                        state = 'plunge';  // tumbling in, bottom already blocking
+    if (p.drowned && ui.snowball && mine)                    state = 'throw';
+    if (!p.drowned && ui.live && ui.live.penguinId === p.id) state = 'lean';
+    const a = aimFor(p.id);
+    // A penguin faces along its aim while aiming, and outward from the centre
+    // otherwise — so a bobbing Drowned penguin faces the ice it wants back.
+    const facing = (a && !p.drowned) ? Math.atan2(a.dy, a.dx)
+                 : p.drowned ? Math.atan2(CLD_H / 2 - p.y, CLD_W / 2 - p.x)
+                 : Math.atan2(p.y - CLD_H / 2, p.x - CLD_W / 2);
+    return { id: p.id, ownerIdx: p.ownerIdx, x: p.x, y: p.y,
+             drowned: !!p.drowned, plug: !!p.plug, state: state, facing: facing,
+             me: mine, ringDark: cldIsSecondPenguin(p),
+             dim: !!(p.drowned && !p.plug),              // Plugged reads solid, Knocked back reads faded
+             selected: ui.selectedId === p.id };
+  });
+  return { radius: src.radius, bergs: src.bergs, iceBreaker: src.iceBreaker,
+           reach: cldFullSlideDist(src.ice), penguins: penguins, aims: aims,
+           assist: !!ui.assist, dive: ui.dive || null, snowball: ui.snowball || null,
+           clock: ui.clock || 0 };
+}
+
+// Dive mode: the free seats round the ring, and the ghost at the chosen one.
+// A slip gap's seat is its CENTRE, which no sample angle lands on — so a sample
+// is snapped to its seat, not tested against it.
+function cldDiveModel(back, chosen) {
+  const apart = 2 * Math.asin(Math.min(1, CLD_PENGUIN_R / cldRingR()));
+  const seats = [], drawn = [];
+  for (let k = 0; k < 96; k++) {
+    const s = cldSeatSpot(k * CLD_TAU / 96, back.id);
+    if (!s || drawn.some(a => cldArcDist(a, s.angle) < apart)) continue;
+    drawn.push(s.angle);
+    seats.push({ x: s.x, y: s.y });
+  }
+  const g = chosen ? cldRimPos(chosen.angle, cldRingR()) : null;
+  return { seats: seats, ghost: g ? { x: g.x, y: g.y, ownerIdx: back.ownerIdx } : null };
+}
+
+// The live floe's model — this device's input state over the live globals.
+function cldFloeModel() {
+  const live = cldDragging ? cldCurrentDragAim() : null;
+  const aims = cldMyAims.filter(a => !live || a.penguinId !== live.penguinId)
+    .map(a => ({ penguinId: a.penguinId, dx: a.dx, dy: a.dy, power: a.power, live: false, rival: false }));
+  if (live) aims.push({ penguinId: live.penguinId, dx: live.dx, dy: live.dy, power: live.power, live: true, rival: false });
+  const standing = cldMyPenguins().filter(p => !p.drowned);
+  const back = (cldMyMode === 'dive' && cldPhase === 'aiming') ? cldMyBackPenguin() : null;
+  return cldBuildModel(cldCurrentSrc(), {
+    meIdx: cldMyIdx(), phase: cldPhase, playbackT: cldPlaybackT, aims: aims, live: live,
+    snowball: cldMySnowball, dive: back ? cldDiveModel(back, cldMyDive) : null,
+    assist: cldAimAssist, clock: cldClock,
+    // The ring only means something when there is a choice to make (Peck Off).
+    selectedId: standing.length > 1 ? cldDefaultPenguin(standing, cldMyAims).id : null,
+  });
+}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Drag-to-aim (brief §14)
