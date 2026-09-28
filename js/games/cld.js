@@ -2829,7 +2829,9 @@ function cldHowtoStop() {
 const CLD_PR_DRILLS = {
   headon:    { name: 'Head-on',   ringSeed: 1,  plan: 'headon',    power: 1.0,
                place: [{ at: 0, r: 0.62 }, { at: 0, r: 0.05 }, { at: -Math.PI / 2, r: 0.6 }] },
-  crossfire: { name: 'Crossfire', ringSeed: 1,  plan: 'crossfire', power: 0.9,
+  // Crossfire's bots are deliberately UNEQUAL: two equal head-on shoves just swap
+  // velocities and replay the same Slide forever; the weaker one drifts back to its rim.
+  crossfire: { name: 'Crossfire', ringSeed: 1,  plan: 'crossfire', power: [null, 0.95, 0.8],
                place: [{ at: 0, r: 0 }, { at: Math.PI, r: 0.6 }, { at: 0, r: 0.6 }] },
   edge:      { name: 'Edge',      ringSeed: 3,  plan: 'edge',      power: 0.85,
                place: [{ at: Math.PI / 2, r: 0.8 }, { at: Math.PI, r: 0.6 }, { at: Math.PI / 2, r: 0.45 }] },
@@ -2842,6 +2844,9 @@ function cldPrPlanTarget(plan, i) {
   if (plan === 'crossfire') return cldPenguins.find(q => q.ownerIdx === (i === 1 ? 2 : 1)) || null;
   return cldPenguins.find(q => q.id === '0-0') || null;
 }
+
+// A drill's power is one number for both bots, or [_, Sylvia, Sam].
+function cldPrPower(d, i) { return Array.isArray(d.power) ? d.power[i] : d.power; }
 
 // PURE over the Arena record (call inside cldArenaRun). A Standing bot shoves at
 // its target — Edge CUTS you toward the free gap nearest you, pool-style, by
@@ -2866,7 +2871,7 @@ function cldPrBotCommit(d, i) {
   }
   const l = Math.hypot(ax - me.x, ay - me.y);
   if (l < 1e-6) return hold;
-  return { aims: [{ penguinId: me.id, dx: (ax - me.x) / l, dy: (ay - me.y) / l, power: d.power }], dive: null, snowball: null };
+  return { aims: [{ penguinId: me.id, dx: (ax - me.x) / l, dy: (ay - me.y) / l, power: cldPrPower(d, i) }], dive: null, snowball: null };
 }
 
 // Their next moves, worked out from the ice as it stands — drawn before you aim.
@@ -2875,73 +2880,62 @@ function cldPrRefreshPlans() {
   u.plans = cldArenaRun(() => [null, cldPrBotCommit(d, 1), cldPrBotCommit(d, 2)]);
 }
 
-// The coach (spec § 6.5). Every step waits for the player to DO the thing; a
-// soft ring points at the control being taught. Lines are copy — they are
-// mirrored verbatim in docs/game-identities/cld.md T7b (a paired change).
+// The coach (spec 2026-09-29-cld-fun-pass § 3.5) REACTS to what happened — a
+// pure reducer over events, one line at a time. Lines are copy, mirrored
+// verbatim in docs/game-identities/cld.md T7b (a paired change). {Name} is
+// filled at runtime from CLD_PR_CAST.
 const CLD_PR_COACH = {
-  1:       'Their shoves are drawn in their colours, and they’ll do the same thing every time. Touch anywhere and pull back — your finger is the end of the cue.',
-  2:       'The ghost shows where you’ll hit first. Tap Power to lock it — then dragging only swings your aim.',
-  3:       'Happy? Lock It In. Once it’s in, it’s in.',
-  4:       'Everyone slides at once.',
-  dry:     'Still dry. Try another counter — or another drill.',
-  fish:    'Last one dry — that’d be a Fish.',
-  washout: 'Washout — everyone’s in. Resurface.',
-  ready:   'Your go. Try a counter — or another drill.',
-  B1:      'You’re in the Drink — and you’ve plugged the gap you went through. The next penguin to hit you bounces off. Tap a penguin to aim a Snowball, then Lock It In.',
-  B2k:     'Knocked back — so now it’s Throw or Dive. Tap Dive, then a dashed gap.',
-  B2p:     'Still plugged. Resurface to try the drill again.',
-  B3:      'That’s the Drink. Resurface to get back on the ice.',
+  'intro.headon':    'Sylvia and Sam are coming straight for you — every Slide, full power. Dodge them, or meet them.',
+  'intro.crossfire': 'Sylvia and Sam only want each other, and you’re in the middle. Get out of the way — or use it.',
+  'intro.edge':      'They’ll try to cut you into the nearest gap. Keep ice between you and the water.',
+  aim:               'Touch anywhere and pull back — the shot goes the other way. Their next shoves are drawn in their colours.',
+  armed:             'The dots show your first hit. Tap Power to lock it, then Lock It In.',
+  again:             'Same plan every Slide. Read it, and counter it.',
+  meIn:              'You’re in the Drink, plugging the gap you went through. The next penguin to hit you bounces off harder. Tap the ice to aim a Snowball.',
+  meKnocked:         'Knocked back — now it’s Throw or Dive. Dive into a free gap to plug it again.',
+  botIn:             '{Name}’s in the Drink — a plug now. Hit it and you bounce back harder.',
+  bath:              'Everyone went in at once — into the Ice Bath. Last one dry still wins.',
+  win:               'Last one dry — that’s a Fish.',
+  lose:              '{Name}’s the last one dry. Practice again, or try another drill.',
+  draw:              'Nobody’s budging. Call it a draw.',
 };
+const CLD_PR_SLIDE_CAP = 40;    // a round still running after this many Slides is a draw (spec § 3.4)
 
-function cldPrCoachStart() { return { at: 1, result: null, knocked: false, reachedEnd: false, pending: null }; }
+function cldPrCoachStart(drill) {
+  return { key: 'intro.' + (drill || 'headon'), name: null, slide: 1, armedOnce: false, lockedOnce: false };
+}
 
-// PURE. Locking is taught, not required: a commit at step 2 jumps straight to
-// 4 (Lock It In is never disabled to force a step — the ring points, the
-// player chooses). In the Berth branch, what you committed decides the next
-// line once the Slide it started has played out.
+// PURE. The first matching line wins; otherwise the last line stays.
 function cldPrCoach(s, ev) {
   const n = Object.assign({}, s);
   switch (ev.type) {
-    case 'restart': return cldPrCoachStart();
-    case 'armed':   if (s.at === 1) n.at = 2; return n;
-    case 'locked':  if (s.at === 2) n.at = 3; return n;
-    case 'committed':
-      if (s.at === 'B1' || s.at === 'B2') { n.pending = ev.dive ? 'dive' : ev.snowball ? 'snowball' : null; return n; }
-      if (s.at === 'B3') return n;
-      n.at = 4; return n;
+    case 'load':    return Object.assign(cldPrCoachStart(ev.drill), { armedOnce: s.armedOnce, lockedOnce: s.lockedOnce });
+    case 'armed':   if (!s.armedOnce) { n.armedOnce = true; n.key = 'armed'; } return n;
+    case 'locked':  n.lockedOnce = true; return n;
+    case 'committed': return n;
     case 'slideDone':
-      if (ev.outcome === 'washout') { n.at = 5; n.result = 'washout'; n.reachedEnd = true; n.pending = null; return n; }
-      // A plug can be knocked back in the very Slide that seated it — then the
-      // plugged-gap line (B1) would be false, so a knock-back always means B2.
-      if (s.at === 'B1') {
-        if (s.pending === 'snowball' || ev.knocked) { n.at = 'B2'; n.knocked = !!ev.knocked; }
-        n.pending = null; return n;
-      }
-      if (s.at === 'B2') {
-        if (s.knocked && s.pending === 'dive') { n.at = 'B3'; n.reachedEnd = true; }
-        else n.knocked = !!ev.knocked;
-        n.pending = null; return n;
-      }
-      if (s.at === 'B3') return n;
-      if (ev.outcome === 'in') { n.at = ev.knocked ? 'B2' : 'B1'; n.knocked = !!ev.knocked; n.pending = null; return n; }
-      n.at = 5; n.result = ev.outcome; n.reachedEnd = true; return n;
-    case 'reset':
-      if (s.at === 1 || s.at === 2 || s.at === 3) return n;   // still learning — keep your place
-      n.at = 5; n.result = 'ready'; n.reachedEnd = true; n.pending = null; return n;
+      n.slide = s.slide + 1; n.name = null;
+      if (ev.winner !== undefined && ev.winner !== null) { n.key = ev.winner === 0 ? 'win' : 'lose'; n.name = ev.winnerName || null; return n; }
+      if (ev.draw)      { n.key = 'draw'; return n; }
+      if (ev.bath)      { n.key = 'bath'; return n; }
+      if (ev.meKnocked) { n.key = 'meKnocked'; return n; }
+      if (ev.meIn)      { n.key = 'meIn'; return n; }
+      if (ev.botIn)     { n.key = 'botIn'; n.name = ev.botIn; return n; }
+      if (s.slide === 1) { n.key = 'again'; return n; }
+      return n;
   }
   return n;
 }
 
 function cldPrCoachView(s) {
-  const C = CLD_PR_COACH;
-  if (s.at === 'B1') return { line: C.B1, step: '1 / 3', ring: 'stage' };
-  if (s.at === 'B2') return s.knocked ? { line: C.B2k, step: '2 / 3', ring: 'dive' }
-                                      : { line: C.B2p, step: '2 / 3', ring: 'resurface' };
-  if (s.at === 'B3') return { line: C.B3, step: '3 / 3', ring: 'resurface' };
-  if (s.at === 5)    return { line: C[s.result] || C.ready, step: '5 / 5',
-                              ring: s.result === 'washout' ? 'resurface' : 'commit' };
-  return { line: C[s.at], step: s.at + ' / 5',
-           ring: s.at === 1 ? 'stage' : s.at === 2 ? 'power' : s.at === 3 ? 'commit' : null };
+  const C = CLD_PR_COACH, k = s.key;
+  let line = (C[k] || C.again).replace('{Name}', s.name || '');
+  if (k.indexOf('intro.') === 0 && !s.armedOnce) line += ' ' + C.aim;
+  const ring = (k.indexOf('intro.') === 0 && !s.armedOnce) ? 'stage'
+             : k === 'armed' ? (s.lockedOnce ? 'commit' : 'power')
+             : k === 'meIn' ? 'stage' : k === 'meKnocked' ? 'dive'
+             : (k === 'win' || k === 'lose' || k === 'draw') ? 'again' : null;
+  return { line: line, step: 'Slide ' + s.slide, ring: ring };
 }
 
 function cldPrCoachDispatch(ev) { if (cldPrUi) cldPrUi.coach = cldPrCoach(cldPrUi.coach, ev); }
@@ -2957,7 +2951,7 @@ function cldReducedMotion() {
 // A fresh go at `key` on a fresh floe.
 function cldPrLoadDrill(key) {
   const d = CLD_PR_DRILLS[key];
-  const coach = cldPrUi ? cldPrUi.coach : cldPrCoachStart();
+  const coach = cldPrUi ? cldPrCoach(cldPrUi.coach, { type: 'load', drill: key }) : cldPrCoachStart(key);
   cldPrFloe = cldPrFreshFloe();
   cldArenaRun(() => {
     cldStartFloeOff(d.ringSeed);                 // the real setup: radius, ring, penguins
@@ -2967,7 +2961,7 @@ function cldPrLoadDrill(key) {
     });
   });
   cldPrUi = { drill: key, aim: null, lock: null, mode: 'throw', snowball: null, dive: null,
-              playing: false, outcome: null, knocked: false, slides: 0, plans: [null, null, null],
+              playing: false, end: null, before: null, slides: 0, plans: [null, null, null],
               drag: null, coach: coach };
   cldPrRefreshPlans();
   if (cldPrView) cldCamFrame(cldPrView, cldArenaRun(() => cldFloeRadius));
@@ -2978,13 +2972,15 @@ function cldPrLoadDrill(key) {
 function cldPrResolve(mine) {
   const u = cldPrUi;
   const d = CLD_PR_DRILLS[u.drill];
+  u.before = cldArenaRun(() => cldPenguins.map(p => ({ id: p.id, drowned: !!p.drowned, plug: !!p.plug })));
   cldArenaRun(() => {
     cldCommits = [mine, u.plans[1], u.plans[2]];
     cldArmPlayback(cldTimelineFromPayload(cldTimelinePayload(cldResolveSlide(d.ringSeed * 1000 + u.slides + 1))));
   });
   u.playing = true;
   u.slides += 1;
-  cldPrCoachDispatch({ type: 'committed', snowball: !!mine.snowball, dive: !!mine.dive });
+  if (cldPrView) cldPrView.cam.holdUntil = cldPrView.cam.clock + CLD_CAM_SLIDE_HOLD_S;
+  cldPrCoachDispatch({ type: 'committed' });
   if (cldReducedMotion()) cldPrTick(1e9);        // nothing travels — straight to the end state
 }
 
@@ -3000,23 +2996,36 @@ function cldPrTick(dtMs) {
   if (r !== 'playing') cldPrSlideDone();
 }
 
+// The Slide has played out: settle it, then decide what the round is now — an
+// Ice Bath (the real rule), a winner, a draw at the cap, or the next Slide.
 function cldPrSlideDone() {
-  const u = cldPrUi;
+  const u = cldPrUi, d = CLD_PR_DRILLS[u.drill];
   const res = cldArenaRun(() => {
     const tl = cldTimeline;
     cldPenguins.forEach(p => { p.plungedThisSlide = false; });
-    if (tl) cldApplyPost(tl.post);
+    if (tl && tl.post) cldApplyPost(tl.post);
+    const was = id => (u.before || []).find(b => b.id === id) || { drowned: false, plug: false };
     const me = cldPenguins.find(p => p.id === '0-0');
-    return { washout: !!(tl && tl.washout), meIn: !!me.drowned, knocked: !!(me.drowned && !me.plug),
-             rivalsIn: cldPenguins.filter(p => p.ownerIdx !== 0).every(p => p.drowned) };
+    const out = {
+      meIn: !!me.drowned && !was('0-0').drowned,
+      meKnocked: !!me.drowned && !me.plug && (!was('0-0').drowned || was('0-0').plug),
+      botIn: null, bath: false, winner: null, draw: false,
+    };
+    const bot = cldPenguins.find(p => p.ownerIdx !== 0 && p.drowned && !was(p.id).drowned);
+    if (bot) out.botIn = CLD_PR_CAST[bot.ownerIdx];
+    if (tl && tl.washout) { cldStartIceBath(tl.bathIds || [], d.ringSeed * 7919 + u.slides); out.bath = true; }
+    else if (tl && tl.floeOffOver && tl.winnerIdx >= 0) out.winner = tl.winnerIdx;
+    out.radius = cldFloeRadius;
+    return out;
   });
-  u.playing  = false;
-  u.outcome  = res.washout ? 'washout' : res.meIn ? 'in' : res.rivalsIn ? 'fish' : 'dry';
-  u.knocked  = res.knocked;
-  u.snowball = null;
-  u.dive     = null;                              // one-shot, like the live floe after a Slide
-  cldPrCoachDispatch({ type: 'slideDone', outcome: u.outcome, knocked: u.knocked });
-  cldPrRefreshPlans();
+  u.playing = false; u.snowball = null; u.dive = null;
+  if (res.winner === null && !res.bath && u.slides >= (d.cap || CLD_PR_SLIDE_CAP)) res.draw = true;
+  if (res.winner !== null || res.draw) u.end = { winner: res.winner === null ? -1 : res.winner, draw: !!res.draw };
+  cldPrCoachDispatch({ type: 'slideDone', meIn: res.meIn, meKnocked: res.meKnocked, botIn: res.botIn,
+                       bath: res.bath, winner: res.winner, draw: res.draw,
+                       winnerName: res.winner !== null ? CLD_PR_CAST[res.winner] : null });
+  if (!u.end) cldPrRefreshPlans();
+  if (cldPrView) { if (res.bath) cldCamFrame(cldPrView, res.radius); else cldCamOverview(cldPrView, false); }
 }
 
 function cldPrFloat(text) {
@@ -3047,7 +3056,7 @@ function cldPrMe() { return cldArenaRun(() => cldPenguins.find(p => p.id === '0-
 
 function cldPrCanCommit() {
   const u = cldPrUi;
-  if (!u || u.playing) return false;
+  if (!u || u.playing || u.end) return false;
   if (cldPrMe().drowned) return true;            // a Drowned player can always commit
   return !!(u.aim && u.aim.power >= CLD_MIN_POWER);
 }
@@ -3136,19 +3145,15 @@ function cldPrPointerUp(e) {
 function cldPrAction(kind, arg) {
   const u = cldPrUi;
   if (!u) return;
-  if (kind === 'again') {
-    cldPrLoadDrill('headon');
-    cldPrUi.coach = cldPrCoachStart();
+  if (kind === 'again' || kind === 'restart') {
+    if (u.playing) return;
+    cldPrLoadDrill(u.drill);                       // same drill, fresh floe
   } else if (u.playing) {
-    return;                                       // nothing else acts during a Slide
+    return;                                        // nothing else acts during a Slide
   } else if (kind === 'drill') {
     cldPrLoadDrill(arg);
-    cldPrCoachDispatch({ type: 'reset' });
-  } else if (kind === 'resurface' || (kind === 'cta' && u.outcome && u.outcome !== 'in')) {
-    cldPrLoadDrill(u.drill);                // Go again == Resurface: aim and lock kept
-    cldPrCoachDispatch({ type: 'reset' });
   } else if (kind === 'power') {
-    if (u.lock !== null) u.lock = null;           // tapping a locked bar releases it
+    if (u.lock !== null) u.lock = null;            // tapping a locked bar releases it
     else if (u.aim && u.aim.power >= CLD_MIN_POWER) {
       u.lock = u.aim.power;
       cldSfx('powerLock');
@@ -3180,22 +3185,12 @@ function cldPrSyncUI() {
 
   // ── The coach. A new line scrolls what the player needs next into view.
   const ringIds = { stage: 'cld-pr-stage', power: 'btn-cld-pr-power', commit: 'btn-cld-pr-commit',
-                    resurface: 'btn-cld-pr-resurface', dive: 'btn-cld-pr-mode-dive' };
+                    again: 'btn-cld-pr-again', dive: 'btn-cld-pr-mode-dive' };
   const v = cldPrCoachView(u.coach);
   const stepEl = $('cld-pr-coach-step');
   if (stepEl) stepEl.textContent = v.step;
   const lineEl = $('cld-pr-coach-line');
-  if (lineEl && lineEl.textContent !== v.line) {
-    lineEl.textContent = v.line;
-    // Scroll to what the player needs NEXT, not always the card: on a small
-    // phone the card and the stage cannot both fit (SE visual pass), so a line
-    // that asks for a control shows that control, and a Slide shows the stage.
-    const at = u.coach.at;
-    const target = u.playing ? $('cld-pr-stage')
-                 : (at === 2 || at === 3) ? ($(ringIds[v.ring]) || $('cld-pr-coach'))
-                 : $('cld-pr-coach');
-    if (target && target.scrollIntoView) target.scrollIntoView({ block: 'nearest', behavior: cldReducedMotion() ? 'auto' : 'smooth' });
-  }
+  if (lineEl && lineEl.textContent !== v.line) lineEl.textContent = v.line;   // full height: nothing to scroll to
   Object.keys(ringIds).forEach(k => { const el = $(ringIds[k]); if (el) el.classList.toggle('cld-pr-ring', v.ring === k); });
 
   // ── Throw · Dive — the live floe's rules: Dive only while Knocked back and
@@ -3234,28 +3229,28 @@ function cldPrSyncUI() {
     hint.className = soft ? 'text-amber-600 text-xs' : 'text-stone-400 text-xs';
   }
 
-  // ── The CTA — Lock It In / Sliding… / Go again; hidden at the end of the Berth.
+  // ── The CTA — Lock It In / Sliding…; hidden once the round is decided.
   const cta = $('btn-cld-pr-commit');
   if (cta) {
     const base = 'min-h-14 w-full rounded-2xl text-xl font-semibold flex items-center justify-center';
-    if (u.playing) {
+    if (u.end) {
+      cta.style.display = 'none';
+    } else if (u.playing) {
       cta.style.display = 'flex'; cta.textContent = 'Sliding…'; cta.disabled = true;
       cta.className = base + ' bg-stone-200 text-stone-500';
-    } else if (u.coach.at === 'B3') {
-      cta.style.display = 'none';
-    } else if (u.outcome && u.outcome !== 'in') {
-      cta.style.display = 'flex'; cta.textContent = 'Go again'; cta.disabled = false;
-      cta.className = base + ' cld-cta';
     } else {
       const can = cldPrCanCommit();
       cta.style.display = 'flex'; cta.textContent = 'Lock It In'; cta.disabled = !can;
       cta.className = base + ' cld-cta' + (can ? '' : ' opacity-50 pointer-events-none');
     }
   }
-  const again = $('btn-cld-pr-again');
-  if (again) again.style.display = u.coach.reachedEnd ? 'flex' : 'none';
-  const res = $('btn-cld-pr-resurface');
-  if (res) res.disabled = !!u.playing;
+  // ── The end card: only once the deciding Slide has finished playing.
+  const end = $('cld-pr-end');
+  if (end) end.style.display = (u.end && !u.playing) ? 'flex' : 'none';
+  const endLine = $('cld-pr-end-line');
+  if (endLine) endLine.textContent = u.end ? v.line : '';
+  const restart = $('btn-cld-pr-restart');
+  if (restart) restart.disabled = !!u.playing;
 }
 
 function cldPrLoop(now) {
@@ -3263,7 +3258,7 @@ function cldPrLoop(now) {
   if (!cldPrLastT) cldPrLastT = now;
   const dt = Math.min((now - cldPrLastT) / 1000, 0.05);   // a backgrounded tab cannot teleport a Slide
   cldPrLastT = now;
-  cldPrClock += dt;
+  if (!cldReducedMotion()) cldPrClock += dt;          // idle sway stands still under reduced motion
   const wasPlaying = !!(cldPrUi && cldPrUi.playing);
   cldPrTick(dt * 1000);
   if (wasPlaying && !cldPrUi.playing) cldPrSyncUI();
@@ -3275,6 +3270,7 @@ function cldPracticeStart() {
   const cv = document.getElementById('cld-pr-canvas');
   if (!cldPrView && cv && cv.getContext) cldPrView = cldMakeView(cv);
   cldResize(cldPrView);                           // sized on SHOW — a hidden canvas has no box
+  if (cldPrFloe) cldPrFloe.aimAssist = cldAimAssist;   // read on every open (SW v244 minor)
   cldCamFrame(cldPrView, cldArenaRun(() => cldFloeRadius || CLD_R_STD));
   if (!cldPrUi) cldPrLoadDrill('headon');
   cldPrSyncUI();
@@ -3876,7 +3872,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   on('btn-cld-pr-power',     () => { playPillClick(); cldPrAction('power'); });
   on('btn-cld-pr-commit',    () => { cldPrAction('cta'); });
-  on('btn-cld-pr-resurface', () => { playPillClick(); cldPrAction('resurface'); });
+  on('btn-cld-pr-restart',   () => { playPillClick(); cldPrAction('restart'); });
   on('btn-cld-pr-again',     () => { playPillClick(); cldPrAction('again'); });
 
   on('btn-cld-menu-settings', () => { playDone(); cldSyncSettingsUI(); cldOpenOverlay('cld-settings-overlay'); });

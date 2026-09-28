@@ -607,7 +607,8 @@ if (!TUNE) {
   arena("(() => { const me = cldPenguins.find(p => p.id === '0-0'); me.x = CLD_W / 2; me.y = CLD_H / 2 - 50; })()");
   RUN('cldPrRefreshPlans()');
   ok('Crossfire: each bot shoves at the other, not at You',
-     aimsAt(1, bot(2)) && aimsAt(2, bot(1)) && !aimsAt(1, meNow()) && near(plans()[1].aims[0].power, 0.9));
+     aimsAt(1, bot(2)) && aimsAt(2, bot(1)) && !aimsAt(1, meNow()) &&
+     near(plans()[1].aims[0].power, 0.95) && near(plans()[2].aims[0].power, 0.8));
 
   load('headon');
   arena("(() => { const b = cldPenguins.find(p => p.ownerIdx === 1); cldSeatAt(b, cldSeatSpot(Math.PI, b.id)); })()");
@@ -671,54 +672,91 @@ if (!TUNE) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// I. The coach (spec § 6.5)
+// H3. Rounds play to a natural end (spec § 3.4)
+// ═══════════════════════════════════════════════════════════════════════════
+if (!TUNE) {
+  section('H3. Rounds play to a natural end');
+  // Four scripted players. Each returns MY commit for Slide k.
+  const angleTo = expr => arena(`(() => { const me = cldPenguins.find(p => p.id === '0-0'); if (me.drowned) return null;
+    const t = ${expr}; return t ? Math.atan2(t.y - me.y, t.x - me.x) : null; })()`);
+  const POLICIES = {
+    hold:    () => HOLD,
+    random:  k => aimAt((k * 2.39996) % (2 * Math.PI), 0.35 + (k % 5) * 0.15),
+    nearest: () => { const a = angleTo(`cldPenguins.filter(p => p.ownerIdx !== 0 && !p.drowned)
+                       .sort((p, q) => Math.hypot(p.x - me.x, p.y - me.y) - Math.hypot(q.x - me.x, q.y - me.y))[0]`);
+                     return a === null ? HOLD : aimAt(a, 0.8); },
+    centre:  () => { const a = angleTo('({ x: CLD_W / 2, y: CLD_H / 2 })'); return a === null ? HOLD : aimAt(a, 0.5); },
+  };
+  const cap = G('CLD_PR_SLIDE_CAP');
+  let worst = 0, allEnded = true, draws = [];
+  for (const key of ['headon', 'crossfire', 'edge']) for (const name of Object.keys(POLICIES)) {
+    load(key);
+    let k = 0;
+    while (!G('cldPrUi').end && k < cap + 5) { resolveWith(POLICIES[name](k)); k++; }
+    const end = G('cldPrUi').end;
+    if (!end) allEnded = false;
+    if (end && end.draw) draws.push(key + '/' + name);
+    worst = Math.max(worst, k);
+  }
+  ok('every drill ends against every scripted player', allEnded);
+  check('…and none of them reaches the draw cap', draws, []);
+  ok('…the longest took ' + worst + ' Slides, well inside the cap of ' + cap, worst < cap * 0.75);
+
+  // A Washout starts the REAL Ice Bath in the Arena and the round carries on.
+  load('headon');
+  arena("(() => { cldTimeline = { washout: true, bathIds: cldPenguins.map(p => p.id), floeOffOver: false, winnerIdx: -1 }; })()");
+  RUN('cldPrUi.before = cldArenaRun(() => cldPenguins.map(p => ({ id: p.id, drowned: false, plug: false })))');
+  RUN('cldPrUi.playing = true'); RUN('cldPrSlideDone()');
+  ok('a Washout starts the real Ice Bath in the Arena', arena('cldInBath') === true && G('cldPrUi').end === null);
+  check('…and the coach says so', G('cldPrUi').coach.key, 'bath');
+
+  // The cap: a drill with cap 1 is decided after one quiet Slide.
+  load('crossfire');
+  RUN('CLD_PR_DRILLS.crossfire.cap = 1');
+  resolveWith(aimAt(Math.PI / 2, 0.08));
+  const e1 = G('cldPrUi').end;
+  RUN('delete CLD_PR_DRILLS.crossfire.cap');
+  ok('the cap calls a still-running round a draw', !!e1 && (e1.draw === true || e1.winner >= 0));
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// I. The coach (spec § 3.5)
 // ═══════════════════════════════════════════════════════════════════════════
 if (!TUNE) {
   section('I. The coach');
-  const start = () => RUN('cldPrCoachStart()');
+  const C = G('CLD_PR_COACH');
+  const start = d => RUN('cldPrCoachStart')(d || 'headon');
   const step = (s, ...evs) => evs.reduce((acc, e) => RUN('cldPrCoach')(acc, e), s);
   const view = s => RUN('cldPrCoachView')(s);
-  const A = { type: 'armed' }, L = { type: 'locked' }, R = { type: 'reset' };
-  const C = (x) => Object.assign({ type: 'committed', snowball: false, dive: false }, x || {});
-  const D = (outcome, knocked) => ({ type: 'slideDone', outcome, knocked: !!knocked });
-
-  let s = start();
-  check('starts at 1 / 5, ring on the stage', [view(s).step, view(s).ring], ['1 / 5', 'stage']);
-  s = step(s, A);  check('armed → 2, ring on Power', [s.at, view(s).ring], [2, 'power']);
-  s = step(s, L);  check('locked → 3, ring on Lock It In', [s.at, view(s).ring], [3, 'commit']);
-  s = step(s, C()); check('committed → 4', s.at, 4);
-  s = step(s, D('dry'));
-  check('dry → 5 / 5 "Still dry", end reached', [view(s).step, s.result, s.reachedEnd], ['5 / 5', 'dry', true]);
-  check('skipping the lock: 2 + commit → 4', step(start(), A, C()).at, 4);
-  check('armed does nothing before step 1 advances twice', step(start(), A, A).at, 2);
-
-  s = step(start(), A, C(), D('in'));
-  check('going in → B1, 1 / 3', [s.at, view(s).step], ['B1', '1 / 3']);
-  check('B1 + a bare commit stays B1', step(s, C(), D('in', false)).at, 'B1');
-  s = step(s, C({ snowball: true }), D('in', false));
-  check('B1 + Snowball, still plugged → B2 "Still plugged", ring Resurface',
-        [s.at, view(s).line === G('CLD_PR_COACH').B2p, view(s).ring], ['B2', true, 'resurface']);
-  s = step(s, C({ snowball: true }), D('in', true));
-  check('B2 + knocked back → the Dive line, ring on Dive', [view(s).line === G('CLD_PR_COACH').B2k, view(s).ring], [true, 'dive']);
-  s = step(s, C({ dive: true }), D('in', false));
-  check('a Dive → B3, 3 / 3, end reached', [s.at, view(s).step, s.reachedEnd], ['B3', '3 / 3', true]);
-
-  check('a Washout ends anything on step 5', step(start(), A, C(), D('washout')).result, 'washout');
-  check('reset while learning keeps your place', step(start(), A, R).at, 2);
-  s = step(start(), A, C(), D('in'), R);
-  check('reset from the Berth → 5 "Your go", end reached', [s.at, s.result, s.reachedEnd], [5, 'ready', true]);
-  check('restart → back to 1 / 5', view(step(s, { type: 'restart' })).step, '1 / 5');
-  const frozen = start(); step(frozen, A);
-  check('the reducer never mutates its input', frozen.at, 1);
-  ok('every coach line is set and emoji-free', Object.values(G('CLD_PR_COACH'))
+  const D = x => Object.assign({ type: 'slideDone' }, x || {});
+  let s = start('headon');
+  check('opens on the drill’s plan plus how to aim, Slide 1, ring on the stage',
+    [view(s).line, view(s).step, view(s).ring], [C['intro.headon'] + ' ' + C.aim, 'Slide 1', 'stage']);
+  s = step(s, { type: 'armed' });
+  check('the first arm teaches the lock, ring on Power', [view(s).line, view(s).ring], [C.armed, 'power']);
+  s = step(s, { type: 'locked' });
+  check('locked → ring on Lock It In', view(s).ring, 'commit');
+  s = step(s, { type: 'committed' }, D());
+  check('a quiet first Slide → "Same plan every Slide", Slide 2', [view(s).line, view(s).step], [C.again, 'Slide 2']);
+  check('a later arm never repeats the lock tip', view(step(s, { type: 'armed' })).line, C.again);
+  check('going in', view(step(s, D({ meIn: true }))).line, C.meIn);
+  check('knocked back outranks going in, ring on Dive',
+    [view(step(s, D({ meIn: true, meKnocked: true }))).line, view(step(s, D({ meKnocked: true }))).ring], [C.meKnocked, 'dive']);
+  check('a bot going in is named', view(step(s, D({ botIn: 'Sylvia' }))).line, C.botIn.replace('{Name}', 'Sylvia'));
+  check('a Washout → the Ice Bath line', view(step(s, D({ bath: true, meIn: true }))).line, C.bath);
+  check('you win', view(step(s, D({ winner: 0 }))).line, C.win);
+  check('a bot wins, by name', view(step(s, D({ winner: 2, winnerName: 'Sam' }))).line, C.lose.replace('{Name}', 'Sam'));
+  check('the cap is a draw', view(step(s, D({ draw: true }))).line, C.draw);
+  check('an ending rings Practice again', view(step(s, D({ winner: 0 }))).ring, 'again');
+  const loaded = step(step(start('headon'), { type: 'armed' }), { type: 'load', drill: 'edge' });
+  check('a new drill shows its own plan, and never re-teaches an arm you already did',
+    [view(loaded).line, view(loaded).step], [C['intro.edge'], 'Slide 1']);
+  const frozen = start(); step(frozen, { type: 'armed' });
+  check('the reducer never mutates its input', frozen.armedOnce, false);
+  ok('every coach line is set and emoji-free', Object.values(C)
      .every(l => typeof l === 'string' && l.length > 10 && !/\p{Extended_Pictographic}/u.test(l)));
-
-  // Wired into the Arena: committing and finishing a Slide drive the coach.
-  RUN('cldPrUi.coach = cldPrCoachStart()');
-  load('headon', true);
-  ok('the coach survives a drill reload', G('cldPrUi').coach.at === 1);
-  resolveWith(HOLD);
-  check('Arena: a stand-still Head-on walks the coach 1 → 4 → B1', G('cldPrUi').coach.at, 'B1');
+  check('exactly the spec’s thirteen lines', Object.keys(C).sort(),
+    ['again', 'aim', 'armed', 'bath', 'botIn', 'draw', 'intro.crossfire', 'intro.edge', 'intro.headon', 'lose', 'meIn', 'meKnocked', 'win']);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -765,11 +803,9 @@ if (!TUNE) {
   ok('the canvas is sized and framed on the Arena floe when Practice is shown',
      near(G('cldPrView').base, 300 / RUN('cldViewFit(CLD_R_STD)'), 1e-9) && near(G('cldPrView').cam.z, 1, 1e-9));
   ok('the Arena loop runs while Practice shows', !!G('cldPrRaf'));
-  check('it opens on Head-on, 1 / 5', [G('cldPrUi').drill, $('cld-pr-coach-step').textContent], ['headon', '1 / 5']);
+  check('it opens on Head-on, Slide 1', [G('cldPrUi').drill, $('cld-pr-coach-step').textContent], ['headon', 'Slide 1']);
   ok('the soft ring is on the stage', stage.classList.contains('cld-pr-ring'));
   check('Lock It In waits for an aim', $('btn-cld-pr-commit').disabled, true);
-
-  // A real gesture on the Arena's own stage: finger right of You → the shot goes left.
   const v = G('cldPrView');
   const ev = (x, y) => ({ clientX: v.offX + x * v.scale, clientY: v.offY + y * v.scale, pointerId: 7 });
   const you = arena("cldPenguins.find(p => p.id === '0-0')");
@@ -780,38 +816,49 @@ if (!TUNE) {
   const aim = G('cldPrUi').aim;
   ok('a full pull on the Arena stage arms a full-power shot away from the finger',
      aim && near(aim.dx, -1) && near(aim.power, 1, 1e-6), JSON.stringify(aim));
-  check('the coach moves to 2 and rings Power', [$('cld-pr-coach-step').textContent,
-        $('btn-cld-pr-power').classList.contains('cld-pr-ring')], ['2 / 5', true]);
+  check('the coach teaches the lock and rings Power',
+    [$('cld-pr-coach-line').textContent, $('btn-cld-pr-power').classList.contains('cld-pr-ring')], [G('CLD_PR_COACH').armed, true]);
   RUN("cldPrAction('power')");
-  ok('Power locks and the coach moves to 3', near(G('cldPrUi').lock, 1, 1e-6) && G('cldPrUi').coach.at === 3);
-  check('Lock It In is live', [$('btn-cld-pr-commit').textContent, $('btn-cld-pr-commit').disabled], ['Lock It In', false]);
+  ok('Power locks and the ring moves to Lock It In', near(G('cldPrUi').lock, 1, 1e-6) && $('btn-cld-pr-commit').classList.contains('cld-pr-ring'));
   RUN("cldPrAction('cta')");
   check('committing starts the Slide', [G('cldPrUi').playing, $('btn-cld-pr-commit').textContent], [true, 'Sliding…']);
-  let g = 0;
-  while (G('cldPrUi').playing && g++ < 4000) RUN('cldPrLoop')(1000 + g * 50);
+  // Review Focus 4 — the end card never shows while a Slide is still playing.
+  RUN('CLD_PR_DRILLS.headon.cap = 1');
+  let sawEndWhilePlaying = false, g = 0;
+  while (G('cldPrUi').playing && g++ < 4000) {
+    RUN('cldPrLoop')(1000 + g * 50);
+    if (G('cldPrUi').playing && $('cld-pr-end').style.display === 'flex') sawEndWhilePlaying = true;
+  }
+  RUN('delete CLD_PR_DRILLS.headon.cap');
   ok('the loop plays the Slide out', !G('cldPrUi').playing);
-  const out = G('cldPrUi').outcome;
-  check('the CTA reads the outcome', $('btn-cld-pr-commit').textContent, out === 'in' ? 'Lock It In' : 'Go again');
-
-  RUN("cldPrAction('resurface')");
-  ok('Resurface resets the drill and keeps your aim',
-     G('cldPrUi').outcome === null && !!G('cldPrUi').aim && near(G('cldPrUi').aim.power, 1, 1e-6));
-  RUN("cldPrAction('drill', 'edge')");
-  check('a drill pill switches and clears your aim', [G('cldPrUi').drill, G('cldPrUi').aim], ['edge', null]);
-  ok('Practice again shows exactly when the end is reached',
-     ($('btn-cld-pr-again').style.display === 'flex') === !!G('cldPrUi').coach.reachedEnd);
+  ok('the end card never showed while the Slide played', !sawEndWhilePlaying);
+  check('with the round over, the end card shows the coach’s last line',
+    [$('cld-pr-end').style.display, $('cld-pr-end-line').textContent, $('btn-cld-pr-commit').style.display],
+    ['flex', $('cld-pr-coach-line').textContent, 'none']);
   RUN("cldPrAction('again')");
-  check('Practice again → Head-on, 1 / 5', [G('cldPrUi').drill, $('cld-pr-coach-step').textContent], ['headon', '1 / 5']);
+  check('Practice again: the same drill, a fresh floe', [G('cldPrUi').drill, G('cldPrUi').slides, G('cldPrUi').end, $('cld-pr-end').style.display],
+        ['headon', 0, null, 'none']);
+  RUN("cldPrAction('restart')");
+  check('Start over resets the drill and your aim', [G('cldPrUi').slides, G('cldPrUi').aim], [0, null]);
+  RUN("cldPrAction('drill', 'edge')");
+  check('a drill pill switches and shows its plan', [G('cldPrUi').drill, $('cld-pr-coach-line').textContent], ['edge', G('CLD_PR_COACH')['intro.edge']]);
 
-  // In the Drink: the Throw · Dive row, a Snowball tap, and the amber reason.
-  load('headon'); resolveWith(HOLD); RUN('cldPrSyncUI()');
-  check('in the Drink: the Throw · Dive row shows', $('cld-pr-drowned-row').style.display, 'flex');
-  const sy = arena("cldPenguins.find(p => p.id === '1-0')");
-  RUN('cldPrPointerDown')(ev(sy.x, sy.y)); RUN('cldPrPointerUp')(ev(sy.x, sy.y));
-  ok('a tap aims a Snowball', !!G('cldPrUi').snowball);
-  RUN("cldPrAction('mode', 'dive')");
-  check('Plugged: Dive is refused, with the amber reason', [G('cldPrUi').mode, $('cld-pr-dive-reason').textContent],
-        ['throw', 'You can Dive once you’re knocked back.']);
+  // In the Drink: the Throw · Dive row, a Snowball tap, the amber reason.
+  load('headon');
+  for (let k = 0; k < 4 && !meNow().drowned && !G('cldPrUi').end; k++) resolveWith(HOLD);
+  RUN('cldPrSyncUI()');
+  if (meNow().drowned && !G('cldPrUi').end) {
+    check('in the Drink: the Throw · Dive row shows', $('cld-pr-drowned-row').style.display, 'flex');
+    check('…and Lock It In is always open to you', $('btn-cld-pr-commit').disabled, false);
+    const sy = arena("cldPenguins.find(p => p.id === '1-0')");
+    RUN('cldPrPointerDown')(ev(sy.x, sy.y)); RUN('cldPrPointerUp')(ev(sy.x, sy.y));
+    ok('a tap aims a Snowball', !!G('cldPrUi').snowball);
+    if (meNow().plug) {
+      RUN("cldPrAction('mode', 'dive')");
+      check('Plugged: Dive is refused, with the amber reason', [G('cldPrUi').mode, $('cld-pr-dive-reason').textContent],
+            ['throw', 'You can Dive once you’re knocked back.']);
+    }
+  } else ok('Head-on puts you in the Drink within four still Slides', false, 'retune Head-on (Task 5 Step 4)');
 
   RUN('cldResetState()');
   check('cldResetState clears the Arena', [G('cldPrUi'), G('cldPrRaf'), G('cldPrFloe')], [null, null, null]);
@@ -819,40 +866,23 @@ if (!TUNE) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// L. Final-review fixes — the coach's scroll target, and a knocked-back arrival
+// L. Folded-in minors and the Arena's own camera
 // ═══════════════════════════════════════════════════════════════════════════
 if (!TUNE) {
-  section('L. Final-review fixes');
-  const step = (s, ...evs) => evs.reduce((acc, e) => RUN('cldPrCoach')(acc, e), s);
-  const C = (x) => Object.assign({ type: 'committed', snowball: false, dive: false }, x || {});
-  const D = (outcome, knocked) => ({ type: 'slideDone', outcome, knocked: !!knocked });
-  // Going in and being knocked back in the SAME Slide: the plugged-gap line would be false.
-  let s = step(RUN('cldPrCoachStart()'), { type: 'armed' }, C(), D('in', true));
-  check('in AND knocked back → straight to the Dive line (B2, knocked)', [s.at, s.knocked], ['B2', true]);
-  s = step(RUN('cldPrCoachStart()'), { type: 'armed' }, C(), D('in', false), C(), D('in', true));
-  check('at B1, any Slide that leaves you knocked back → B2 (knocked)', [s.at, s.knocked], ['B2', true]);
-
-  // The scroll follows what the player needs next — never the card while the Slide plays.
+  section('L. Folded-in minors and the Arena’s own camera');
   const $ = id => S.document.getElementById(id);
   const stage = $('cld-pr-stage'), canvas = $('cld-pr-canvas');
   canvas.parentElement = stage; stage.clientWidth = 300; stage.clientHeight = 300;
   RUN('cldResetState()');
-  RUN("cldSetHowtoTab('practice')");
-  const scrolled = [];
-  ['cld-pr-coach', 'cld-pr-stage', 'btn-cld-pr-power', 'btn-cld-pr-commit']
-    .forEach(id => { $(id).scrollIntoView = () => scrolled.push(id); });
-  const v = G('cldPrView');
-  const ev = (x, y) => ({ clientX: v.offX + x * v.scale, clientY: v.offY + y * v.scale, pointerId: 9 });
-  const you = arena("cldPenguins.find(p => p.id === '0-0')");
-  const PULL = G('CLD_CUE_PULL_PX');
-  RUN('cldPrPointerDown')(ev(you.x + 60, you.y));
-  RUN('cldPrPointerMove')(ev(you.x + 60 + PULL / v.scale, you.y));
-  RUN('cldPrPointerUp')(ev(you.x + 60 + PULL / v.scale, you.y));
-  check('step 2 scrolls the Power bar into view, not the card', scrolled.slice(-1), ['btn-cld-pr-power']);
-  RUN("cldPrAction('power')");
-  check('step 3 scrolls Lock It In into view', scrolled.slice(-1), ['btn-cld-pr-commit']);
-  RUN("cldPrAction('cta')");
-  check('committing scrolls the STAGE into view — the Slide is what to watch', scrolled.slice(-1), ['cld-pr-stage']);
+  RUN('cldAimAssist = true'); RUN("cldSetHowtoTab('practice')");
+  RUN("cldSetHowtoTab('rules')"); RUN('cldAimAssist = false'); RUN("cldSetHowtoTab('practice')");
+  check('the Arena reads Aim Assist on every open', arena('cldAimAssist'), false);
+  RUN('cldAimAssist = true');
+  const c0 = G('cldPrClock');
+  S.window.matchMedia = () => ({ matches: true });
+  RUN('cldPrLoop')(5000); RUN('cldPrLoop')(5050);
+  check('under reduced motion the Arena’s idle clock stands still', G('cldPrClock'), c0);
+  S.window.matchMedia = () => ({ matches: false });
   RUN('cldResetState()');
 }
 

@@ -220,14 +220,15 @@ a finger is dragging on it, and the power bar / tally / CTA stay frozen beneath 
 | Overlay | Opened from | What it is |
 |---|---|---|
 | `cld-settings-overlay` | Menu | The Huddle — the seven settings |
-| `cld-how-to-overlay` | Menu, floe `[?]`, scoreboard `[?]` | How to Play — **3 tabs**: *The Rules*, *Practice* (the Arena: three drills against Sylvia and Sam) and *The Cast* (the six poses) |
+| `cld-how-to-overlay` | Menu, floe `[?]`, scoreboard `[?]` | How to Play — **3 tabs**: *The Rules*, *Practice* (the Arena: three drills — Sylvia and Sam each follow the drill's plan every Slide, played as a real Floe-Off to one player left) and *The Cast* (the six poses) |
 | `cld-quit-overlay` | Floe, scoreboard ✕ | Mid-game quit confirm |
 | `cld-new-game-overlay` | Gameover | Play-again confirm |
 
-There is **no tip overlay** — How to Play is the only reference surface (brief §15). Since SW v244
-its **Practice** tab is the Arena: You, Sylvia and Sam on a fixed floe, the rivals' shoves fixed and
-drawn before you move, played on the real rules and drawn by the floe's own renderer, with a coach
-and a step counter. **The Cast** shows the six penguin poses (Idle · Lean · Squash · Plunge · Bob ·
+There is **no tip overlay** — How to Play is the only reference surface (brief §15). Since SW v245
+its **Practice** tab is the Arena: You, Sylvia and Sam on a fresh floe. Sylvia and Sam each follow the
+drill's plan every Slide — their next shoves drawn before you move — and a round is a real Floe-Off, Ice
+Bath and all, played to one player left. It runs on the real rules, is drawn by the floe's own renderer,
+and has a coach that reacts to what happens, counting Slides. **The Cast** shows the six penguin poses (Idle · Lean · Squash · Plunge · Bob ·
 Throw), each drawn through the same seam the floe uses. The
 floe `[?]` is *gated by `cldPhase`*: during `resolving` and `washout` it greys out rather than
 opening a panel over the one thing the player needs to watch.
@@ -425,7 +426,7 @@ Every pose the penguin strikes on the ice, and the moment it means.
 ```
 
 ```copy
-# cld-how-to-overlay — Practice (the Arena, SW v244)
+# cld-how-to-overlay — Practice (the Arena, SW v245)
 Head-on
 Crossfire
 Edge
@@ -434,26 +435,26 @@ Power locked — tap to release
 Too soft
 Lock It In
 Sliding…
-Go again
-Resurface
+Start over
 Practice again
 Got it
 ```
 
 ```copy
 # CLD_PR_COACH — the Practice coach (js/games/cld.js)
-Their shoves are drawn in their colours, and they’ll do the same thing every time. Touch anywhere and pull back — your finger is the end of the cue.
-The ghost shows where you’ll hit first. Tap Power to lock it — then dragging only swings your aim.
-Happy? Lock It In. Once it’s in, it’s in.
-Everyone slides at once.
-Still dry. Try another counter — or another drill.
-Last one dry — that’d be a Fish.
-Washout — everyone’s in. Resurface.
-Your go. Try a counter — or another drill.
-You’re in the Drink — and you’ve plugged the gap you went through. The next penguin to hit you bounces off. Tap a penguin to aim a Snowball, then Lock It In.
-Knocked back — so now it’s Throw or Dive. Tap Dive, then a dashed gap.
-Still plugged. Resurface to try the drill again.
-That’s the Drink. Resurface to get back on the ice.
+Sylvia and Sam are coming straight for you — every Slide, full power. Dodge them, or meet them.
+Sylvia and Sam only want each other, and you’re in the middle. Get out of the way — or use it.
+They’ll try to cut you into the nearest gap. Keep ice between you and the water.
+Touch anywhere and pull back — the shot goes the other way. Their next shoves are drawn in their colours.
+The dots show your first hit. Tap Power to lock it, then Lock It In.
+Same plan every Slide. Read it, and counter it.
+You’re in the Drink, plugging the gap you went through. The next penguin to hit you bounces off harder. Tap the ice to aim a Snowball.
+Knocked back — now it’s Throw or Dive. Dive into a free gap to plug it again.
+{Name}’s in the Drink — a plug now. Hit it and you bounce back harder.
+Everyone went in at once — into the Ice Bath. Last one dry still wins.
+Last one dry — that’s a Fish.
+{Name}’s the last one dry. Practice again, or try another drill.
+Nobody’s budging. Call it a draw.
 ```
 
 ```copy

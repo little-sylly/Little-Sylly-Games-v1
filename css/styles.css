@@ -2708,7 +2708,7 @@ body.flash-red   { background-color: #fecaca; }
 /* The coach's soft ring — a box-shadow TRANSITION, never an animation, so the
    global reduced-motion block already zeroes it. One rule carries the press
    too: an id rule would otherwise override a Tailwind transition utility. */
-#cld-pr-stage, #btn-cld-pr-power, #btn-cld-pr-commit, #btn-cld-pr-resurface,
+#cld-pr-stage, #btn-cld-pr-power, #btn-cld-pr-commit, #btn-cld-pr-restart,
 #btn-cld-pr-mode-throw, #btn-cld-pr-mode-dive {
   transition: box-shadow 160ms ease-out, transform 100ms ease-out;
 }
