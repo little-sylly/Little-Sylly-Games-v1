@@ -1614,6 +1614,15 @@ function cldDraw(view, m) {
     }
   }
 
+  // ── A Drowned rival's next Snowball (Practice): a small cross in its colour.
+  (m.rivalThrows || []).forEach(s => {
+    ctx.save();
+    ctx.strokeStyle = cldTintOf(s.ownerIdx); ctx.globalAlpha = 0.7; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(s.x, s.y, 6, 0, CLD_TAU);
+    ctx.moveTo(s.x - 9, s.y); ctx.lineTo(s.x + 9, s.y); ctx.moveTo(s.x, s.y - 9); ctx.lineTo(s.x, s.y + 9);
+    ctx.stroke(); ctx.restore();
+  });
+
   // ── The snowball target marker — a crosshair the thrower can see, nobody else.
   if (m.snowball) {
     const s = m.snowball;
@@ -1824,7 +1833,7 @@ function cldBuildModel(src, ui) {
   });
   return { radius: src.radius, bergs: src.bergs, iceBreaker: src.iceBreaker,
            reach: cldFullSlideDist(src.ice), penguins: penguins, aims: aims,
-           assist: !!ui.assist, dive: ui.dive || null, snowball: ui.snowball || null,
+           assist: !!ui.assist, dive: ui.dive || null, snowball: ui.snowball || null, rivalThrows: ui.rivalThrows || [],
            clock: ui.clock || 0 };
 }
 
@@ -2814,21 +2823,57 @@ function cldHowtoStop() {
 // Slide runs the real rules through cldArenaRun, so the same counter always
 // gives the same result — which is what makes it practice.
 // ═══════════════════════════════════════════════════════════════════════════
-// place: { at: angle, r: × floe radius }. shoves: null (holds still) or
-// { target: seat, power } — aimed at the target's START position, once, so a
-// rival repeats the same shove from wherever it stands.
+// Three drills, each a PLAN both Sylvia and Sam follow every Slide (spec
+// 2026-09-29-cld-fun-pass § 3.4). place: { at: angle, r: × floe radius }.
 // ringSeed values come from `node tools/verify-cld-practice.js --tune`.
 const CLD_PR_DRILLS = {
-  headon:    { name: 'Head-on',   ringSeed: 4, slideSeed: 1, gapAt: 0,
-               place:  [{ at: 0, r: 0.62 }, { at: 0, r: 0.05 }, { at: -Math.PI / 2, r: 0.6 }],
-               shoves: [null, { target: 0, power: 1.0 }, null] },
-  crossfire: { name: 'Crossfire', ringSeed: 1, slideSeed: 1, gapAt: null,
-               place:  [{ at: 0, r: 0 }, { at: Math.PI, r: 0.6 }, { at: 0, r: 0.6 }],
-               shoves: [null, { target: 2, power: 0.9 }, null] },
-  edge:      { name: 'Edge',      ringSeed: 19, slideSeed: 1, gapAt: Math.PI / 2,
-               place:  [{ at: Math.PI / 2, r: 0.8 }, { at: Math.PI, r: 0.6 }, { at: Math.PI / 2, r: 0.45 }],
-               shoves: [null, null, { target: 0, power: 0.7 }] },
+  headon:    { name: 'Head-on',   ringSeed: 1,  plan: 'headon',    power: 1.0,
+               place: [{ at: 0, r: 0.62 }, { at: 0, r: 0.05 }, { at: -Math.PI / 2, r: 0.6 }] },
+  crossfire: { name: 'Crossfire', ringSeed: 1,  plan: 'crossfire', power: 0.9,
+               place: [{ at: 0, r: 0 }, { at: Math.PI, r: 0.6 }, { at: 0, r: 0.6 }] },
+  edge:      { name: 'Edge',      ringSeed: 3,  plan: 'edge',      power: 0.85,
+               place: [{ at: Math.PI / 2, r: 0.8 }, { at: Math.PI, r: 0.6 }, { at: Math.PI / 2, r: 0.45 }] },
 };
+const CLD_PR_CUT_MAX = 70 * Math.PI / 180;   // Edge: a cut sharper than this is a straight shove instead
+
+// Who a bot's plan is after: You (Head-on, Edge) or the other bot (Crossfire) —
+// whatever state they're in. Call inside cldArenaRun.
+function cldPrPlanTarget(plan, i) {
+  if (plan === 'crossfire') return cldPenguins.find(q => q.ownerIdx === (i === 1 ? 2 : 1)) || null;
+  return cldPenguins.find(q => q.id === '0-0') || null;
+}
+
+// PURE over the Arena record (call inside cldArenaRun). A Standing bot shoves at
+// its target — Edge CUTS you toward the free gap nearest you, pool-style, by
+// aiming at the ghost-ball point one diameter behind you. A Drowned bot throws
+// at its target if the target is Standing, and never Dives.
+function cldPrBotCommit(d, i) {
+  const hold = { aims: [], dive: null, snowball: null };
+  const me = cldPenguins.find(q => q.ownerIdx === i), tgt = cldPrPlanTarget(d.plan, i);
+  if (!me || !tgt) return hold;
+  if (me.drowned) return tgt.drowned ? hold : { aims: [], dive: null, snowball: { x: tgt.x, y: tgt.y } };
+  let ax = tgt.x, ay = tgt.y;
+  if (d.plan === 'edge' && !tgt.drowned) {
+    const seat = cldSeatSpot(cldAngleOf(tgt.x, tgt.y), null);
+    if (seat) {
+      const g = cldRimPos(seat.angle, cldFloeRadius);
+      const ul = Math.hypot(g.x - tgt.x, g.y - tgt.y) || 1, ux = (g.x - tgt.x) / ul, uy = (g.y - tgt.y) / ul;
+      const hx = tgt.x - 2 * CLD_PENGUIN_R * ux, hy = tgt.y - 2 * CLD_PENGUIN_R * uy;
+      const dl = Math.hypot(hx - me.x, hy - me.y) || 1;
+      const cut = Math.acos(Math.max(-1, Math.min(1, ((hx - me.x) * ux + (hy - me.y) * uy) / dl)));
+      if (cut <= CLD_PR_CUT_MAX) { ax = hx; ay = hy; }
+    }
+  }
+  const l = Math.hypot(ax - me.x, ay - me.y);
+  if (l < 1e-6) return hold;
+  return { aims: [{ penguinId: me.id, dx: (ax - me.x) / l, dy: (ay - me.y) / l, power: d.power }], dive: null, snowball: null };
+}
+
+// Their next moves, worked out from the ice as it stands — drawn before you aim.
+function cldPrRefreshPlans() {
+  const u = cldPrUi, d = CLD_PR_DRILLS[u.drill];
+  u.plans = cldArenaRun(() => [null, cldPrBotCommit(d, 1), cldPrBotCommit(d, 2)]);
+}
 
 // The coach (spec § 6.5). Every step waits for the player to DO the thing; a
 // soft ring points at the control being taught. Lines are copy — they are
@@ -2909,39 +2954,23 @@ function cldReducedMotion() {
   catch (_) { return false; }
 }
 
-// A fresh go at `key`. keepAim (Go again, Resurface) keeps your armed aim and
-// your locked power, so the next try is an adjustment, not a fresh start.
-function cldPrLoadDrill(key, keepAim) {
+// A fresh go at `key` on a fresh floe.
+function cldPrLoadDrill(key) {
   const d = CLD_PR_DRILLS[key];
-  const prev = keepAim ? cldPrUi : null;
-  const coach = cldPrUi ? cldPrUi.coach : cldPrCoachStart();   // a drill change never loses your place
+  const coach = cldPrUi ? cldPrUi.coach : cldPrCoachStart();
   cldPrFloe = cldPrFreshFloe();
-  const rivalAims = [null, null, null];
   cldArenaRun(() => {
     cldStartFloeOff(d.ringSeed);                 // the real setup: radius, ring, penguins
     d.place.forEach((pl, i) => {
       const pos = cldRimPos(pl.at, cldFloeRadius * pl.r);
       cldPenguins[i].x = pos.x; cldPenguins[i].y = pos.y;
     });
-    d.shoves.forEach((s, i) => {
-      if (!s) return;
-      const from = cldPenguins[i], to = cldPenguins[s.target];
-      const l = Math.hypot(to.x - from.x, to.y - from.y) || 1;
-      rivalAims[i] = { penguinId: from.id, dx: (to.x - from.x) / l, dy: (to.y - from.y) / l, power: s.power };
-    });
   });
-  cldPrUi = {
-    drill: key, aim: prev ? prev.aim : null, lock: prev ? prev.lock : null,
-    mode: 'throw', snowball: null, dive: null,
-    playing: false, outcome: null, knocked: false, rivalAims: rivalAims, drag: null, coach: coach,
-  };
-}
-
-// A rival repeats its fixed shove while Standing; a Drowned rival does nothing.
-function cldPrRivalCommit(i) {
-  const shove = cldPrUi.rivalAims[i];
-  const p = cldArenaRun(() => cldPenguins.find(q => q.ownerIdx === i));
-  return { aims: (shove && p && !p.drowned) ? [shove] : [], dive: null, snowball: null };
+  cldPrUi = { drill: key, aim: null, lock: null, mode: 'throw', snowball: null, dive: null,
+              playing: false, outcome: null, knocked: false, slides: 0, plans: [null, null, null],
+              drag: null, coach: coach };
+  cldPrRefreshPlans();
+  if (cldPrView) cldCamFrame(cldPrView, cldArenaRun(() => cldFloeRadius));
 }
 
 // Resolve one Arena Slide with MY commit — the host's own path, byte for byte:
@@ -2950,10 +2979,11 @@ function cldPrResolve(mine) {
   const u = cldPrUi;
   const d = CLD_PR_DRILLS[u.drill];
   cldArenaRun(() => {
-    cldCommits = [mine, cldPrRivalCommit(1), cldPrRivalCommit(2)];
-    cldArmPlayback(cldTimelineFromPayload(cldTimelinePayload(cldResolveSlide(d.slideSeed))));
+    cldCommits = [mine, u.plans[1], u.plans[2]];
+    cldArmPlayback(cldTimelineFromPayload(cldTimelinePayload(cldResolveSlide(d.ringSeed * 1000 + u.slides + 1))));
   });
   u.playing = true;
+  u.slides += 1;
   cldPrCoachDispatch({ type: 'committed', snowball: !!mine.snowball, dive: !!mine.dive });
   if (cldReducedMotion()) cldPrTick(1e9);        // nothing travels — straight to the end state
 }
@@ -2986,6 +3016,7 @@ function cldPrSlideDone() {
   u.snowball = null;
   u.dive     = null;                              // one-shot, like the live floe after a Slide
   cldPrCoachDispatch({ type: 'slideDone', outcome: u.outcome, knocked: u.knocked });
+  cldPrRefreshPlans();
 }
 
 function cldPrFloat(text) {
@@ -3038,7 +3069,7 @@ function cldArenaModel() {
     const standing = id => { const p = cldPenguins.find(q => q.id === id); return !!p && !p.drowned; };
     const aims = [];
     if (!u.playing) {
-      u.rivalAims.forEach(a => { if (a && standing(a.penguinId)) aims.push(Object.assign({}, a, { live: false, rival: true })); });
+      u.plans.forEach(c => { if (c && c.aims[0] && standing(c.aims[0].penguinId)) aims.push(Object.assign({}, c.aims[0], { live: false, rival: true })); });
       const mine = live || u.aim;
       if (mine && standing('0-0')) aims.push({ penguinId: '0-0', dx: mine.dx, dy: mine.dy, power: mine.power,
                                                live: !!live, rival: false });
@@ -3050,6 +3081,7 @@ function cldArenaModel() {
       aims: aims, live: live, snowball: u.mode === 'throw' ? u.snowball : null,
       dive: back ? cldDiveModel(back, u.dive) : null,
       assist: cldAimAssist, clock: cldPrClock, selectedId: null,
+      rivalThrows: u.playing ? [] : u.plans.map((c, i) => c && c.snowball ? { x: c.snowball.x, y: c.snowball.y, ownerIdx: i } : null).filter(Boolean),
     });
   });
 }
@@ -3105,15 +3137,15 @@ function cldPrAction(kind, arg) {
   const u = cldPrUi;
   if (!u) return;
   if (kind === 'again') {
-    cldPrLoadDrill('headon', false);
+    cldPrLoadDrill('headon');
     cldPrUi.coach = cldPrCoachStart();
   } else if (u.playing) {
     return;                                       // nothing else acts during a Slide
   } else if (kind === 'drill') {
-    cldPrLoadDrill(arg, false);
+    cldPrLoadDrill(arg);
     cldPrCoachDispatch({ type: 'reset' });
   } else if (kind === 'resurface' || (kind === 'cta' && u.outcome && u.outcome !== 'in')) {
-    cldPrLoadDrill(u.drill, true);                // Go again == Resurface: aim and lock kept
+    cldPrLoadDrill(u.drill);                // Go again == Resurface: aim and lock kept
     cldPrCoachDispatch({ type: 'reset' });
   } else if (kind === 'power') {
     if (u.lock !== null) u.lock = null;           // tapping a locked bar releases it
@@ -3244,7 +3276,7 @@ function cldPracticeStart() {
   if (!cldPrView && cv && cv.getContext) cldPrView = cldMakeView(cv);
   cldResize(cldPrView);                           // sized on SHOW — a hidden canvas has no box
   cldCamFrame(cldPrView, cldArenaRun(() => cldFloeRadius || CLD_R_STD));
-  if (!cldPrUi) cldPrLoadDrill('headon', false);
+  if (!cldPrUi) cldPrLoadDrill('headon');
   cldPrSyncUI();
   cldPrLastT = 0;
   if (!cldPrRaf) cldPrRaf = requestAnimationFrame(cldPrLoop);

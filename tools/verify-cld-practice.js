@@ -531,13 +531,19 @@ function startClean() {
     }
     return true; })()`);
 }
+// The drills' opening claims (spec § 3.4) — what --tune searches ring seeds for.
+function collided(events, a, b) { return events.some(e => e.type === 'collision' && ((e.a === a && e.b === b) || (e.a === b && e.b === a))); }
 function claimHolds(key) {
-  load(key); resolveWith(HOLD);
-  const d = G('CLD_PR_DRILLS')[key], m = meNow();
-  const events = arena('cldTimeline.events');
-  if (key === 'headon')    return !!m.drowned;
-  if (key === 'crossfire') return events.some(e => e.type === 'collision' && (e.a === '0-0' || e.b === '0-0'));
-  if (key === 'edge')      return !!m.drowned && RUN('cldArcDist')(m.angle, d.gapAt) < 0.35;
+  load(key);
+  if (key === 'crossfire') { resolveWith(HOLD); return arena('cldTimeline.events').some(e => e.type === 'collision' && (e.a === '0-0' || e.b === '0-0')); }
+  if (key === 'headon') {
+    resolveWith(HOLD);
+    const ev = arena('cldTimeline.events');
+    if (!collided(ev, '0-0', '1-0') && !collided(ev, '0-0', '2-0')) return false;
+    for (let k = 0; k < 2 && !meNow().drowned; k++) resolveWith(HOLD);
+    return !!meNow().drowned;
+  }
+  if (key === 'edge') { resolveWith(HOLD); if (meNow().drowned) return true; resolveWith(HOLD); return !!meNow().drowned; }
   return false;
 }
 function counters(key) {
@@ -548,71 +554,85 @@ function counters(key) {
   }
   return found;
 }
-// Stand still, go in, then Snowball Sylvia until someone knocks your plug back.
-function berthReachable(key) {
-  load(key); resolveWith(HOLD);
-  if (!meNow().drowned) return false;
-  for (let i = 0; i < 6; i++) {
-    if (G('cldPrUi').knocked) return true;
-    const sy = arena("cldPenguins.find(p => p.id === '1-0')");
-    resolveWith({ aims: [], dive: null, snowball: { x: sy.x, y: sy.y } });
-  }
-  return !!G('cldPrUi').knocked;
-}
 
 if (TUNE) {
-  // Prints, per drill, the first ring seed at which every claim the harness
-  // checks holds. Paste the numbers into CLD_PR_DRILLS. Asserts nothing.
+  // Prints, per drill, the first ring seed at which every opening claim holds.
+  // Paste the numbers into CLD_PR_DRILLS. Asserts nothing.
   const drills = G('CLD_PR_DRILLS');
   for (const key of Object.keys(drills)) {
     let hit = null;
     for (let seed = 1; seed <= 4000 && hit === null; seed++) {
       RUN(`CLD_PR_DRILLS['${key}'].ringSeed = ${seed}`);
       load(key);
-      if (!startClean() || !claimHolds(key)) continue;
-      if (key === 'headon' && !berthReachable(key)) continue;
-      if (!counters(key).length) continue;
+      if (!startClean() || !claimHolds(key) || !counters(key).length) continue;
       hit = seed;
     }
-    console.log(`${key.padEnd(10)} ringSeed: ${hit === null ? 'NONE in 1..4000 — move place/shoves and re-run' : hit}`);
+    console.log(`${key.padEnd(10)} ringSeed: ${hit === null ? 'NONE in 1..4000 — move \`place\` and re-run' : hit}`);
   }
   process.exit(0);
 }
 
 if (!TUNE) {
-  section('H. The drills');
+  section('H. The drills and their plans');
   const keys = Object.keys(G('CLD_PR_DRILLS'));
   check('three drills, in order', keys, ['headon', 'crossfire', 'edge']);
+  check('each drill is a plan both bots follow', keys.map(k => G('CLD_PR_DRILLS')[k].plan), ['headon', 'crossfire', 'edge']);
+  const plans = () => G('cldPrUi').plans;
+  const bot = i => arena(`cldPenguins.find(p => p.ownerIdx === ${i})`);
+  const aimsAt = (i, tgt) => { const a = plans()[i].aims[0], b = bot(i);
+    return !!a && near(Math.atan2(a.dy, a.dx), Math.atan2(tgt.y - b.y, tgt.x - b.x), 1e-9); };
   keys.forEach(key => {
     load(key);
     ok(`${key}: nobody starts overlapping a chunk or a penguin`, startClean());
-    ok(`${key}: the stand-still claim holds`, claimHolds(key));
+    ok(`${key}: the opening claim holds`, claimHolds(key));
     ok(`${key}: at least one counter keeps you Standing`, counters(key).length > 0, 'none of 180 aims');
     load(key); resolveWith(aimAt(0.3, 0.8)); const t1 = safeJSON(arena('[cldTimeline.samples, cldTimeline.events]'));
     load(key); resolveWith(aimAt(0.3, 0.8)); const t2 = safeJSON(arena('[cldTimeline.samples, cldTimeline.events]'));
-    ok(`${key}: the same aim gives a byte-identical Slide`, t1 === t2);
+    ok(`${key}: the same aim meets the same plan — a byte-identical Slide`, t1 === t2);
   });
 
-  load('headon'); const r1 = safeJSON(G('cldPrUi').rivalAims);
-  resolveWith(aimAt(1, 0.5)); load('headon', true);
-  ok('the rivals shove the same way on every go', r1 === safeJSON(G('cldPrUi').rivalAims));
-  S.__aim = { penguinId: '0-0', dx: 0, dy: 1, power: 0.7 };
-  RUN('cldPrUi.aim = __aim'); load('headon', true);
-  check('Go again keeps your armed aim', safeJSON(G('cldPrUi').aim), safeJSON(S.__aim));
-  load('crossfire');
-  check('a new drill clears it', G('cldPrUi').aim, null);
+  load('headon');
+  ok('Head-on: BOTH bots shove straight at You, full power',
+     [1, 2].every(i => aimsAt(i, meNow()) && near(plans()[i].aims[0].power, 1)));
+  arena("(() => { const me = cldPenguins.find(p => p.id === '0-0'); cldSeatAt(me, cldSeatSpot(0, me.id)); })()");
+  RUN('cldPrRefreshPlans()');
+  ok('Head-on: they keep coming when you are a plug', [1, 2].every(i => aimsAt(i, meNow())));
+  arena("cldKnockBack(cldPenguins.find(p => p.id === '0-0'))");
+  RUN('cldPrRefreshPlans()');
+  ok('…and when you are knocked back', [1, 2].every(i => aimsAt(i, meNow())));
 
-  load('headon'); resolveWith(HOLD);
-  check('Head-on, stand still → outcome in', G('cldPrUi').outcome, 'in');
-  ok('the Berth branch reaches Knocked back (Head-on)', berthReachable('headon'));
-  const spot = arena("cldSeatSpot(Math.PI / 2, '0-0')");
-  if (spot) resolveWith({ aims: [], dive: { penguinId: '0-0', angle: spot.angle }, snowball: null });
-  ok('a Dive arrives Plugged', !!spot && meNow().plug === true);
+  load('crossfire');
+  // The drill starts You ON the line between them, where "at the other bot" and
+  // "at You" point the same way — so step You off it before asking who they want.
+  arena("(() => { const me = cldPenguins.find(p => p.id === '0-0'); me.x = CLD_W / 2; me.y = CLD_H / 2 - 50; })()");
+  RUN('cldPrRefreshPlans()');
+  ok('Crossfire: each bot shoves at the other, not at You',
+     aimsAt(1, bot(2)) && aimsAt(2, bot(1)) && !aimsAt(1, meNow()) && near(plans()[1].aims[0].power, 0.9));
+
+  load('headon');
+  arena("(() => { const b = cldPenguins.find(p => p.ownerIdx === 1); cldSeatAt(b, cldSeatSpot(Math.PI, b.id)); })()");
+  RUN('cldPrRefreshPlans()');
+  ok('a Drowned bot throws a Snowball at its Standing target instead',
+     plans()[1].aims.length === 0 && !!plans()[1].snowball && near(plans()[1].snowball.x, meNow().x) && near(plans()[1].snowball.y, meNow().y));
+  arena("(() => { const me = cldPenguins.find(p => p.id === '0-0'); cldSeatAt(me, cldSeatSpot(Math.PI / 2, me.id)); })()");
+  RUN('cldPrRefreshPlans()');
+  ok('…and holds when its target is in the Drink too', plans()[1].aims.length === 0 && plans()[1].snowball === null);
+
+  // Edge: the cut sends you toward a gap (spec § 3.4: within 25° when you hold still).
+  load('edge');
+  const start = meNow();
+  const toGap = arena(`(() => { const s = cldSeatSpot(cldAngleOf(${start.x}, ${start.y}), null);
+    const g = cldRimPos(s.angle, cldFloeRadius); return Math.atan2(g.y - ${start.y}, g.x - ${start.x}); })()`);
+  resolveWith(HOLD);
+  const after = meNow();
+  const moved = Math.atan2(after.y - start.y, after.x - start.x);
+  const off = Math.abs(((moved - toGap + 3 * Math.PI) % (2 * Math.PI)) - Math.PI);
+  ok('Edge: holding still, the cut sends you toward the nearest gap', after.drowned || off < 25 * Math.PI / 180,
+     'off by ' + (off * 180 / Math.PI).toFixed(1) + '°');
 
   S.window.matchMedia = () => ({ matches: true });
   load('headon'); S.__c = HOLD; RUN('cldPrResolve(__c)');
-  ok('reduced motion: the Slide is finished the moment it is committed', G('cldPrUi').playing === false &&
-     G('cldPrUi').outcome === 'in');
+  ok('reduced motion: the Slide is finished the moment it is committed', G('cldPrUi').playing === false);
   S.window.matchMedia = () => ({ matches: false });
 
   // ── 9(b)/9(c): a LIVE replay is mid-flight; Arena Slides run between its steps.

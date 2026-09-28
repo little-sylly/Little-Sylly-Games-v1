@@ -220,6 +220,19 @@ const M = [
   `  view.base = Math.min(view.box.w, view.box.h) / cldViewFit(view.fitR || CLD_R_STD);
   view.cam.x = CLD_W / 2; view.cam.y = CLD_H / 2; view.cam.z = 1;
   cldCamApply(view);`]], 'practice'],
+
+// ── SW v245: the Practice plans (verify-cld-practice.js) ────────────────────
+['one-bot-sits-out', 'game', [[
+  '  u.plans = cldArenaRun(() => [null, cldPrBotCommit(d, 1), cldPrBotCommit(d, 2)]);',
+  "  u.plans = cldArenaRun(() => [null, cldPrBotCommit(d, 1), { aims: [], dive: null, snowball: null }]);"]], 'practice'],
+
+['headon-gives-up-on-a-plug', 'game', [[
+  '  if (!me || !tgt) return hold;',
+  '  if (!me || !tgt || tgt.drowned) return hold;']], 'practice'],
+
+['crossfire-targets-you', 'game', [[
+  "  if (plan === 'crossfire') return cldPenguins.find(q => q.ownerIdx === (i === 1 ? 2 : 1)) || null;",
+  "  if (plan === 'nope') return null;"]], 'practice'],
 ];
 
 // Which harness a mutant is aimed at. The rules/sim mutants above run the loop
