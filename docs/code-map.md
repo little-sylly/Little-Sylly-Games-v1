@@ -933,12 +933,11 @@ Device-local cosmetic skins. Packets/logic carry ids only, so **no multiplayer s
 id falls back to default art. `window.activeAssetPack` is set in `smLaunch()` (asset branch) and
 cleared in `resetSecretMode()`.
 
-| Function (in `secret-mode.js`) | Purpose |
+| Function (in `js/lib/art.js`) | Purpose |
 |--------------------------------|---------|
 | `assetFace(kind, id)` | Resolved image URL for `(kind, id)` from the active pack, or `null` (→ seam draws default). |
 | `assetBack(kind)` | Resolved face-down image URL for the active pack, or `null`. |
-| `assetSpecial(kind, type, id)` | Resolved image URL for a face that carries a *type* on top of its value (`id` is a face value or the reserved `'blank'`), same skin → core → null chain, per-key fallthrough. First user: DYB's Tempest dice. |
-| `assetSpecialFrame(kind, type)` | Whether the engine still draws its own type chrome (border/tint/glow) around that art; `true` unless a tier opts out with `"frame": false`. |
+| `assetDiceSet(kind)` | The active skin pack's `diceSet` parameter block, or `null` (→ the game default, Rocky). DYB only (SW v241); no core-art tier — the default set is code. Replaced `assetSpecial`/`assetSpecialFrame` (deleted — DYB was their only caller). |
 
 **Render seams (the only place art is built — each calls `assetFace`/`assetBack`, which resolve
 skin pack → core art → emoji fallback in `js/lib/art.js`; `assetExtra(kind,key)` covers non-card
@@ -951,7 +950,7 @@ game art. Core art packs live in `data/art/<kind>/` and ARE precached — see `d
 | Sheep | `shp` | `shpRenderCard(cardId, opts)` | `js/games/shp.js` | `cardId` 0–16 (13 cursed = not skinned) |
 | Gems | `flw` | `flwRenderCard(gemId, opts)` | `js/games/flw.js` | `gemId` 0–9 |
 | Cards | `cards` | `Cards.buildEl/buildBackEl` | `js/lib/cards.js` | `rank`+suit-letter (`AH`,`10S`,`Joker`) via `cardAssetId()` |
-| Dice | `dyb` | `dybDieHTML` + `dybDieBackHTML()` | `js/games/dyb.js` | face value 1–6; Tempest dice (loaded/phantom/slick/cracked/snake) additionally resolve via `assetSpecial`/`assetSpecialFrame`. `dybDieHTML` now returns one of three shapes: framed asset (`.dyb-die-framed` + inner `.dyb-die-art` span, engine chrome around pack art), edge-to-edge asset (`.dyb-die-asset`, standard faces or a type that opted out with `"frame": false`), or the original glyph/pip markup |
+| Dice | `dyb` | `dybDieRecipe` → `dybDieMarkup` (wrapped by `dybDieHTML`) | `js/games/dyb-dice.js` + `js/games/dyb.js` | **Procedural since SW v241** — no images. Face 1–6 × seat tint × Tempest form, drawn from the active dice set (`assetDiceSet('dyb')` → a pack's `diceSet`, else Rocky). `assetSpecial`/`assetSpecialFrame` are deleted |
 | Animals | `pko` | `pkoRenderCard(id, opts)` | `js/games/pko.js` | chain id string (`elephant`, `polar_bear`, `human`) |
 
 **Core art shipped so far:** `pko` (`data/art/pko/` — 15 faces + back + a `chain` extra), `flw`
@@ -964,7 +963,7 @@ own owner). Every other family above still draws its emoji/CSS default. Converti
 `docs/expansion-guide.md` § Core art packs.
 
 Per-game `faces` id cheat-sheet + authoring steps: `docs/expansion-guide.md` § Add an asset (skin) pack.
-CSS: `.frt-card-asset`, `.shp-card-asset`, `.pass-card-asset`, `.dyb-die-asset` (cover/centre, transparent border).
+CSS: `.frt-card-asset`, `.shp-card-asset`, `.pass-card-asset` (cover/centre, transparent border). DYB's dice are procedural (`.dyb-die`, `.dyb-finish-*`, `.dyb-form-*`).
 
 **Nested terminal (Phase B):** top level is content **categories** — `smRenderExpansions()` shows
 `WORD PACKS` / `GAME SKINS` / locked sentinel. `smSelectCategory()` → `smRenderWordPacks()`
@@ -1243,31 +1242,48 @@ Each plugin reads `window.activeExpansionOverrides` at its settings-apply point 
 ## The Bluff (DYB)
 *(display name "The Bluff" since June 2026 — renamed from "Dicey Bluffs"; the `dyb` prefix and all code identifiers below are unchanged.)*
 
-**JS file:** `js/games/dyb.js`
-**Data:** none — word bank not used; dice outcomes are numeric
+**JS files:** `js/games/dyb.js` (the game) + `js/games/dyb-dice.js` (SW v241 — the pure dice layer; loads immediately before `dyb.js`; reads no `dyb*` game state, so it can move to `js/lib/` with a second dice game or the dice selector)
+**Data:** none — word bank not used; dice outcomes are numeric. Dice looks are procedural (`DYB_DICE_SETS` in code; `diceSet` skin packs) — DYB never needs a core art pack
 **Brand colour:** `#6B5744` (warm rock/clay grey — custom; classes `dyb-cta`, `dyb-label`, `pill-active-dyb`, `game-toggle-on-dyb`; moved off ocean blue `#1E4D8C` 5 Sep 2026)
 
 ### Screens
 | Screen ID | Purpose |
 |-----------|---------|
 | `screen-dyb-menu` | Main hub — Play, How to Play, Settings, ← Back to the Box |
-| `screen-dyb-seating` | MDLM host pre-game — shows lobby roster while host reviews player count |
-| `screen-dyb-shake` | Each player shakes and rolls; shows their private die results |
-| `screen-dyb-table` | Main round screen — full table view, bid history, allegation controls |
+| `screen-dyb-seating` | MDLM host pre-game — seats (and so tints) are dealt as it opens; each climber's row shows their tint |
+| `screen-dyb-shake` | The cup: hold to rattle, release to throw; dice tumble as CSS-3D cubes onto the real roll, then settle as your hand (SW v241) |
+| `screen-dyb-table` | The Stack (SW v241): climbers strip, your cup, the claim line, the counting stage (Close-up \| Whole table), face row, Call / Climb — all drawn into `#dyb-table-root` by `dybRenderTable(root, model)` |
 | `screen-dyb-spirit-board` | Eliminated player screen — passive spectator view after losing all dice |
-| `screen-dyb-showdown` | Call Bluff! resolution — reveals all hands, animates count, shows verdict |
+| `screen-dyb-showdown` | The Overlook (SW v241): cups lift (named rows in tints), the fog lifts off Phantoms, each counting die flies into a dashed claim slot (Snake knocks one out), verdict, the loser's mini die plunges |
 | `screen-dyb-gameover` | Final scores, winner reveal, play-again / exit |
 
 ### Overlays
 | Overlay ID | Pattern | z-index | Purpose |
 |------------|---------|---------|---------|
 | `dyb-settings-overlay` | Data (slide-up) | z-[80] | "Ground Rules 📋" — game settings |
-| `dyb-how-to-overlay` | Data (slide-up) | z-[90] | How to Play — two tabs: The Rules \| The Dice |
+| `dyb-how-to-overlay` | Data (slide-up) | z-[90] | How to Play — three tabs: The Rules \| Practice \| The Dice (SW v241). Practice is a scripted hand on the real renderers; The Dice shows faces, seat tints, the five Tempest forms and the cup |
 | `dyb-quit-overlay` | Decision modal | z-[80] | "Back Down?" — mid-game exit confirm |
 | `dyb-new-game-overlay` | Decision modal | z-[90] | "Climb Again?" — play-again confirmation |
-| `dyb-slick-picker-overlay` | Decision modal | z-[100] | Slick die face picker — opened on tap of a Slick die on the table screen |
+| `dyb-slick-picker-overlay` | Decision modal | z-[100] | Slick die face picker — opened on tap of an unpicked Slick die (shake hand or the table's cup) |
 | `dyb-ascent-overlay` | Data (slide-up) | z-[90] | "The Ascent" — full bid history for the current Shake |
-| `dyb-tip-overlay` | Decision modal | z-[90] | Shared contextual tip shell for inline `[?]` buttons |
+| `dyb-tip-overlay` | Decision modal | z-[90] | Shared contextual tip shell for inline `[?]` buttons. No longer carries die info (SW v241) — tap-and-hold on a special die and the Tempest `[?]` both open The Dice tab |
+
+### Element IDs (SW v241)
+| ID | Where | Purpose |
+|----|-------|---------|
+| `dyb-table-root` | table | Everything below the header — drawn by `dybRenderTable`; taps route through ONE delegated `onclick` via `data-act` (`face`/`inc`/`dec`/`view`/`climb`/`call`/`ascent`/`slick`) |
+| `dyb-table-shake` | table | "Shake N" header label |
+| `dyb-shake-stage` / `dyb-shake-cup` / `dyb-shake-dice` / `dyb-shake-climbers` | shake | pointerdown = press, pointerup/leave/cancel = release; the cup; the throw's cubes then the settled hand; the climbers strip |
+| `dyb-showdown-climbers` / `dyb-showdown-claimed` / `dyb-showdown-stage` / `dyb-showdown-hands` | showdown | The Overlook's parts (`dybShowdownEls()`); `-stage` holds the `.dyb-slot`s |
+| `dyb-how-to-practice` | how-to | Practice tab body (scrolls; scrolled to top when the coach line changes) |
+| `dyb-pr-step` / `dyb-pr-coach` | practice | Step counter ("3 / 7") and coach line |
+| `dyb-pr-shake` / `dyb-pr-cup` / `dyb-pr-dice` | practice | The throw, via the shared `dybPlayThrow` |
+| `dyb-pr-table` | practice | The table, via the shared `dybRenderTable` |
+| `dyb-pr-reveal` + `dyb-pr-rv-*` | practice | The reveal, via the shared `dybPlayReveal` |
+| `btn-dyb-pr-next` / `btn-dyb-pr-again` / `btn-dyb-howto-close-practice` | practice | Next (read step), Practice again, Got it |
+| `btn-dyb-howto-tab-practice` | how-to | The Practice tab pill |
+
+**Removed at SW v241:** `dyb-pip-row`, `dyb-allegation-display`, `dyb-last-bidder-label`, `dyb-turn-label`, `dyb-bid-controls`, `dyb-qty-display`, `dyb-face-display`, `btn-dyb-qty-dec/inc`, `btn-dyb-face-dec/inc`, `btn-dyb-call-bluff`, `btn-dyb-raise`, `dyb-waiting-label`, `dyb-ascent-section`, `dyb-ascent-preview`, `btn-dyb-ascent-open` (now `data-act="ascent"`), `dyb-hand-dock-table`, `btn-dyb-hand-tip`, `dyb-shake-cup-area`, `dyb-hand-dock-shake`, `dyb-shake-dice-counts`.
 
 ### Key State Variables
 | Variable | Type | Default | Purpose |
@@ -1294,6 +1310,12 @@ Each plugin reads `window.activeExpansionOverrides` at its settings-apply point 
 | `dybFootholdsMode` | bool | `false` | Toggle — lose a foothold instead of a die on a loss; dice count stays fixed at `dybStartingHand` all game |
 | `dybFootholdsCount` | int | `5` | Starting footholds per player when `dybFootholdsMode` is on (`3`/`5`/`10`) |
 | `dybLives` | int[] | `[]` | Per-player footholds remaining; unused (`[]`) when `dybFootholdsMode` is off |
+| `dybDraft` | object\|null | `null` | `{ face, qty, notice }` — this device's bid in progress; `null` off-turn and whenever the claim changes (SW v241) |
+| `dybStageView` | string | `'whole'` | Stage view `'whole'` / `'close'` — memory only; survives matches, not reloads |
+| `dybAnimTimers` | handle[] | `[]` | The live game's choreography bag (shake, reveal, the game-over hand-off). Cleared by `dybStopChoreography()` |
+| `dybPrTimers` | handle[] | `[]` | Practice's bag — never touched by the live stop, and vice versa. Cleared by `dybPracticeStop()` |
+| `dybShakeHeld` | bool | `false` | The cup is being held (rattling) |
+| `dybPr` | object\|null | `null` | Practice state (`dybPracticeInit()` shape); `null` whenever the tab is not showing |
 
 > [RESOLVED — June 2026]: shipped Sylly Mode is now **"The Tempest"** (renamed from "Devil's Luck" in the thematic sweep) with five secret die types — `'loaded'` / `'phantom'` / `'slick'` / `'cracked'` / `'snake'` strings in `dyb.js`. `docs/game-identities/dyb.md` documents all five. The internal die-type strings are unchanged by the rename.
 
@@ -1301,23 +1323,50 @@ Each plugin reads `window.activeExpansionOverrides` at its settings-apply point 
 | Function | Purpose |
 |----------|---------|
 | `dybStartSession()` | Post-lobby entry — host routes to seating, clients wait for `DYB_GAME_START` |
-| `dybShowSeating()` | Renders lobby roster + shows `screen-dyb-seating` (host only) |
-| `dybStartGame()` | Assigns seats, builds dice arrays, broadcasts `DYB_GAME_START` |
+| `dybShowSeating()` | Deals seats (`dybSeatNumbers`, so tints) and renders the tinted roster; shows `screen-dyb-seating` (host only) |
+| `dybStartGame()` | Builds dice arrays, broadcasts `DYB_GAME_START` (seats already dealt by `dybShowSeating`) |
 | `dybInitShake()` | Rolls dice for active players; routes each player to `screen-dyb-shake` |
 | `dybGenerateRoll()` | Rolls this device's dice; applies The Tempest special-type chance per die |
-| `dybRenderTableScreen()` | Renders table view — pip row, bid history, allegation controls |
-| `dybComputeRealCount(face)` | Counts matching dice across all hands; branches on wildcards style + `dybOnesStripped` |
-| `dybOpenSlickPicker(dieIdx)` / `dybAssignSlickFace(face)` | Slick die face picker overlay (local only) |
+| `dybRenderTableScreen(extra)` / `dybTableAct(act, data)` | Live wiring: builds `dybTableModel()` and draws it through `dybRenderTable`; routes the table's `data-act` taps |
+| **Pure rules** `dybRulesNow()`, `dybClaimNow()`, `dybFaceAllowed(face, rules)`, `dybMinQty(claim, face)`, `dybLegalRaise(claim, bid, rules)`, `dybFaceNote(face, rules)` | Read no globals (`rules = { wildcards, onesStripped }`); shared by the table and Practice. Volatile after a 1s claim allows only 1s |
+| **Counting** `dybDieDelta`, `dybCountEvents(face, hands, rules)`, `dybCountSum(events)`, `dybHandsNow()` | ONE source: ordered per-die events `{ pIdx, dieIdx, delta }` (positives, then zeros, then negatives); the verdict is their sum and the reveal plays the same list. Iterates seats by index to `hands.n` (an eliminated seat is a Firebase hole). `dybComputeRealCount(face)` is a thin wrapper |
+| `dybYouHold(hand, face, rules)` / `dybMyHand()` | What THIS player can vouch for — Phantom never counts, Loaded 2, Cracked/Snake 0, a Slick its picked/shown face |
+| `dybDraftInit(claim, rules)` / `dybDraftReduce(draft, action, ctx)` | The bid draft: opens at the lowest legal raise; a face tap snaps to its minimum; − stops at the minimum, + at the table total; a closed face raises a notice |
+| `dybStageFit(n, w, h)` / `dybStageWidth(root, m)` | Largest die size that fits n dice (groups of five); 0 → the stage collapses ghosts to "+N more". Width comes from the root (or the viewport while hidden) minus this model's chrome — never from the last render |
+| `dybTableModel()` / `dybPlayersModel(turnIdx)` / `dybTableTotal()` | The model the renderers read (shape in the plan, Task 9) |
+| **Renderers** `dybRenderTable(root, m, onAct)`, `dybClimbersHTML`, `dybCupDiceHTML`, `dybClaimLineHTML`, `dybStageHTML`, `dybControlsHTML` | Model in, markup out — shared by the live table and Practice. Every name through `dybEsc` |
+| `dybBindHandHolds(box)` | Tap-and-hold on a special die → `dybOpenHowTo('dice', type)` + `refHighlightRow` |
+| `dybRenderShakeScreen()`, `dybCupPress()` / `dybCupRelease()` / `dybThrow()`, `dybShowShakeHand()`, `dybDoRoll()` | The shake: press rattles (a held cup throws itself after 3 s), release throws; Ready without shaking rolls at once |
+| `dybPlayThrow(els, hand, set, tint, bag, onDone)` | The throw — shared with Practice; instant under reduced motion |
+| `dybRevealPlan(events, claimed)` / `dybRevealDelay(i)` / `dybRevealSpec(o)` / `dybPlayReveal(els, spec, bag, onDone)` | The Overlook: slots from the event list (a Snake knock above the claim removes its slot), accelerating ticks, verdict — shared with Practice |
+| `DYB_SOUND` / `dybSound(moment)` | Moment → existing engine sound (the `CJAR_SOUND` pattern) |
+| `dybLater(bag, fn, ms)` / `dybStopBag(bag)` / `dybStopChoreography()` | Timer bags; the live stop runs on quit-confirm, in `resetToLobby()`, at `dybInitShake`, on `DYB_SHAKE_ACTIVE` |
+| **Practice** `DYB_PRACTICE`, `DYB_PR_STEPS`, `DYB_PR_COACH`, `dybPracticeReduce`, `dybPracticeOutcome`, `dybPracticeModel`, `dybPracticeStart/Stop/Dispatch/Render/Act/Throw` | The scripted demo (pure reducer + a driver on `dybPrTimers`); never sends a packet or touches live state |
+| `dybOpenHowTo(tab, highlightId)` / `dybSetHowToTab(tab, highlightId)` / `dybRenderDiceGallery(highlightId)` | Three tabs; switching starts/stops Practice; the gallery's rows carry `data-dyb-die-type` |
+| `dybTintFor(playerIdx)` / `dybEsc(s)` / `dybDieHTML(...)` | Tint = seat − 1 (the future colour-pick hook); HTML escaping; the compatibility wrapper over recipe + painter |
+| `dybOpenSlickPicker(dieIdx)` / `dybAssignSlickFace(face)` | Slick die face picker overlay (local; a picked face syncs via `DYB_SLICK_UPDATE`) |
 | `dybShowSpiritBoard()` | Eliminated-player spectator screen |
 | `dybProcessAllegation(face, count)` | Validates and records a bid; advances `dybCurrentBidderIdx`; broadcasts `DYB_ALLEGATION_SYNC` |
 | `dybProcessCallBluff()` | Sets `dybChallengerIdx`; triggers `dybResolveShowdown()` on host |
 | `dybResolveShowdown()` | Counts real dice, determines loser, updates `dybDiceInHand` and `dybActivePlayers`; broadcasts `DYB_SHOWDOWN` |
 | `dybApplyShowdown(data)` | Applies showdown state; shows `screen-dyb-showdown`; calls `dybRenderShowdownScreen` with gameover callback |
-| `dybRenderShowdownScreen(data, onDone)` | Animated tally: count-up at 400ms/tick with `playTick()`, then verdict reveal; calls `onDone()` when complete |
+| `dybRenderShowdownScreen(data, onDone)` | Builds the reveal spec from the payload and plays `dybPlayReveal` on `dybAnimTimers`; `onDone` shows Next Shake / "Waiting for host…" |
 | `dybBroadcastShakeActive()` | Broadcasts `DYB_SPIRIT_SHAKE` (for eliminated) then `DYB_SHAKE_ACTIVE` (for active); sends `DYB_GAMEOVER` if 1 player remains |
 | `dybAdvanceFromShowdown()` | Cleans bid state; resets for next shake |
 | `dybShowGameover(payload)` | Renders final scores, winner, plan history; shows `screen-dyb-gameover` |
 | `dybHandleEnvelope(env)` | Routes all DYB ACTION/SYNC packets; called from `engine-multiplayer.js` |
+
+### `js/games/dyb-dice.js` — the pure dice layer (SW v241)
+| Symbol | Purpose |
+|--------|---------|
+| `DYB_DICE_SETS` (`rocky` default, `classic`) / `dybActiveSet()` | Built-in sets; the active skin pack's `diceSet` (via `assetDiceSet('dyb')`) wins when valid, else Rocky |
+| `dybValidateDiceSet(s)` | Schema check (8 tints, hex colours, `finish` ∈ `stone\|plain\|glass`, `pips` ∈ `carved\|printed`) |
+| `dybTint` / `dybTintHex` / `dybPipFor` / `dybLum` / `dybContrast` / `dybShade` | Colour maths — pip colour from tint luminance, ≥ 3:1 contrast |
+| `dybDieRecipe({ set, tint, face, type, secondary, state })` | Pure recipe; a `'concealed'` Phantom carries NO face (the leak guard) |
+| `dybDieMarkup(recipe, px, attrs, extraClass)` / `DYB_OVERLAY_HTML` | The painter — HTML/CSS + inline SVG (not canvas: crisp at any DPR, and it renders in a loopback's mock DOM) |
+| `dybMiniMarkup(set, tint, cls)` / `dybCupMarkup(set, extraStyle)` | Climber life marker; the leather cup (its look lives in `css/styles.css`) |
+| `dybCubeMarkup(recipeForFace, landFace, px)` / `dybRollCube(el, ms, seed)` / `dybLandCube(el)` / `DYB_CUBE_LAND` | The CSS `preserve-3d` cube for the throw |
+| `dybReducedMotion()` | JS reduced-motion check for every scripted animation |
 
 ### Per-Game ACTION/SYNC Packet Types
 | Packet | Type | Direction | Payload |

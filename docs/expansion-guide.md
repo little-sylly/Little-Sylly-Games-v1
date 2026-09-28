@@ -227,63 +227,57 @@ all its weight.
 | Pecking Order | `pko` | `mouse` · `mongoose` · `leopard` · `eagle` · `bear` · `elephant` · `bee` · `fish` · `octopus` · `seal` · `polar_bear` · `orca` · `stingray` · `human` (the Poacher) · `mimic` (Invasive Mimicry). Plus one **extra**, `chain` — the food-chain diagram, wide not card-shaped | ~4.25 : 5.75 |
 | Cookie Jar | `cjar` | `cookie-handful` · `cookie-batch` · `cookie-mountain` (three TIERS covering all 15 values — the number is a text overlay, don't paint one) · `family-mum` · `family-dad` · `family-big` · `family-grandma` · `family-pet` · `treat-shortbread` · `treat-redvelvet` · `treat-macadamia` · `treat-macarons` · `treat-brownies` | ~15 : 20.6 |
 | PASS | `cards` | `rank` + suit-letter: rank ∈ `3 4 5 6 7 8 9 10 J Q K A 2`; suit ∈ `H D C S`. e.g. `AH`, `10S`, `KD`. Joker = `Joker` | ~3.5 : 5 |
-| The Bluff | `dyb` | die face value `1`–`6`, plus an optional `specials` block for the five Tempest die types — see below | square |
+| The Bluff | `dyb` | **no image ids** — a DYB pack is a `diceSet` parameter block (SW v241), see § DYB dice sets below | — |
 
 > **Tip:** start partial. Skin a few ids, register, and check it in-game — the rest stay default
 > until you add them. The bundled `neon-*` packs (one per game) are working SVG references you can
 > copy and replace image-by-image.
 
-### Optional: `specials` — art for a face that carries a *type*
+### DYB dice sets — a `diceSet`, not images (SW v241)
 
-Some games modify a face without changing its value. The Bluff's Sylly Mode
-(**The Tempest**) turns dice into one of five types — `loaded`, `phantom`, `slick`,
-`cracked`, `snake` — and the type has to stay readable at a glance no matter what
-art you supply. The optional `specials` block is how you skin those.
+The Bluff's dice are **procedural**: every die is drawn from a recipe (set × seat tint × face ×
+Tempest form), so a DYB skin pack carries **parameters, no image files** — and no `img/` folder.
+The game default, **Rocky**, lives in code (`DYB_DICE_SETS` in `js/games/dyb-dice.js`), so DYB never
+needs a core art pack.
 
 ```json
 "assets": {
-  "kind": "dyb", "basePath": "img/",
-  "faces": { "1": "1.svg", "…": "…", "6": "6.svg" },
-  "back":  "back.svg",
-  "specials": {
-    "loaded":  { "1": "l1.svg", "…": "…", "6": "l6.svg" },
-    "snake":   { "3": "s3.svg", "frame": false },
-    "phantom": { "blank": "ghost.svg" },
-    "cracked": { "blank": "broken.svg" }
+  "kind": "dyb",
+  "diceSet": {
+    "id": "classic", "label": "Classic", "finish": "plain", "pip": "printed", "edge": 0, "speckle": 0,
+    "tints": [
+      { "name": "ivory", "body": "#F5F1E8" }, { "name": "sand",  "body": "#E4CFA3" },
+      { "name": "amber", "body": "#D9A441" }, { "name": "coral", "body": "#C8664A" },
+      { "name": "sage",  "body": "#8A9A68" }, { "name": "steel", "body": "#667784" },
+      { "name": "cocoa", "body": "#7A5238" }, { "name": "charcoal", "body": "#3E3C3A" }
+    ],
+    "cup": { "body": "#4A4744", "rim": "#2F2D2B" }
   }
 }
 ```
 
-Three key shapes inside a type:
+| Field | Rule |
+|-------|------|
+| `id` / `label` | `label` is required (a non-empty string); `id` names the set |
+| `finish` | `stone` · `plain` · `glass` — the body material |
+| `pip` | `carved` (dark recess, lit lower lip) · `printed` (flat) |
+| `edge` / `speckle` | Numbers `0`–`1`: corner wear; surface speckle |
+| `tints` | **Exactly 8**, each `{ name, body, pip? }` with `#RRGGBB` colours. A tint is a *player's identity* (tint = seat − 1), so order them **light → dark** with a real luminance spread — the eight must still separate in greyscale. `name` captions the tile in How to Play → The Dice; give every tint one |
+| `tints[i].pip` | Optional. Absent → derived from the body's luminance (dark pips on light bodies, pale on dark) |
+| `cup` | `{ body, rim }` — the leather cup's colours |
 
-| Key | Meaning |
-|-----|---------|
-| `"1"`–`"6"` | That type showing that face value |
-| `"blank"` | That type when it shows **no** face value — a concealed phantom, a cracked die |
-| `"frame"` | Boolean, default `true` — see below |
+**Fallback:** a set that fails validation (`dybValidateDiceSet`) is **not** used — the game draws
+Rocky and logs a console warning naming the bad fields. A broken pack can never break the table.
 
-**The frame is the type; the image is the face.** By default the engine still draws
-its own coloured border, tint and glow *around* your art, so a Loaded die is
-unmistakably loaded however you paint it. Anything you leave out falls back to the
-plain face from `faces`, still framed — so a `specials`-less pack already looks
-right, and a partial one degrades instead of breaking.
+**The Tempest is not per-pack.** Loaded, Cracked, Snake, Slick and Phantom are overlays the recipe
+draws on *any* set and tint (bronze studs, a fissure, serpent eyes, a wet sheen, a mist) — their
+identity is form, never colour, because the body belongs to its owner's tint.
 
-Set `"frame": false` on a type when your art already carries that identity itself
-and the engine border would just double it up. Two things you should know before you
-do: the opt-out is **ignored** for any face you didn't supply (otherwise a missing
-face would quietly ship an unmarked die), and you are taking responsibility for
-keeping that type distinguishable from the other four.
+**Pip contrast is checked:** `node tools/verify-dyb-dice.js` asserts pips meet a **3:1** contrast
+floor on all 8 tints of every built-in set and every shipped pack.
 
-**`"blank"` never falls back to a face image.** If you supply phantom face art but no
-`blank`, a concealed phantom draws the engine's `?` glyph — it will not fall back to
-`faces`, because that would render the hidden value and leak it to the whole table.
-
-**Not everything is skinnable.** An unassigned Slick keeps its engine `4*` glyph: the
-digit is the live auto-rolled face the player needs in order to choose, not decoration.
-
-`data/packs/deep-ocean-dice/` is a complete working example — it uses per-type faces,
-the frame opt-out, both `blank` keys, and one deliberately omitted type.
-`data/packs/sea-cliff-dice/` is deliberately faces-only, so you can see the fallback.
+Shipped packs: `data/packs/deep-ocean-dice/` (glass), `data/packs/sea-cliff-dice/` (stone), and
+`data/packs/classic-dice/` (the Classic set, so it is selectable from the Terminal today).
 
 Verify any change to this seam with `node tools/verify-dyb-dice.js`.
 
@@ -363,8 +357,8 @@ on an MDLM-only game the check needed four phones and a room to answer a service
 See `ui-style.md` § How-to Overlay Standard → optional tab bar for the gallery pattern.
 
 **As of 10 Aug 2026 every game with core art has one** — CJAR, PKO, FRT, SHP and FLW — so this
-check is a single-device job everywhere it applies. DYB has a gallery too, ready for the day it gets
-art. **PASS is the only render seam still without one** (54 faces); it also has no core art, so
+check is a single-device job everywhere it applies. DYB's gallery is procedural (SW v241) — it
+shows no art, so it is not an install check. **PASS is the only render seam still without one** (54 faces); it also has no core art, so
 nothing is currently unverifiable.
 
 **A tile that shows art but won't enlarge on tap is the same failure signal.** The gallery only
@@ -388,7 +382,7 @@ precache, with no JS edit at all. Use the `faces` id cheat-sheet above for that 
 | Counting Sheep | `shp` | `shpRenderCard` | ✅ `data/art/shp/` | 16 faces (ids `0`–`12`, `14`–`16`) + back. Promoted from the `plush-sheeps` skin (Aug 2026) — 400×550 masters held at source width, all 17 files under 40 KB, 640 KB total. **id 13 (Fogged Dream) stays permanently unskinned by design** — `shpRenderCard` hardcodes its cursed placeholder before ever calling `assetFace`, because its value is hidden from every player including its own owner; the manifest's `faces` block simply has no `"13"` key, same as the source skin already didn't |
 | Flawless | `flw` | `flwRenderCard` | ✅ `data/art/flw/` | 10 gems, id = carat value `0`–`9`. Promoted from the `prismatic-gems` skin (Aug 2026) — 338×488 masters were already the exact card aspect, so the converter held the width and only re-encoded: 1.1 MB PNG → **217 KB JPEG**, all 11 at q88 |
 | PASS | `cards` | `Cards.buildEl` | ⬜ CSS default | 54 faces (`AH`…`Joker`) — by far the biggest precache; budget before generating |
-| The Bluff | `dyb` | `dybDieHTML` | ⬜ pip default | Die faces `1`–`6` only. **Needs alpha** if the die isn't a full square — JPEG won't do; use PNG |
+| The Bluff | `dyb` | `dybDieRecipe` → `dybDieMarkup` | ✅ procedural (SW v241) | **Never needs a core pack** — the default Rocky set is code. Skins are `diceSet` packs: § DYB dice sets |
 
 Steps for each: run `tools/convert-core-art.ps1` (edit its CONFIG block) → write
 `data/art/<kind>/pack.json` → add the id to `data/art/registry.json` → add the manifest **and every

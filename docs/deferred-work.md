@@ -12,6 +12,25 @@ the discovery record is kept there, not deleted. A section with nothing left ope
 
 ---
 
+## Found during the DYB dice/table/Practice build (28 Sep 2026, SW v241)
+
+Spec § 10's deliberate outs — each is its own later piece of work, none blocks anything.
+
+- **Dice selector + a Lounge dice-tower prop.** Players pick a dice set; the `diceSet` skin packs
+  (Deep Ocean, Sea Cliff, Classic) are the catalogue. When it lands, `js/games/dyb-dice.js` moves to
+  `js/lib/` (it already reads no `dyb*` state).
+- **Seat and colour picking in the waiting lobby — suite-wide.** Today a DYB tint is `seat − 1`;
+  `dybTintFor(playerIdx)` is the one function a colour pick replaces. Other games would need their own hook.
+- **Practice tab retrofit — one line per remaining game (19).** The pattern is `ui-style.md`
+  § Practice tab; DYB is the reference. The expensive part is making each game's renderers take a
+  model. LI5 · GM · SS · JEC · YGI · LTTP · NAT · DSD · GTH · BLD · PASS · NT · FRT · SHP · FLW · PKO ·
+  CJAR · CLD · COMB.
+- **Persisting the stage view toggle** (Close-up | Whole table) across sessions — needs a new
+  permitted `localStorage` key (CLAUDE.md § Anti-Patterns lists the permitted ones). Owner call;
+  today it is memory-only (`dybStageView`).
+
+---
+
 ## Bookshelf easter eggs — deferred by the owner (25 Sep 2026, sandbox)
 
 The room pass's item 15 dressed the lounge bookshelf's top two boards with books and toys. The owner
@@ -456,28 +475,6 @@ section in the same change.
   fixed line every session, unlike the suite's Round/Night Intro standard (a small rotating pool,
   per `ui-style.md`). Lower priority — CJAR carries the identical open item for its own Raid
   Summary screen.
-
----
-
-## DYB — Phantom-die reveal + a procedural dice rework (23 Aug 2026; re-scoped 28 Sep 2026)
-
-**Owner's direction (28 Sep 2026): park the Phantom question and fold it into a dice rework.** Now
-that the suite has shown what procedural generation can do (CLD's canvas penguins, COMB's board, the
-3D controller), DYB's dice should be **generated, not drawn** — the standard die and every special
-die (the Phantom, and whatever The Tempest and the Wildcards styles need) built by code rather than
-leaning on artwork. Decide the Phantom's reveal as part of that design pass, not before it.
-
-- **The gap itself, unchanged.** `dyb-how-to-overlay`'s Sylly Mode card says *"Phantom hide their
-  face until The Overlook"*, implying the "?" resolves at the reveal; the shipped `dybRenderShowdownScreen`
-  keeps the "?" through the showdown (also in `dyb-implementation-notes.md`'s bug index). Either make
-  the face resolve at `screen-dyb-showdown` or rewrite the line — an owner design call.
-- **What the rework touches.** All dice render through one seam — `dybDieHTML` (`js/games/dyb.js`),
-  plus `js/lib/art.js`'s `assetFace` for any skin. `tools/verify-dyb-dice.js` (90+) covers that seam and
-  is the harness to extend. DYB is also one of the two games still without core art
-  (`docs/expansion-guide.md` § Core art packs) — a procedural die could make its core-art pack
-  unnecessary; say so in the spec either way. A skin pack must still be able to override a generated
-  face (the render seam's three tiers).
-- **Size.** Tier 2 — a design pass (brainstorm → spec) on one game's render seam, then the build.
 
 ---
 

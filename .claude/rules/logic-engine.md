@@ -46,9 +46,11 @@
 | `bindCardHold(el, onHold, ms=500)` | Touch/mouse press-and-hold (500ms default), cancels on move/scroll. The mechanics behind ui-style.md's § Tap-Hold Reference pattern — a game's own `[abbr]BindCardHold(el, id)` is a one-line wrapper: `bindCardHold(el, () => [abbr]OpenHowTo('cards', id))`. | PKO (`pkoBindChainHold`), SHP (`shpBindCardHold`), FLW (`flwBindCardHold`) |
 | `refHighlightRow(box, attr, id, pingClass, ms=1600)` | Scrolls a gallery row into view and rings it briefly (box-shadow transition, not `animation` — the global reduced-motion block already zeroes it). Called from the game's How-to gallery renderer when a tap-hold passes a `highlightId`. | PKO, SHP, FLW |
 
-**Dice is deliberately NOT shared** — all dice logic lives in `js/games/dyb.js`
-(`dybGenerateRoll`, `dybComputeRealCount`, `dybDieHTML`) coupled to DYB state.
-Extract into a shared module only if a second dice game appears (YAGNI until then).
+**Dice is deliberately NOT shared — yet.** The dice *looks* live in `js/games/dyb-dice.js` (SW v241):
+a game-owned, **pure** layer — sets, the recipe, the HTML/CSS painter, the CSS-3D cube — that takes
+everything as arguments and reads no `dyb*` game state. It is the unit that moves to `js/lib/` when a
+second dice game or the dice selector arrives (YAGNI until then). Dice *rules* (`dybGenerateRoll`,
+`dybCountEvents`, `dybLegalRaise`) stay in `js/games/dyb.js`.
 
 ---
 
@@ -99,7 +101,7 @@ All sound **effects** are synthesised via Web Audio API — no files, and that w
 
 **Force of Nature adds NO new audio functions.** PKO's nine events announce themselves by **reusing** the catalogue above, mapped in one place — `PKO_EVENT_SOUND` in `js/games/pko.js`: `playPoacher` (Invasive Mimicry — out-of-ecosystem, like the Poacher itself), `playAbyssThud` (The Culling, Extinction Event), `playWhoosh` (The Great Reversal, Migration), `playSonarPing` (Alpha, Carrion), `playDone` (The Deluge, The Dry Season). Keeping the map beside the registry is deliberate: an event's identity (data) and its voice (audio) cannot drift apart, and a new event needs no new synthesised sound.
 
-**Cookie Jar adds NO new audio functions either** — same pattern, one map: `CJAR_SOUND` in `js/games/cjar.js` names a *moment* (`cookie`, `caughtFirst`, `busted`, `reveal`, `soloSneak`, `treatSpecial`/`treatSuper`, `raidLost`, `highAlert`, `dobBackfire`, `matchEnd`) and points it at an existing `play*()`. Two games now use this shape; treat it as the default for a new game rather than synthesising more tones.
+**Cookie Jar adds NO new audio functions either** — same pattern, one map: `CJAR_SOUND` in `js/games/cjar.js` names a *moment* (`cookie`, `caughtFirst`, `busted`, `reveal`, `soloSneak`, `treatSpecial`/`treatSuper`, `raidLost`, `highAlert`, `dobBackfire`, `matchEnd`) and points it at an existing `play*()`. Two games now use this shape; treat it as the default for a new game rather than synthesising more tones. The Bluff joins them: `DYB_SOUND` in `js/games/dyb.js` (SW v241).
 
 Global audio state: `isMuted` (bool), `masterVolume` (0–1), `audioCtx` (Web Audio context),
 `sfxEnabled` (bool, 28 Aug 2026 — System Sounds toggle, independent of `isMuted`; every `play*()`
@@ -665,6 +667,13 @@ and by `jbxStop()` in `resetToLobby()`; its stage is kept, like the room, never 
 **one** place, `mpEndMatchLocal()` — reached from `resetToLobby()` (via `mpReconnectTeardown()`), from
 `LOBBY_RESET` on both sides, and from an abandoned rejoin. `mpStopListeners()` also drops both listeners.
 
+**The Bluff's choreography bags (SW v241).** Every shake/reveal timeout goes through `dybLater(bag, …)`
+into one of two named bags: `dybAnimTimers` (the live game — cleared by `dybStopChoreography()` on
+quit-confirm, in `resetToLobby()`, at `dybInitShake`, on `DYB_SHAKE_ACTIVE` and before a reveal) and
+`dybPrTimers` (Practice — cleared by `dybPracticeStop()` on tab-away, close and in `resetToLobby()`).
+Stopping one never touches the other, which is what lets Practice open mid-game without disturbing a
+live Shake.
+
 ---
 
 ## PWA Guardian
@@ -711,7 +720,9 @@ list), and `tools/convert-core-art.ps1` is the converter. Converting a game need
 edit** — its seam already calls `assetFace`/`assetBack`. **A conversion is not done until `sw.js`
 carries the manifest AND every image in `PRECACHE_URLS` and `CACHE_NAME` is bumped** — that step is
 the whole difference from a skin pack, and missing it means the art is simply absent on a cold
-offline install.
+offline install. **DYB never needs a core art pack** (SW v241): its default dice (Rocky) are
+procedural, defined in code, and its skins are `diceSet` parameter blocks resolved by
+`assetDiceSet(kind)` — see `docs/expansion-guide.md` § DYB dice sets.
 
 **Music — runtime-cached, NOT precached (28 Aug 2026):** `data/music/` follows the same split as
 `data/packs/` and for a sharper version of the same reason: **manifest network-first** (a new track

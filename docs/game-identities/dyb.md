@@ -2,7 +2,7 @@
 
 **Game 10** · `activeGameId: dyb` · plugin `js/games/dyb.js`
 **Emoji:** 🎲 · **Brand:** warm rock-grey `#6B5744` · **Players:** 3–8 · **Modes:** MDLM only
-**Status:** gold master · verified against SW v209 on 23 August 2026
+**Status:** gold master · verified against SW v241 on 28 September 2026
 
 > **Change contract.** Each section is tagged **free** (reword freely — but it must stay true),
 > **paired** (change the doc and the code together, or you open a gap between them), or **derived**
@@ -60,8 +60,9 @@ Y exist across everyone's hands combined." That's **The Claim**, and it can neve
 
 **Climb or challenge.** On your turn, you must either:
 
-- **Climb Higher** — make a bolder claim: a higher quantity of any face, or the same quantity of a
-  higher face.
+- **Climb** — make a bolder claim: a higher quantity of any face, or the same quantity of a
+  higher face. The button spells out the bid you are committing ("Climb: six 4s"), and the draft
+  opens at the lowest legal climb, so a claim that isn't a raise can't be built at all.
 - **Call the Bluff** — refuse to climb, forcing **The Overlook**: every hand on the table is revealed
   at once, and the real count of the claimed face is tallied.
 
@@ -80,7 +81,7 @@ is a step higher, every challenge is a doubt about whether someone can actually 
 and losing is *the plunge*. The metaphor was chosen deliberately for the double meaning of the
 game's own title: a bluff is both a lie and a sea-cliff.
 
-**The voice** leans fully into the climbing register: *Climb Higher*, *The Overlook*, *The Ascent*
+**The voice** leans fully into the climbing register: *Climb*, *The Overlook*, *The Ascent*
 (the bid history), *The Depths* (elimination), *The Summit* (victory), *Back Down?* (quitting). There
 is no other layer of fiction — the geography metaphor carries the entire theme by itself.
 
@@ -107,7 +108,7 @@ names, screen IDs) predate the rename to "The Bluff" and are unaffected by it.*
 | **Shake** | One full round of rolling, claiming, and The Overlook. |
 | **The Claim** | The active player's claim about how many of a face exist across every hand at the table. |
 | **Call the Bluff** | Challenge the previous Claim — triggers The Overlook. |
-| **Climb Higher** | Escalate — bid a higher quantity of any face, or the same quantity of a higher face. |
+| **Climb** | Escalate — bid a higher quantity of any face, or the same quantity of a higher face. The opener's first claim is "Open with". |
 | **The Overlook** | All hands revealed at once; real count vs. claimed count decides the loser. |
 | **The Ascent** | The full bid history for the current Shake. |
 | **The Tempest** | Sylly Mode — see T8. |
@@ -137,7 +138,7 @@ climb."*
 | **✨ Sylly Mode** | OFF / ON | OFF | The Tempest. See T8. |
 
 **Footholds decouples elimination from your hand size.** With it on, you always roll the same number
-of dice every Shake regardless of how many losses you've taken — the pip row switches to a ◆ symbol
+of dice every Shake regardless of how many losses you've taken — the climbers strip shows ◆ lives
 and the loss language switches to "loses a foothold" instead of "loses a die," but the win condition
 is otherwise identical: run out (of footholds, this time) and you're eliminated.
 
@@ -154,10 +155,10 @@ is the game's velocity dial instead.
 |---|--------|------|------|----------|--------|
 | 1 | `screen-dyb-menu` | Pick your poison | Menu | — | 🔊 |
 | 2 | `screen-dyb-seating` | Host-only roster confirm before the deal | Setup | — | 🔊 ✕ |
-| 3 | `screen-dyb-shake` | Tap the cup — "Shake #N", roll privately | Interactive | — | `[?]` 🔊 ✕ |
-| 4 | `screen-dyb-table` | Claims escalate, Call the Bluff ends the Shake | Interactive | — | `[?]` 🔊 ✕ |
+| 3 | `screen-dyb-shake` | "Hold the cup to shake, let go to throw" — the dice tumble as cubes onto your private roll | Interactive | — | `[?]` 🔊 ✕ |
+| 4 | `screen-dyb-table` | Claims escalate on the counting stage ("You hold 3 · need 3 more…"); Call the Bluff ends the Shake | Interactive | — | `[?]` 🔊 ✕ |
 | 5 | `screen-dyb-spirit-board` | Eliminated players' passive spectator view — "THE DEPTHS 🌊" | Interstitial | — | 🔊 ✕ |
-| 6 | `screen-dyb-showdown` | "THE OVERLOOK" — animated reveal and verdict | Interactive | — | 🔊 ✕ |
+| 6 | `screen-dyb-showdown` | "THE OVERLOOK" — cups lift, the fog lifts off Phantoms, each counting die fills a claim slot, verdict, the loser's die plunges | Interactive | — | 🔊 ✕ |
 | 7 | `screen-dyb-gameover` | "The Summit 🎲" — final standings + Post-Climb Chronicle | Result | — | 🔊 ✕ |
 
 There is **no Round Intro screen**, and this is deliberate rather than a gap — `screen-dyb-shake`
@@ -170,10 +171,10 @@ the player from reaching the thing that already announces the round.
 | Overlay | Opened from | What it is |
 |---|---|---|
 | `dyb-settings-overlay` | Menu | Ground Rules — the four settings |
-| `dyb-how-to-overlay` | Menu, shake `[?]`, table `[?]` | How to Play — two tabs: The Rules, The Dice |
+| `dyb-how-to-overlay` | Menu, shake `[?]`, table `[?]`, the Tempest `[?]`, tap-and-hold on a special die | How to Play — three tabs: The Rules, Practice (a scripted hand on the real table), The Dice (faces, seat tints, the Tempest, the cup) |
 | `dyb-ascent-overlay` | Table's "The Ascent" strip | The full bid history for the current Shake |
-| `dyb-slick-picker-overlay` | Table, when holding a Slick die (Sylly Mode) | Assign the Slick die's face |
-| `dyb-tip-overlay` | Shake/table's inline `[?]` buttons | Shared contextual tips |
+| `dyb-slick-picker-overlay` | Tapping an unpicked Slick die, in the shake hand or the table's cup (Sylly Mode) | Assign the Slick die's face |
+| `dyb-tip-overlay` | Inline `[?]` buttons | Shared contextual tips — no longer carries die info (tap-and-hold opens The Dice instead) |
 | `dyb-quit-overlay` | Most screens' ✕ | Mid-game quit confirm |
 | `dyb-new-game-overlay` | Gameover | Play-again confirm |
 
@@ -388,19 +389,6 @@ Stay here
 
 **◇ judgement, not spec.**
 
-**The Tempest's five die types are deliberately absent from the How to Play gallery** — a genuine
-design choice, not an oversight. A special die's identity is carried by the engine frame plus its
-live per-die state (an unassigned Slick shows the auto-rolled face you're about to reassign), which a
-static gallery tile would misrepresent. It means the gallery tab (The Dice) only ever shows the six
-plain faces and the cup back, so a player relying on it alone to learn the Tempest has to fall back
-on the prose description in How to Play and Settings instead.
-
-**Phantom dice were promised a reveal the game doesn't currently deliver.** The How to Play copy for
-Sylly Mode says Phantom dice "hide their face until The Overlook" — but the "?" glyph currently
-persists through the showdown reveal rather than resolving to the real rolled value, a known gap
-flagged in the game's own bug index. A player reading the how-to card and then watching a Phantom
-die stay hidden at the moment it's supposed to reveal is being told something the UI doesn't yet do.
-
 **Footholds is a real, shipped setting that never made it into this document until this pass.** It
 sat in `docs/rules/game-identities.md`'s Settings table as though it didn't exist — added to the game
 well after that section was last touched, and never backfilled. Worth flagging as the exact failure
@@ -415,8 +403,8 @@ reading the old reference.
 special types instead of a plain die:
 
 - **Loaded** — counts as **double** toward its face value.
-- **Phantom** — its face is hidden from its own owner, and counts at its real rolled value regardless
-  (see T7c for the reveal gap).
+- **Phantom** — its face is hidden from its owner; the fog lifts at The Overlook, and it counts at its
+  real rolled value. A Phantom may carry a second type underneath, shown when the fog clears.
 - **Slick** — has no fixed face at all; its owner privately assigns it any face they choose, and it
   counts only toward that chosen face. The assignment stays private until The Overlook.
 - **Cracked** — always counts as **zero**, whatever it actually rolled.
@@ -436,16 +424,26 @@ not just "am I reading the table right," but "do I actually know what I'm holdin
 
 ## T9 — Art & Assets · *derived*
 
-**The Bluff has no core art pack** — its dice render through CSS pips (`dybDieHTML`), and while the
-render seam is asset-pack-ready (`js/lib/art.js` resolution is wired), no default artwork has shipped
-for it yet. The How to Play → **The Dice** gallery tab already renders the six plain faces and the
-cup back through the live `dybDieHTML`/`dybDieBackHTML` seam, ready for the day core art arrives —
-the gallery itself needs no changes when that happens.
+**The Bluff's dice are procedural (SW v241) — no images, and no core art pack ever needed.** Every
+die is drawn by `js/games/dyb-dice.js` from a *recipe* (set × tint × face × Tempest form) painted as
+HTML/CSS with inline SVG, so it is crisp at any pixel ratio. The game default is the **Rocky** set
+(stone body, carved pips, a worn-leather cup), defined in code.
 
-**The five Tempest special-die types are skinnable in principle** via an asset manifest's optional
-`specials` block, with a `"frame": false` opt-out per type — but, as T7c notes, they're deliberately
-excluded from the static gallery regardless of whether art exists for them, because their identity
-depends on live per-die state a static tile can't represent.
+**Two axes.** The *dice set* is the look; the *tint* is the player's identity — `tint = seat − 1`
+(`dybTintFor`, the hook a future lobby colour pick replaces). Every set carries eight tints ordered
+light → dark (Rocky: chalk, sandstone, ochre, terracotta, moss, slate, umber, basalt), and colour is
+never the only signal: every cluster of dice sits beside a name.
+
+**The Tempest reads through form, not colour** — the body stays its owner's tint: Loaded has bronze
+studded pips, Cracked a fissure, Snake red serpent eyes, Slick a wet sheen (and a "pick" tab until
+chosen), Phantom a drifting mist with a "?". A concealed Phantom's recipe carries no face at all, so
+nothing downstream can leak it.
+
+**Skins are `diceSet` packs** (Secret Mode, runtime-cached): **Deep Ocean**, **Sea Cliff** and
+**Classic**, each a parameter block, not images — `docs/expansion-guide.md` § DYB dice sets. The
+How to Play → **The Dice** tab draws faces, seat tints, the five Tempest forms and the cup through the
+same recipe, in the active set; its tiles are procedural, so (like CLD's) they are not zoomable and no
+longer double as an offline install check.
 
 ---
 

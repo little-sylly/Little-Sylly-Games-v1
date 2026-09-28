@@ -90,9 +90,15 @@ $specs = @{
   'cards' = @{ Games = @('pass'); Aspect = 56 / 80;     Render = '56x80 px';
                Ids = @();
                Note = 'Rank plus suit letter, e.g. AH, 10S, KD. Ranks 3 4 5 6 7 8 9 10 J Q K A 2; suits H D C S. Plus "Joker". 54 files is a big skin - consider a partial pack first.' }
-  'dyb'   = @{ Games = @('dyb');  Aspect = 1.0;         Render = '52x52 px (square)';
-               Ids = @('1','2','3','4','5','6');
-               Note = 'Dice are SQUARE. If your die art is not a full square tile you need transparency - run with -Png. The five Tempest die types use an optional "specials" block added to pack.json by hand; see the authoring guide.' }
+}
+
+# The Bluff's dice are procedural (SW v241): a DYB skin is a "diceSet" parameter
+# block in pack.json - colours, finish, pip style - never images. Nothing to resize.
+if ($Game -eq 'dyb') {
+  Write-Host "The Bluff (dyb) takes no artwork: its dice are drawn from a diceSet parameter block."
+  Write-Host "Write the block by hand - fields, the 8-tint rule and a worked example:"
+  Write-Host "  docs/expansion-guide.md - 'DYB dice sets'  (or copy data/packs/classic-dice/pack.json)"
+  exit 1
 }
 
 if ($Game -eq 'cards') {

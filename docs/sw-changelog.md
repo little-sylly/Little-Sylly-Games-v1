@@ -4,6 +4,13 @@ Historical SW release notes, moved out of `CLAUDE.md` (1 Aug 2026) so they stop 
 The **current** version and its notes stay in `CLAUDE.md` § Current Focus — append the outgoing entry here on each bump.
 
 
+## v240 — a dropped player no longer ends the game on a timer (28 Sep 2026).
+
+A game without reconnect holds a dropped seat **60 s** (was 20), then asks the **host**: Keep waiting
+(another 60 s) or End session — nothing ends on its own. `SYLLY_VERSION` → `MP_PROTOCOL_VERSION`
+(`'v240'`), a wire version bumped only when a packet changes. NAT's lobby floor 3 → 4, matching its
+PTP pills. `.pill` exempted from the 44 px rule. Detail: `shared-implementation-notes.md` DD-51.
+
 ## v239 — runtime caches keep only a complete reply (28 Sep 2026).
 
 `sw.js`'s six runtime-cache writes (packs, music, stickers + lamp; manifest and file each) now go

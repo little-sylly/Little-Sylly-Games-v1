@@ -19,6 +19,20 @@ Detail: pointer to the canonical doc (snapshot / impl note / spec / memory).
 ```
 
 
+## 2026-09-28 — Practice is the suite's tutorial standard (SW v241)
+Category: Process
+Decision: A game's How to Play may carry a Practice tab — a scripted, deterministic hand played on the game's REAL renderers fed a model, gated beats with a coach, both branches of the key decision, cast Sylvia · Sam · Shirley · Jeff — and every game's tutorial rework follows it.
+Why: the rules overlay explains but never lets a player touch the controls; a demo drawn by the real renderers cannot drift from the game.
+Changed: ui-style.md § Practice tab; DYB is the reference (js/games/dyb.js DYB_PRACTICE + driver). Deferred: the 19-game retrofit (deferred-work.md).
+Detail: docs/superpowers/specs/2026-09-28-dyb-dice-table-practice-design.md § 7.
+
+## 2026-09-28 — Procedural dice sets are the skin model for dice (SW v241)
+Category: Architecture
+Decision: DYB's dice are drawn by code (js/games/dyb-dice.js: recipe → HTML/CSS painter → CSS-3D cube) from a dice SET × a seat TINT; a DYB skin pack is a diceSet parameter block, never images, and DYB never needs a core art pack.
+Why: tint must carry player identity across sets that will become player-selectable, and the Tempest must read through form on any tint — which images per face could not do; the HTML/CSS painter also renders inside a loopback's mock DOM.
+Changed: js/games/dyb-dice.js (new), js/lib/art.js (assetDiceSet; assetSpecial/assetSpecialFrame deleted), three diceSet packs. Deferred: the dice selector + dyb-dice.js moving to js/lib/.
+Detail: docs/superpowers/specs/2026-09-28-dyb-dice-table-practice-design.md § 3; docs/expansion-guide.md § DYB dice sets.
+
 ## 2026-09-28 — Live Firebase rules are project state, not just repo state — a new wire node needs both updated together
 Category: Process
 Decision: Any change adding a `rooms/{code}/<node>` path to the MP wire protocol must update the

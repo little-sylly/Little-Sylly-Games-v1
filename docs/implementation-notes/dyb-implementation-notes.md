@@ -67,6 +67,7 @@ Both are fire-and-forget writes to Firebase. All devices receive both. The Spiri
 - **Root cause:** `dybDieHTML()`'s `phantom` case set `display = '?'` unconditionally.
 - **Fix:** Redesigned `dybDieHTML` to CSS pip dice (`DYB_PIP_LAYOUTS`). The phantom case now uses `dieIdx >= 0` to distinguish owner's live hand (show "?" text label) from showdown render (`dieIdx = -1`, show real pip face). The `visible` param is removed from the distinction — always true now that the veil is gone.
 - **Found during:** Post-Phase-34 backlog testing.
+- **SW v241:** the reveal itself now has a moment — the fog lifts at The Overlook. See the SW v241 section below.
 
 **BUG-08: Eliminated players pulled back to the Shake screen each round (RESOLVED — confirmed correct in June 2026 playtest audit)**
 - **What happened:** After elimination, a player navigated to `screen-dyb-shake` at the start of every subsequent shake and sat there until `DYB_SPIRIT_SHAKE` arrived.
@@ -186,6 +187,8 @@ documented in `docs/art-authoring-guide.md` § The Bluff, but a static reference
 misrepresent them: their identity is the engine's coloured frame **plus live per-die state** — an
 unassigned Slick shows the auto-rolled face the player is about to choose, and a concealed Phantom
 must never render its real value. They are previewed in play under Sylly Mode instead.
+**Superseded at SW v241:** the dice became procedural, so generated tiles show all five Tempest forms
+(the mist, badge and fissure *are* the live state) — see the SW v241 section at the end of this file.
 
 **Implementation note:** `dybDieHTML` returns an HTML **string**, not a node, so the gallery
 unwraps it through a holder div before handing the element to `artMakeZoomable`. Every other
@@ -400,3 +403,78 @@ already-live Table; the Shake screen itself is the beat. Adding a passive inters
 it would double-mark the same transition and force a redundant 5 s wait before the player can even
 reach the thing that already announces the round. No change made. Detail:
 `pass-implementation-notes.md` (closing entry for the whole sweep).
+
+---
+
+## SW v241 — procedural dice, the new table, Practice (28 Sep 2026)
+
+Spec: `docs/superpowers/specs/2026-09-28-dyb-dice-table-practice-design.md`. Plan:
+`docs/superpowers/plans/2026-09-28-dyb-dice-table-practice.md`. Every call made during the build is
+in the plan's ledger rulings, summarised here where it is a lasting decision.
+
+### Design Decisions
+
+**Procedural dice: a set × a tint.** The *set* is the look (Rocky default in code; Classic; `diceSet`
+skin packs); the *tint* is the player's identity (`tint = seat − 1`, read only through `dybTintFor`,
+the hook a lobby colour pick replaces). Tint is not baked into a material because sets will become
+player-selectable — two players may hold the same set, and colour must still separate them. The
+Tempest reads through **form** (studs, fissure, eyes, sheen, mist) because the body belongs to the tint.
+
+**The painter is HTML/CSS + inline SVG, not canvas** (plan-time amendment to spec § 3.2). Vector-crisp
+at any DPR, no object-URL cache or async paint — and, the deciding reason, it renders inside a
+loopback's mock DOM, so the reveal's render code actually executes under test. The leak guard lives
+in the recipe: a `'concealed'` Phantom's recipe carries no face, so no painter can leak it.
+
+**Renderers take a model** (`dybTableModel()` / `dybPracticeModel(s)`), never `dyb*` globals, so the
+live table and Practice draw through identical code and cannot drift.
+
+**Volatile-stripped keeps "only 1s may be raised"** — the shipped picker's behaviour, kept on purpose
+in `dybFaceAllowed` (spec § 1.1).
+
+**Timers live in two named bags** (`dybAnimTimers`, `dybPrTimers`); stopping one never touches the
+other — which is what lets Practice open from the table's `[?]` mid-Shake without disturbing it.
+
+**The stage's width comes from its root, never from the last render** (`dybStageWidth(root, m)`). The
+game renders before `showScreen`, and the previous render's stage is the wrong width whenever the
+turn flips (the ±44 px steppers come and go) — at 320 px that overflowed the stage and suppressed the
+"+N more" collapse. Found by the SE visual pass, not by any harness: a mock element has no box.
+
+### Bug Index (continued — SW v241)
+
+**BUG-07 follow-up — the Phantom reveal is finally true (RESOLVED, SW v241).** BUG-07 made the
+Overlook draw a Phantom's pips, but the How to Play promise ("hide their face until The Overlook")
+still had no moment behind it. Now the fog visibly lifts at The Overlook and the true face (and any
+secondary type) shows underneath. Closes the `deferred-work.md` entry "DYB — Phantom-die reveal + a
+procedural dice rework".
+
+**BUG-28: the verdict and the reveal counted Snake dice differently (RESOLVED, SW v241)**
+- **What happened:** `dybComputeRealCount` (the verdict) and `dybGetCountingDice` (the reveal's
+  highlight list) were separate functions that disagreed on Snake dice — the animation could show a
+  different count from the one that decided the loser.
+- **Root cause:** duplicated arithmetic — exactly what `logic-engine.md` § Single-source card/board
+  arithmetic forbids.
+- **Fix:** `dybCountEvents(face, hands, rules)` returns the ordered per-die events; the verdict is
+  their sum and the reveal plays the same list. Equivalence with the old count was proven on seeded
+  tables before the old functions were deleted.
+- **Lesson:** a second function that "just lists" what another one counts is a second source of truth.
+
+**BUG-29: player names reached `innerHTML` unescaped (RESOLVED, SW v241)**
+- **What happened:** nicknames were interpolated raw into seating, The Ascent, The Depths, The
+  Chronicle (including its `conclusion` string) and the reveal rows.
+- **Fix:** every name goes through `dybEsc()`; the rules harness and the loopback both render a
+  nickname containing `<`, `&` and quotes.
+
+**BUG-30: the game-over hand-off after the reveal was an unbagged timer (RESOLVED, SW v241)** — a
+host quitting in the 1.5 s after the verdict would have The Summit painted over the lobby. Now
+`dybLater(dybAnimTimers, …)`, cancelled by the quit.
+
+### Template Gaps
+
+**A new game's How to Play gets a Practice tab — build its renderers model-fed from day one.**
+Practice (`ui-style.md` § Practice tab) is only honest when it draws through the real renderers, and
+retrofitting "renderers take a model" onto a game that reads globals is most of the cost. Designing
+them that way from the first line makes the tutorial nearly free.
+
+**A render that sizes itself must not trust the last render's geometry.** Derive layout from a
+stable parent (or the viewport while hidden), not from an element the same render is about to
+replace. Only a real-browser pass finds this class of bug.

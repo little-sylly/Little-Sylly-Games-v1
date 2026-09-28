@@ -64,7 +64,7 @@ There is no WebP: the build machine has no encoder and the project forbids `npm`
 Some games draw a number, label or frame *on top of* your art at render time. Painting the same
 thing into the picture double-prints it. The per-game notes in § 5 call out every case — the big
 ones are **Cookie Jar** (the cookie value is a text overlay, and three tier images cover all 15
-values) and **The Bluff** (the engine draws the coloured type frame around Tempest dice).
+values). **The Bluff takes no artwork at all** since SW v241 — its dice are procedural (below).
 
 ---
 
@@ -77,7 +77,7 @@ values) and **The Bluff** (the engine draws the coloured type frame around Tempe
 ```
 
 It prints the recommended pixel dimensions and every filename to supply. `-Game` is one of
-`frt` `shp` `flw` `pko` `cjar` `cards` `dyb`.
+`frt` `shp` `flw` `pko` `cjar` `cards` (`dyb` stops with a pointer — its dice take no art).
 
 ### Step 2 — Draw it, and name each file after its id
 
@@ -424,52 +424,21 @@ Plus `back`. **53 faces + back = 54 images** — by far the biggest pack in the 
 
 ---
 
-### The Bluff — `-Game dyb`
+### The Bluff — no artwork (procedural dice, SW v241)
 
-**Die renders at** 52 × 52 px · **aspect 1.000 (square)** · **Draw at 800 × 800**
+The Bluff's dice are **drawn, not images**: every die is painted from a recipe (set × seat tint ×
+face × Tempest form), crisp at any size. There is nothing to draw, resize or convert, and
+`make-skin-pack.ps1 -Game dyb` stops with a pointer.
 
-Ids are the face values `1` `2` `3` `4` `5` `6`, plus `back` (a die in the cup, face down).
+A DYB skin is a **`diceSet` parameter block** in `pack.json` — a label, a finish (`stone` · `plain` ·
+`glass`), a pip style (`carved` · `printed`), wear and speckle, **eight** seat tints ordered light →
+dark, and the cup's two colours. The fields, the rules and a worked example are in
+**`docs/expansion-guide.md` § DYB dice sets**; the quickest start is to copy
+`data/packs/classic-dice/pack.json` and change the colours. The Tempest's five special dice are drawn
+on every set automatically — they are not per-pack.
 
-**6 faces + back = 7 images.**
-
-> **Dice are square, and probably need transparency.** If your die art is not a full square tile —
-> a rounded die on a plain background, a cut-out — run the tool with **`-Png`**. JPEG has no alpha
-> and will fill the corners with solid colour.
-
-**Optional: the five Tempest die types.** The Bluff's Sylly Mode turns dice into `loaded`,
-`phantom`, `slick`, `cracked` or `snake`. These are skinnable via a `specials` block, which the tool
-does **not** write — add it to `pack.json` by hand:
-
-```json
-"assets": {
-  "kind": "dyb", "basePath": "img/",
-  "faces": { "1": "1.png", "6": "6.png" },
-  "back":  "back.png",
-  "specials": {
-    "loaded":  { "1": "l1.png", "6": "l6.png" },
-    "snake":   { "3": "s3.png", "frame": false },
-    "phantom": { "blank": "ghost.png" },
-    "cracked": { "blank": "broken.png" }
-  }
-}
-```
-
-Three things to know:
-- **The frame is the type; the image is the face.** By default the engine draws its own coloured
-  border, tint and glow *around* your art, so a Loaded die stays unmistakably loaded however you
-  paint it. Set `"frame": false` on a type when your art carries that identity itself — but then
-  you own keeping it distinguishable from the other four, and the opt-out is ignored for any face
-  you didn't supply.
-- **`"blank"` is the type showing no value at all** — a concealed phantom, a cracked die. It never
-  falls back to a face image, because that would leak the hidden value to the whole table.
-- **Not everything is skinnable.** An unassigned Slick keeps the engine's `4*` glyph: that digit is
-  live state the player needs in order to choose, not decoration.
-
-`data/packs/deep-ocean-dice/` is a complete worked example (per-type faces, the frame opt-out, both
-`blank` keys, one deliberately omitted type). `data/packs/sea-cliff-dice/` is faces-only, so you can
-see the fallback behaviour.
-
-Verify any change to this seam with `node tools/verify-dyb-dice.js`.
+Verify a new set with `node tools/verify-dyb-dice.js` (it checks every shipped pack's schema and pip
+contrast).
 
 ---
 
@@ -477,7 +446,7 @@ Verify any change to this seam with `node tools/verify-dyb-dice.js`.
 
 A skin can reflavour a card's **art without touching its name** (the default — a Dinosaur-skinned
 Elephant still says "Elephant"), or override the name too. The tool never writes this — add it to
-`pack.json` by hand, same as DYB's `specials` block above:
+`pack.json` by hand:
 
 ```json
 "assets": {

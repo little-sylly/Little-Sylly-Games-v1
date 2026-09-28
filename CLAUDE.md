@@ -94,7 +94,7 @@ For where each game's screens/overlays live in `index.html`, see the **Per-Game 
 ---
 
 ## 📁 Load Order
-**Load order:** `music.js` → `engine.js` → `art.js` → `three.min.js` → `controller-body.js` → `controller-sticker-surface.js` → `physics.js` → `engine-multiplayer.js` → `canvas-draw.js` → `li5.js` → `great-minds.js` → `secret-signals.js` → `jec.js` → `ygi.js` → `lttp.js` → `nat.js` → `dsd.js` → `bld.js` → `gth.js` → `dyb.js` → `cards.js` → `pass.js` → `nt.js` → `frt.js` → `shp.js` → `flw.js` → `pko.js` → `cjar.js` → `cld.js` → `comb.js` → `controller.js` → `lounge-lib.js` → `lounge-room.js` → `lounge-props.js` → `lounge-scene.js` → `lounge-sfx.js` → `lobby-games.js` → `lobby.js` → `tv.js` → `achievements.js` → `stickerbook.js` → `jukebox.js` → `lobby-router.js` → `lobby-doors.js` → `lobby-host.js` → `secret-mode.js` → `app.js`
+**Load order:** `music.js` → `engine.js` → `art.js` → `three.min.js` → `controller-body.js` → `controller-sticker-surface.js` → `physics.js` → `engine-multiplayer.js` → `canvas-draw.js` → `li5.js` → `great-minds.js` → `secret-signals.js` → `jec.js` → `ygi.js` → `lttp.js` → `nat.js` → `dsd.js` → `bld.js` → `gth.js` → `dyb-dice.js` → `dyb.js` → `cards.js` → `pass.js` → `nt.js` → `frt.js` → `shp.js` → `flw.js` → `pko.js` → `cjar.js` → `cld.js` → `comb.js` → `controller.js` → `lounge-lib.js` → `lounge-room.js` → `lounge-props.js` → `lounge-scene.js` → `lounge-sfx.js` → `lobby-games.js` → `lobby.js` → `tv.js` → `achievements.js` → `stickerbook.js` → `jukebox.js` → `lobby-router.js` → `lobby-doors.js` → `lobby-host.js` → `secret-mode.js` → `app.js`
 (`tailwind-play.js` loads in `<head>` before everything else. `js/lib/music.js` loads *before* `engine.js` — the engine boot block calls `Music.init()` at parse time. `app.js`'s last line is `lobbyBoot()` — every lobby symbol exists by then.)
 All symbols are global (no ES modules). Forward references work at runtime.
 
@@ -292,13 +292,14 @@ On every bump the outgoing SW entry moves **verbatim** to `docs/sw-changelog.md`
 "keep the last three". **A second `**SW v…**` paragraph appearing here means that move didn't
 happen: do it before anything else.**
 
-**SW v240 — a dropped player no longer ends the game on a timer (28 Sep 2026).**
-A game without reconnect holds a dropped seat **60 s** (was 20), then asks the **host**: Keep waiting
-(another 60 s) or End session — nothing ends on its own. `SYLLY_VERSION` → `MP_PROTOCOL_VERSION`
-(`'v240'`), a wire version bumped only when a packet changes. NAT's lobby floor 3 → 4, matching its
-PTP pills. `.pill` exempted from the 44 px rule. Detail: `shared-implementation-notes.md` DD-51.
+**SW v241 — The Bluff: procedural dice, a new table, Practice (28 Sep 2026).**
+Dice are drawn, not images (`js/games/dyb-dice.js`): sets × seat tints, the Tempest shown by form,
+`diceSet` skin packs (+ Classic). The table is a counting stage ("You hold 3 · need 3 more"); hold-to-
+shake throw; The Overlook fills claim slots and the fog lifts off Phantoms. Counting single-sourced
+(`dybCountEvents`). How to Play gains **Practice** — the suite's tutorial standard. No packet
+change; `MP_PROTOCOL_VERSION` stays `'v240'`. Detail: `dyb-implementation-notes.md`.
 
-**Previous versions: `docs/sw-changelog.md`** — continuous, v238 back to v167.
+**Previous versions: `docs/sw-changelog.md`** — continuous, v240 back to v167.
 
 **Where the suite stands.** **20 games shipped**, all gold-master, plus multiplayer. Newest three:
 **Honeycomb Hills** (`comb`, game 20, phase 41 — the suite's biggest game and the only one with
@@ -315,9 +316,9 @@ layer over it), five render seams, and 25–50 minutes a match. Its two-step bui
 session and the offline install check (both `docs/deferred-work.md` § Cold Shoulder).
 **Every game now has an identity doc** — `docs/game-identities/`, 20 of 20, all harness-green. The **Cartridge
 System** is COMPLETE, both halves (Phase A word packs, Phase B skin packs) —
-`docs/cartridge-system-plan.md`. **Core art** has rolled out to `pko`, `flw`, `frt`, `shp` and `comb` (nine packs); **PASS
-and DYB still run emoji/CSS defaults** — rollout tracker, the 4-step conversion and the offline
-install check live in `docs/expansion-guide.md` § Core art packs.
+`docs/cartridge-system-plan.md`. **Core art** has rolled out to `pko`, `flw`, `frt`, `shp` and `comb` (nine packs); **PASS still runs
+CSS defaults; DYB's dice are procedural (SW v241)** and never need a core pack — rollout tracker, the
+4-step conversion and the offline install check live in `docs/expansion-guide.md` § Core art packs.
 
 **Side project — Arcade Mode.** Secret Mode holds **arcade cabinets** under an `ARCADE` category
 alongside word packs and skins. **Cabinets are NOT Sylly Games and NOT packs** — no MP config, no
@@ -363,7 +364,8 @@ Re-run a game's full set after touching its appliers, deck/data, packets or rend
 | COMB | `node tools/mutate-comb.js` — mutation harness; drives all four above, so its 19 packet mutants are claims about the loopback specifically. Run it 3–5×, not once | 71/71 |
 | PKO | `node tools/verify-pko-chain.js && node tools/verify-pko-loop.js && node tools/verify-pko-events.js` | 68 · 147 · 148 |
 | PKO | `node tools/verify-pko-loopback.js` — host↔client over a Firebase-shaped wire, real mock DOM (SW v237, PKO's first): private Hoards, and reconnect — a device rebuilt from nothing on the deal screen, at the table on its own turn, mid-Carrion, on the Clash result. Accepts `PKO_SRC=` | 47 |
-| DYB | `node tools/verify-dyb-dice.js` — after any `js/lib/art.js` / `dybDieHTML` / `.dyb-die-*` change | 90+ |
+| DYB | `node tools/verify-dyb-rules.js && node tools/verify-dyb-dice.js && node tools/verify-dyb-practice.js` — rules, single-sourced counting, "You hold", the bid draft, stage fit, the table model + render · recipes, sets, packs, the Phantom leak guard, the cube · the Practice script, both branches, isolation | 105 · 93 · 34 |
+| DYB | `node tools/verify-dyb-loopback.js` — host↔**2 clients** over a Firebase-shaped wire, real mock DOM, a whole match with the Tempest on: agreement on claim/count/verdict, a Slick picked after submitting, an elimination to The Depths, escaped names. Accepts `DYB_SRC=` / `DYB_SEED=` — run several seeds | 41–45 |
 | SHP | `node tools/verify-shp-loop.js` — random matches, all player counts/modes/settings; `SHP_SEED=` for reproducibility | 60 matches |
 | SHP | `node tools/verify-shp-loopback.js` — host↔client over a Firebase-shaped wire; accepts `SHP_SRC=` | 6 scenarios |
 | NT | `node tools/verify-nt-loopback.js` — host↔**2 clients** over a Firebase-shaped wire, Standard + DNP + Debug Mode (incl. rectangular grids that survive Randomise Topology, two-unit ports, two-unit ports + the corner cycle, the attempt log + PTP log switcher); accepts `NT_SRC=` and `NT_SEED=` | 417 |
@@ -386,8 +388,8 @@ Re-run a game's full set after touching its appliers, deck/data, packets or rend
 | Lobby | `node tools/verify-tv.js` — TV's pure half (rail wrap, nearest-copy pick, ink/label split, order vs `GAMES`, the shelf fans) · `node tools/verify-achievements.js` — the stickerbook's rules incl. `achAllPlaced` | 940 · 81 |
 | Lobby | `node tools/visual-lobby.js` — real Chromium over the REAL `index.html`: boot tiering (widescreen / phone beat / no WebGL), every layout → game → quit returns there, Workshop returns to its opener, gateway + Terminal returns, idle nudge (bounded — it comes home), the Lounge Konami never unlocks, stickerbook, each runtime-cached source offline, stale ornament mount, the fade, resize below a floor, the jukebox (the door, one scene at a time, a held song through ✕/Shelves/a game, `resetToLobby` with it up), the reconnect prompt over the Lounge (SW v236), the places row from Shelves, Classic and TV (SW v238). **The seam's mutation pass runs against it — re-run after touching `lobbyShow`, `resetToLobby` or any lobby return** | 113 |
 
-**Reach for a loopback on anything MP- or render-shaped.** Every harness *except* the seven
-loopbacks (`cjar`/`shp`/`flw`/`nt`/`jec`/`comb`/`pko`) runs `'single'` mode with `getElementById: () => null`, which
+**Reach for a loopback on anything MP- or render-shaped.** Every harness *except* the eight
+loopbacks (`cjar`/`shp`/`flw`/`nt`/`jec`/`comb`/`pko`/`dyb`) runs `'single'` mode with `getElementById: () => null`, which
 is what lets one process drive all N seats — and exactly what blinds it to both the packet layer
 and every line of render code. CJAR's **BUG-06** survived 222 green checks in that gap; NT's
 **BUG-15/16** survived a clean host-side playtest. How to build one, and the wire/mock-DOM
