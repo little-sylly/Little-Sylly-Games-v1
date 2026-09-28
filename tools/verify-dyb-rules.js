@@ -295,6 +295,31 @@ section('dybRenderTable — markup from a model');
   check('opening: the primary reads "Open with"', root.innerHTML.includes('Open with one 2'), true);
 }
 
+section('Seating, The Depths, The Ascent, The Chronicle — tints and escaped names');
+{
+  const els = {};
+  const realGet = S.document.getElementById;
+  S.document.getElementById = id => (els[id] = els[id] || { innerHTML: '', textContent: '', style: {}, disabled: false });
+  run(`dybPlayerCount = 3; dybPlayerNames = ['Ann <b>', 'Bo & "Co"', "Cy'"]; dybSeatNumbers = [];
+       dybAllegationHistory = [{ playerIdx: 0, qty: 2, face: 3 }]; dybFootholdsMode = false;`);
+  S.dybShowSeating();
+  check('the seating screen deals the seats (a permutation of 1..N)', run('dybSeatNumbers.slice().sort()'), [1, 2, 3]);
+  const seat = els['dyb-seating-list'].innerHTML;
+  check('seating escapes names', [seat.includes('Ann &lt;b&gt;'), seat.includes('Ann <b>')], [true, false]);
+  check('seating shows each climber\'s tint', (seat.match(/border-left:4px solid #/g) || []).length, 3);
+  S.dybRenderAscentHistory();
+  const asc = els['dyb-ascent-history'].innerHTML;
+  check('The Ascent escapes names', [asc.includes('Ann &lt;b&gt;'), asc.includes('Ann <b>')], [true, false]);
+  S.dybRenderSpiritBoard([[2, 3], [4], [5]], [[], [], []], [0, 1, 2], run('dybPlayerNames'), [2, 1, 1], null);
+  const dep = els['dyb-spirit-grid'].innerHTML;
+  check('The Depths escapes names', [dep.includes('Bo &amp; &quot;Co&quot;'), dep.includes('Bo & "Co"')], [true, false]);
+  run(`dybAllShakeLogs = [{ shakeNum: 1, bids: [{ playerIdx: 0, qty: 2, face: 3 }], conclusion: 'Ann <b> loses a die.' }]; dybChronicleIdx = 0;`);
+  S.dybRenderChronicle();
+  const chr = els['dyb-chronicle-card'].innerHTML;
+  check('The Chronicle escapes bids and the conclusion', [chr.includes('Ann <b>'), chr.includes('&lt;b&gt;')], [false, true]);
+  S.document.getElementById = realGet;
+}
+
 // ── Later tasks append their sections above this line ──────────────────────
 
 console.log(`\n${failures ? `${failures} FAILED` : 'ALL PASS'}`);

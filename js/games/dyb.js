@@ -379,27 +379,27 @@ function dybStartSession() {
 
 // ── Seating screen ────────────────────────────────────────────────────────────
 function dybShowSeating() {
+  // Seats (and so tints) are dealt as the screen opens, so the host sees each
+  // climber's colour before dealing. The payload is unchanged: seatNumbers still
+  // rides DYB_GAME_START.
+  dybSeatNumbers = shuffle(Array.from({ length: dybPlayerCount }, (_, i) => i + 1));
   dybRenderSeatingList();
   showScreen('screen-dyb-seating');
 }
 
 function dybRenderSeatingList() {
   const list = document.getElementById('dyb-seating-list');
+  const set = dybActiveSet();
   list.innerHTML = dybPlayerNames.map((name, i) => `
-    <div class="bg-white rounded-2xl px-4 py-3 shadow-sm flex items-center justify-between">
-      <span class="text-stone-700 font-semibold">${name || 'Player ' + (i + 1)}</span>
+    <div class="bg-white rounded-2xl px-4 py-3 shadow-sm flex items-center gap-3" style="border-left:4px solid ${dybTintHex(set, dybTintFor(i))}">
+      ${dybDieHTML(5, 'standard', -1, -1, true, null, dybTintFor(i), 26)}
+      <span class="text-stone-700 font-semibold flex-1">${dybEsc(name || 'Player ' + (i + 1))}</span>
       <span class="text-stone-300 text-sm">ready</span>
-    </div>
-  `).join('');
+    </div>`).join('');
 }
 
 // ── Game start (host only) ────────────────────────────────────────────────────
 function dybStartGame() {
-  // Assign random seat order
-  const seats = Array.from({length: dybPlayerCount}, (_, i) => i + 1);
-  const shuffled = shuffle(seats);
-  dybSeatNumbers = shuffled;
-
   // Pick random opener
   dybCurrentOpenerIdx = Math.floor(Math.random() * dybPlayerCount);
 
@@ -993,7 +993,7 @@ function dybShowGameover(data) {
         for (let f = 1; f <= 6; f++) {
           if ((freq[f] || 0) > bestCount) { bestCount = freq[f]; bestFace = f; }
         }
-        const miniPips = dybDieHTML(bestFace, 'standard', -1);
+        const miniPips = dybDieHTML(bestFace, 'standard', -1, -1, true, null, dybTintFor(pIdx), 30);
         luckyFaceHtml = `<div class="flex justify-center items-center"><div class="scale-75 origin-center">${miniPips}</div></div>`;
       } else {
         luckyFaceHtml = `<div></div>`;
@@ -1003,7 +1003,7 @@ function dybShowGameover(data) {
     standingsEl.innerHTML += `
       <div class="bg-white rounded-2xl px-4 py-3 shadow-sm grid items-center" style="grid-template-columns:${gridCols};gap:12px;">
         <span class="text-sm text-center">${rankEmojis[rank] || (rank + 1)}</span>
-        <span class="text-stone-800 font-semibold truncate">${name}</span>
+        <span class="text-stone-800 font-semibold truncate">${dybEsc(name)}</span>
         <span class="text-xs font-bold text-stone-700 text-center">${w}W / ${l}L</span>
         ${luckyFaceHtml}
       </div>`;
@@ -1037,13 +1037,13 @@ function dybRenderChronicle() {
   if (next) next.disabled = idx === logs.length - 1;
   const bids = (log.bids || []).map(h => {
     const name = (dybPlayerNames[h.playerIdx] || ('P' + (h.playerIdx + 1))).split(' ')[0];
-    return `<span class="text-stone-500">${name}: ${h.qty}&times;[${h.face}]</span>`;
+    return `<span class="text-stone-500">${dybEsc(name)}: ${h.qty}&times;[${h.face}]</span>`;
   }).join('<span class="text-stone-300 mx-0.5">&rarr;</span>');
   const card = document.getElementById('dyb-chronicle-card');
   if (card) {
     card.innerHTML = `
       <div class="flex flex-wrap gap-1 text-xs leading-5">${bids || '<span class="text-stone-300 text-xs">No bids recorded.</span>'}</div>
-      <p class="text-xs text-stone-400 mt-1 border-t border-stone-100 pt-1">${log.conclusion}</p>
+      <p class="text-xs text-stone-400 mt-1 border-t border-stone-100 pt-1">${dybEsc(log.conclusion)}</p>
     `;
   }
 }
@@ -1071,11 +1071,11 @@ function dybRenderSpiritBoard(allRolls, allSpecialTypes, activePlayers, playerNa
     const name  = playerNames[i] || ('P' + (i + 1));
     const roll  = allRolls[i] || [];
     const types = allSpecialTypes[i] || [];
-    const diceHtml = roll.map((val, j) => dybDieHTML(val, types[j] || 'standard', -1, -2)).join('');
+    const diceHtml = roll.map((val, j) => dybDieHTML(val, types[j] || 'standard', -1, -2, true, null, dybTintFor(i), 36)).join('');
     const remaining = dybFootholdsMode && lives ? `${lives[i]} foothold${lives[i] === 1 ? '' : 's'} left` : `${diceInHand[i]} left`;
     grid.innerHTML += `
-      <div id="dyb-spirit-row-${i}" class="bg-white rounded-2xl p-3 shadow-sm">
-        <p class="text-xs font-semibold text-stone-500 mb-2">${name} (${remaining})</p>
+      <div id="dyb-spirit-row-${i}" class="bg-white rounded-2xl p-3 shadow-sm" style="border-left:4px solid ${dybTintHex(dybActiveSet(), dybTintFor(i))}">
+        <p class="text-xs font-semibold text-stone-500 mb-2">${dybEsc(name)} (${remaining})</p>
         <div class="flex gap-2 flex-wrap">${diceHtml}</div>
       </div>`;
   });
@@ -1632,7 +1632,7 @@ function dybRenderAscentHistory() {
     const name = dybPlayerNames[h.playerIdx] || ('P' + (h.playerIdx + 1));
     return `<div class="flex items-center gap-3 py-2 ${idx > 0 ? 'border-t border-stone-100' : ''}">
       <span class="text-xs text-stone-400 w-4 text-right">${idx + 1}</span>
-      <span class="text-sm text-stone-600 font-semibold flex-1">${name}</span>
+      <span class="text-sm text-stone-600 font-semibold flex-1">${dybEsc(name)}</span>
       <span class="text-sm text-stone-800 font-bold">${h.qty} × [${h.face}]</span>
     </div>`;
   }).join('');
