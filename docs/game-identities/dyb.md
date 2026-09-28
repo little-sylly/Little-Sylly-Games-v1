@@ -215,12 +215,18 @@ Waiting for others…
 
 ```copy
 # screen-dyb-table
-The Claim
+Your cup
+The Ascent ›
+Close-up
+Whole table
 No claim yet.
-The Ascent
-Your Hand
+No claim yet. You open.
 Call the Bluff
-Climb Higher
+is deciding…
+enough on your own
+1s are wild, so they can't be claimed.
+1s were claimed. Only 1s from here this Shake.
+Claiming 1s switches wilds off for this Shake.
 ```
 
 #### The Overlook (showdown)

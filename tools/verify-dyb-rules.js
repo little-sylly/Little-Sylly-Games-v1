@@ -266,6 +266,35 @@ S.mpMyPlayerIdx = 0;
   check('off-turn: not my turn, no draft, the turn is named', [w.isMyTurn, w.draft, w.turnName], [false, null, 'Bo']);
 }
 
+section('dybRenderTable — markup from a model');
+{
+  const root = { innerHTML: '', clientWidth: 340, querySelector: () => null, querySelectorAll: () => [] };
+  run(`dybCurrentBidderIdx = 0; dybDraft = dybDraftInit(dybClaimNow(), dybRulesNow());
+       dybPlayerNames = ['Ann <b>', 'Bo & "Co"', "Cy'"];`);
+  S.dybRenderTable(root, S.dybTableModel(), () => {});
+  const html = root.innerHTML;
+  check('names are escaped (Review Focus 3)', [html.includes('Ann &lt;b&gt;'), html.includes('Bo &amp; &quot;Co&quot;'), html.includes('Cy&#39;')], [true, true, true]);
+  check('no raw markup from a name survives', html.includes('Ann <b>'), false);
+  check('six face buttons', (html.match(/data-act="face"/g) || []).length, 6);
+  check('Classic: the 1 button is marked blocked', /data-face="1"[^>]*class="[^"]*blocked/.test(html) || /class="[^"]*blocked[^"]*"[^>]*data-face="1"/.test(html), true);
+  check('the climb label spells the bid', html.includes('Climb: four 4s'), true);
+  check('Call is offered once a claim exists', html.includes('data-act="call"'), true);
+  check('held dice (a 4, a wild 1, a 4) are drawn solid: one WILD tag', (html.match(/dyb-wild/g) || []).length, 1);
+  check('whole-table view draws ghosts to the table total', (html.match(/dyb-slot-ghost/g) || []).length, 11 - 4);
+  run('dybStageView = "close";');
+  S.dybRenderTable(root, S.dybTableModel(), () => {});
+  check('close-up draws no ghosts', (root.innerHTML.match(/dyb-slot-ghost/g) || []).length, 0);
+  run('dybCurrentBidderIdx = 1; dybDraft = null; dybStageView = "whole";');
+  S.dybRenderTable(root, S.dybTableModel(), () => {});
+  check('off-turn: the turn bar names who is deciding', root.innerHTML.includes('is deciding'), true);
+  check('off-turn: no face buttons', root.innerHTML.includes('data-act="face"'), false);
+  run(`dybPlayerNames = ['Ann', 'Bo', 'Cy']; dybCurrentBidderIdx = 0; dybCurrentQty = 0; dybCurrentFace = 0;
+       dybAllegationHistory = []; dybDraft = dybDraftInit(dybClaimNow(), dybRulesNow());`);
+  S.dybRenderTable(root, S.dybTableModel(), () => {});
+  check('opening: no Call button', root.innerHTML.includes('data-act="call"'), false);
+  check('opening: the primary reads "Open with"', root.innerHTML.includes('Open with one 2'), true);
+}
+
 // ── Later tasks append their sections above this line ──────────────────────
 
 console.log(`\n${failures ? `${failures} FAILED` : 'ALL PASS'}`);

@@ -61,6 +61,22 @@ let dybPhantomTypes  = []; // (string|null)[] — secondary type per phantom die
 // ── UI state ─────────────────────────────────────────────────────────────────
 let dybSlickPickerDie = -1;   // which die index the slick picker is open for
 
+// ── Copy — every visible string drawn by JS lives here, so the identity-doc
+//    checker (which reads this file) can find each one whole. ────────────────
+const DYB_COPY = {
+  yourCup:   'Your cup',
+  ascent:    'The Ascent ›',
+  closeUp:   'Close-up',
+  whole:     'Whole table',
+  noClaim:   'No claim yet.',
+  call:      'Call the Bluff',
+  deciding:  'is deciding…',
+  youOpen:   'No claim yet. You open.',
+  enough:    'enough on your own',
+};
+const DYB_NUM_WORDS = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'];
+function dybBidText(qty, face) { return `${DYB_NUM_WORDS[qty] || qty} ${face}${qty === 1 ? '' : 's'}`; }
+
 // ── Init ─────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   // ── Lobby button
@@ -154,12 +170,6 @@ document.addEventListener('DOMContentLoaded', () => {
     dybShowTempestGuide();
   });
 
-  // ── Tempest guide [?] — table screen "Your Hand" label
-  document.getElementById('btn-dyb-hand-tip').addEventListener('click', () => {
-    playDone();
-    dybShowTempestGuide();
-  });
-
   // ── Tip overlay close
   document.getElementById('btn-dyb-tip-close').addEventListener('click', () => {
     playDone();
@@ -167,11 +177,6 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // ── Ascent overlay
-  document.getElementById('btn-dyb-ascent-open').addEventListener('click', () => {
-    playDone();
-    dybRenderAscentHistory();
-    document.getElementById('dyb-ascent-overlay').style.display = 'flex';
-  });
   document.getElementById('btn-dyb-ascent-close').addEventListener('click', () => {
     playDone();
     document.getElementById('dyb-ascent-overlay').style.display = 'none';
@@ -192,32 +197,6 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-dyb-ready').addEventListener('click', () => {
     playDone();
     dybSubmitRoll();
-  });
-
-  // ── Table screen
-  document.getElementById('btn-dyb-call-bluff').addEventListener('click', () => {
-    playExit();
-    dybCallBluff();
-  });
-  document.getElementById('btn-dyb-raise').addEventListener('click', () => {
-    playDone();
-    dybSubmitAllegation();
-  });
-  document.getElementById('btn-dyb-face-dec').addEventListener('click', () => {
-    playPillClick();
-    dybAdjustFacePicker(-1);
-  });
-  document.getElementById('btn-dyb-face-inc').addEventListener('click', () => {
-    playPillClick();
-    dybAdjustFacePicker(1);
-  });
-  document.getElementById('btn-dyb-qty-dec').addEventListener('click', () => {
-    playPillClick();
-    dybAdjustQtyPicker(-1);
-  });
-  document.getElementById('btn-dyb-qty-inc').addEventListener('click', () => {
-    playPillClick();
-    dybAdjustQtyPicker(1);
   });
 
   // ── Showdown screen
@@ -459,6 +438,7 @@ function dybInitShake() {
 
   dybCurrentFace = 0;
   dybCurrentQty  = 0;
+  dybDraft = null;
   dybOnesStripped = false;
   dybAllegationHistory = [];
   dybChallengerIdx = -1;
@@ -594,80 +574,31 @@ function dybBroadcastShakeActive() {
 }
 
 // ── Table phase ───────────────────────────────────────────────────────────────
-function dybRenderTableScreen() {
-  const myIdx = mpMyPlayerIdx;
-  const isMyTurn = dybCurrentBidderIdx === myIdx;
-  const nextBidderName = dybPlayerNames[dybCurrentBidderIdx] || 'Player';
-
-  // Player pip row
-  const pipRow = document.getElementById('dyb-pip-row');
-  pipRow.innerHTML = dybActivePlayers.map(i => {
-    const name    = dybPlayerNames[i] || ('P' + (i + 1));
-    const count   = dybFootholdsMode ? dybLives[i] : dybDiceInHand[i];
-    const symbol  = dybFootholdsMode ? '◆' : '■';
-    const isActive = i === dybCurrentBidderIdx;
-    return `<div class="flex flex-col items-center gap-0.5 ${isActive ? 'opacity-100' : 'opacity-40'}">
-      <span class="text-xs font-semibold ${isActive ? 'text-stone-800' : 'text-stone-400'}">${name}</span>
-      <span class="text-base">${symbol.repeat(count)}</span>
-    </div>`;
-  }).join('');
-
-  // Current allegation display
-  const dispEl = document.getElementById('dyb-allegation-display');
-  if (dybCurrentFace === 0) {
-    dispEl.style.cssText = '';
-    dispEl.textContent = 'No claim yet.';
-  } else {
-    dispEl.style.cssText = 'display:flex;align-items:center;justify-content:center;gap:8px;';
-    dispEl.innerHTML = `<span>${dybCurrentQty} ×</span>${dybDieHTMLSm(dybCurrentFace)}`;
+// ── Table phase — live wiring over the shared renderers ────────────────────
+function dybTableCtx() { return { claim: dybClaimNow(), rules: dybRulesNow(), tableTotal: dybTableTotal() }; }
+function dybRenderTableScreen(extra) {
+  const isMyTurn = dybCurrentBidderIdx === mpMyPlayerIdx;
+  if (isMyTurn && !dybDraft) dybDraft = dybDraftInit(dybClaimNow(), dybRulesNow());
+  if (!isMyTurn) dybDraft = null;
+  document.getElementById('dyb-table-shake').textContent = `Shake ${dybShakeNumber}`;
+  const m = Object.assign(dybTableModel(), extra || {});
+  dybRenderTable(document.getElementById('dyb-table-root'), m, dybTableAct);
+}
+function dybTableAct(act, data) {
+  const ctx = dybTableCtx();
+  let extra = null;
+  switch (act) {
+    case 'face':   playPillClick(); dybDraft = dybDraftReduce(dybDraft, { type: 'face', face: parseInt(data.face, 10) }, ctx); break;
+    case 'inc':    playPillClick(); dybDraft = dybDraftReduce(dybDraft, { type: 'inc' }, ctx); break;
+    case 'dec':    playPillClick(); dybDraft = dybDraftReduce(dybDraft, { type: 'dec' }, ctx); break;
+    case 'view':   playPillClick(); extra = { ghostsIn: data.view === 'whole' && dybStageView !== 'whole' }; dybStageView = data.view; break;
+    case 'climb':  playDone(); dybSubmitAllegation(); return;
+    case 'call':   playExit(); dybCallBluff(); return;
+    case 'ascent': playDone(); dybRenderAscentHistory(); document.getElementById('dyb-ascent-overlay').style.display = 'flex'; return;
+    case 'slick':  dybOpenSlickPicker(parseInt(data.die, 10)); return;
+    default: return;
   }
-
-  // Last bidder label — read from history so name is correct after dybCurrentBidderIdx advances
-  const lastBid = dybAllegationHistory.length > 0
-    ? dybAllegationHistory[dybAllegationHistory.length - 1] : null;
-  const lastBidderName = lastBid ? (dybPlayerNames[lastBid.playerIdx] || 'Player') : '';
-  document.getElementById('dyb-last-bidder-label').textContent =
-    lastBid ? `${lastBidderName} alleged ${lastBid.qty} × ${lastBid.face}.` : '';
-
-  // Turn label
-  document.getElementById('dyb-turn-label').textContent = isMyTurn
-    ? 'Your turn.'
-    : `Waiting for ${nextBidderName}…`;
-
-  // Show/hide picker controls
-  const controls = document.getElementById('dyb-bid-controls');
-  const waiting  = document.getElementById('dyb-waiting-label');
-  controls.style.display = isMyTurn ? 'flex' : 'none';
-  waiting.style.display  = isMyTurn ? 'none' : 'block';
-
-  if (isMyTurn) {
-    dybRenderBidPicker(); // calls dybUpdateBidButtonState() which manages action button state
-  }
-
-  // Action button locking — BUG-14: buttons sit outside #dyb-bid-controls so must be
-  // managed explicitly; non-active players must never be able to submit an allegation
-  const callBtn  = document.getElementById('btn-dyb-call-bluff');
-  const raiseBtn = document.getElementById('btn-dyb-raise');
-  if (!isMyTurn) {
-    callBtn.disabled  = true;
-    raiseBtn.disabled = true;
-    callBtn.classList.add('opacity-40');
-    raiseBtn.classList.add('opacity-40');
-    raiseBtn.textContent = dybCurrentFace === 0 ? 'Make the Call' : 'Climb Higher';
-  } else {
-    // dybUpdateBidButtonState() (called via dybRenderBidPicker above) handles opacity
-    // Do NOT call remove('opacity-40') here — dybUpdateBidButtonState already set the
-    // correct state; overriding it caused the opener's "Call the Bluff" to appear enabled
-    // even though dybCurrentFace === 0 makes it a no-op (BUG-24)
-  }
-
-  // Hand dock — show [?] Tempest Guide button only in Sylly Mode
-  const handTipBtn = document.getElementById('btn-dyb-hand-tip');
-  if (handTipBtn) handTipBtn.style.display = dybSyllyMode ? 'inline-flex' : 'none';
-  dybRenderHandDock('dyb-hand-dock-table');
-
-  // Ascent preview (last 3 bids)
-  dybRenderAscentPreview();
+  dybRenderTableScreen(extra);
 }
 
 // ── Pure rules — no globals; the live table and Practice both call these ─────
@@ -707,101 +638,26 @@ function dybFaceNote(face, rules) {
   return null;
 }
 
-// Old call sites (the picker, until Task 10 replaces it) delegate here.
-function dybIsLegalRaise(face, qty) { return dybLegalRaise(dybClaimNow(), { face, qty }, dybRulesNow()); }
-function dybMinQtyForFace(face) { return dybMinQty(dybClaimNow(), face); }
 
-function dybRenderBidPicker() {
-  // Compute legal face range
-  const minFace = dybOnesStripped ? 1
-    : (dybWildcardsStyle === 'classic' ? 2 : 1);
-  const maxFace = dybOnesStripped ? 1 : 6;
 
-  // If no bid yet, start at minFace; else current face or higher
-  let selectedFace = dybCurrentFace === 0 ? minFace : dybCurrentFace;
-  if (selectedFace < minFace) selectedFace = minFace;
-  if (selectedFace > maxFace) selectedFace = maxFace;
 
-  const minQty = dybMinQtyForFace(selectedFace);
-  const selectedQty = Math.max(dybCurrentQty, minQty);
 
-  document.getElementById('dyb-face-display').innerHTML = dybDieHTMLSm(selectedFace);
-  document.getElementById('dyb-qty-display').textContent  = selectedQty;
-
-  // Store current picker values in data attrs for adjustment functions
-  const picker = document.getElementById('dyb-bid-controls');
-  picker.dataset.face = selectedFace;
-  picker.dataset.qty  = selectedQty;
-
-  dybUpdateBidButtonState();
-}
-
-function dybAdjustFacePicker(delta) {
-  const picker = document.getElementById('dyb-bid-controls');
-  const minFace = dybOnesStripped ? 1 : (dybWildcardsStyle === 'classic' ? 2 : 1);
-  const maxFace = dybOnesStripped ? 1 : 6;
-
-  let face = parseInt(picker.dataset.face) + delta;
-  face = Math.max(minFace, Math.min(maxFace, face));
-  picker.dataset.face = face;
-  document.getElementById('dyb-face-display').innerHTML = dybDieHTMLSm(face);
-
-  // Recompute min qty for new face
-  const minQty = dybMinQtyForFace(face);
-  let qty = Math.max(parseInt(picker.dataset.qty), minQty);
-  picker.dataset.qty = qty;
-  document.getElementById('dyb-qty-display').textContent = qty;
-
-  dybUpdateBidButtonState();
-}
-
-function dybAdjustQtyPicker(delta) {
-  const picker = document.getElementById('dyb-bid-controls');
-  const face = parseInt(picker.dataset.face);
-  const minQty = dybMinQtyForFace(face);
-
-  let qty = parseInt(picker.dataset.qty) + delta;
-  qty = Math.max(minQty, qty);
-  picker.dataset.qty = qty;
-  document.getElementById('dyb-qty-display').textContent = qty;
-
-  dybUpdateBidButtonState();
-}
-
-function dybUpdateBidButtonState() {
-  const picker = document.getElementById('dyb-bid-controls');
-  const face = parseInt(picker.dataset.face);
-  const qty  = parseInt(picker.dataset.qty);
-  const noBid = dybCurrentFace === 0;
-
-  const raiseBtn = document.getElementById('btn-dyb-raise');
-  const callBtn  = document.getElementById('btn-dyb-call-bluff');
-
-  raiseBtn.disabled = !dybIsLegalRaise(face, qty);
-  raiseBtn.classList.toggle('opacity-40', raiseBtn.disabled);
-  raiseBtn.textContent = noBid ? 'Make the Call' : 'Climb Higher';
-
-  callBtn.disabled = noBid;
-  callBtn.classList.toggle('opacity-40', noBid);
-}
 
 function dybSubmitAllegation() {
-  const picker = document.getElementById('dyb-bid-controls');
-  const face = parseInt(picker.dataset.face);
-  const qty  = parseInt(picker.dataset.qty);
-
+  if (dybCurrentBidderIdx !== mpMyPlayerIdx || !dybDraft) return;
+  if (!dybLegalRaise(dybClaimNow(), dybDraft, dybRulesNow())) return;
+  const { face, qty } = dybDraft;
   mpLockSync();
   const payload = { action: 'DYB_ALLEGATION', face, qty };
-
   if (window.syllyMultiplayerMode === 'client') {
     mpSendEnvelope({ type: 'ACTION', payload });
     return;
   }
-  // Host: process directly
   dybProcessAllegation(mpMyPlayerIdx, face, qty);
 }
 
 function dybProcessAllegation(fromIdx, face, qty) {
+  dybDraft = null;
   dybCurrentFace = face;
   dybCurrentQty  = qty;
   dybAllegationHistory.push({ playerIdx: fromIdx, qty, face });
@@ -1429,6 +1285,160 @@ function dybTableModel() {
   };
 }
 
+// ── Table renderers — model in, markup out. Shared by the live table and Practice.
+function dybClimbersHTML(players, set, plungeIdx = -1) {
+  return players.map(p => {
+    const hex = dybTintHex(set, p.tint);
+    const shown = p.count + (p.idx === plungeIdx ? 1 : 0);   // the falling die is still there until the verdict
+    let lives;
+    if (p.footholds && shown > 5) {
+      lives = `${dybMiniMarkup(set, p.tint, 'dyb-mini-foothold')}<span>${shown}</span>`;
+    } else {
+      lives = Array.from({ length: shown }, (_, k) => {
+        const fall = p.idx === plungeIdx && k === shown - 1 ? ' dyb-mini-plunge' : '';
+        return dybMiniMarkup(set, p.tint, (p.footholds ? 'dyb-mini-foothold' : '') + fall);
+      }).join('');
+    }
+    return `<div class="dyb-chip${p.active ? ' dyb-chip-on' : ''}${p.out ? ' dyb-chip-out' : ''}" style="--dyb-tint:${hex}">
+      <div class="dyb-chip-top">${dybDieMarkup(dybDieRecipe({ set, tint: p.tint, face: 5 }), 16)}<span class="dyb-chip-name">${dybEsc(p.label)}</span></div>
+      <div class="dyb-chip-lives">${lives}</div></div>`;
+  }).join('');
+}
+
+// The player's own dice. Special dice carry data-hold (tap-and-hold → the Dice
+// gallery); an unpicked Slick carries data-act="slick".
+function dybCupDiceHTML(hand, set, tint, px) {
+  return (hand.roll || []).map((val, i) => {
+    const type = (hand.types || [])[i] || 'standard';
+    const s = (hand.slicks || [])[i];
+    const assigned = (hand.slickAssigned || [])[i] !== false;
+    const concealed = type === 'phantom';
+    let face = val, state = 'face';
+    if (type === 'slick') { face = s > 0 ? s : val; if (!assigned) state = 'unpicked'; }
+    if (concealed) state = 'concealed';
+    const act = type === 'slick' && !assigned ? ' data-act="slick"' : '';
+    const hold = type !== 'standard' ? ` data-hold="${type}"` : '';
+    return dybDieMarkup(dybDieRecipe({ set, tint, face, type, state }), px, ` data-die="${i}"${act}${hold}`);
+  }).join('');
+}
+
+function dybClaimLineHTML(m) {
+  if (!m.claim) {
+    return `<span class="dyb-claim-text">${m.isMyTurn ? DYB_COPY.youOpen : DYB_COPY.noClaim}</span>`;
+  }
+  const by = m.players.find(p => p.idx === m.claim.by);
+  const who = by ? `<span class="dyb-swatch" style="--dyb-tint:${dybTintHex(m.set, by.tint)}"></span><b>${dybEsc(by.name)}</b> claims ` : '';
+  return `${who}<span class="dyb-claim-text"><b>${dybBidText(m.claim.qty, m.claim.face)}</b></span>` +
+         `<button class="dyb-link" data-act="ascent">${DYB_COPY.ascent}</button>`;
+}
+
+function dybStageWidth(root) {
+  const s = root.querySelector && root.querySelector('.dyb-stage-dice');
+  if (s && s.clientWidth) return s.clientWidth;
+  return Math.max(120, (root.clientWidth || 340) - 104);
+}
+
+function dybStageHTML(m, w) {
+  const target = m.isMyTurn ? m.draft : (m.claim || m.preview);
+  const H = 132;
+  if (!target) return `<div class="dyb-stage"><p class="dyb-hold">${DYB_COPY.noClaim}</p></div>`;
+  const hold = dybYouHold(m.hand, target.face, m.rules);
+  const need = Math.max(0, target.qty - hold.total);
+  const others = Math.max(0, m.tableTotal - (m.hand.roll || []).length);
+  const wantWhole = m.view === 'whole';
+  let px = dybStageFit(wantWhole ? m.tableTotal : target.qty, w, H);
+  let collapse = false;
+  if (wantWhole && !px) { collapse = true; px = dybStageFit(target.qty, w, H) || DYB_STAGE_MIN_PX; }
+  if (!px) px = DYB_STAGE_MIN_PX;
+  const cells = [];
+  hold.dice.forEach(d => {
+    const type = (m.hand.types || [])[d.dieIdx] || 'standard';
+    const die = dybDieMarkup(dybDieRecipe({ set: m.set, tint: m.myTint, face: d.face, type: type === 'loaded' ? 'loaded' : 'standard' }), px);
+    for (let k = 0; k < d.weight && cells.length < target.qty; k++) {
+      const one = k ? die.replace('<div class="dyb-die ', '<div class="dyb-die dyb-slot-echo ') : die;
+      cells.push(d.wild ? `<span class="dyb-wild">${one}</span>` : one);
+    }
+  });
+  const needRecipe = dybDieRecipe({ set: m.set, tint: m.myTint, face: target.face });
+  while (cells.length < target.qty) cells.push(dybDieMarkup(needRecipe, px, '', 'dyb-slot-need'));
+  if (wantWhole && !collapse) {
+    for (let i = target.qty; i < m.tableTotal; i++) {
+      cells.push(`<span class="dyb-slot-ghost${m.ghostsIn ? ' dyb-ghost-in' : ''}" style="--dyb-s:${px}px"></span>`);
+    }
+  }
+  const groups = [];
+  for (let i = 0; i < cells.length; i += 5) groups.push(`<div class="dyb-group">${cells.slice(i, i + 5).join('')}</div>`);
+  if (collapse) groups.push(`<span class="dyb-more">+${m.tableTotal - target.qty} more on the table</span>`);
+  const caption = m.caption || (m.isMyTurn
+    ? `${m.claim ? 'Your climb' : 'Your opening'}: <b>${dybBidText(target.qty, target.face)}</b>`
+    : `Standing claim: <b>${dybBidText(target.qty, target.face)}</b>`);
+  const hi = k => (m.highlight === k ? ' dyb-coach-ring' : '');
+  const toggle = `<div class="dyb-toggle${hi('toggle')}">` +
+    `<button data-act="view" data-view="close" class="${m.view === 'close' ? 'on' : ''}">${DYB_COPY.closeUp}</button>` +
+    `<button data-act="view" data-view="whole" class="${m.view === 'whole' ? 'on' : ''}">${DYB_COPY.whole}</button></div>`;
+  const step = (act, sign, off) => (m.isMyTurn
+    ? `<button class="dyb-step${hi(act)}" data-act="${act}" aria-label="${act === 'inc' ? 'One more' : 'One fewer'}"${off ? ' disabled' : ''}>${sign}</button>` : '');
+  const atMin = m.draft && m.draft.qty <= dybMinQty(m.claim || { qty: 0, face: 0 }, m.draft.face);
+  const atMax = m.draft && m.draft.qty >= m.tableTotal;
+  const holdLine = need === 0
+    ? `You hold <b>${hold.total}</b> · ${DYB_COPY.enough}`
+    : `You hold <b>${hold.total}</b> · need <b>${need}</b> more from the other <b>${others}</b> dice`;
+  return `<div class="dyb-stage${hi('stage')}">
+    <div class="dyb-stage-head"><span>${caption}</span>${toggle}</div>
+    <div class="dyb-stage-row">${step('dec', '−', atMin)}<div class="dyb-stage-dice">${groups.join('')}</div>${step('inc', '+', atMax)}</div>
+    <p class="dyb-hold">${holdLine}</p></div>`;
+}
+
+function dybControlsHTML(m) {
+  if (!m.isMyTurn) {
+    const hex = dybTintHex(m.set, m.turnTint);
+    return `<div class="dyb-turnbar" style="--dyb-tint:${hex}">${dybDieMarkup(dybDieRecipe({ set: m.set, tint: m.turnTint, face: 5 }), 20)}` +
+           `<b>${dybEsc(m.turnName)}</b>&nbsp;${DYB_COPY.deciding}</div>`;
+  }
+  const d = m.draft;
+  const faces = [1, 2, 3, 4, 5, 6].map(f => {
+    const cls = ['dyb-face-btn', d && d.face === f ? 'on' : '', dybFaceAllowed(f, m.rules) ? '' : 'blocked',
+                 m.highlight === `face-${f}` ? 'dyb-coach-ring' : ''].filter(Boolean).join(' ');
+    return `<button class="${cls}" data-act="face" data-face="${f}" aria-label="Face ${f}">${dybDieMarkup(dybDieRecipe({ set: m.set, tint: m.myTint, face: f }), 36)}</button>`;
+  }).join('');
+  const note = d ? (d.notice ? dybFaceNote(d.notice, m.rules) : dybFaceNote(d.face, m.rules)) : null;
+  const label = d ? `${m.claim ? 'Climb' : 'Open with'}: ${dybBidText(d.qty, d.face)}`.replace('Open with:', 'Open with') : '';
+  const ring = k => (m.highlight === k ? ' dyb-coach-ring' : '');
+  return `<div class="dyb-faces">${faces}</div>
+    <p class="dyb-face-note">${note || ''}</p>
+    <div class="dyb-actions">
+      ${m.claim ? `<button class="dyb-btn-call btn-mp-action${ring('call')}" data-act="call">${DYB_COPY.call}</button>` : ''}
+      <button class="dyb-btn-climb dyb-cta btn-mp-action${ring('climb')}" data-act="climb"${m.climbEnabled ? '' : ' disabled'}>${label}</button>
+    </div>`;
+}
+
+// Draws every part into root and routes taps through ONE delegated listener.
+function dybRenderTable(root, m, onAct) {
+  const w = dybStageWidth(root);
+  root.innerHTML = `
+    <div class="dyb-climbers">${dybClimbersHTML(m.players, m.set)}</div>
+    <div class="dyb-cuprow"><span class="dyb-cuplabel">${DYB_COPY.yourCup}</span>
+      <div class="dyb-cupdice${m.highlight === 'cup' ? ' dyb-coach-ring' : ''}">${dybCupDiceHTML(m.hand, m.set, m.myTint, 34)}</div></div>
+    <div class="dyb-claimline">${dybClaimLineHTML(m)}</div>
+    ${dybStageHTML(m, w)}
+    ${dybControlsHTML(m)}`;
+  root.onclick = e => {
+    const b = e.target && e.target.closest ? e.target.closest('[data-act]') : null;
+    if (!b || (root.contains && !root.contains(b)) || b.disabled) return;
+    if (b.dataset.held === '1') { delete b.dataset.held; return; }   // the click after a tap-hold
+    onAct(b.dataset.act, b.dataset);
+  };
+  dybBindHandHolds(root);
+}
+
+// Tap-and-hold on a special die → its row in the Dice gallery (Task 17 adds the row).
+function dybBindHandHolds(box) {
+  if (!box || !box.querySelectorAll) return;
+  box.querySelectorAll('[data-hold]').forEach(el => {
+    bindCardHold(el, () => { el.dataset.held = '1'; dybOpenHowTo('dice', el.dataset.hold); });
+  });
+}
+
 // ── Hand dock rendering ───────────────────────────────────────────────────────
 function dybRenderHandDock(containerId) {
   const container = document.getElementById(containerId);
@@ -1605,28 +1615,11 @@ function dybAssignSlickFace(dieIdx, face) {
     dybAllSlickFaces[mpMyPlayerIdx][dieIdx] = face;
   }
   const shakeScreen = document.getElementById('screen-dyb-shake');
-  const dockId = shakeScreen && shakeScreen.style.display !== 'none'
-    ? 'dyb-hand-dock-shake'
-    : 'dyb-hand-dock-table';
-  dybRenderHandDock(dockId);
+  if (shakeScreen && shakeScreen.style.display !== 'none') dybRenderHandDock('dyb-hand-dock-shake');
+  else dybRenderTableScreen();
 }
 
 // ── The Ascent — bid history ──────────────────────────────────────────────────
-
-function dybRenderAscentPreview() {
-  const section = document.getElementById('dyb-ascent-section');
-  const preview = document.getElementById('dyb-ascent-preview');
-  if (!section || !preview) return;
-  if (!dybAllegationHistory.length) {
-    section.style.display = 'none';
-    return;
-  }
-  section.style.display = 'flex';
-  preview.textContent = dybAllegationHistory.slice(-3).map(h => {
-    const name = dybPlayerNames[h.playerIdx] || ('P' + (h.playerIdx + 1));
-    return `${name}: ${h.qty}×[${h.face}]`;
-  }).join(' → ');
-}
 
 function dybRenderAscentHistory() {
   const el = document.getElementById('dyb-ascent-history');
@@ -1782,6 +1775,7 @@ function dybHandleEnvelope(env) {
         break;
 
       case 'DYB_ALLEGATION_SYNC':
+        dybDraft = null;
         dybCurrentFace      = payload.face;
         dybCurrentQty       = payload.qty;
         dybCurrentBidderIdx = payload.nextBidderIdx;
