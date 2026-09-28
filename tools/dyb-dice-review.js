@@ -22,9 +22,6 @@ body{background:#F4EFE7;color:#44382c;font-family:system-ui,sans-serif;padding:1
 h1{font-size:20px;font-weight:700} h2{font-size:15px;font-weight:700;margin:22px 0 8px}
 .row{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end} .cell{display:flex;flex-direction:column;align-items:center;gap:4px}
 
-/* The cup's look — review-only copy of Task 13's .dyb-cup rules (styles.css gains them there). */
-.dyb-cup{position:absolute;border-radius:14px 14px 40px 40px/14px 14px 28px 28px;background:radial-gradient(circle at 35% 25%,rgba(255,255,255,0.18),transparent 50%),linear-gradient(90deg,var(--dyb-cup-rim),var(--dyb-cup) 30%,var(--dyb-cup) 70%,var(--dyb-cup-rim));box-shadow:0 6px 12px rgba(40,26,14,0.35)}
-.dyb-cup-rim{position:absolute;left:-4px;right:-4px;top:-6px;height:14px;border-radius:50%;background:var(--dyb-cup-rim)}
 .cap{font-size:11px;color:#8a7866} button{padding:8px 14px;border-radius:12px;background:#6B5744;color:#fff;font-weight:600}
 </style></head><body>
 <h1>The Bluff — procedural dice review</h1>
@@ -40,7 +37,7 @@ let h = '';
 sets.forEach(s => {
   h += '<h2>' + s.label + ' — ' + s.finish + ', ' + s.pip + ' pips</h2><div class="row">';
   s.tints.forEach((t, i) => { h += cell(dybDieMarkup(dybDieRecipe({ set: s, tint: i, face: 5 }), 48), t.name); });
-  h += cell(dybCupMarkup(s).replace('style="', 'style="position:relative;left:0;top:0;margin:0;width:48px;height:56px;'), 'cup');
+  h += cell(dybCupMarkup(s).replace('style="', 'style="position:relative;left:0;top:0;margin:0;width:60px;height:68px;'), 'cup');
   h += '</div><div class="row" style="margin-top:8px">';
   [1, 2, 3, 4, 5, 6].forEach(f => { h += cell(dybDieMarkup(dybDieRecipe({ set: s, tint: 1, face: f }), 40), String(f)); });
   h += '</div>';

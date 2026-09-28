@@ -134,10 +134,13 @@ function dybDieRecipe({ set, tint = 0, face, type = 'standard', secondary = null
 
 // ── Markup — a recipe as an HTML string ─────────────────────────────────────
 const DYB_OVERLAY_HTML = {
-  'mist':       '<span class="dyb-ov dyb-ov-mist"></span>',
-  'mist-lift':  '<span class="dyb-ov dyb-ov-mist dyb-ov-mist-lift"></span>',
-  'fissure':    '<svg class="dyb-ov dyb-ov-fissure" viewBox="0 0 100 100" aria-hidden="true"><path d="M8 22 L30 38 L24 52 L46 60 L40 78 L62 92"/></svg>',
-  'sheen':      '<span class="dyb-ov dyb-ov-sheen"></span>',
+  'mist':       '<span class="dyb-ov dyb-ov-mist"><span class="dyb-ov-wisp"></span></span>',
+  'mist-lift':  '<span class="dyb-ov dyb-ov-mist dyb-ov-mist-lift"><span class="dyb-ov-wisp"></span></span>',
+  'fissure':    '<svg class="dyb-ov dyb-ov-fissure" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">' +
+                '<path class="dyb-fis-bed" d="M-4 10 L16 26 L10 42 L32 48 L28 62 L50 68 L58 84 L74 86 L104 106"/>' +
+                '<path class="dyb-fis-bed dyb-fis-branch" d="M32 48 L48 38 L64 42 L80 26 L90 24"/>' +
+                '<path class="dyb-fis-lit" d="M-4 12 L16 28 L10 44 L32 50 L28 64 L50 70 L58 86 L74 88 L104 108"/></svg>',
+  'sheen':      '<span class="dyb-ov dyb-ov-sheen"><span class="dyb-ov-drop"></span><span class="dyb-ov-drop dyb-ov-drop-2"></span></span>',
   'pick-badge': '<span class="dyb-ov dyb-ov-pick">pick</span>',
 };
 // attrs is inserted verbatim into the opening tag (leading space included).
@@ -160,7 +163,8 @@ function dybMiniMarkup(set, tint, cls = '') {
   return `<span class="dyb-mini ${cls}" style="--dyb-body:${dybTintHex(set, tint)}"></span>`;
 }
 function dybCupMarkup(set) {
-  return `<div class="dyb-cup" style="--dyb-cup:${set.cup.body};--dyb-cup-rim:${set.cup.rim}"><span class="dyb-cup-rim"></span></div>`;
+  return `<div class="dyb-cup" style="--dyb-cup:${set.cup.body};--dyb-cup-rim:${set.cup.rim}">` +
+         '<span class="dyb-cup-band"></span><span class="dyb-cup-foot"></span><span class="dyb-cup-rim"></span></div>';
 }
 
 // ═══ DOM helpers — the ONLY impure part of this file ════════════════════════

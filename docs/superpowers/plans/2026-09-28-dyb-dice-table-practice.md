@@ -2281,13 +2281,10 @@ In `dybBroadcastShakeActive` and in `case 'DYB_SHAKE_ACTIVE':` add `dybStopChore
 .dyb-shake-stage { position: relative; min-height: 190px; border-radius: 24px; background: linear-gradient(#e9dfd0, #e2d6c4);
                    box-shadow: inset 0 2px 4px rgba(60, 40, 20, 0.12); display: flex; align-items: center; justify-content: center;
                    touch-action: none; user-select: none; -webkit-user-select: none; cursor: pointer; }
-.dyb-cup { position: absolute; left: 50%; top: 50%; z-index: 2; width: 96px; height: 110px; margin: -55px 0 0 -48px;
-           border-radius: 14px 14px 40px 40px / 14px 14px 28px 28px;
-           background: radial-gradient(circle at 35% 25%, rgba(255, 255, 255, 0.18), transparent 50%),
-                       linear-gradient(90deg, var(--dyb-cup-rim), var(--dyb-cup) 30%, var(--dyb-cup) 70%, var(--dyb-cup-rim));
-           box-shadow: 0 6px 12px rgba(40, 26, 14, 0.35);
-           transition: transform 350ms cubic-bezier(0.2, 0.7, 0.25, 1), opacity 350ms ease-out; }
-.dyb-cup-rim { position: absolute; left: -4px; right: -4px; top: -6px; height: 14px; border-radius: 50%; background: var(--dyb-cup-rim); }
+/* The cup's LOOK (leather, band, lip, foot) is already in styles.css — owner dice review, Task 8.
+   This block only places it on the stage and gives it motion. */
+.dyb-shake-stage .dyb-cup { position: absolute; left: 50%; top: 50%; z-index: 2; width: 96px; height: 110px; margin: -55px 0 0 -48px;
+                            transition: transform 350ms cubic-bezier(0.2, 0.7, 0.25, 1), opacity 350ms ease-out; }
 .dyb-cup.rattle { animation: dybRattle 180ms ease-in-out infinite; }
 @keyframes dybRattle { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-7deg) translateX(-4px); } 75% { transform: rotate(7deg) translateX(4px); } }
 .dyb-cup.lift { transform: translateY(-140%) rotate(-12deg); opacity: 0; }

@@ -1486,25 +1486,76 @@ body.flash-red   { background-color: #fecaca; }
 }
 .dyb-pip { display: block; width: 72%; height: 72%; margin: auto; border-radius: 50%; background: var(--dyb-pip); }
 .dyb-pip-carved { box-shadow: inset 0 1.5px 1.5px rgba(0, 0, 0, 0.55), 0 1px 0 rgba(255, 255, 255, 0.35); }
-.dyb-pip-bronze { background: radial-gradient(circle at 35% 30%, #F3D08A, #B07A2A 60%, #6E4712); box-shadow: 0 1px 1px rgba(0, 0, 0, 0.45); }
-.dyb-pip-serpent { position: relative; background: #C9D94A; }
-.dyb-pip-serpent::after { content: ''; position: absolute; left: 42%; top: 10%; width: 16%; height: 80%; border-radius: 50%; background: #14210A; }
 .dyb-die-faded .dyb-pip { opacity: 0.35; }
-.dyb-form-loaded { box-shadow: inset 0 calc(var(--dyb-s) * -0.07) 0 var(--dyb-body-d),
-                               inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 4px 6px rgba(40, 26, 14, 0.45); }
+/* Loaded — heavy: fat bronze studs, a bronze band round the face, a deeper slab and a heavier drop. */
+.dyb-pip-bronze { width: 82%; height: 82%;
+                  background: radial-gradient(circle at 34% 28%, #FFF1C9 0 12%, #E7B45A 28%, #A86E22 62%, #5C3A0E);
+                  box-shadow: 0 1.5px 1px rgba(0, 0, 0, 0.5), inset 0 -1px 1px rgba(60, 30, 0, 0.5); }
+.dyb-form-loaded { box-shadow: inset 0 calc(var(--dyb-s) * -0.12) 0 var(--dyb-body-d),
+                               inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 5px 8px rgba(40, 26, 14, 0.55), 0 2px 2px rgba(40, 26, 14, 0.45); }
+.dyb-form-loaded::after { content: ''; position: absolute; inset: calc(var(--dyb-s) * 0.035); border-radius: inherit; pointer-events: none;
+                          border: calc(var(--dyb-s) * 0.05) solid #A8732A;
+                          box-shadow: inset 0 1px 0 rgba(255, 236, 190, 0.6), 0 1px 0 rgba(255, 236, 190, 0.35); }
+/* Snake — ember eyes with a black slit, set in dark sockets, and a shadow creeping in from the edges. */
+.dyb-pip-serpent { position: relative;
+                   background: radial-gradient(circle at 50% 42%, #FFB35C 0 10%, #F0401E 38%, #9E0A12 72%, #3A0306);
+                   box-shadow: 0 0 0 calc(var(--dyb-s) * 0.025) #1A0806, 0 0 calc(var(--dyb-s) * 0.1) rgba(255, 60, 20, 0.75); }
+.dyb-pip-serpent::after { content: ''; position: absolute; left: 43%; top: 8%; width: 14%; height: 84%;
+                          border-radius: 50% / 50%; background: #0A0202; }
+.dyb-form-snake::after { content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+                         background: radial-gradient(circle at 50% 50%, transparent 45%, rgba(30, 4, 4, 0.42)); }
 .dyb-die-glyph { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
-                 font-weight: 700; font-size: calc(var(--dyb-s) * 0.42); color: rgba(90, 80, 120, 0.6); }
+                 font-weight: 700; font-size: calc(var(--dyb-s) * 0.46); color: rgba(96, 84, 140, 0.55);
+                 text-shadow: 0 0 calc(var(--dyb-s) * 0.12) rgba(255, 255, 255, 0.9); }
 .dyb-ov { position: absolute; inset: 0; pointer-events: none; border-radius: inherit; }
-.dyb-ov-mist { background: radial-gradient(circle at 30% 40%, rgba(236, 232, 244, 0.92), transparent 60%),
-                           radial-gradient(circle at 70% 65%, rgba(214, 210, 228, 0.88), transparent 55%),
-                           rgba(226, 222, 236, 0.6); }
+/* Phantom — cold violet fog with a wisp drifting through it. */
+.dyb-ov-mist { overflow: hidden;
+               background: radial-gradient(circle at 28% 38%, rgba(240, 236, 250, 0.94), transparent 58%),
+                           radial-gradient(circle at 72% 68%, rgba(206, 198, 232, 0.9), transparent 55%),
+                           rgba(214, 206, 236, 0.66); }
+.dyb-ov-wisp { position: absolute; inset: -20% -40%;
+               background: radial-gradient(ellipse 40% 18% at 35% 40%, rgba(255, 255, 255, 0.75), transparent 70%),
+                           radial-gradient(ellipse 34% 14% at 70% 66%, rgba(255, 255, 255, 0.6), transparent 70%);
+               animation: dybWisp 5s ease-in-out infinite alternate; }
+@keyframes dybWisp { from { transform: translateX(-12%) scale(1); } to { transform: translateX(12%) scale(1.08); } }
 /* The fog lifts at The Overlook — delayed until the cups have lifted. */
 .dyb-ov-mist-lift { animation: dybMistLift 500ms ease-out 600ms both; }
 @keyframes dybMistLift { from { opacity: 1; transform: scale(1); } to { opacity: 0.12; transform: scale(1.15); } }
-.dyb-ov-fissure path { fill: none; stroke: rgba(20, 12, 6, 0.8); stroke-width: 5; stroke-linejoin: round; }
-.dyb-ov-sheen { background: linear-gradient(115deg, transparent 30%, rgba(255, 255, 255, 0.55) 42%, transparent 54%); }
-.dyb-ov-pick { inset: auto 2px 2px auto; padding: 0 3px; border-radius: 6px; background: #0e7490; color: #fff;
-               font-size: calc(var(--dyb-s) * 0.2); font-weight: 700; line-height: 1.4; }
+/* Cracked — a fissure from corner to corner with a branch: a dark bed and a lit lower edge. */
+.dyb-ov-fissure path { fill: none; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.dyb-fis-bed { stroke: rgba(18, 10, 4, 0.88); stroke-width: calc(var(--dyb-s) * 0.075); }
+.dyb-fis-branch { stroke-width: calc(var(--dyb-s) * 0.045); }
+.dyb-fis-lit { stroke: rgba(255, 244, 226, 0.45); stroke-width: calc(var(--dyb-s) * 0.02); }
+.dyb-form-cracked { filter: saturate(0.75) brightness(0.94); }
+/* Slick — a wet streak and two beads of water. */
+.dyb-ov-sheen { background: linear-gradient(115deg, transparent 20%, rgba(255, 255, 255, 0.72) 32%, rgba(255, 255, 255, 0.18) 38%, transparent 46%),
+                            linear-gradient(115deg, transparent 52%, rgba(255, 255, 255, 0.34) 57%, transparent 62%),
+                            rgba(120, 200, 230, 0.14); }
+.dyb-ov-drop { position: absolute; left: 70%; top: 14%; width: 14%; height: 17%; border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+               background: radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.95), rgba(190, 230, 245, 0.45) 45%, rgba(40, 110, 140, 0.35));
+               box-shadow: 0 1px 1px rgba(0, 0, 0, 0.25); }
+.dyb-ov-drop-2 { left: 18%; top: 72%; width: 9%; height: 11%; }
+/* A tab on the bottom edge, centred: pip slot 8 is never used by any face, so it covers as little as it can. */
+.dyb-ov-pick { inset: auto 0 0 0; width: max-content; height: max-content; margin: 0 auto; padding: 0 calc(var(--dyb-s) * 0.06);
+               border-radius: 5px 5px 0 0; background: #0e7490; color: #fff; box-shadow: 0 -1px 2px rgba(0, 0, 0, 0.25);
+               font-size: calc(var(--dyb-s) * 0.16); font-weight: 700; line-height: 1.25; letter-spacing: 0.02em; }
+/* The cup — worn leather: shaded body with grain, a stitched band, a rolled lip over a dark mouth, a foot.
+   Size and place are the caller's (the shake stage sets them in Task 13). */
+.dyb-cup { position: relative; width: 96px; height: 110px;
+           border-radius: 10% 10% 34% 34% / 8% 8% 20% 20%;
+           background: repeating-linear-gradient(92deg, rgba(0, 0, 0, 0.05) 0 2px, transparent 2px 6px),
+                       radial-gradient(ellipse 30% 60% at 30% 35%, rgba(255, 235, 205, 0.22), transparent 70%),
+                       linear-gradient(90deg, var(--dyb-cup-rim), var(--dyb-cup) 28%, var(--dyb-cup) 62%, var(--dyb-cup-rim));
+           box-shadow: 0 8px 14px rgba(40, 26, 14, 0.38), inset 0 -6px 10px rgba(0, 0, 0, 0.25); }
+.dyb-cup-rim { position: absolute; left: -5%; right: -5%; top: -7%; height: 16%; border-radius: 50%;
+               background: radial-gradient(ellipse 72% 58% at 50% 58%, #120A05 0 60%, transparent 62%),
+                           linear-gradient(var(--dyb-cup), var(--dyb-cup-rim));
+               box-shadow: inset 0 1px 0 rgba(255, 235, 205, 0.35), 0 2px 3px rgba(0, 0, 0, 0.35); }
+.dyb-cup-band { position: absolute; left: 0; right: 0; top: 58%; height: 13%; background: var(--dyb-cup-rim);
+                border-top: 1.5px dashed rgba(236, 214, 180, 0.55); border-bottom: 1.5px dashed rgba(236, 214, 180, 0.55);
+                box-shadow: 0 1px 0 rgba(255, 235, 205, 0.15), 0 -1px 0 rgba(0, 0, 0, 0.3); }
+.dyb-cup-foot { position: absolute; left: 12%; right: 12%; bottom: -3%; height: 8%; border-radius: 50%;
+                background: var(--dyb-cup-rim); box-shadow: 0 2px 3px rgba(0, 0, 0, 0.35); }
 .dyb-die.dyb-die-dim { opacity: 0.3; transition: opacity 250ms ease-out; }
 .dyb-mini { display: inline-block; width: 8px; height: 8px; border-radius: 2px; background: var(--dyb-body);
             box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.25); }
