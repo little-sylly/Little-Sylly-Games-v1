@@ -43,8 +43,9 @@ const CLD_SUBSTEP_MS      = 1000 / CLD_SIM_HZ;
 // v_max CANCELS OUT of D = v²/2a — `a` is derived from it — so this sets how
 // long a Slide takes to play, never how far anything reaches. Measured: mean
 // 1587 ms, p90 2150, p99 2650, and 0.0% of Slides reach the 5000 ms cap.
-const CLD_V_MAX           = 150;    // full-power Slide launch velocity, units/s
-const CLD_R_STD           = 130;    // Standard floe radius — R_std
+// SW v245 (spec 2026-09-29-cld-fun-pass § 3.2): the floe grew ~1.3×; every distance and speed derived from it scaled with it, penguins did not.
+const CLD_V_MAX           = 195;    // full-power Slide launch velocity, units/s (SW v245: ×1.3 with the floe, so a Slide still plays in the same time)
+const CLD_R_STD           = 170;    // Standard floe radius — R_std (SW v245: was 130; about 2× the ice per penguin)
 // Both Snowball constants were resolved together at Stage 3 — they are one
 // dial, not two. At the Stage-2 shape (r 4, speed 260) 89.6% of thrown balls
 // found open ice and only 6% of throws were ever CONTESTED, so §4D's race —
@@ -65,14 +66,14 @@ const CLD_R_STD           = 130;    // Standard floe radius — R_std
 // invariant — one Snowball can never push a RESTING penguin off the floe — is
 // unaffected, and verify-cld-physics.js still asserts it directly.
 const CLD_SNOWBALL_R      = 8;      // the ball's own radius — a contact test, not a blast
-const CLD_SNOWBALL_SPEED  = 600;    // units/s in flight → arrivalMs = distance / this
+const CLD_SNOWBALL_SPEED  = 780;    // units/s in flight → arrivalMs = distance / this (SW v245: ×1.3 — same arrival fraction of a Slide, DD-13's race)
 // Confirmed at Stage 3: the floor (0.5·D = 45.5 / 65 / 91 by Ice Conditions)
 // is reached in 4.8% of Thaw Floe-Offs — a safety rail, as §4B intends, not a
 // routine state.
 const CLD_MIN_RADIUS_MULT = 0.5;
 
 const CLD_ICE_MULT  = { powder: 0.70, slush: 1.00, blackice: 1.40 };
-const CLD_FLOE_SIZE = { roomy: 150, standard: CLD_R_STD, cramped: 110 };
+const CLD_FLOE_SIZE = { roomy: 195, standard: CLD_R_STD, cramped: 143 };   // SW v245: ×1.3
 
 // ── Rim, Berg and launch constants ─────────────────────────────────────────
 const CLD_TAU         = Math.PI * 2;
@@ -81,7 +82,7 @@ const CLD_TAU         = Math.PI * 2;
 // length (9.92 → 4.21). The ceiling is the Washout rate, not the shrink rate:
 // 12/16/24 take it to 15%/17%/23% of Floe-Offs voided, and a Washout is a joke
 // beat (§8) that stops being funny at one in five. 4 and 6 never bite.
-const CLD_THAW_STEP   = 8;      // logical units shed per Slide under The Thaw
+const CLD_THAW_STEP   = 10;     // logical units shed per Slide under The Thaw (SW v245: ×1.3, was 8)
 // ── The Berg ring (SW v242 — owner playtest, 28 Sep 2026) ────────────────────
 // Three Bergs (~10% of the rim) made a 3-player Floe-Off last a median 3 Slides
 // on Slush with the Thaw, 2 on Black Ice. The ring is now sized by COVERAGE of
@@ -983,10 +984,10 @@ const CLD_TINTS = [
 const CLD_AFTERMATH_MS   = 900;   // beat held after the last sample, for surfacings
 const CLD_BARK_MS        = 1400;  // how long a plunge bark floats
 const CLD_ASSIST_STEPS   = 90;    // aim-assist trace resolution (first bounce only)
-const CLD_VIEW_FIT       = 330;   // logical units fitted to the stage's SHORT axis:
-                                  // the largest floe (Roomy, 300 across) plus a
-                                  // penguin radius either side, so a rim penguin on
-                                  // the widest setting is never clipped
+// Logical units fitted to the stage's short axis: the Roomy floe, the Knocked-
+// back drift past its edge and a penguin radius either side (SW v245). The
+// camera (the fun pass, Task 4) replaces this with a per-floe fit.
+const CLD_VIEW_FIT = 2 * (CLD_FLOE_SIZE.roomy + CLD_BACK_OFFSET + CLD_PENGUIN_R + 4);
 
 // ── Canvas / playback state ────────────────────────────────────────────────
 let cldLastFrameT   = 0;      // rAF timestamp of the previous frame

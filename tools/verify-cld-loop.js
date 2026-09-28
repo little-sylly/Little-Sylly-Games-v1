@@ -215,12 +215,12 @@ function rimLegal() {
   }
   {
     // §4B's table, recomputed from the closed form rather than copied.
-    close('Powder full-power slide distance',   F.cldFullSlideDist('powder'),   91,  0.001);
-    close('Slush full-power slide distance',    F.cldFullSlideDist('slush'),    130, 0.001);
-    close('Black Ice full-power slide distance', F.cldFullSlideDist('blackice'), 182, 0.001);
-    close('Powder minimum floe radius',    F.cldMinRadius('powder'),   45.5, 0.001);
-    close('Slush minimum floe radius',     F.cldMinRadius('slush'),    65,   0.001);
-    close('Black Ice minimum floe radius', F.cldMinRadius('blackice'), 91,   0.001);
+    close('Powder full-power slide distance',   F.cldFullSlideDist('powder'),   119, 0.001);
+    close('Slush full-power slide distance',    F.cldFullSlideDist('slush'),    170, 0.001);
+    close('Black Ice full-power slide distance', F.cldFullSlideDist('blackice'), 238, 0.001);
+    close('Powder minimum floe radius',    F.cldMinRadius('powder'),   59.5, 0.001);
+    close('Slush minimum floe radius',     F.cldMinRadius('slush'),    85,   0.001);
+    close('Black Ice minimum floe radius', F.cldMinRadius('blackice'), 119,  0.001);
     ok('the floor MOVES with Ice Conditions — Black Ice bottoms out on a bigger floe',
       F.cldMinRadius('blackice') > F.cldMinRadius('slush') &&
       F.cldMinRadius('slush') > F.cldMinRadius('powder'));
@@ -228,7 +228,7 @@ function rimLegal() {
       ['powder', 'slush', 'blackice'].every(i =>
         Math.abs((C.CLD_V_MAX * C.CLD_V_MAX) / (2 * F.cldDecel(i)) - F.cldFullSlideDist(i)) < 1e-9));
     G.ice = 'blackice';
-    close('the derived helpers default to the LIVE Ice Conditions', F.cldMinRadius(), 91, 0.001);
+    close('the derived helpers default to the LIVE Ice Conditions', F.cldMinRadius(), 119, 0.001);
     G.ice = 'slush';
   }
   {
@@ -291,7 +291,7 @@ function rimLegal() {
   }
   {
     setup({ players: 4, sylly: true, ice: 'slush', seed: 2 });
-    close('a Standard floe can roughly halve before it stops (130 → 65)',
+    close('a Standard floe can roughly halve before it stops (170 → 85)',
       F.cldMinRadius('slush') / C.CLD_FLOE_SIZE.standard, 0.5, 1e-9);
   }
 
@@ -721,7 +721,10 @@ function rimLegal() {
           bodies: [{ id: 'p', x: start.x, y: start.y, r: C.CLD_PENGUIN_R },
                    Object.assign({ id: 'g0', r: C.CLD_BERG_R, kind: 'berg', hits: 3 }, at(a0, RC)),
                    Object.assign({ id: 'g1', r: C.CLD_BERG_R, kind: 'berg', hits: 3 }, at(a1, RC)),
-                   Object.assign({ id: 'd', r: C.CLD_PENGUIN_R, kind: 'drowned', hits: 1 }, at(mid, S))],
+                   // hits: 99 — this proves GEOMETRY (nobody squeezes past a floating plug).
+                   // With the real one hit, a glancing blow knocks the plug back and the
+                   // shover may follow it in: the one-contact rule, checked on its own below.
+                   Object.assign({ id: 'd', r: C.CLD_PENGUIN_R, kind: 'drowned', hits: 99 }, at(mid, S))],
           impulses: [{ bodyId: 'p', vx: Math.cos(dir) * C.CLD_V_MAX, vy: Math.sin(dir) * C.CLD_V_MAX }],
           params: F.cldSimParams(), seed: 9 });
         const pl = res.events.find(e => e.type === 'plunge' && e.id === 'p');

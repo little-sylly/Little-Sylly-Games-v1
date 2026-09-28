@@ -183,13 +183,13 @@ function snowballTravel(ice, R, startDist) {
   }
   close('Slush is calibrated so a full pull crosses about one Standard radius',
     cldFullSlideDist('slush') / CLD_R_STD, 1.0, 0.001);
-  check('§4B table — full-power slide distances 91 / 130 / 182',
-    ICE_KEYS.map(i => Math.round(cldFullSlideDist(i))), [91, 130, 182]);
-  check('§4B table — minimum floe radii 46 / 65 / 91 (COMPUTED, never literals)',
-    ICE_KEYS.map(i => Math.round(cldMinRadius(i))), [46, 65, 91]);
+  check('§4B table — full-power slide distances 119 / 170 / 238',
+    ICE_KEYS.map(i => Math.round(cldFullSlideDist(i))), [119, 170, 238]);
+  check('§4B table — minimum floe radii 59 / 85 / 119 (COMPUTED, never literals)',
+    ICE_KEYS.map(i => Math.round(cldMinRadius(i))), [59, 85, 119]);
   ok('the floor moves WITH Ice Conditions — Black Ice bottoms out larger than Powder',
     cldMinRadius('blackice') > cldMinRadius('powder'));
-  ok('The Thaw can roughly halve a Standard floe (130 → 65) before it stops',
+  ok('The Thaw can roughly halve a Standard floe (170 → 85) before it stops',
     Math.abs(cldMinRadius('slush') / CLD_FLOE_SIZE.standard - 0.5) < 0.001);
 
   // ═══════════════════════════════════════════════════════════════════════
@@ -631,7 +631,7 @@ function snowballTravel(ice, R, startDist) {
       world: W(R),
       bodies: [{ id: 'a', x: 180 + R - 20, y: 180, r: CLD_PENGUIN_R },
                { id: 'b', x: 180 + R - 110, y: 180, r: CLD_PENGUIN_R }],   // far enough back never to overlap the seat on arrival
-      impulses: [{ bodyId: 'a', vx: 80, vy: 0 }, { bodyId: 'b', vx: 150, vy: 0 }],
+      impulses: [{ bodyId: 'a', vx: 80, vy: 0 }, { bodyId: 'b', vx: CLD_V_MAX, vy: 0 }],   // full power: reaches the rim at any Ice-Conditions tuning
       params: Object.assign(baseParams('slush'), seat ? { seatOnPlunge: seat } : {}),
       seed: 7,
     });
