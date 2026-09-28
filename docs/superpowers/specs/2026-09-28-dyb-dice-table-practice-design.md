@@ -192,7 +192,7 @@ bottom:
    are greyed. Wraps to two rows at 7–8 players.
 3. **Your cup** — your hand, always visible. Slick dice are tappable to pick; tap-and-hold on any
    special die jumps to its row in the Dice gallery (§ 7.4).
-4. **The claim line** — swatch in the claimant's tint + "**Mia** claims **five 4s**";
+4. **The claim line** — swatch in the claimant's tint + "**Sylvia** claims **five 4s**";
    "The Ascent ›" opens the existing bid-history overlay.
 5. **The stage** — a warm stone ledge (not a white card), with the view toggle in its corner.
 6. **Face row** — six dice in your tint; the selected face is ringed.
@@ -244,7 +244,7 @@ animates ghosts in/out (opacity + scale, ≤ 300 ms).
   claiming it switches wilds off for this Shake.
 - **Opening bid:** no Call button; the primary reads **"Open with …"**.
 - **Off-turn:** the face row and buttons give way to a status bar in the active player's tint —
-  *"**Jo** is deciding…"*. The stage keeps measuring the standing claim against your cup
+  *"**Sam** is deciding…"*. The stage keeps measuring the standing claim against your cup
   (caption: *"Standing claim: five 4s"*), so you can plan while you wait.
 
 All final copy is set in the plan and lands in `docs/game-identities/dyb.md` T7b in the same
@@ -362,7 +362,7 @@ state; Practice builds it from its script. This is what stops Practice drifting 
 
 ### 7.2 The script
 
-Classic Wilds, Tempest off. You + two scripted climbers: **Mia** (terracotta) and **Jo** (moss);
+Classic Wilds, Tempest off. You + two scripted climbers: **Sylvia** (terracotta) and **Sam** (moss);
 5 dice each, 15 on the table. The hands are fixed, so every coach line is true.
 
 | # | Beat | Coach / what happens | Player |
@@ -370,12 +370,12 @@ Classic Wilds, Tempest off. You + two scripted climbers: **Mia** (terracotta) an
 | 1 | Shake | "Hold the cup to shake, let go to throw." Real throw animation; you land **3·3·1·5·2** | Shakes |
 | 2 | Read your cup | "Two 3s — and a 1. In Classic Wilds, 1s count as any face, so you really hold three 3s." The stage shows it | Continue |
 | 3 | Open | "You go first. Tap 3, then + up to three 3s — you can back that yourself." | Explores freely; **Climb unlocks only on three 3s** |
-| 4 | Watch them climb | Mia claims **four 3s** — "she only needs one more from ten dice — likely." Jo claims **seven 3s** — "the other cups would need four of their ten. A stretch." The Whole-table view is introduced | Watches |
+| 4 | Watch them climb | Sylvia claims **four 3s** — "she only needs one more from ten dice — likely." Sam claims **seven 3s** — "the other cups would need four of their ten. A stretch." The Whole-table view is introduced | Watches |
 | 5 | Your call | "Call the Bluff — or climb higher?" | Either; both scripted |
-| 6 | The Overlook | Real reveal choreography. The table holds **five 3s**. **Called:** BLUFF CALLED, Jo loses a die. **Climbed:** Mia calls you; you fall — "climbing on a stretch is how you plunge." | Watches |
+| 6 | The Overlook | Real reveal choreography. The table holds **five 3s**. **Called:** BLUFF CALLED, Sam loses a die. **Climbed:** Sylvia calls you; you fall — "climbing on a stretch is how you plunge." | Watches |
 | 7 | Done | "That's The Bluff. A real game runs until one climber is left." | **Practice again** / **Got it** |
 
-Mia's and Jo's hidden hands are fixed in the script so the reveal totals five 3s (including their
+Sylvia's and Sam's hidden hands are fixed in the script so the reveal totals five 3s (including their
 wild 1s); the plan fixes the exact faces and the harness checks them.
 
 - **Coach:** a caption above the stage with a step counter ("3 / 7"). The control being taught gets
@@ -418,6 +418,9 @@ tutorial rework:
 - **Beats gated on the player doing the thing**, with a coach caption and step counter.
 - **Both branches** at the game's key decision.
 - Ends with **Practice again / Got it**.
+- **The Practice cast:** scripted players are drawn, in order, from **Sylvia, Sam, Shirley, Jeff**
+  (owner, 28 Sep 2026) — enough for most games; the player is always "you". The Bluff uses the
+  first two.
 - **No multiplayer**; standard timer lifecycle; reduced motion checked in JS.
 - Tab order: **Rules | Practice | gallery**.
 
