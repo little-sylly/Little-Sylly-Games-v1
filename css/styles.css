@@ -2698,6 +2698,7 @@ body.flash-red   { background-color: #fecaca; }
 #cld-pr-stage {
   width: min(100%, 46vh);
   aspect-ratio: 1 / 1;
+  flex-shrink: 0;             /* a flex child of the scrolling body: without this it squashes to 0 px tall */
   margin: 0 auto;
   background: #0e2536;
   touch-action: none;

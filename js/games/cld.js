@@ -1548,14 +1548,14 @@ function cldDrawCue(ctx, m, a) {
     if (g) {
       ctx.lineWidth = 2;
       ctx.setLineDash([4, 5]);
-      ctx.strokeStyle = 'rgba(255,255,255,0.8)';
+      ctx.strokeStyle = 'rgba(18,59,76,0.6)';   // dark ice-blue: white vanished against the ice (SE visual pass)
       ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(g.end.x, g.end.y); ctx.stroke();
       ctx.setLineDash([]);
       if (g.ghost) {
         ctx.lineWidth = 1.5;
         ctx.beginPath(); ctx.arc(g.ghost.x, g.ghost.y, CLD_PENGUIN_R, 0, CLD_TAU); ctx.stroke();
       } else {
-        ctx.fillStyle = 'rgba(255,255,255,0.9)';
+        ctx.fillStyle = 'rgba(18,59,76,0.75)';
         ctx.beginPath(); ctx.arc(g.end.x, g.end.y, 4, 0, CLD_TAU); ctx.fill();
       }
       if (g.stub) {
