@@ -65,11 +65,11 @@ worth one Fish. A Floe-Off is a series of **Slides**.
 
 **Going in the Drink.** A penguin can only go in through a **gap** in the ice ring, and a penguin
 whose centre crosses the edge is **Drowned** for the rest of that Floe-Off. It **plugs** the gap it
-went through the instant it goes in — mid-Slide, so a second penguin sliding at the same gap bounces
+went through the instant it goes in — floating in the Drink right at the mouth of the gap, its back against the ice — mid-Slide, so a second penguin sliding at the same gap bounces
 off the first one's bottom instead of following it in. That plug is its **Berth**:
 
 - it is a **bumper** — a living penguin that hits it is shoved back *harder*, not saved — but only
-  **once**: the penguin that hits it is rebounded, and the plug is **knocked back** into the water,
+  **once**: the penguin that hits it is rebounded, and the plug is **knocked back**, drifting further out,
   leaving the gap open;
 - every Slide it may throw one **Snowball** at a standing penguin (stronger the closer it is);
 - once **knocked back**, it chooses **Throw or Dive** each Slide — the Snowball, *or* a Dive into any
@@ -126,8 +126,8 @@ the funniest thing that can happen to you, not the worst.
 | **The Drink** | The water. To be "in the Drink" is to be Drowned. |
 | **Drowned** | A penguin that went off the edge. Out of the standing contest for this Floe-Off, but not benched — it plays from the rim. |
 | **Berth** | A Drowned penguin **Plugged** in a gap of the ice ring — the gap it went through, or the one it Dived or was displaced to. |
-| **Plugged** | The Drowned state that blocks its gap: an immovable, energetic bumper that absorbs **one** contact. |
-| **Knocked back** | The Drowned state after that contact: bobbing just outside its gap, no longer a bumper, the gap open again. |
+| **Plugged** | The Drowned state that blocks its gap from the water: floating just past the edge, an immovable, energetic bumper that absorbs **one** contact. |
+| **Knocked back** | The Drowned state after that contact: drifted out past its gap, no longer a bumper, the gap open again. |
 | **Snowball** | The single throw a Drowned penguin gets each Slide, aimed at a standing penguin to nudge their Slide off line. Stronger the closer it lands to the thrower. Also takes one hit off a Berg; does nothing to a plug. |
 | **Dive** | A Knocked-back penguin's move into any free gap, *instead of* throwing that Slide (Throw or Dive). Resolves before the Slide; contested spots go to the closer penguin. Arrives Plugged. |
 | **Resurface** | The reset of every penguin to Standing at the start of a Floe-Off. Never used for surfacing at a Berth. |

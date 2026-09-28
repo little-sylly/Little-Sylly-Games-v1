@@ -126,9 +126,13 @@ const M = [
   'radius: 0,']]],
 
 // ── SW v243: plugs, Throw-or-Dive and the Ice Bath ─────────────────────────
-['plug-seats-on-the-rim-not-the-ring', 'game', [[
-  'function cldRingR() { return cldBergInset(); }',
-  'function cldRingR() { return cldFloeRadius; }']]],
+['plug-seats-on-the-ice', 'game', [[
+  'function cldSeatR()  { return cldFloeRadius + CLD_PLUG_OUT; }',
+  'function cldSeatR()  { return cldChunkR(); }']]],
+
+['chunk-ban-taken-at-the-seat-circle', 'game', [[
+  '    const half = 2 * Math.asin(Math.min(1, (q.r + CLD_PENGUIN_R) / (2 * cldDistFromCentre(q.x, q.y))));',
+  '    const half = 2 * Math.asin(Math.min(1, (q.r + CLD_PENGUIN_R) / (2 * S)));']]],
 
 ['plug-never-centres', 'game', [[
   '    if (widthUnits < CLD_CENTRE_GAP_DIAM * 2 * CLD_PENGUIN_R) t = (s + e) / 2;',

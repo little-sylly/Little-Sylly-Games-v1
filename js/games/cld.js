@@ -8,7 +8,7 @@
 //
 // ── STAGE 2 OF 6 (spec §15 build order) ────────────────────────────────────
 // This file currently holds the RULES LAYER ONLY: constants, state, ring
-// geometry (where a Drowned penguin plugs), Throw-or-Dive, Berg placement, Slide resolution,
+// geometry (where a Drowned penguin plugs, in the Drink), Throw-or-Dive, Berg placement, Slide resolution,
 // The Thaw, Washout and Fish scoring. There is deliberately NO DOM, NO canvas,
 // NO multiplayer and NO event wiring in it yet — Stage 4 adds the UI and the
 // render seam, Stage 5 the MP layer. Everything here is driven headlessly by
@@ -94,7 +94,7 @@ const CLD_THAW_STEP   = 8;      // logical units shed per Slide under The Thaw
 // See cld-implementation-notes DD-16.
 const CLD_RING_COVER     = 0.80;  // share of the Berg circle's circumference that is ice
 const CLD_SLIP_GAPS      = [2, 3];                  // min, max slip gaps per Floe-Off
-const CLD_SLIP_GAP_WIDTH = [1.6, 2.4];              // × penguin diameter, arc length
+const CLD_SLIP_GAP_WIDTH = [1.6, 1.8];              // × penguin diameter, arc length — capped so one floating plug seals the widest (SW v245)
 const CLD_START_RING  = 0.55;   // penguins start on this fraction of the floe radius
 const CLD_BATH_FLOOR_MULT = 1.25;   // Ice Bath radius floor, × cldMinRadius() — a tuning value (Task 8)
 const CLD_MIN_POWER   = 0.08;   // §7 — below this a drag is "Too soft", never a commit
@@ -279,10 +279,10 @@ function cldProjectBergsToRim() {
     b.x = pos.x;
     b.y = pos.y;
   });
-  // Plugs are fixed: a chunk the shrinking ring squeezes into a plug calves (§3.5).
-  const plugs = cldPenguins.filter(p => p.drowned && p.plug);
-  cldBergs = cldBergs.filter(b => !plugs.some(p =>
-    Math.hypot(p.x - b.x, p.y - b.y) < CLD_PENGUIN_R + b.r - 0.01));
+  // No plug can calve a chunk any more (SW v245): a plug floats on cldSeatR, and
+  // cldSeatR − cldChunkR = CLD_PENGUIN_R + CLD_BERG_R exactly, so a plug and a
+  // chunk can at most touch — at any radius the Thaw reaches. The Thaw sweep in
+  // verify-cld-loop.js holds the invariant this line used to enforce.
   if (cldBergs.length < 2) return;
   const ring = cldBergs.slice().sort((p, q) => p.angle - q.angle);
   const keep = [ring[0]];
@@ -301,16 +301,22 @@ function cldProjectBergsToRim() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// Ring geometry (SW v243) — where a Drowned penguin can sit. A penguin can only
-// go in through a GAP, and it plugs the gap it went through. Plugs and chunks
-// share one circle (cldRingR): a plug out on the rim can be squeezed past in
-// the widest slip gaps, a plug on the ring circle, centred, cannot (the seal
-// harness proves it for every generated width). spec §3.1.
+// Ring geometry (SW v245) — where a Drowned penguin can sit. A penguin can only
+// go in through a GAP, and it plugs that gap FROM THE DRINK: a Plugged penguin's
+// centre sits on the seat circle (cldSeatR), one body-radius past the edge, so
+// its whole body floats in the water just touching the ice. Chunks keep their
+// own circle (cldChunkR). A seat is legal where a penguin could PASS the chunk
+// ring at that angle and no other plug overlaps it — every anchor's ban is taken
+// at the anchor's own radius — so a plug never sits behind a chunk. One floating
+// plug seals any slip gap up to 1.8 diameters on every floe size (the seal
+// harness). spec 2026-09-29-cld-fun-pass § 3.1 (owner: "fully in the water").
 // ═══════════════════════════════════════════════════════════════════════════
-const CLD_CENTRE_GAP_DIAM = 2;                  // open interval < this × penguin diameter → seat at its centre
-const CLD_BACK_OFFSET     = CLD_PENGUIN_R * 1.4; // a Knocked-back penguin bobs this far outside the rim
+const CLD_CENTRE_GAP_DIAM = 2;                   // open interval < this × penguin diameter → seat at its centre
+const CLD_PLUG_OUT        = CLD_PENGUIN_R;       // a plug's centre sits this far past the edge
+const CLD_BACK_OFFSET     = CLD_PENGUIN_R * 2.2; // a Knocked-back penguin drifts this far past the edge
 
-function cldRingR() { return cldBergInset(); }
+function cldChunkR() { return cldBergInset(); }
+function cldSeatR()  { return cldFloeRadius + CLD_PLUG_OUT; }
 function cldAngleOf(x, y) { return cldNormAngle(Math.atan2(y - CLD_H / 2, x - CLD_W / 2)); }
 function cldArcDist(a, b) {
   const d = Math.abs(cldNormAngle(a) - cldNormAngle(b));
@@ -375,15 +381,15 @@ function cldAimGuide(m, aim) {
 // PURE. `anchors` are [{ x, y, r }] — chunks and Plugged Drowned, live. Returns
 // the free seat nearest `angle`, or null when the ring has no room anywhere.
 function cldSeatSpotFrom(anchors, angle) {
-  const R = cldRingR();
+  const S = cldSeatR(), RC = cldChunkR();
   const a = cldNormAngle(angle);
-  const at = t => { const pos = cldRimPos(t, R); return { angle: cldNormAngle(t), x: pos.x, y: pos.y }; };
+  const at = t => { const pos = cldRimPos(t, S); return { angle: cldNormAngle(t), x: pos.x, y: pos.y }; };
   if (!anchors.length) return at(a);
   // Each anchor forbids a centre-angle interval: the chord at which a penguin
   // would touch it exactly (chord-exact, so touching is allowed, overlap not).
   const bans = anchors.map(q => {
     const c = cldAngleOf(q.x, q.y);
-    const half = 2 * Math.asin(Math.min(1, (q.r + CLD_PENGUIN_R) / (2 * R)));
+    const half = 2 * Math.asin(Math.min(1, (q.r + CLD_PENGUIN_R) / (2 * cldDistFromCentre(q.x, q.y))));
     return [c - half, c + half];
   });
   // Unroll onto [a0, a0 + τ) starting at the first ban's start, merge, invert.
@@ -404,7 +410,7 @@ function cldSeatSpotFrom(anchors, angle) {
   if (!open.length) return null;
   let best = null, bestD = Infinity;
   open.forEach(([s, e]) => {
-    const widthUnits = (e - s) * R;
+    const widthUnits = (e - s) * RC;
     let t;
     if (widthUnits < CLD_CENTRE_GAP_DIAM * 2 * CLD_PENGUIN_R) t = (s + e) / 2;
     else {
@@ -429,7 +435,7 @@ function cldSeatSpot(angle, excludeId) { return cldSeatSpotFrom(cldRingAnchors(e
 
 // ── Drowned placement ─────────────────────────────────────────────────────
 function cldPlaceDrowned(p) {
-  const r = p.plug ? cldRingR() : cldFloeRadius + CLD_BACK_OFFSET;
+  const r = p.plug ? cldSeatR() : cldFloeRadius + CLD_BACK_OFFSET;
   const pos = cldRimPos(p.angle, r);
   p.x = pos.x; p.y = pos.y;
 }
@@ -447,7 +453,7 @@ function cldSurfaceAt(p, angle) {
 }
 // "In that gap" = its plug would overlap the new one (spec §3.3 step 2).
 function cldDisplaceFrom(plugged, aftermath) {
-  const clash = 2 * Math.asin(Math.min(1, CLD_PENGUIN_R / cldRingR()));   // two penguins touching, chord-exact
+  const clash = 2 * Math.asin(Math.min(1, CLD_PENGUIN_R / cldSeatR()));   // two penguins touching, chord-exact
   cldPenguins.forEach(q => {
     if (!q.drowned || q.plug || q.id === plugged.id) return;
     if (cldArcDist(q.angle, plugged.angle) >= clash) return;
@@ -577,7 +583,7 @@ function cldResolveDives() {
     const p = cldPenguins.find(q => q.id === c.dive.penguinId && q.ownerIdx === i && q.drowned && !q.plug);
     if (!p) continue;
     const target = cldNormAngle(c.dive.angle);
-    want.push({ p: p, seat: i, target: target, dist: cldArcDist(p.angle, target) * cldRingR() });
+    want.push({ p: p, seat: i, target: target, dist: cldArcDist(p.angle, target) * cldSeatR() });
   }
   want.sort((a, b) => { const d = a.dist - b.dist; return Math.abs(d) > 0.01 ? d : a.seat - b.seat; });
   return want.map(w => {
@@ -1657,7 +1663,7 @@ function cldBuildModel(src, ui) {
 // A slip gap's seat is its CENTRE, which no sample angle lands on — so a sample
 // is snapped to its seat, not tested against it.
 function cldDiveModel(back, chosen) {
-  const apart = 2 * Math.asin(Math.min(1, CLD_PENGUIN_R / cldRingR()));
+  const apart = 2 * Math.asin(Math.min(1, CLD_PENGUIN_R / cldSeatR()));
   const seats = [], drawn = [];
   for (let k = 0; k < 96; k++) {
     const s = cldSeatSpot(k * CLD_TAU / 96, back.id);
@@ -1665,7 +1671,7 @@ function cldDiveModel(back, chosen) {
     drawn.push(s.angle);
     seats.push({ x: s.x, y: s.y });
   }
-  const g = chosen ? cldRimPos(chosen.angle, cldRingR()) : null;
+  const g = chosen ? cldRimPos(chosen.angle, cldSeatR()) : null;
   return { seats: seats, ghost: g ? { x: g.x, y: g.y, ownerIdx: back.ownerIdx } : null };
 }
 

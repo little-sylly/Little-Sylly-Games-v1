@@ -62,7 +62,7 @@ globalThis.__cld = {
     CLD_W, CLD_H, CLD_THAW_STEP, CLD_PENGUIN_R, CLD_BERG_R,
     CLD_RING_COVER, CLD_SLIP_GAPS, CLD_SLIP_GAP_WIDTH, CLD_START_RING, CLD_MIN_POWER, CLD_V_MAX, CLD_R_STD,
     CLD_MIN_RADIUS_MULT, CLD_SIM_CAP_MS, CLD_FLOE_SIZE, CLD_ICE_MULT,
-    CLD_SNOWBALL_R, CLD_SNOWBALL_SPEED,
+    CLD_SNOWBALL_R, CLD_SNOWBALL_SPEED, CLD_PLUG_OUT, CLD_BACK_OFFSET,
   },
   fn: {
     cldFullSlideDist, cldDecel, cldMinRadius, cldSnowballForce, cldSnowballArrivalMs,
@@ -72,7 +72,7 @@ globalThis.__cld = {
     cldPlaceBergs, cldProjectBergsToRim, cldBergInset,
     cldStartMatch, cldStartFloeOff, cldBuildSlideInputs, cldResolveSlide,
     cldThawStep, cldCheckWashout, cldResolveFloeOff, cldMatchWinner, cldSimParams,
-    cldRingR, cldAngleOf, cldArcDist, cldSeatSpotFrom, cldRingAnchors, cldSeatSpot,
+    cldChunkR, cldSeatR, cldAngleOf, cldArcDist, cldSeatSpotFrom, cldRingAnchors, cldSeatSpot,
   },
   rng(s) { return window.Physics.rng(s); },
   get penguins()    { return cldPenguins; },    set penguins(v)    { cldPenguins = v; },
@@ -164,9 +164,9 @@ function shoveOut(penguinId, power) {
 function rimLegal() {
   for (const p of G.penguins) {
     if (!p.drowned) { if (p.plug || p.angle !== null) return 'standing penguin holds a seat: ' + p.id; continue; }
-    const want = p.plug ? F.cldRingR() : G.radius + C.CLD_PENGUIN_R * 1.4;
+    const want = p.plug ? G.radius + C.CLD_PLUG_OUT : G.radius + C.CLD_BACK_OFFSET;
     if (Math.abs(distC(p.x, p.y) - want) > 1e-6)
-      return (p.plug ? 'plug off the ring circle: ' : 'knocked-back penguin off its bob line: ') + p.id;
+      return (p.plug ? 'plug off the seat circle: ' : 'knocked-back penguin off its drift line: ') + p.id;
     if (F.cldArcDist(Math.atan2(p.y - CY, p.x - CX), p.angle) > 1e-6) return 'Drowned penguin off its angle: ' + p.id;
     if (!p.plug) continue;
     for (const a of F.cldRingAnchors(p.id))
@@ -183,6 +183,15 @@ function rimLegal() {
 
   // ═══════════════════════════════════════════════════════════════════════
   section('Constants — the Ice Conditions table now lives in cld.js (TG-01)');
+  {
+    // physics.js warms its xorshift up because raw first draws cluster near 0 for
+    // small seeds, and every seeded pick in cld.js (Berg placement, slip gaps)
+    // takes its FIRST draws. Pinned directly: the SW v243 Thaw sweep that used to
+    // notice a cold generator cannot since plugs float clear of the chunks.
+    const firsts = Array.from({ length: 40 }, (_, i) => G.rng(i + 1)());
+    ok('Physics.rng: first draws spread across small seeds (the warm-up)',
+      firsts.filter(v => v > 0.1).length >= 20, firsts.map(v => v.toFixed(3)).join(' '));
+  }
   {
     const physSrc = fs.readFileSync(path.join(ROOT, 'tools/verify-cld-physics.js'), 'utf8');
     ok('verify-cld-physics.js reads cld.js rather than keeping its own copy',
@@ -300,7 +309,7 @@ function rimLegal() {
     outer.x = CX + (to + 4); outer.y = CY;               // left outside the new rim
 
     const t = F.cldThawStep(G.rng(6));
-    close('a Plugged penguin rides the ring circle inward', distC(drowned.x, drowned.y), F.cldRingR(), 1e-9);
+    close('a Plugged penguin rides the seat circle inward', distC(drowned.x, drowned.y), G.radius + C.CLD_PLUG_OUT, 1e-9);
     close('…keeping its angle exactly',
       F.cldArcDist(Math.atan2(drowned.y - CY, drowned.x - CX), angleBefore), 0, 1e-9);
     ok('…still Plugged', drowned.plug === true);
@@ -628,33 +637,58 @@ function rimLegal() {
   section('Ring geometry — where a Drowned penguin seats (spec §3.1)');
   {
     setup({ players: 4, iceBreaker: 2, seed: 50 });
-    const R = F.cldRingR();
+    const RC = G.radius - C.CLD_BERG_R;             // the chunk circle, measured directly
+    const S  = G.radius + C.CLD_PLUG_OUT;           // the seat circle, measured directly
     const P = C.CLD_PENGUIN_R;
     const touching = (a, b) => Math.hypot(a.x - b.x, a.y - b.y) >= a.r + b.r - 1e-6;
 
     check('with no anchors the spot is exactly the asked angle',
       Math.round(F.cldSeatSpotFrom([], 1.0).angle * 1e6), 1e6);
 
-    // Every seat F.cldSeatSpot returns overlaps nothing, across many angles.
-    let clean = true;
+    let onCircle = true, clear = true, behind = false;
     for (let k = 0; k < 72; k++) {
       const s = F.cldSeatSpot(k * TAU / 72, null);
       if (!s) continue;
       const me = { x: s.x, y: s.y, r: P };
-      if (!F.cldRingAnchors(null).every(a => touching(me, a))) clean = false;
-      // Against the Berg circle DIRECTLY, not cldRingR(): a check that asks the
-      // function under test where the circle is cannot see the circle move.
-      if (Math.abs(Math.hypot(s.x - CX, s.y - CY) - F.cldBergInset()) > 1e-6) clean = false;
+      if (Math.abs(Math.hypot(s.x - CX, s.y - CY) - S) > 1e-6) onCircle = false;
+      if (!F.cldRingAnchors(null).every(a => touching(me, a))) clear = false;
+      // Never behind a chunk: the seat's angle must be one a penguin could PASS
+      // the chunk ring at (the ban taken at the chunk's own radius).
+      G.bergs.forEach(b => {
+        const half = 2 * Math.asin(Math.min(1, (b.r + P) / (2 * Math.hypot(b.x - CX, b.y - CY))));
+        if (F.cldArcDist(s.angle, Math.atan2(b.y - CY, b.x - CX)) < half - 1e-9) behind = true;
+      });
     }
-    ok('every seat sits on the chunks’ own circle and overlaps no chunk', clean);
+    ok('every seat floats in the Drink, one body-radius past the edge', onCircle);
+    ok('…overlapping no chunk and no plug', clear);
+    ok('…and never behind a chunk — only where a penguin could get through', !behind);
+
+    // After a shatter the gap is WIDE, so seats no longer snap to its centre —
+    // this is where a ban taken at the wrong radius would let a plug creep in
+    // behind the neighbouring chunks. Sweep again with three chunks gone.
+    const keep = G.bergs;
+    G.bergs = keep.filter((b, i) => i < 3 || i > 5);         // three neighbours gone: wider than the centring rule
+    let behindWide = false, wideSeats = 0;
+    for (let k = 0; k < 360; k++) {
+      const s = F.cldSeatSpot(k * TAU / 360, null);
+      if (!s) continue;
+      wideSeats++;
+      G.bergs.forEach(b => {
+        const half = 2 * Math.asin(Math.min(1, (b.r + P) / (2 * Math.hypot(b.x - CX, b.y - CY))));
+        if (F.cldArcDist(s.angle, Math.atan2(b.y - CY, b.x - CX)) < half - 1e-9) behindWide = true;
+      });
+    }
+    G.bergs = keep;
+    ok('beside a shattered chunk, no seat creeps in behind its neighbours', wideSeats > 0 && !behindWide);
+
 
     // A slip gap: narrow → the seat is the gap's centre, whatever the asked angle.
     const gapAngles = G.bergs.map(b => b.angle).sort((a, b) => a - b);
-    const chunkHalf = Math.asin(C.CLD_BERG_R / R);
+    const chunkHalf = Math.asin(C.CLD_BERG_R / RC);
     let centred = true, found = 0;
     gapAngles.forEach((a, i) => {
       const nx = i + 1 < gapAngles.length ? gapAngles[i + 1] : gapAngles[0] + TAU;
-      const edgeGap = (nx - a - 2 * chunkHalf) * R;
+      const edgeGap = (nx - a - 2 * chunkHalf) * RC;
       if (edgeGap < 2 * P) return;                     // a crack, not a gap
       found++;
       const mid = cldMid(a, nx);
@@ -666,32 +700,38 @@ function rimLegal() {
     ok('…and a seat anywhere in a slip gap lands at its centre', centred);
   }
   {
-    section('The seal — a plugged slip gap cannot be passed (spec §3.1)');
-    // Build the tightest honest case by hand: two chunks with an edge gap of the
-    // WIDEST slip width the ring can generate, a plug at its centre, and a
-    // penguin driven straight at every offset across the gap at full power.
-    setup({ players: 3, iceBreaker: 3, seed: 51 });
-    const R = F.cldRingR();
-    const widest = 2 * C.CLD_PENGUIN_R * C.CLD_SLIP_GAP_WIDTH[1];
-    const half = Math.asin(C.CLD_BERG_R / R);
-    const a0 = 0, a1 = a0 + 2 * half + widest / R;
-    const pos = a => ({ x: CX + R * Math.cos(a), y: CY + R * Math.sin(a) });
-    const mid = (a0 + a1) / 2;
-    let sealed = true;
-    for (let off = -1; off <= 1.0001; off += 0.125) {
-      const aim = mid + off * (a1 - a0) / 2;
-      const start = { x: CX + (R - 60) * Math.cos(aim), y: CY + (R - 60) * Math.sin(aim) };
-      const res = sandbox.window.Physics.simulate({
-        world: { cx: CX, cy: CY, radius: G.radius },
-        bodies: [{ id: 'p', x: start.x, y: start.y, r: C.CLD_PENGUIN_R },
-                 Object.assign({ id: 'g0', r: C.CLD_BERG_R, kind: 'berg', hits: 3 }, pos(a0)),
-                 Object.assign({ id: 'g1', r: C.CLD_BERG_R, kind: 'berg', hits: 3 }, pos(a1)),
-                 Object.assign({ id: 'd', r: C.CLD_PENGUIN_R, kind: 'drowned', hits: 1 }, pos(mid))],
-        impulses: [{ bodyId: 'p', vx: Math.cos(aim) * C.CLD_V_MAX, vy: Math.sin(aim) * C.CLD_V_MAX }],
-        params: F.cldSimParams(), seed: 9 });
-      if (res.events.some(e => e.type === 'plunge' && e.id === 'p')) sealed = false;
+    section('The seal — a floating plug holds its gap on every floe size (spec § 3.1)');
+    // Hand-built worst case per floe size: two chunks with the WIDEST slip gap the
+    // ring can generate, a plug floating at the gap's centre, and a penguin driven
+    // at full power at every offset across the gap and every approach within ±60°.
+    // Only a plunge THROUGH the gap counts — the mini world has open rim elsewhere.
+    let sealed = true, worst = '';
+    for (const size of ['roomy', 'standard', 'cramped']) {
+      setup({ players: 3, iceBreaker: 3, floe: size, seed: 51 });
+      const RC = G.radius - C.CLD_BERG_R, S = G.radius + C.CLD_PLUG_OUT;
+      const widest = 2 * C.CLD_PENGUIN_R * C.CLD_SLIP_GAP_WIDTH[1];
+      const half = Math.asin(C.CLD_BERG_R / RC);
+      const a0 = 0, a1 = a0 + 2 * half + widest / RC, mid = (a0 + a1) / 2;
+      const at = (a, r) => ({ x: CX + r * Math.cos(a), y: CY + r * Math.sin(a) });
+      for (let off = -1; off <= 1.0001; off += 0.125) for (const tilt of [-1, -0.5, 0, 0.5, 1]) {
+        const lane = mid + off * (a1 - a0) / 2, dir = lane + tilt * Math.PI / 3;
+        const start = at(lane, RC - 60);
+        const res = sandbox.window.Physics.simulate({
+          world: { cx: CX, cy: CY, radius: G.radius },
+          bodies: [{ id: 'p', x: start.x, y: start.y, r: C.CLD_PENGUIN_R },
+                   Object.assign({ id: 'g0', r: C.CLD_BERG_R, kind: 'berg', hits: 3 }, at(a0, RC)),
+                   Object.assign({ id: 'g1', r: C.CLD_BERG_R, kind: 'berg', hits: 3 }, at(a1, RC)),
+                   Object.assign({ id: 'd', r: C.CLD_PENGUIN_R, kind: 'drowned', hits: 1 }, at(mid, S))],
+          impulses: [{ bodyId: 'p', vx: Math.cos(dir) * C.CLD_V_MAX, vy: Math.sin(dir) * C.CLD_V_MAX }],
+          params: F.cldSimParams(), seed: 9 });
+        const pl = res.events.find(e => e.type === 'plunge' && e.id === 'p');
+        if (pl) {
+          const pa = Math.atan2(pl.y - CY, pl.x - CX);
+          if (pa >= a0 - 1e-9 && pa <= a1 + 1e-9) { sealed = false; worst = size + ' off ' + off + ' tilt ' + tilt; }
+        }
+      }
     }
-    ok('a centred plug seals the widest slip gap against a full-power shove at every offset', sealed);
+    ok('a floating plug seals the widest slip gap on Roomy, Standard and Cramped, at every offset and angle', sealed, worst);
   }
 
   // ═══════════════════════════════════════════════════════════════════════
@@ -701,7 +741,7 @@ function rimLegal() {
     setup({ players: 3, iceBreaker: 3, seed: 52 });
     const s = F.cldSeatSpot(0, null);                // centre of the nearest gap to angle 0
     const [p0, p1, p2] = G.penguins;
-    const lane = (p, back) => { p.x = CX + (F.cldRingR() - back) * Math.cos(s.angle); p.y = CY + (F.cldRingR() - back) * Math.sin(s.angle); };
+    const lane = (p, back) => { p.x = CX + (F.cldChunkR() - back) * Math.cos(s.angle); p.y = CY + (F.cldChunkR() - back) * Math.sin(s.angle); };
     lane(p0, 25); lane(p1, 70); p2.x = CX - 40; p2.y = CY;
     const cs = allHold();
     cs[0].aims.push({ penguinId: p0.id, dx: Math.cos(s.angle), dy: Math.sin(s.angle), power: 0.7 });
@@ -713,7 +753,7 @@ function rimLegal() {
       !tl.events.some(e => e.type === 'plunge' && e.id === p1.id));
     check('…the plug took that hit and is Knocked back', [pen(p0.id).drowned, pen(p0.id).plug], [true, false]);
     close('…bobbing outside its gap', Math.hypot(pen(p0.id).x - CX, pen(p0.id).y - CY),
-      G.radius + C.CLD_PENGUIN_R * 1.4, 1e-6);
+      G.radius + C.CLD_BACK_OFFSET, 1e-6);
     ok('the timeline names its body order', Array.isArray(tl.bodyIds) && tl.bodyIds[0] === p0.id);
   }
   {
@@ -733,6 +773,12 @@ function rimLegal() {
     const flat = hit ? hit.speed * hit.speed / (2 * F.cldDecel()) : Infinity;   // e = 1
     ok('a penguin bounces off a plug further than it arrived (restitution > 1)',
       !!hit && rest > 1.25 * flat, 'rest ' + rest.toFixed(1) + ' vs e=1 ' + flat.toFixed(1));
+    // A plug seated BEFORE the Slide absorbs one hit too — not only one seated
+    // mid-Slide (physics gives those hits: 1 itself). Since SW v245 plugs float
+    // past the edge and can never overlap a chunk, so the overlap sweeps below no
+    // longer catch a plug that never breaks; this does.
+    check('…and a plug seated before the Slide takes that hit and is Knocked back',
+      [pen(p0.id).drowned, pen(p0.id).plug], [true, false]);
   }
   {
     // Displacement: a Knocked-back penguin in the gap a new plunge seats into moves on.
@@ -740,7 +786,7 @@ function rimLegal() {
     const [p0, p1, p2] = G.penguins;
     const s = F.cldSeatSpot(0, null);
     p0.drowned = true; p0.plug = false; p0.angle = s.angle; F.cldPlaceDrowned(p0);   // knocked back, in that gap
-    p1.x = CX + (F.cldRingR() - 25) * Math.cos(s.angle); p1.y = CY + (F.cldRingR() - 25) * Math.sin(s.angle);
+    p1.x = CX + (F.cldChunkR() - 25) * Math.cos(s.angle); p1.y = CY + (F.cldChunkR() - 25) * Math.sin(s.angle);
     const cs = allHold();
     cs[1].aims.push({ penguinId: p1.id, dx: Math.cos(s.angle), dy: Math.sin(s.angle), power: 0.7 });
     G.commits = cs;
@@ -762,7 +808,7 @@ function rimLegal() {
         F.cldResolveSlide(seed * 31 + k);
         const plugs = G.penguins.filter(p => p.drowned && p.plug);
         plugs.forEach(p => {
-          if (Math.abs(Math.hypot(p.x - CX, p.y - CY) - F.cldRingR()) > 1e-6) legal = false;
+          if (Math.abs(Math.hypot(p.x - CX, p.y - CY) - (G.radius + C.CLD_PLUG_OUT)) > 1e-6) legal = false;
           F.cldRingAnchors(p.id).forEach(a => {
             if (Math.hypot(p.x - a.x, p.y - a.y) < C.CLD_PENGUIN_R + a.r - 1e-6) legal = false;
           });
@@ -831,7 +877,7 @@ function rimLegal() {
     const [p0, p1] = G.penguins;
     const s = F.cldSeatSpot(0, null);
     knockBackAt(p0, s.angle + 1.0);
-    p1.x = CX + (F.cldRingR() - 30) * Math.cos(s.angle); p1.y = CY + (F.cldRingR() - 30) * Math.sin(s.angle);
+    p1.x = CX + (F.cldChunkR() - 30) * Math.cos(s.angle); p1.y = CY + (F.cldChunkR() - 30) * Math.sin(s.angle);
     const cs = allHold();
     cs[0].dive = { penguinId: p0.id, angle: s.angle };
     cs[1].aims.push({ penguinId: p1.id, dx: Math.cos(s.angle), dy: Math.sin(s.angle), power: 1 });
@@ -882,7 +928,7 @@ function rimLegal() {
     check('…on a ringless floe', G.bergs.length, 0);
     close('…sized to the bath', G.radius, F.cldBathRadius(2, 4), 1e-9);
     ok('…the Drowned re-seated Plugged on the new rim',
-      [p2, p3].every(p => pen(p.id).plug && Math.abs(Math.hypot(pen(p.id).x - CX, pen(p.id).y - CY) - F.cldRingR()) < 1e-6));
+      [p2, p3].every(p => pen(p.id).plug && Math.abs(Math.hypot(pen(p.id).x - CX, pen(p.id).y - CY) - (G.radius + C.CLD_PLUG_OUT)) < 1e-6));
     ok('…and the floor holds', F.cldBathRadius(1, 8) >= 1.25 * F.cldMinRadius() - 1e-9);
   }
   {
