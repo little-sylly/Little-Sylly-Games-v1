@@ -80,8 +80,24 @@ const DYB_COPY = {
   holds:     'CLAIM HOLDS',
   bluff:     'BLUFF CALLED',
   called:    'called',
+  galleryFaces:   'The Faces',
+  galleryFacesB:  'Five dice each, rolled behind your hand. These are the six a die can show.',
+  galleryTints:   'Seat Colours',
+  galleryTintsB:  'Every climber throws their own colour, so the whole table can tell whose dice are whose.',
+  galleryTempest: 'The Tempest',
+  galleryTempestB:'Sylly Mode only. Each special die looks like what it does.',
+  galleryCup:     'In the Cup',
+  galleryCupB:    'What everyone else sees before The Overlook.',
 };
 const DYB_NUM_WORDS = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'];
+// The Dice gallery's Tempest rows — each line must stay true to dybDieDelta.
+const DYB_TEMPEST_ROWS = [
+  { type: 'loaded',  name: 'Loaded',  line: 'Bronze pips. Counts double toward its face.' },
+  { type: 'cracked', name: 'Cracked', line: 'Split through. Counts for nothing.' },
+  { type: 'snake',   name: 'Snake',   line: "Serpent eyes. Counts −1 toward its face, and while 1s are wild a Snake 1 bites whatever's claimed." },
+  { type: 'slick',   name: 'Slick',   line: 'Wet sheen. Tap it once to choose its face.' },
+  { type: 'phantom', name: 'Phantom', line: 'Misted over, even for you. The fog lifts at The Overlook.' },
+];
 function dybBidText(qty, face) { return `${DYB_NUM_WORDS[qty] || qty} ${face}${qty === 1 ? '' : 's'}`; }
 
 // ── Sound — each moment points at an existing engine effect (CJAR_SOUND pattern).
@@ -1718,18 +1734,12 @@ function dybDieHTML(val, type, slickFace, dieIdx = -1, isSlickAssigned = true, p
 }
 function dybDieHTMLSm(face, tint = null) { return dybDieHTML(face, 'standard', -1, -1, true, null, tint, 38); }
 function dybDieHTMLXs(face, tint = null) { return dybDieHTML(face, 'standard', -1, -1, true, null, tint, 26); }
-// Face-down die (still used by the gallery's "In the Cup" until Task 17).
-function dybDieBackHTML() { return dybCupMarkup(dybActiveSet()); }
 
-// ── How to Play: the dice gallery ─────────────────────────────────────────
-// Tab 2 of dyb-how-to-overlay. Every tile goes through dybDieHTML/dybDieBackHTML —
-// the same seam the table uses — so a skin pack shows up here without a code change,
-// and so this doubles as the offline install check once DYB has core art.
-//
-// Scope note: the five Tempest die TYPES are skinnable too (assets.specials), but they
-// are not shown here. Their identity is the engine's frame plus live per-die state
-// (an unassigned Slick shows the auto-rolled face you are about to choose), which a
-// static reference tile would misrepresent. They are previewed in play under Sylly Mode.
+// ── How to Play: tabs and the dice gallery ────────────────────────────────
+// The Dice (tab 3) draws every tile through the recipe seam, in the active set, so a
+// dice-set pack shows here with no code change. Tiles are procedural — like CLD's pose
+// tiles they are not artMakeZoomable and are no longer an offline install check. The
+// Tempest forms are shown: generated tiles can draw the mist, badge and fissure.
 function dybOpenHowTo(tab, highlightId) {
   dybSetHowToTab(tab || 'rules', highlightId);
   const inner = document.querySelector('#dyb-how-to-overlay .overlay-data-inner');
@@ -1814,51 +1824,31 @@ function dybPracticeThrow() {
   dybPlayThrow(els, hand, dybActiveSet(), DYB_PRACTICE.tints[0], dybPrTimers, () => dybPracticeDispatch({ type: 'thrown' }));
 }
 
-function dybRenderDiceGallery() {
+function dybRenderDiceGallery(highlightId) {
   const box = document.getElementById('dyb-dice-body');
   if (!box) return;
-  box.innerHTML = '';
-
-  const section = (label, blurb) => {
-    const wrap = document.createElement('div');
-    wrap.className = 'flex flex-col gap-2';
-    const h = document.createElement('p');
-    h.className = 'text-xs font-semibold uppercase tracking-widest dyb-label';
-    h.textContent = label;
-    const b = document.createElement('p');
-    b.className = 'text-stone-500 text-sm';
-    b.textContent = blurb;
-    const row = document.createElement('div');
-    row.className = 'grid grid-cols-3 gap-3 justify-items-center pt-1';
-    wrap.append(h, b, row);
-    box.appendChild(wrap);
-    return row;
-  };
-  // dybDieHTML returns markup, not a node — unwrap it so artMakeZoomable has an element.
-  const tile = (row, html, url, caption) => {
-    const holder = document.createElement('div');
-    holder.innerHTML = html;
-    const die = holder.firstElementChild;
-    if (!die) return;
-    const cell = document.createElement('div');
-    cell.className = 'flex flex-col items-center gap-1';
-    cell.appendChild(artMakeZoomable(die, url, caption));
-    const c = document.createElement('p');
-    c.className = 'text-[0.65rem] text-stone-500 text-center leading-tight';
-    c.textContent = caption;
-    cell.appendChild(c);
-    row.appendChild(cell);
-  };
-
-  const faces = section('The Faces',
-    'Five dice each, rolled behind your hand. These are the six a standard die can show.');
-  for (let f = 1; f <= 6; f++) {
-    const url = (typeof assetFace === 'function') && assetFace('dyb', f);
-    tile(faces, dybDieHTML(f, 'standard', -1), url, String(f));
-  }
-
-  const back = section('In the Cup', 'What everyone else sees before The Overlook.');
-  tile(back, dybDieBackHTML(), (typeof assetBack === 'function') && assetBack('dyb'), 'Face down');
+  const set = dybActiveSet();
+  const tint = dybTintFor(typeof mpMyPlayerIdx === 'number' ? mpMyPlayerIdx : 0);
+  const sec = (label, blurb, row, attr = '') => `<div class="flex flex-col gap-2 dyb-ref-row"${attr}>
+      <p class="text-xs font-semibold uppercase tracking-widest dyb-label">${label}</p>
+      <p class="text-stone-500 text-sm">${blurb}</p><div class="${row}">`;
+  const cell = (html, cap) => `<div class="flex flex-col items-center gap-1">${html}<p class="text-[0.65rem] text-stone-500 text-center leading-tight">${cap}</p></div>`;
+  let h = sec(DYB_COPY.galleryFaces, DYB_COPY.galleryFacesB, 'grid grid-cols-6 gap-2 justify-items-center pt-1');
+  for (let f = 1; f <= 6; f++) h += cell(dybDieMarkup(dybDieRecipe({ set, tint, face: f }), 40), String(f));
+  h += '</div></div>' + sec(DYB_COPY.galleryTints, DYB_COPY.galleryTintsB, 'grid grid-cols-4 gap-3 justify-items-center pt-1');
+  set.tints.forEach((t, i) => { h += cell(dybDieMarkup(dybDieRecipe({ set, tint: i, face: 5 }), 40), t.name); });
+  h += '</div></div>' + sec(DYB_COPY.galleryTempest, DYB_COPY.galleryTempestB, 'flex flex-col gap-2 pt-1', ' data-dyb-die-type="tempest"');
+  DYB_TEMPEST_ROWS.forEach(r => {
+    const state = r.type === 'phantom' ? 'concealed' : (r.type === 'slick' ? 'unpicked' : 'face');
+    h += `<div class="flex items-center gap-3 rounded-2xl bg-white p-2 dyb-ref-row" data-dyb-die-type="${r.type}">
+      ${dybDieMarkup(dybDieRecipe({ set, tint, face: 4, type: r.type, state }), 44)}
+      <p class="text-sm text-stone-500"><span class="font-semibold text-stone-700">${r.name}</span>. ${r.line}</p></div>`;
+  });
+  h += '</div></div>' + sec(DYB_COPY.galleryCup, DYB_COPY.galleryCupB, 'flex justify-center pt-1');
+  h += `<div style="position:relative;width:64px;height:74px">${dybCupMarkup(set, 'position:absolute;inset:0;margin:0;width:64px;height:74px')}</div>`;
+  h += '</div></div>';
+  box.innerHTML = h;
+  if (highlightId) refHighlightRow(box, 'data-dyb-die-type', highlightId, 'dyb-ref-row-ping');
 }
 
 function dybOpenSlickPicker(dieIdx) {
@@ -1928,27 +1918,9 @@ function dybShowTip(emoji, heading, lines) {
   document.getElementById('dyb-tip-overlay').style.display = 'flex';
 }
 
-function dybShowDieInfo(type) {
-  const info = {
-    loaded:  ['🪙', 'Loaded Die',   ['This die counts as <strong>2</strong> toward its face value.', 'A bid of 3×4 with a Loaded 4 means the real count is actually 4.']],
-    phantom: ['👻', 'Phantom Die',  ['The face is <strong>hidden from you</strong> — even you don\'t know what it rolled.', 'It counts normally at its real value during the Overlook.', 'It may also be <strong>hiding a special type</strong> underneath — Loaded, Snake, Cracked, or Slick — revealed only when the hands are shown.']],
-    slick:   ['🔵', 'Slick Die',    ['It rolled a face automatically — shown as <strong>X*</strong> until you commit.', '<strong>Tap it</strong> to change to any face you like — but only once, and only during your turn.', 'Once committed the face is locked until the next Shake.']],
-    cracked: ['💀', 'Cracked Die',  ['This die is <strong>worthless</strong> — counts as 0 toward any face.', 'Dead weight in your hand, but opponents don\'t know which die it is.']],
-    snake:   ['🐍', 'Snake Die',    ['This die counts as <strong>−1</strong> toward its face value — it drags the real count down.', 'With Classic or Volatile Wildcards: a Snake rolling a 1 is <strong>Venom Wilds</strong> — it counts −1 toward whatever face is being bid.']],
-  };
-  const [emoji, heading, lines] = info[type] || ['🎲', 'Standard Die', ['A regular, fair die. Nothing special here.']];
-  dybShowTip(emoji, heading, lines);
-}
-
-function dybShowTempestGuide() {
-  dybShowTip('🌩️', 'The Tempest — Special Dice', [
-    '🪙 <strong>Loaded</strong> — counts as 2 toward its face.',
-    '👻 <strong>Phantom</strong> — face hidden even from you. Counts normally.',
-    '🔵 <strong>Slick</strong> — tap to secretly assign any face.',
-    '💀 <strong>Cracked</strong> — counts as 0. Dead weight.',
-    '🐍 <strong>Snake</strong> — counts as −1 toward its face. Rolling a 1 with Wildcards on targets the bid face (Venom Wilds).',
-  ]);
-}
+// The Tempest [?] (shake screen) and a tap-and-hold on a special die both land in the
+// Dice gallery — one reference, never a second copy of the rules text.
+function dybShowTempestGuide() { dybOpenHowTo('dice', 'tempest'); }
 
 // ── Match reset ───────────────────────────────────────────────────────────────
 function dybResetMatchState() {

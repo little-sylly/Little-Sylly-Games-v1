@@ -1670,6 +1670,9 @@ body.flash-red   { background-color: #fecaca; }
              box-shadow: 0 1px 3px rgba(60, 40, 20, 0.15); }
 .dyb-coach-step { flex-shrink: 0; margin-top: 2px; padding: 2px 7px; border-radius: 999px; background: #6B5744; color: #fff; font-size: 10px; font-weight: 700; }
 .dyb-coach p { font-size: 14px; color: #44382c; }
+/* Tap-Hold Reference ping (ui-style.md) — DYB's own colour */
+.dyb-ref-row { transition: box-shadow 200ms ease-out; scroll-margin: 16px; border-radius: 1rem; }
+.dyb-ref-row-ping { box-shadow: 0 0 0 3px #d8c9b4, 0 2px 8px rgba(107, 87, 68, 0.25); }
 
 /* ── Team score boxes — twin transition ──────────────────────────────────── */
 .team-box {

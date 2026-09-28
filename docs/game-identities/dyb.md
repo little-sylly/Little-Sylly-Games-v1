@@ -342,6 +342,17 @@ Practice again
 ```
 
 ```copy
+# dyb-how-to-overlay — The Dice
+The Faces
+Seat Colours
+Every climber throws their own colour, so the whole table can tell whose dice are whose.
+The Tempest
+Sylly Mode only. Each special die looks like what it does.
+In the Cup
+What everyone else sees before The Overlook.
+```
+
+```copy
 # dyb-how-to-overlay — steps
 The Shake
 The Claim

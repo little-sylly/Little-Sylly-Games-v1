@@ -207,6 +207,13 @@ section('The cube');
 }
 check('dybReducedMotion is false without matchMedia', Sx.dybReducedMotion(), false);
 
+section('The cup');
+{
+  const plain = Sx.dybCupMarkup(SETS[0]), placed = Sx.dybCupMarkup(SETS[0], 'width:64px;height:74px');
+  check('one style attribute, extra style merged into it (a second one is silently dropped)',
+        [(plain.match(/ style="/g) || []).length, (placed.match(/ style="/g) || []).length, /--dyb-cup:[^"]*width:64px/.test(placed)], [1, 1, true]);
+}
+
 // ── Result ────────────────────────────────────────────────────────────────
 console.log(`\n${failures === 0 ? 'ALL CHECKS PASSED' : `${failures} CHECK(S) FAILED`}`);
 process.exit(failures === 0 ? 0 : 1);

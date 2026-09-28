@@ -162,8 +162,8 @@ function dybDieMarkup(r, px, attrs = '', extraClass = '') {
 function dybMiniMarkup(set, tint, cls = '') {
   return `<span class="dyb-mini ${cls}" style="--dyb-body:${dybTintHex(set, tint)}"></span>`;
 }
-function dybCupMarkup(set) {
-  return `<div class="dyb-cup" style="--dyb-cup:${set.cup.body};--dyb-cup-rim:${set.cup.rim}">` +
+function dybCupMarkup(set, extraStyle = '') {
+  return `<div class="dyb-cup" style="--dyb-cup:${set.cup.body};--dyb-cup-rim:${set.cup.rim};${extraStyle}">` +
          '<span class="dyb-cup-band"></span><span class="dyb-cup-foot"></span><span class="dyb-cup-rim"></span></div>';
 }
 

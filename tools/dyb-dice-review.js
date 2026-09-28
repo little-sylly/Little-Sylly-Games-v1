@@ -37,7 +37,7 @@ let h = '';
 sets.forEach(s => {
   h += '<h2>' + s.label + ' — ' + s.finish + ', ' + s.pip + ' pips</h2><div class="row">';
   s.tints.forEach((t, i) => { h += cell(dybDieMarkup(dybDieRecipe({ set: s, tint: i, face: 5 }), 48), t.name); });
-  h += cell(dybCupMarkup(s).replace('style="', 'style="position:relative;left:0;top:0;margin:0;width:60px;height:68px;'), 'cup');
+  h += cell(dybCupMarkup(s, 'position:relative;left:0;top:0;margin:0;width:60px;height:68px'), 'cup');
   h += '</div><div class="row" style="margin-top:8px">';
   [1, 2, 3, 4, 5, 6].forEach(f => { h += cell(dybDieMarkup(dybDieRecipe({ set: s, tint: 1, face: f }), 40), String(f)); });
   h += '</div>';
