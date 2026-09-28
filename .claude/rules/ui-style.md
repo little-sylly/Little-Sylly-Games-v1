@@ -580,7 +580,7 @@ the gap when tap-hold is otherwise idle.
 
 A How to Play overlay may carry a **Practice** tab: a hand the player plays with the real controls
 before a real game. It is the named pattern for every game's future tutorial rework
-(`docs/deferred-work.md` tracks the retrofit, one line per game).
+(`docs/practice-rollout.md` tracks the retrofit — priority, effort and a definition of done per game).
 
 - A **scripted, deterministic** demo, 60–90 seconds — fixed hands, so every coach line is true.
 - Built from the game's **real renderers fed a model** (`dybRenderTable` / `dybPlayThrow` /

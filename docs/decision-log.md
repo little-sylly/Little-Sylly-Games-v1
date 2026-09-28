@@ -23,7 +23,7 @@ Detail: pointer to the canonical doc (snapshot / impl note / spec / memory).
 Category: Process
 Decision: A game's How to Play may carry a Practice tab — a scripted, deterministic hand played on the game's REAL renderers fed a model, gated beats with a coach, both branches of the key decision, cast Sylvia · Sam · Shirley · Jeff — and every game's tutorial rework follows it.
 Why: the rules overlay explains but never lets a player touch the controls; a demo drawn by the real renderers cannot drift from the game.
-Changed: ui-style.md § Practice tab; DYB is the reference (js/games/dyb.js DYB_PRACTICE + driver). Deferred: the 19-game retrofit (deferred-work.md).
+Changed: ui-style.md § Practice tab; DYB is the reference (js/games/dyb.js DYB_PRACTICE + driver). Deferred: the 19-game retrofit (docs/practice-rollout.md).
 Detail: docs/superpowers/specs/2026-09-28-dyb-dice-table-practice-design.md § 7.
 
 ## 2026-09-28 — Procedural dice sets are the skin model for dice (SW v241)

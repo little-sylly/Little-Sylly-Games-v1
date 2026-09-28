@@ -63,10 +63,9 @@ Spec § 10's deliberate outs — each is its own later piece of work, none block
     rediscovered from scratch.
 - **Seat and colour picking in the waiting lobby — suite-wide.** Today a DYB tint is `seat − 1`;
   `dybTintFor(playerIdx)` is the one function a colour pick replaces. Other games would need their own hook.
-- **Practice tab retrofit — one line per remaining game (19).** The pattern is `ui-style.md`
-  § Practice tab; DYB is the reference. The expensive part is making each game's renderers take a
-  model. LI5 · GM · SS · JEC · YGI · LTTP · NAT · DSD · GTH · BLD · PASS · NT · FRT · SHP · FLW · PKO ·
-  CJAR · CLD · COMB.
+- **Practice tab retrofit — the 19 remaining games.** Moved to its own tracker,
+  **`docs/practice-rollout.md`** (28 Sep 2026): priority + effort, the per-game definition of done,
+  and a card per game. Track it there, not here.
 - **Persisting the stage view toggle** (Close-up | Whole table) across sessions — needs a new
   permitted `localStorage` key (CLAUDE.md § Anti-Patterns lists the permitted ones). Owner call;
   today it is memory-only (`dybStageView`).

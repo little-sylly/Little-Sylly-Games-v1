@@ -20,6 +20,7 @@
 - `docs/rules/phase-audit.md` — Protocols A/B/C (drift check, skeleton-first, studio sweep). **Read when:** a phase boundary, or before a new game's first line of code.
 - `docs/sw-changelog.md` — every SW release note, continuous v238→v167. **Read when:** you need the history behind a past version.
 - `docs/deferred-work.md` — the parked-work list, **open items only**: older-games retest backlog, pending suite-wide sweeps, smaller flagged items. **Read when:** picking up maintenance work, or at a phase gate. Resolved entries move to `docs/deferred-work-log.md` — history, grep it; never read it as a to-do list.
+- `docs/practice-rollout.md` — the **Practice tab (tutorial) rollout tracker**: priority + effort for all 20 games, the 12-item definition of done, one card per game. **Read when:** starting or resuming a game's Practice pass.
 - `docs/cost-envelope.md` — **what the project may spend, and on what.** Three tiers (already-paid-for / costs-something-propose-the-number / changes-what-this-is), the split between permanent *craft* constraints and reviewable *business* ones, the measured install breakdown, the precache-vs-runtime-cache lever, and the owner's recorded strategic direction. **Read when:** any change adds an asset, a dependency, a font, or artwork — or when § Anti-Patterns below looks like it's saying "no" to something worth doing. It is the escape procedure for that list, not a replacement.
 
 ### 🎮 Per-Game Quick Index
