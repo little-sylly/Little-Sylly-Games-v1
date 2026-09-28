@@ -373,6 +373,77 @@ if (!TUNE) {
   ok('the bark line comes from the pool', G('CLD_PLUNGE_BARKS').includes(RUN('cldBarkLine()')));
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// G. The swap (spec § 5.1, § 7.1 check 9(a))
+// ═══════════════════════════════════════════════════════════════════════════
+// Every top-level `let` in cld.js, read from the SOURCE — so a global added
+// tomorrow is covered without anyone remembering to add it here.
+function declaredLets() {
+  const src = fs.readFileSync(GAME, 'utf8');
+  const out = [];
+  src.replace(/^let\s+([^;]+);/gm, (_, decl) => {
+    decl.split(',').forEach(part => { const m = part.trim().match(/^(cld\w+)\s*(=|$)/); if (m) out.push(m[1]); });
+    return '';
+  });
+  return out;
+}
+function safeJSON(v) {
+  const seen = new WeakSet();
+  return JSON.stringify(v, (k, x) => {
+    if (typeof x === 'function') return '<fn>';
+    if (x && typeof x === 'object') {
+      if (typeof x.getContext === 'function' || x.tagName) return '<el>';
+      if (seen.has(x)) return '<cycle>';
+      seen.add(x);
+    }
+    return x;
+  });
+}
+// The LIVE game's state: every declared let except the Arena's own (cldPr*).
+function liveSnapshot() {
+  const snap = {};
+  declaredLets().filter(n => !/^cldPr/.test(n)).forEach(n => {
+    let v; try { v = G(n); } catch (_) { v = '<tdz>'; }
+    snap[n] = safeJSON(v);
+  });
+  return snap;
+}
+function diffSnap(a, b) { return Object.keys(a).filter(k => a[k] !== b[k]); }
+
+if (!TUNE) {
+  section('G. The swap');
+  const lets = declaredLets();
+  const swapSrc = RUN('cldSwapOut').toString();
+  const exempt  = G('CLD_SWAP_EXEMPT');
+  const swapped = n => new RegExp('\\b' + n + '\\b').test(swapSrc);
+  const unclassified = lets.filter(n => !swapped(n) && !exempt.includes(n));
+  const both = lets.filter(n => swapped(n) && exempt.includes(n));
+  check('every top-level let is swapped or exempt', unclassified, []);
+  check('no let is both swapped and exempt', both, []);
+
+  // The live match from section F is still loaded. Run a whole Arena Slide.
+  const before = liveSnapshot();
+  const n = RUN(`cldArenaRun(() => {
+    cldStartFloeOff(5);
+    cldCommits = [{ aims: [{ penguinId: '0-0', dx: 1, dy: 0, power: 1 }], dive: null, snowball: null },
+                  { aims: [], dive: null, snowball: null }, { aims: [], dive: null, snowball: null }];
+    cldResolveSlide(9);
+    return cldPenguins.length;
+  })`);
+  check('the Arena Slide ran on the Arena record', [n, G('cldPrFloe').slideNo], [3, 1]);
+  check('the live game is byte-identical after an Arena Slide', diffSnap(before, liveSnapshot()), []);
+
+  let threw = false;
+  try { RUN("cldArenaRun(() => { cldPenguins = []; throw new Error('boom'); })"); } catch (_) { threw = true; }
+  ok('a throw inside the swap propagates', threw);
+  check('…and the live game is still restored', diffSnap(before, liveSnapshot()), []);
+  check('…and the swap depth is back to 0', G('cldPrSwapDepth'), 0);
+
+  const inner = RUN('cldArenaRun(() => cldArenaRun(() => cldSlideNo))');
+  check('a nested call never double-swaps (sees the Arena record)', inner, 1);
+  check('…and still leaves the live game alone', diffSnap(before, liveSnapshot()), []);
+}
+
 // ── Report (keep LAST in the file) ─────────────────────────────────────────
 if (!TUNE) {
   console.log('\n' + '='.repeat(70));

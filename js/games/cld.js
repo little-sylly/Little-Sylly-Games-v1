@@ -792,6 +792,114 @@ function cldMatchWinner() {
   }
   return best;
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// The Practice Arena's swap (spec § 5). The Arena runs the REAL rules layer on
+// its own state record: cldArenaRun(fn) swaps the record into the module
+// globals, runs ONE SYNCHRONOUS call, and restores the live values in
+// `finally`. JavaScript is single-threaded, so no live RAF frame, Firebase
+// callback or timer can run while the Arena's values sit in the globals — even
+// with Practice opened mid-Slide from the floe's [?].
+//
+// This bends DD-12's wording ("never reads or writes cldPenguins") and keeps
+// its intent: the live match is never disturbed (cld-impl-notes DD-18).
+//
+// MAY run inside the swap: the rules layer (cldStartFloeOff, cldResolveSlide,
+// cldApplyPost, cldSeatSpot…), cldTimelinePayload / cldTimelineFromPayload,
+// cldArmPlayback, cldStepPlayback, cldBuildModel / cldDiveModel.
+// MAY NOT — ever: anything touching screens, the live loop, timers, the network
+// or the live DOM — cldBeginPlayback, cldEndPlayback, cldAdvancePlayback,
+// cldShowFloe, cldSyncFloeUI, cldHostResolveSlide, cldStartIceBathLocal,
+// cldShowResult, cldFloatBark, cldFloatText, showScreen, mp*. And never an
+// `await` or a setTimeout inside `fn`: the swap only holds for synchronous code.
+// verify-cld-practice.js spies on every name in that list.
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Every top-level `let cld*` is EITHER in cldSwapOut/cldSwapIn OR listed here
+// with its reason. verify-cld-practice.js reads the source and fails on a new
+// global that is neither — a missed variable is a red check, not a silent leak.
+const CLD_SWAP_EXEMPT = [
+  // This device's input and the live floe's canvas, loop and timers. The rules
+  // and the replay never read them; the Arena keeps its own (cldPrUi, cldPrView).
+  'cldMyAims', 'cldMyDive', 'cldMyMode', 'cldMySnowball', 'cldCommitted', 'cldIntroMode',
+  'cldView', 'cldRafHandle', 'cldIntroTimer', 'cldResultTimer', 'cldSkinArt', 'cldLastFrameT',
+  'cldDragging', 'cldDragPenguin', 'cldDragFrom', 'cldDragTo', 'cldDragDir', 'cldPtrId',
+  'cldIntroIdx', 'cldFloatTimer', 'cldClock',
+  // How to Play's The Cast loop.
+  'cldHowtoRaf', 'cldHowtoLastT', 'cldHowtoClock', 'cldHowtoCast',
+  // The Floe tab's sandbox — deleted in Task 10 (and from this list with it).
+  'cldHowtoCtx', 'cldHowtoPeng', 'cldHowtoTL', 'cldHowtoPlayT',
+  // The Arena's own state.
+  'cldPrFloe', 'cldPrUi', 'cldPrView', 'cldPrRaf', 'cldPrLastT', 'cldPrClock',
+  'cldPrFloatTimer', 'cldPrSwapDepth',
+];
+
+function cldSwapOut() {
+  return {
+    iceConditions: cldIceConditions, floeSize: cldFloeSize, floeSizeTouched: cldFloeSizeTouched,
+    fishToWin: cldFishToWin, aimAssist: cldAimAssist, iceBreaker: cldIceBreaker,
+    peckOff: cldPeckOff, syllyMode: cldSyllyMode,
+    playerCount: cldPlayerCount, playerNames: cldPlayerNames,
+    fish: cldFish, floeOffNo: cldFloeOffNo, matchStats: cldMatchStats,
+    slideNo: cldSlideNo, floeRadius: cldFloeRadius, penguins: cldPenguins, bergs: cldBergs,
+    seatSeq: cldSeatSeq, inBath: cldInBath,
+    commits: cldCommits, timeline: cldTimeline, playbackT: cldPlaybackT,
+    playbackEventPtr: cldPlaybackEventPtr, aftermathPtr: cldAftermathPtr,
+    lastSfxT: cldLastSfxT, washoutUntil: cldWashoutUntil,
+    phase: cldPhase, powerLock: cldPowerLock,
+  };
+}
+
+function cldSwapIn(s) {
+  cldIceConditions = s.iceConditions; cldFloeSize = s.floeSize; cldFloeSizeTouched = s.floeSizeTouched;
+  cldFishToWin = s.fishToWin; cldAimAssist = s.aimAssist; cldIceBreaker = s.iceBreaker;
+  cldPeckOff = s.peckOff; cldSyllyMode = s.syllyMode;
+  cldPlayerCount = s.playerCount; cldPlayerNames = s.playerNames;
+  cldFish = s.fish; cldFloeOffNo = s.floeOffNo; cldMatchStats = s.matchStats;
+  cldSlideNo = s.slideNo; cldFloeRadius = s.floeRadius; cldPenguins = s.penguins; cldBergs = s.bergs;
+  cldSeatSeq = s.seatSeq; cldInBath = s.inBath;
+  cldCommits = s.commits; cldTimeline = s.timeline; cldPlaybackT = s.playbackT;
+  cldPlaybackEventPtr = s.playbackEventPtr; cldAftermathPtr = s.aftermathPtr;
+  cldLastSfxT = s.lastSfxT; cldWashoutUntil = s.washoutUntil;
+  cldPhase = s.phase; cldPowerLock = s.powerLock;
+}
+
+// The Practice cast (ui-style.md § Practice tab): You, then Sylvia, then Sam.
+const CLD_PR_CAST = ['You', 'Sylvia', 'Sam'];
+
+// A fresh Arena record: Standard floe, Slush, Ice Breaker 2, no Thaw, 3 players.
+// Aim Assist is copied from the live setting so the Arena shows what the game will.
+function cldPrFreshFloe() {
+  return {
+    iceConditions: 'slush', floeSize: 'standard', floeSizeTouched: true, fishToWin: 99,
+    aimAssist: cldAimAssist, iceBreaker: 2, peckOff: false, syllyMode: false,
+    playerCount: 3, playerNames: CLD_PR_CAST.slice(),
+    fish: [0, 0, 0], floeOffNo: 0,
+    matchStats: [0, 1, 2].map(() => ({ slidesStood: 0, plunges: 0 })),
+    slideNo: 0, floeRadius: 0, penguins: [], bergs: [], seatSeq: 0, inBath: false,
+    commits: [null, null, null], timeline: null, playbackT: 0,
+    playbackEventPtr: 0, aftermathPtr: 0, lastSfxT: 0, washoutUntil: 0,
+    phase: 'aiming', powerLock: null,
+  };
+}
+
+let cldPrFloe      = null;   // the Arena's record while it is NOT swapped in
+let cldPrSwapDepth = 0;      // > 0 while the Arena's values sit in the globals
+
+function cldArenaRun(fn) {
+  if (cldPrSwapDepth > 0) return fn();         // already swapped in — never double-swap
+  if (!cldPrFloe) cldPrFloe = cldPrFreshFloe();
+  const live = cldSwapOut();
+  cldSwapIn(cldPrFloe);
+  cldPrSwapDepth++;
+  try { return fn(); }
+  finally {
+    cldPrSwapDepth--;
+    cldPrFloe = cldSwapOut();
+    cldSwapIn(live);
+  }
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // ── STAGE 4 OF 6 — UI, canvas render seam, settings, overlays ──────────────
 //
