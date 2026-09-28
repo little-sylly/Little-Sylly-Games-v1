@@ -444,6 +444,145 @@ if (!TUNE) {
   check('…and still leaves the live game alone', diffSnap(before, liveSnapshot()), []);
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// H. The drills (spec § 6.3–6.4; § 7.1 checks 3–6) — and `--tune`
+// ═══════════════════════════════════════════════════════════════════════════
+const HOLD = { aims: [], dive: null, snowball: null };
+const arena = expr => RUN('cldArenaRun(() => ' + expr + ')');
+const meNow = () => arena("cldPenguins.find(p => p.id === '0-0')");
+function playOut() { let g = 0; while (G('cldPrUi').playing && g++ < 4000) RUN('cldPrTick(50)'); }
+function resolveWith(commit) { S.__c = commit; RUN('cldPrResolve(__c)'); playOut(); }
+function aimAt(angle, power) {
+  return { aims: [{ penguinId: '0-0', dx: Math.cos(angle), dy: Math.sin(angle), power }], dive: null, snowball: null };
+}
+function load(key, keep) { RUN(`cldPrLoadDrill('${key}', ${!!keep})`); }
+function startClean() {
+  return arena(`(() => {
+    for (const p of cldPenguins) {
+      for (const b of cldBergs) if (Math.hypot(p.x - b.x, p.y - b.y) < b.r + CLD_PENGUIN_R) return false;
+      for (const q of cldPenguins) if (q !== p && Math.hypot(p.x - q.x, p.y - q.y) < 2 * CLD_PENGUIN_R) return false;
+    }
+    return true; })()`);
+}
+function claimHolds(key) {
+  load(key); resolveWith(HOLD);
+  const d = G('CLD_PR_DRILLS')[key], m = meNow();
+  const events = arena('cldTimeline.events');
+  if (key === 'headon')    return !!m.drowned;
+  if (key === 'crossfire') return events.some(e => e.type === 'collision' && (e.a === '0-0' || e.b === '0-0'));
+  if (key === 'edge')      return !!m.drowned && RUN('cldArcDist')(m.angle, d.gapAt) < 0.35;
+  return false;
+}
+function counters(key) {
+  const found = [];
+  for (let k = 0; k < 36; k++) for (const pw of [0.3, 0.5, 0.7, 0.9, 1]) {
+    load(key); resolveWith(aimAt(k * Math.PI / 18, pw));
+    if (!meNow().drowned) found.push([k * 10, pw]);
+  }
+  return found;
+}
+// Stand still, go in, then Snowball Sylvia until someone knocks your plug back.
+function berthReachable(key) {
+  load(key); resolveWith(HOLD);
+  if (!meNow().drowned) return false;
+  for (let i = 0; i < 6; i++) {
+    if (G('cldPrUi').knocked) return true;
+    const sy = arena("cldPenguins.find(p => p.id === '1-0')");
+    resolveWith({ aims: [], dive: null, snowball: { x: sy.x, y: sy.y } });
+  }
+  return !!G('cldPrUi').knocked;
+}
+
+if (TUNE) {
+  // Prints, per drill, the first ring seed at which every claim the harness
+  // checks holds. Paste the numbers into CLD_PR_DRILLS. Asserts nothing.
+  const drills = G('CLD_PR_DRILLS');
+  for (const key of Object.keys(drills)) {
+    let hit = null;
+    for (let seed = 1; seed <= 4000 && hit === null; seed++) {
+      RUN(`CLD_PR_DRILLS['${key}'].ringSeed = ${seed}`);
+      load(key);
+      if (!startClean() || !claimHolds(key)) continue;
+      if (key === 'headon' && !berthReachable(key)) continue;
+      if (!counters(key).length) continue;
+      hit = seed;
+    }
+    console.log(`${key.padEnd(10)} ringSeed: ${hit === null ? 'NONE in 1..4000 — move place/shoves and re-run' : hit}`);
+  }
+  process.exit(0);
+}
+
+if (!TUNE) {
+  section('H. The drills');
+  const keys = Object.keys(G('CLD_PR_DRILLS'));
+  check('three drills, in order', keys, ['headon', 'crossfire', 'edge']);
+  keys.forEach(key => {
+    load(key);
+    ok(`${key}: nobody starts overlapping a chunk or a penguin`, startClean());
+    ok(`${key}: the stand-still claim holds`, claimHolds(key));
+    ok(`${key}: at least one counter keeps you Standing`, counters(key).length > 0, 'none of 180 aims');
+    load(key); resolveWith(aimAt(0.3, 0.8)); const t1 = safeJSON(arena('[cldTimeline.samples, cldTimeline.events]'));
+    load(key); resolveWith(aimAt(0.3, 0.8)); const t2 = safeJSON(arena('[cldTimeline.samples, cldTimeline.events]'));
+    ok(`${key}: the same aim gives a byte-identical Slide`, t1 === t2);
+  });
+
+  load('headon'); const r1 = safeJSON(G('cldPrUi').rivalAims);
+  resolveWith(aimAt(1, 0.5)); load('headon', true);
+  ok('the rivals shove the same way on every go', r1 === safeJSON(G('cldPrUi').rivalAims));
+  S.__aim = { penguinId: '0-0', dx: 0, dy: 1, power: 0.7 };
+  RUN('cldPrUi.aim = __aim'); load('headon', true);
+  check('Go again keeps your armed aim', safeJSON(G('cldPrUi').aim), safeJSON(S.__aim));
+  load('crossfire');
+  check('a new drill clears it', G('cldPrUi').aim, null);
+
+  load('headon'); resolveWith(HOLD);
+  check('Head-on, stand still → outcome in', G('cldPrUi').outcome, 'in');
+  ok('the Berth branch reaches Knocked back (Head-on)', berthReachable('headon'));
+  const spot = arena("cldSeatSpot(Math.PI / 2, '0-0')");
+  if (spot) resolveWith({ aims: [], dive: { penguinId: '0-0', angle: spot.angle }, snowball: null });
+  ok('a Dive arrives Plugged', !!spot && meNow().plug === true);
+
+  S.window.matchMedia = () => ({ matches: true });
+  load('headon'); S.__c = HOLD; RUN('cldPrResolve(__c)');
+  ok('reduced motion: the Slide is finished the moment it is committed', G('cldPrUi').playing === false &&
+     G('cldPrUi').outcome === 'in');
+  S.window.matchMedia = () => ({ matches: false });
+
+  // ── 9(b)/9(c): a LIVE replay is mid-flight; Arena Slides run between its steps.
+  section('H2. Isolation under a live replay');
+  S.__forbidden = [];
+  ['cldBeginPlayback', 'cldEndPlayback', 'cldAdvancePlayback', 'cldShowFloe', 'cldSyncFloeUI',
+   'cldHostResolveSlide', 'cldStartIceBathLocal', 'cldShowResult', 'cldFloatBark', 'cldFloatText']
+    .forEach(fn => RUN(`(() => { const o = ${fn}; ${fn} = function () {
+      if (cldPrSwapDepth > 0) __forbidden.push('${fn}'); return o.apply(this, arguments); }; })()`));
+  const realShow = S.showScreen;
+  S.showScreen = id => { if (G('cldPrSwapDepth') > 0) S.__forbidden.push('showScreen'); realShow(id); };
+
+  RUN(`(() => {
+    cldStartFloeOff(21);
+    const a = cldPenguins[0], b = cldPenguins[1];
+    cldCommits = [{ aims: [{ penguinId: a.id, dx: b.x - a.x, dy: b.y - a.y, power: 1 }], dive: null, snowball: null },
+                  { aims: [], dive: null, snowball: null }, { aims: [], dive: null, snowball: null }];
+    cldBeginPlayback(cldTimelineFromPayload(cldTimelinePayload(cldResolveSlide(33))));
+    cldAdvancePlayback(200);
+  })()`);
+  check('the live replay is mid-flight', G('cldPhase'), 'resolving');
+  const sent0 = sent.envelope + sent.private;
+  let drift = [];
+  const order = ['headon', 'crossfire', 'edge'];
+  for (let i = 0; i < 20; i++) {
+    const before = liveSnapshot();
+    load(order[i % 3]);
+    resolveWith(aimAt(i * 0.7, 0.4 + (i % 5) * 0.12));
+    drift = drift.concat(diffSnap(before, liveSnapshot()));
+    if (G('cldPhase') === 'resolving') RUN('cldAdvancePlayback(50)');   // Review Focus 3
+  }
+  check('20 Arena Slides between live replay steps leave the live game untouched', [...new Set(drift)], []);
+  check('nothing on the "may not" list ran inside the swap', S.__forbidden, []);
+  check('the Arena sent nothing', sent.envelope + sent.private - sent0, 0);
+  S.showScreen = realShow;
+}
+
 // ── Report (keep LAST in the file) ─────────────────────────────────────────
 if (!TUNE) {
   console.log('\n' + '='.repeat(70));

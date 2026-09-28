@@ -2749,6 +2749,129 @@ function cldHowtoStop() {
   cldHowtoLastT = 0;
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// The Practice Arena (spec § 6) — You, Sylvia and Sam on a fixed floe. The
+// rivals' shoves are FIXED and drawn before you move; yours is free. Every
+// Slide runs the real rules through cldArenaRun, so the same counter always
+// gives the same result — which is what makes it practice.
+// ═══════════════════════════════════════════════════════════════════════════
+// place: { at: angle, r: × floe radius }. shoves: null (holds still) or
+// { target: seat, power } — aimed at the target's START position, once, so a
+// rival repeats the same shove from wherever it stands.
+// ringSeed values come from `node tools/verify-cld-practice.js --tune`.
+const CLD_PR_DRILLS = {
+  headon:    { name: 'Head-on',   ringSeed: 4, slideSeed: 1, gapAt: 0,
+               place:  [{ at: 0, r: 0.62 }, { at: 0, r: 0.05 }, { at: -Math.PI / 2, r: 0.6 }],
+               shoves: [null, { target: 0, power: 1.0 }, null] },
+  crossfire: { name: 'Crossfire', ringSeed: 1, slideSeed: 1, gapAt: null,
+               place:  [{ at: 0, r: 0 }, { at: Math.PI, r: 0.6 }, { at: 0, r: 0.6 }],
+               shoves: [null, { target: 2, power: 0.9 }, null] },
+  edge:      { name: 'Edge',      ringSeed: 19, slideSeed: 1, gapAt: Math.PI / 2,
+               place:  [{ at: Math.PI / 2, r: 0.8 }, { at: Math.PI, r: 0.6 }, { at: Math.PI / 2, r: 0.45 }],
+               shoves: [null, null, { target: 0, power: 0.7 }] },
+};
+
+let cldPrUi         = null;   // the Arena's input + flow state (never swapped)
+let cldPrFloatTimer = null;   // TIMER — the Arena's own bark layer
+
+function cldReducedMotion() {
+  try { return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); }
+  catch (_) { return false; }
+}
+
+// A fresh go at `key`. keepAim (Go again, Resurface) keeps your armed aim and
+// your locked power, so the next try is an adjustment, not a fresh start.
+function cldPrLoadDrill(key, keepAim) {
+  const d = CLD_PR_DRILLS[key];
+  const prev = keepAim ? cldPrUi : null;
+  cldPrFloe = cldPrFreshFloe();
+  const rivalAims = [null, null, null];
+  cldArenaRun(() => {
+    cldStartFloeOff(d.ringSeed);                 // the real setup: radius, ring, penguins
+    d.place.forEach((pl, i) => {
+      const pos = cldRimPos(pl.at, cldFloeRadius * pl.r);
+      cldPenguins[i].x = pos.x; cldPenguins[i].y = pos.y;
+    });
+    d.shoves.forEach((s, i) => {
+      if (!s) return;
+      const from = cldPenguins[i], to = cldPenguins[s.target];
+      const l = Math.hypot(to.x - from.x, to.y - from.y) || 1;
+      rivalAims[i] = { penguinId: from.id, dx: (to.x - from.x) / l, dy: (to.y - from.y) / l, power: s.power };
+    });
+  });
+  cldPrUi = {
+    drill: key, aim: prev ? prev.aim : null, lock: prev ? prev.lock : null,
+    mode: 'throw', snowball: null, dive: null,
+    playing: false, outcome: null, knocked: false, rivalAims: rivalAims, drag: null,
+  };
+}
+
+// A rival repeats its fixed shove while Standing; a Drowned rival does nothing.
+function cldPrRivalCommit(i) {
+  const shove = cldPrUi.rivalAims[i];
+  const p = cldArenaRun(() => cldPenguins.find(q => q.ownerIdx === i));
+  return { aims: (shove && p && !p.drowned) ? [shove] : [], dive: null, snowball: null };
+}
+
+// Resolve one Arena Slide with MY commit — the host's own path, byte for byte:
+// resolve → payload → timeline (§16 Q5), then arm the replay.
+function cldPrResolve(mine) {
+  const u = cldPrUi;
+  const d = CLD_PR_DRILLS[u.drill];
+  cldArenaRun(() => {
+    cldCommits = [mine, cldPrRivalCommit(1), cldPrRivalCommit(2)];
+    cldArmPlayback(cldTimelineFromPayload(cldTimelinePayload(cldResolveSlide(d.slideSeed))));
+  });
+  u.playing = true;
+  if (cldReducedMotion()) cldPrTick(1e9);        // nothing travels — straight to the end state
+}
+
+// One step of the Arena's replay. Barks are queued inside the swap and drawn
+// AFTER it — no DOM timer is ever created while the Arena's values are live.
+function cldPrTick(dtMs) {
+  const u = cldPrUi;
+  if (!u || !u.playing) return;
+  let bark = null;
+  const hooks = { sfx: m => cldSfx(m), bark: () => { bark = cldBarkLine(); } };
+  const r = cldArenaRun(() => cldStepPlayback(dtMs, hooks));
+  if (bark) cldPrFloat(bark);
+  if (r !== 'playing') cldPrSlideDone();
+}
+
+function cldPrSlideDone() {
+  const u = cldPrUi;
+  const res = cldArenaRun(() => {
+    const tl = cldTimeline;
+    cldPenguins.forEach(p => { p.plungedThisSlide = false; });
+    if (tl) cldApplyPost(tl.post);
+    const me = cldPenguins.find(p => p.id === '0-0');
+    return { washout: !!(tl && tl.washout), meIn: !!me.drowned, knocked: !!(me.drowned && !me.plug),
+             rivalsIn: cldPenguins.filter(p => p.ownerIdx !== 0).every(p => p.drowned) };
+  });
+  u.playing  = false;
+  u.outcome  = res.washout ? 'washout' : res.meIn ? 'in' : res.rivalsIn ? 'fish' : 'dry';
+  u.knocked  = res.knocked;
+  u.snowball = null;
+  u.dive     = null;                              // one-shot, like the live floe after a Slide
+}
+
+function cldPrFloat(text) {
+  const layer = document.getElementById('cld-pr-float');
+  if (!layer) return;
+  layer.innerHTML = '';
+  const el = document.createElement('p');
+  el.className = 'text-white font-bold text-base px-3 py-1 rounded-full';
+  el.style.cssText = 'background:rgba(18,59,76,0.72); text-shadow:0 1px 2px rgba(0,0,0,.5);';
+  el.textContent = text;
+  layer.appendChild(el);
+  if (cldPrFloatTimer) { clearTimeout(cldPrFloatTimer); cldPrFloatTimer = null; }
+  cldPrFloatTimer = setTimeout(() => {
+    cldPrFloatTimer = null;
+    const l = document.getElementById('cld-pr-float');
+    if (l) l.innerHTML = '';
+  }, CLD_BARK_MS);
+}
+
 function cldSyncSettingsUI() {
   const setGroup = (group, val) => {
     document.querySelectorAll('[data-group="' + group + '"]').forEach(p => {
