@@ -265,6 +265,19 @@ S.mpMyPlayerIdx = 0;
   check('off-turn: not my turn, no draft, the turn is named', [w.isMyTurn, w.draft, w.turnName], [false, null, 'Bo']);
 }
 
+section('dybStageWidth — from the root, never from the last render');
+{
+  const mine = { isMyTurn: true }, off = { isMyTurn: false };
+  const stale = { querySelector: () => ({ clientWidth: 260 }) };           // last render was off-turn
+  check('my turn at 320 (root 280): steppers take their room', S.dybStageWidth({ ...stale, clientWidth: 280 }, mine), 160);
+  check('off-turn at 320: the whole ledge', S.dybStageWidth({ ...stale, clientWidth: 280 }, off), 260);
+  S.window.innerWidth = 320;
+  check('rendered while hidden (clientWidth 0) at a 320 viewport: same as shown', S.dybStageWidth({ ...stale, clientWidth: 0 }, mine), 160);
+  S.window.innerWidth = 1000;
+  check('hidden on a wide viewport: capped at the Stack\'s max-w-sm', S.dybStageWidth({ clientWidth: 0 }, off), 364);
+  delete S.window.innerWidth;
+}
+
 section('dybRenderTable — markup from a model');
 {
   const root = { innerHTML: '', clientWidth: 340, querySelector: () => null, querySelectorAll: () => [] };

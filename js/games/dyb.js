@@ -1604,10 +1604,18 @@ function dybClaimLineHTML(m) {
          `<button class="dyb-link" data-act="ascent">${DYB_COPY.ascent}</button>`;
 }
 
-function dybStageWidth(root) {
-  const s = root.querySelector && root.querySelector('.dyb-stage-dice');
-  if (s && s.clientWidth) return s.clientWidth;
-  return Math.max(120, (root.clientWidth || 340) - 104);
+// The dice area's width, from the ROOT — never from the last render's .dyb-stage-dice,
+// which is stale whenever the turn changes (the steppers come and go). The game renders
+// before showScreen, so a hidden root (clientWidth 0) is estimated from the viewport.
+// These mirror css/styles.css — change them together.
+const DYB_STAGE_PAD   = 20;    // .dyb-stage horizontal padding, both sides
+const DYB_STEPPERS_W  = 100;   // two 44 px .dyb-step + the .dyb-stage-row gaps (2 × 6)
+const DYB_STACK_MAX   = 384;   // the Stack's max-w-sm
+const DYB_STACK_GUTTER = 40;   // the section's px-5, both sides
+function dybStageWidth(root, m) {
+  const vw = (typeof window !== 'undefined' && window.innerWidth) || 340 + DYB_STACK_GUTTER;
+  const rootW = (root && root.clientWidth) || Math.min(DYB_STACK_MAX, vw - DYB_STACK_GUTTER);
+  return Math.max(120, rootW - DYB_STAGE_PAD - (m && m.isMyTurn ? DYB_STEPPERS_W : 0));
 }
 
 function dybStageHTML(m, w) {
@@ -1686,7 +1694,7 @@ function dybControlsHTML(m) {
 
 // Draws every part into root and routes taps through ONE delegated listener.
 function dybRenderTable(root, m, onAct) {
-  const w = dybStageWidth(root);
+  const w = dybStageWidth(root, m);
   root.innerHTML = `
     <div class="dyb-climbers">${dybClimbersHTML(m.players, m.set)}</div>
     <div class="dyb-cuprow"><span class="dyb-cuplabel">${DYB_COPY.yourCup}</span>
@@ -1784,6 +1792,9 @@ function dybPracticeRender(prev) {
   const show = (id, on) => { const el = g(id); if (el) el.style.display = on ? 'flex' : 'none'; };
   g('dyb-pr-step').textContent = `${DYB_PR_STEPS.indexOf(s.step) + 1} / ${DYB_PR_STEPS.length}`;
   g('dyb-pr-coach').textContent = dybPracticeCoach(s);
+  // A new coach line is the lesson — bring it back into view (it is the body's first
+  // child). The player then scrolls down to the ringed control, as on the real table.
+  if (prev && dybPracticeCoach(prev) !== dybPracticeCoach(s)) g('dyb-how-to-practice').scrollTop = 0;
   const set = dybActiveSet();
   show('dyb-pr-shake', s.step === 'shake');
   show('dyb-pr-table', ['read', 'open', 'watch', 'decide'].includes(s.step));

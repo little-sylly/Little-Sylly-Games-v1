@@ -1599,7 +1599,7 @@ body.flash-red   { background-color: #fecaca; }
 .dyb-toggle button { min-height: 28px; padding: 3px 8px; border-radius: 999px; font-size: 10px; font-weight: 600; color: #8a7866; }
 .dyb-toggle button.on { background: #6B5744; color: #fff; }
 .dyb-stage-row { display: flex; align-items: center; gap: 6px; }
-.dyb-step { width: 36px; height: 36px; flex-shrink: 0; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(60, 40, 20, 0.25);
+.dyb-step { width: 44px; height: 44px; flex-shrink: 0; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(60, 40, 20, 0.25);
             font-size: 22px; font-weight: 700; color: #6B5744; transition: transform 120ms ease-out; }
 .dyb-step:active { transform: scale(0.94); }
 .dyb-step:disabled { opacity: 0.35; }
