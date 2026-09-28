@@ -730,6 +730,44 @@ if (!TUNE) {
   check('the Arena sent nothing, start to finish', sent.envelope + sent.private - sentAtStart, 0);
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// L. Final-review fixes — the coach's scroll target, and a knocked-back arrival
+// ═══════════════════════════════════════════════════════════════════════════
+if (!TUNE) {
+  section('L. Final-review fixes');
+  const step = (s, ...evs) => evs.reduce((acc, e) => RUN('cldPrCoach')(acc, e), s);
+  const C = (x) => Object.assign({ type: 'committed', snowball: false, dive: false }, x || {});
+  const D = (outcome, knocked) => ({ type: 'slideDone', outcome, knocked: !!knocked });
+  // Going in and being knocked back in the SAME Slide: the plugged-gap line would be false.
+  let s = step(RUN('cldPrCoachStart()'), { type: 'armed' }, C(), D('in', true));
+  check('in AND knocked back → straight to the Dive line (B2, knocked)', [s.at, s.knocked], ['B2', true]);
+  s = step(RUN('cldPrCoachStart()'), { type: 'armed' }, C(), D('in', false), C(), D('in', true));
+  check('at B1, any Slide that leaves you knocked back → B2 (knocked)', [s.at, s.knocked], ['B2', true]);
+
+  // The scroll follows what the player needs next — never the card while the Slide plays.
+  const $ = id => S.document.getElementById(id);
+  const stage = $('cld-pr-stage'), canvas = $('cld-pr-canvas');
+  canvas.parentElement = stage; stage.clientWidth = 300; stage.clientHeight = 300;
+  RUN('cldResetState()');
+  RUN("cldSetHowtoTab('practice')");
+  const scrolled = [];
+  ['cld-pr-coach', 'cld-pr-stage', 'btn-cld-pr-power', 'btn-cld-pr-commit']
+    .forEach(id => { $(id).scrollIntoView = () => scrolled.push(id); });
+  const v = G('cldPrView');
+  const ev = (x, y) => ({ clientX: v.offX + x * v.scale, clientY: v.offY + y * v.scale, pointerId: 9 });
+  const you = arena("cldPenguins.find(p => p.id === '0-0')");
+  const PULL = G('CLD_CUE_PULL_PX');
+  RUN('cldPrPointerDown')(ev(you.x + 60, you.y));
+  RUN('cldPrPointerMove')(ev(you.x + 60 + PULL / v.scale, you.y));
+  RUN('cldPrPointerUp')(ev(you.x + 60 + PULL / v.scale, you.y));
+  check('step 2 scrolls the Power bar into view, not the card', scrolled.slice(-1), ['btn-cld-pr-power']);
+  RUN("cldPrAction('power')");
+  check('step 3 scrolls Lock It In into view', scrolled.slice(-1), ['btn-cld-pr-commit']);
+  RUN("cldPrAction('cta')");
+  check('committing scrolls the STAGE into view — the Slide is what to watch', scrolled.slice(-1), ['cld-pr-stage']);
+  RUN('cldResetState()');
+}
+
 // ── Report (keep LAST in the file) ─────────────────────────────────────────
 if (!TUNE) {
   console.log('\n' + '='.repeat(70));

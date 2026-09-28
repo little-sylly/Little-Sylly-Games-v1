@@ -269,8 +269,8 @@ Doing it properly is a design pass on two games, not a find-and-replace.
 
 **Trigger.** The next time either game is opened for other work, or a phase gate touching motion.
 (CLD's How-to practice RAF — the third on this rule — is RESOLVED at SW v244: The Floe tab is gone
-and the Practice Arena checks reduced motion in JS; see `docs/deferred-work-log.md`. The live floe's
-replay is still unswept.)
+and the Practice Arena's Slide checks reduced motion in JS; see `docs/deferred-work-log.md`. The live
+floe's replay is still unswept, and so is the ambient idle sway + swell rings on both canvases.)
 
 ---
 
@@ -348,6 +348,23 @@ loopback pass. **Not yet done:**
    and give CLD a Sylly Mode that changes what the game *is*, not how fast it runs. Ships as-is.
 5. **Peck Off (2-player) balance** got lighter attention than the mid sizes in
    `simulate-cld-balance.js`.
+6. **SW v244 final-review minors (29 Sep 2026) — deferred, none blocking** (`cld-impl-notes` DD-18):
+   - a touch-down *on* the penguin has no direction until the finger leaves the 22-unit dead zone,
+     so its first armable power is already ~0.21 — a very soft shot needs pull-out-then-push-back.
+     Fix if wanted after the hardware pass: baseline `max(|D−P|, CLD_CUE_DEAD)` (departs from spec
+     § 2.1's formula — owner call);
+   - Peck Off's selection ring still shows during a replay / after Lock It In (`cldFloeModel`'s
+     `selectedId` ignores phase — add `cldPhase === 'aiming' && !cldCommitted`);
+   - the Arena's Aim Assist is copied once per drill load, so toggling Assist in Settings between
+     Practice openings shows the old value until Resurface (set `cldPrFloe.aimAssist` in
+     `cldPracticeStart`);
+   - a *mouse* drag that ends over the backdrop can close How to Play (the delegated backdrop click)
+     — same fix as the `pointerleave` note: `setPointerCapture` in both pointer-down handlers;
+   - picking another drill at coach step 2 or 3 clears your aim but keeps the step, so the line asks
+     you to lock/commit an aim you no longer have (drop back to step 1 on a reset with no aim);
+   - the Arena's idle sway + swell rings still move under reduced motion (only the Slide honours it);
+   - the loopback does not execute `cldDraw` (its `requestAnimationFrame` returns 0) — the renderer is
+     covered on one device by `verify-cld-practice.js`, not on three as spec § 7.2 hoped.
 
 Snapshot: `docs/phase40-snapshot.md`.
 

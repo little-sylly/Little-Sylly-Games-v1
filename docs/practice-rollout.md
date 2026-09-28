@@ -173,7 +173,7 @@ Shipped **SW v244**, 29 Sep 2026, with the pool-style cue built alongside it (br
 | D4 Tab | `cld-how-to-overlay`: The Rules \| Practice \| The Cast |
 | D5 Isolation | `cldPrRaf` / `cldPracticeStop()`; the real rules run through `cldArenaRun` (a synchronous swap) — 20 Arena Slides between live replay steps leave the live game byte-identical |
 | D6 Reduced motion | `cldReducedMotion()` — a Slide steps straight to its end state |
-| D7 Harness | `tools/verify-cld-practice.js` — 141 checks (`--tune` re-derives the drills' ring seeds) |
+| D7 Harness | `tools/verify-cld-practice.js` — 146 checks (`--tune` re-derives the drills' ring seeds) |
 | D8 Regression | physics · loop · loopback · mutate 33/33 · mp-configs · identity-docs · build-fresh |
 | D9 Visual | SE pass (320×452 / 375×548 / 375×667, both motion settings); found the 0 px stage no harness could |
 | **D10 Hardware** | **☐ Owner** — the cue's feel (96 px, the dead zone) and all three drills down both branches, on the iPhone SE |

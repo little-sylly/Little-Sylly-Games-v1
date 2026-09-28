@@ -2677,14 +2677,19 @@ function cldPrCoach(s, ev) {
       n.at = 4; return n;
     case 'slideDone':
       if (ev.outcome === 'washout') { n.at = 5; n.result = 'washout'; n.reachedEnd = true; n.pending = null; return n; }
-      if (s.at === 'B1') { if (s.pending === 'snowball') { n.at = 'B2'; n.knocked = !!ev.knocked; } n.pending = null; return n; }
+      // A plug can be knocked back in the very Slide that seated it — then the
+      // plugged-gap line (B1) would be false, so a knock-back always means B2.
+      if (s.at === 'B1') {
+        if (s.pending === 'snowball' || ev.knocked) { n.at = 'B2'; n.knocked = !!ev.knocked; }
+        n.pending = null; return n;
+      }
       if (s.at === 'B2') {
         if (s.knocked && s.pending === 'dive') { n.at = 'B3'; n.reachedEnd = true; }
         else n.knocked = !!ev.knocked;
         n.pending = null; return n;
       }
       if (s.at === 'B3') return n;
-      if (ev.outcome === 'in') { n.at = 'B1'; n.pending = null; return n; }
+      if (ev.outcome === 'in') { n.at = ev.knocked ? 'B2' : 'B1'; n.knocked = !!ev.knocked; n.pending = null; return n; }
       n.at = 5; n.result = ev.outcome; n.reachedEnd = true; return n;
     case 'reset':
       if (s.at === 1 || s.at === 2 || s.at === 3) return n;   // still learning — keep your place
@@ -2952,18 +2957,24 @@ function cldPrSyncUI() {
     if (b.dataset.cldPrDrill === u.drill) b.classList.add('pill-active-cld');
   });
 
-  // ── The coach. A new line scrolls the card (and the stage under it) into view.
+  // ── The coach. A new line scrolls what the player needs next into view.
+  const ringIds = { stage: 'cld-pr-stage', power: 'btn-cld-pr-power', commit: 'btn-cld-pr-commit',
+                    resurface: 'btn-cld-pr-resurface', dive: 'btn-cld-pr-mode-dive' };
   const v = cldPrCoachView(u.coach);
   const stepEl = $('cld-pr-coach-step');
   if (stepEl) stepEl.textContent = v.step;
   const lineEl = $('cld-pr-coach-line');
   if (lineEl && lineEl.textContent !== v.line) {
     lineEl.textContent = v.line;
-    const card = $('cld-pr-coach');
-    if (card && card.scrollIntoView) card.scrollIntoView({ block: 'nearest', behavior: cldReducedMotion() ? 'auto' : 'smooth' });
+    // Scroll to what the player needs NEXT, not always the card: on a small
+    // phone the card and the stage cannot both fit (SE visual pass), so a line
+    // that asks for a control shows that control, and a Slide shows the stage.
+    const at = u.coach.at;
+    const target = u.playing ? $('cld-pr-stage')
+                 : (at === 2 || at === 3) ? ($(ringIds[v.ring]) || $('cld-pr-coach'))
+                 : $('cld-pr-coach');
+    if (target && target.scrollIntoView) target.scrollIntoView({ block: 'nearest', behavior: cldReducedMotion() ? 'auto' : 'smooth' });
   }
-  const ringIds = { stage: 'cld-pr-stage', power: 'btn-cld-pr-power', commit: 'btn-cld-pr-commit',
-                    resurface: 'btn-cld-pr-resurface', dive: 'btn-cld-pr-mode-dive' };
   Object.keys(ringIds).forEach(k => { const el = $(ringIds[k]); if (el) el.classList.toggle('cld-pr-ring', v.ring === k); });
 
   // ── Throw · Dive — the live floe's rules: Dive only while Knocked back and

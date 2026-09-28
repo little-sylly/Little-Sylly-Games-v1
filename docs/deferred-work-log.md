@@ -12,8 +12,10 @@ game abbreviation, function or screen id. Items keep their original section head
 **RESOLVED 29 Sep 2026 (SW v244) — the CLD How-to practice-sim part only.** The open entry noted
 "CLD's How-to 'The Floe' practice sim, which is a third RAF on the same rule." The Floe tab is gone:
 its sandbox was absorbed by the Practice Arena, which checks `prefers-reduced-motion` in JS
-(`cldReducedMotion()` → a Slide steps straight to its end state) — `cld-impl-notes` DD-18. The live
-floe's replay and NT's playback loop stay open in `docs/deferred-work.md`.
+(`cldReducedMotion()` → a Slide steps straight to its end state) — `cld-impl-notes` DD-18. **Only
+the Slide:** the Arena's ambient motion (penguin idle sway and the swell rings, driven by
+`cldPrClock`) still moves with the setting on, like the live floe's. That, the live floe's replay
+and NT's playback loop stay open in `docs/deferred-work.md`.
 
 ---
 
