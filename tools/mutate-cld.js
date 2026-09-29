@@ -29,10 +29,14 @@ const OUT  = process.argv[3] || fs.mkdtempSync(path.join(os.tmpdir(), 'cld-mutan
 fs.mkdirSync(OUT, { recursive: true });
 const GAME = path.join(ROOT, 'js/games/cld.js');
 const PHYS = path.join(ROOT, 'js/lib/physics.js');
+const ART  = path.join(ROOT, 'js/games/cld-art.js');
 // Normalised to LF: core.autocrlf is on in this repo, and the multi-line anchors below
 // would otherwise read as STALE on a CRLF checkout.
 const SRC  = { game: fs.readFileSync(GAME, 'utf8').replace(/\r\n/g, '\n'),
-               phys: fs.readFileSync(PHYS, 'utf8').replace(/\r\n/g, '\n') };
+               phys: fs.readFileSync(PHYS, 'utf8').replace(/\r\n/g, '\n'),
+               art:  fs.readFileSync(ART,  'utf8').replace(/\r\n/g, '\n') };
+const ENV  = { game: 'CLD_SRC', phys: 'CLD_PHYS_SRC', art: 'CLD_ART_SRC' };
+const EXT  = { game: '.cld.js', phys: '.phys.js', art: '.art.js' };
 
 // [name, which, [ [from, to], ... ]]
 const M = [
@@ -247,6 +251,16 @@ const M = [
   'reach: cldFullSlideDist(src.ice) * Math.pow(CLD_HUNGER_STEP, hunger),']], 'practice'],
 ['hunger-beat-never-in-practice', 'game', [[
   '  const hungry = !u.end && !res.bath && res.rises;', '  const hungry = false;']], 'practice'],
+// ── SW v246: the art module (verify-cld-practice.js) ─────────────────────────
+['mood-level-2-rests', 'art', [[
+  '    if (L === 2) M.brow = 1;', '    if (L === 2) M.brow = (tt % 2 < 1) ? 1 : 0;']], 'practice'],
+['glow-pulses', 'art', [[
+  '    if (L >= 6) M.glow = Math.min(1, GLOW_BASE + GLOW_STEP * (L - 6));',
+  '    if (L >= 6) M.glow = Math.min(1, (GLOW_BASE + GLOW_STEP * (L - 6)) * (0.9 + 0.1 * Math.sin(tt)));']], 'practice'],
+['reduced-flame-flickers', 'art', [[
+  '    if (L >= 5) { M.fire = 1; M.flameT = reduced ? 0 : tt; }', '    if (L >= 5) { M.fire = 1; M.flameT = tt; }']], 'practice'],
+['thaw-repaint-drops-marks', 'art', [[
+  '    marks.forEach(mk => floeMark(f, mk.kind, mk.a, mk.b));', '']], 'practice'],
 ];
 
 // Which harness a mutant is aimed at. The rules/sim mutants above run the loop
@@ -264,10 +278,10 @@ for (const [name, which, edits, harness] of M) {
     src = src.replace(from, to);
   }
   if (missed) { rows.push([name, 'PATCH-MISS', '-']); continue; }
-  const file = path.join(OUT, name + (which === 'game' ? '.cld.js' : '.phys.js'));
+  const file = path.join(OUT, name + EXT[which]);
   fs.writeFileSync(file, src);
   const env = Object.assign({}, process.env);
-  env[which === 'game' ? 'CLD_SRC' : 'CLD_PHYS_SRC'] = file;
+  env[ENV[which]] = file;
   const r = cp.spawnSync(process.execPath, [path.join(ROOT, HARNESS[harness || 'loop'])],
                          { env, encoding: 'utf8' });
   const out = (r.stdout || '') + (r.stderr || '');

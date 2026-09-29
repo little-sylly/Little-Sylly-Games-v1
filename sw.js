@@ -30,6 +30,7 @@ const PRECACHE_URLS = [
   'js/games/flw.js',
   'js/games/pko.js',
   'js/games/cjar.js',
+  'js/games/cld-art.js',
   'js/games/cld.js',
   'js/games/comb.js',
   'js/lib/cards.js',

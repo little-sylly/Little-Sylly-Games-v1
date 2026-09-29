@@ -14,6 +14,7 @@ const fs = require('fs'), path = require('path'), vm = require('vm');
 const ROOT = path.join(__dirname, '..');
 const PHYS = process.env.CLD_PHYS_SRC || path.join(ROOT, 'js/lib/physics.js');
 const GAME = process.env.CLD_SRC      || path.join(ROOT, 'js/games/cld.js');
+const ART  = process.env.CLD_ART_SRC  || path.join(ROOT, 'js/games/cld-art.js');
 const TUNE = process.argv.includes('--tune');
 
 // ── Mock DOM (the verify-cld-loopback.js shape) ────────────────────────────
@@ -32,13 +33,15 @@ function ctx2d() {
     fillStyle: '', strokeStyle: '', lineWidth: 1, globalAlpha: 1, font: '',
     textAlign: '', textBaseline: '', lineCap: '', lineJoin: '', shadowBlur: 0,
     shadowColor: '', filter: '',
+    createPattern: () => ({}), arcTo: noop,
+    globalCompositeOperation: 'source-over', imageSmoothingEnabled: true,
   };
 }
 function makeDocument() {
   const byId = {};
   const mk = tag => {
     const el = {
-      tagName: String(tag).toUpperCase(), id: '', style: {}, dataset: {}, children: [],
+      tagName: String(tag).toUpperCase(), id: '', style: { setProperty(k, v) { this[k] = v; } }, dataset: {}, children: [],
       textContent: '', className: '', disabled: false, scrollTop: 0,
       clientWidth: 320, clientHeight: 320, width: 0, height: 0, parentElement: null,
       _html: '',
@@ -79,24 +82,29 @@ function Path2DStub() {}
 // ── The sandbox ────────────────────────────────────────────────────────────
 const sent = { envelope: 0, private: 0 };
 const screens = [];
-const S = {
-  console, document: makeDocument(),
-  window: { syllyMultiplayerMode: 'single', devicePixelRatio: 1, addEventListener() {},
-            matchMedia: () => ({ matches: false }) },
-  showScreen: id => screens.push(id),
-  setTimeout: () => 0, clearTimeout() {}, setInterval: () => 0, clearInterval() {},
-  requestAnimationFrame: () => 0, cancelAnimationFrame() {},
-  playLaunch() {}, playExit() {}, playDone() {}, playSuccess() {}, playBoing() {},
-  playWhoosh() {}, playAbyssThud() {}, playHullThud() {}, playAlarm() {}, playSplash() {},
-  playTick() {}, playPillClick() {}, playSyllyOn() {}, playSyllyOff() {},
-  mpSendEnvelope() { sent.envelope++; }, mpSendPrivate() { sent.private++; },
-  mpLockSync() {}, mpUnlockSync() {}, mpPlayerSlots: [], mpMyPlayerIdx: 0,
-  Path2D: Path2DStub,
-};
-S.globalThis = S;
-S.window.window = S.window;
+function freshSandbox() {
+  const s = {
+    console, document: makeDocument(),
+    window: { syllyMultiplayerMode: 'single', devicePixelRatio: 1, addEventListener() {},
+              matchMedia: () => ({ matches: false }) },
+    showScreen: id => screens.push(id),
+    setTimeout: () => 0, clearTimeout() {}, setInterval: () => 0, clearInterval() {},
+    requestAnimationFrame: () => 0, cancelAnimationFrame() {},
+    playLaunch() {}, playExit() {}, playDone() {}, playSuccess() {}, playBoing() {},
+    playWhoosh() {}, playAbyssThud() {}, playHullThud() {}, playAlarm() {}, playSplash() {},
+    playTick() {}, playPillClick() {}, playSyllyOn() {}, playSyllyOff() {},
+    mpSendEnvelope() { sent.envelope++; }, mpSendPrivate() { sent.private++; },
+    mpLockSync() {}, mpUnlockSync() {}, mpPlayerSlots: [], mpMyPlayerIdx: 0,
+    Path2D: Path2DStub,
+  };
+  s.globalThis = s;
+  s.window.window = s.window;
+  return s;
+}
+const S = freshSandbox();
 vm.createContext(S);
 vm.runInContext(fs.readFileSync(PHYS, 'utf8'), S, { filename: PHYS });
+vm.runInContext(fs.readFileSync(ART,  'utf8'), S, { filename: ART });    // SW v246 — before cld.js, as in the page
 vm.runInContext(fs.readFileSync(GAME, 'utf8'), S, { filename: GAME });
 
 // Top-level let/const/function bindings are visible to later scripts in the
@@ -965,6 +973,128 @@ if (!TUNE) {
   check('reduced motion: no moving Slide target, so the camera holds', RUN('cldCamTarget')(v, m, 'resolving'), null);
   S.window.matchMedia = () => ({ matches: false });
   RUN('cldResetState()');
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// M. The art module (fun-pass spec § 4.1–4.2)
+// ═══════════════════════════════════════════════════════════════════════════
+// A context that counts what it paints, so "it drew something" is a fact.
+function recCtx() {
+  const c = S.document.createElement('canvas').getContext('2d');
+  c.n = 0;
+  ['fill', 'stroke', 'fillRect', 'strokeRect', 'drawImage', 'fillText'].forEach(k => {
+    const f = c[k]; c[k] = function () { c.n++; return f.apply(c, arguments); };
+  });
+  return c;
+}
+if (!TUNE) {
+  section('M. The art module');
+  const A = S.window.CldArt;
+  ok('cld-art.js exposes window.CldArt', !!A && typeof A.penguin === 'function');
+  check('nine poses', A.POSES, ['idle', 'aim', 'slide', 'squash', 'plunge', 'bob', 'back', 'throw', 'win']);
+  check('six faces', A.FACES, ['happy', 'focus', 'strain', 'shock', 'grumpy', 'dizzy']);
+
+  const KEYS = ['back', 'bob', 'expr', 'feet', 'flipL', 'flipR', 'frontL', 'frontR', 'lift',
+                'lookX', 'lookY', 'pivot', 'rot', 'sink', 'sx', 'sy'];
+  A.POSES.forEach(pose => {
+    const P = A.posePars({ pose, t: 1.3, seed: 2, power: 0.5, vel: { x: 1, y: 0 }, k: 0.5 });
+    check(`posePars('${pose}') has the full shape`, Object.keys(P).sort(), KEYS);
+  });
+  const face = pose => A.posePars({ pose, t: 0, power: 0.5, k: 0.5 }).expr;
+  check('each pose wears its face (slide shows its back)',
+        ['idle', 'aim', 'squash', 'plunge', 'bob', 'back', 'throw', 'win'].map(face),
+        ['happy', 'focus', 'shock', 'shock', 'grumpy', 'dizzy', 'focus', 'happy']);
+  check('aim strains past 0.92', A.posePars({ pose: 'aim', power: 0.95 }).expr, 'strain');
+  ok('slide is seen from behind', A.posePars({ pose: 'slide', vel: { x: 0, y: 1 } }).back === true);
+  ok('a plug sits shallower than a knocked-back penguin',
+     A.posePars({ pose: 'bob' }).sink < A.posePars({ pose: 'back' }).sink);
+  check('expr overrides the pose’s face', A.posePars({ pose: 'idle', expr: 'dizzy' }).expr, 'dizzy');
+
+  // The Hunger ladder (§ 4.2): a mood OVER the face, one rung per level.
+  const mood = (l, t, reduced) => A.moodPars(l, t || 0, 3, !!reduced);
+  const T = Array.from({ length: 400 }, (_, i) => i * 0.05);          // 20 s of clock
+  const share = (l, key) => T.filter(t => mood(l, t)[key]).length / T.length;
+  check('level 0: completely normal', mood(0, 5), { brow: 0, huff: false, stamp: false, fire: 0, flameT: 0, glow: 0 });
+  ok('level 1: frowns now and then (15–35% of the time)', share(1, 'brow') > 0.15 && share(1, 'brow') < 0.35,
+     'share ' + share(1, 'brow'));
+  check('level 2: frowns all the time', share(2, 'brow'), 1);
+  check('level 3: annoyed brows', mood(3, 1).brow, 2);
+  ok('level 3: a huff and a stamp now and then', share(3, 'huff') > 0 && share(3, 'stamp') > 0);
+  check('level 4: angry, no fire yet', [mood(4, 1).brow, mood(4, 1).fire], [3, 0]);
+  check('level 5: fire in its eyes, no glow', [mood(5, 1).fire, mood(5, 1).glow], [1, 0]);
+  ok('level 6: a glow', mood(6, 1).glow > 0);
+  ok('level 7+: the glow grows every level', [7, 8, 9].every(l => mood(l, 1).glow > mood(l - 1, 1).glow));
+  ok('the glow never passes 1', mood(40, 1).glow <= 1);
+  ok('the glow is static per level (nothing pulses)', T.every(t => mood(8, t).glow === mood(8, 0).glow));
+  ok('reduced motion: a still flame', T.every(t => mood(5, t, true).flameT === mood(5, 0, true).flameT));
+  ok('reduced motion: no huff, no stamp', T.every(t => !mood(3, t, true).huff && !mood(3, t, true).stamp));
+
+  // Every drawing entry point runs on the mock DOM and actually paints.
+  const guide = { end: { x: 260, y: 180 }, ghost: { x: 250, y: 180 }, stub: { x1: 260, y1: 180, x2: 275, y2: 190 }, kind: 'penguin' };
+  const draws = {
+    'penguin':        c => A.penguin(c, { x: 180, y: 180, r: 11, tint: '#e4572e', t: 1, pose: 'idle', hunger: 6, seed: 1 }),
+    'penguin (head)': c => A.penguin(c, { x: 10, y: 10, r: 8, tint: '#e4572e', t: 0, pose: 'idle', head: true }),
+    'penguin (win + fish)': c => A.penguin(c, { x: 60, y: 90, r: 20, tint: '#e4572e', t: 0.3, pose: 'win', fish: true, ring: false }),
+    'meMarker':       c => A.meMarker(c, 180, 180, 11, '#e4572e', 1, 2),
+    'floe':           c => A.floe(c, A.makeFloe(180, 180, 170, 1, 3), 1, false),
+    'water':          c => A.water(c, { x: -50, y: -50, w: 460, h: 460 }, 1, 180, 180, 170, false),
+    'scenery':        c => A.scenery(c, { x: -400, y: -400, w: 1160, h: 1160 }, 1, 180, 180, 170, false),   // far floes sit 320–490 out
+    'berg':           c => A.berg(c, { x: 180, y: 20, r: 16, hits: 1, angle: 0 }, 2, 1),
+    'aim':            c => A.aim(c, { x: 180, y: 180, r: 11, dx: 1, dy: 0, power: 0.7, tint: '#e4572e', live: true,
+                                      locked: false, rival: false, finger: { x: 120, y: 180 }, guide, t: 1, px: 2, reduced: false }),
+    'aim (rival)':    c => A.aim(c, { x: 180, y: 180, r: 11, dx: -1, dy: 0, power: 1, tint: '#3a86ff', live: false,
+                                      locked: false, rival: true, finger: null, guide: null, t: 1, px: 2, reduced: false }),
+    'reticle':        c => A.reticle(c, { x: 200, y: 150, tint: '#e4572e', t: 1, from: { x: 30, y: 180 }, rival: false, reduced: false }),
+    'seat':           c => A.seat(c, 180, 10, 11, '#e4572e', 1, true),
+    'snowball':       c => A.snowball(c, { x: 30, y: 180 }, { x: 200, y: 150 }, 0.5, 5.6),
+    'fish':           c => A.fish(c, 20, 10, 12, 0),
+    'plinth':         c => A.plinth(c, 50, 40, 60, 40),
+    'groove':         c => A.groove(c, [{ x: 150, y: 180 }, { x: 200, y: 180 }], 8),
+  };
+  Object.keys(draws).forEach(k => {
+    const c = recCtx(); let e = null;
+    try { draws[k](c); } catch (x) { e = x; }
+    ok(`CldArt.${k} paints on the mock DOM`, !e && c.n > 0, e ? e.stack : 'no paint calls');
+  });
+
+  // The floe keeps its story: marks survive a Thaw repaint.
+  const f = A.makeFloe(180, 180, 170, 1, 3);
+  A.floeMark(f, 'groove', [{ x: 150, y: 180 }, { x: 200, y: 180 }], 8);
+  A.floeMark(f, 'splat', { x: 180, y: 200 });
+  A.setFloeRadius(f, 160);
+  check('a Thaw repaint keeps every mark', [f.radius, f.marks.length], [160, 2]);
+
+  // Particles: capped, and reduced motion spawns nothing that travels.
+  const fx = A.makeFx();
+  fx.splash(180, 180, 1); ok('a splash spawns droplets', fx.count() > 2);
+  fx.clear(); fx.setReduced(true); fx.splash(180, 180, 1);
+  check('reduced motion: a splash leaves only its two rings', fx.count(), 2);
+  fx.clear(); fx.puff(180, 180, 1); fx.spray(180, 180, 50, 0, 3); fx.landing(180, 180); fx.shatter(180, 180);
+  check('reduced motion: nothing that travels spawns (only the shatter ring)', fx.count(), 1);
+  fx.setReduced(false); fx.clear(); for (let i = 0; i < 60; i++) fx.splash(180, 180, 1);
+  ok('the particle cap holds at 420', fx.count() <= 420, 'count ' + fx.count());
+
+  // No DOM → no-op: a bare vm with no window, no document, no Path2D.
+  const B = {}; B.globalThis = B; vm.createContext(B);
+  let bareErr = null;
+  try { vm.runInContext(fs.readFileSync(ART, 'utf8'), B, { filename: ART }); } catch (e) { bareErr = e; }
+  ok('cld-art.js loads in a bare vm', bareErr === null, bareErr && bareErr.stack);
+  const BA = B.CldArt;
+  ok('…and publishes CldArt on globalThis', !!BA);
+  const bc = recCtx(); let bErr = null;
+  try {
+    BA.penguin(bc, { x: 1, y: 1, r: 11, tint: '#e4572e', pose: 'idle' });
+    BA.floe(bc, BA.makeFloe(180, 180, 170, 1, 3), 0, false);
+    BA.water(bc, { x: 0, y: 0, w: 360, h: 360 }, 0, 180, 180, 170, false);
+    BA.berg(bc, { x: 1, y: 1, r: 16, hits: 1, angle: 0 }, 2, 0);
+    BA.aim(bc, { x: 1, y: 1, r: 11, dx: 1, dy: 0, power: 1, tint: '#e4572e' });
+    BA.fish(bc, 1, 1, 10, 0); BA.plinth(bc, 1, 1, 10, 10);
+    BA.makeFx().draw(bc, 'air');
+  } catch (e) { bErr = e; }
+  ok('every drawing entry point is a no-op with no DOM', bErr === null && bc.n === 0,
+     bErr ? bErr.stack : 'paint calls: ' + bc.n);
+  ok('pure helpers still answer with no DOM',
+     BA.posePars({ pose: 'idle' }).expr === 'happy' && BA.moodPars(2, 0, 0, false).brow === 1);
 }
 
 // ── Report (keep LAST in the file) ─────────────────────────────────────────

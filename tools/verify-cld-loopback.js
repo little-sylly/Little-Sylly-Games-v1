@@ -45,9 +45,11 @@ const vm   = require('vm');
 const ROOT = path.join(__dirname, '..');
 const PHYS = process.env.CLD_PHYS_SRC || path.join(ROOT, 'js/lib/physics.js');
 const GAME = process.env.CLD_SRC      || path.join(ROOT, 'js/games/cld.js');
+const ART  = process.env.CLD_ART_SRC  || path.join(ROOT, 'js/games/cld-art.js');
 
 const physSrc = fs.readFileSync(PHYS, 'utf8');
 const gameSrc = fs.readFileSync(GAME, 'utf8');
+const artSrc  = fs.readFileSync(ART, 'utf8');
 
 // ── The wire ───────────────────────────────────────────────────────────────
 // fbWrite = what Firebase actually persists. fbRead = what the SDK hands back.
@@ -153,6 +155,7 @@ function ctx2d() {
     fillStyle: '', strokeStyle: '', lineWidth: 1, globalAlpha: 1, font: '',
     textAlign: '', textBaseline: '', lineCap: '', lineJoin: '', shadowBlur: 0,
     shadowColor: '', filter: '',
+    createPattern: () => ({}), arcTo() {}, globalCompositeOperation: 'source-over', imageSmoothingEnabled: true,
   };
 }
 
@@ -198,6 +201,7 @@ function makeDevice(name, mode, myIdx, slots) {
   sandbox.globalThis = sandbox;
   vm.createContext(sandbox);
   vm.runInContext(physSrc, sandbox, { filename: `physics.js (${name})` });
+  vm.runInContext(artSrc, sandbox, { filename: `cld-art.js (${name})` });   // SW v246 — before cld.js, as in the page
   vm.runInContext(gameSrc, sandbox, { filename: `cld.js (${name})` });
 
   const BRIDGE = `
