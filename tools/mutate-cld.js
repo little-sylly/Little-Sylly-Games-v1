@@ -305,12 +305,19 @@ const M = [
   '  if (!paused && !cldReducedMotion()) cldClock += dt;', '  if (!paused) cldClock += dt;']], 'practice'],
 ['seat-drawn-white', 'art', [[
   '    ctx.lineWidth = chosen ? 2.4 : 1.8; ctx.strokeStyle = tint; ctx.stroke();', "    ctx.lineWidth = chosen ? 2.4 : 1.8; ctx.strokeStyle = chosen ? tint : 'rgba(255,255,255,0.8)'; ctx.stroke();"]], 'practice'],
+// ── SW v247: bots (verify-cld-bots.js, verify-cld-loopback.js) ───────────────
+['bot-view-leaks-commits', 'game', [
+  ["  live.commits  = null;          // other seats' commits are the only hidden state (spec § 3.7)\n", ''],
+  ['  rec.commits = new Array(rec.playerCount).fill(null);\n', '']], 'bots'],
+['bots-never-prompted', 'game', [[
+  "  if (window.syllyMultiplayerMode === 'host' && typeof mpBotsPrompt === 'function') mpBotsPrompt(cldSlideNo);", '']], 'loopback'],
 ];
 
 // Which harness a mutant is aimed at. The rules/sim mutants above run the loop
 // harness; the SW v244 cue / swap mutants at the end of M are claims about
 // verify-cld-practice.
-const HARNESS = { loop: 'tools/verify-cld-loop.js', practice: 'tools/verify-cld-practice.js' };
+const HARNESS = { loop: 'tools/verify-cld-loop.js', practice: 'tools/verify-cld-practice.js',
+                  bots: 'tools/verify-cld-bots.js', loopback: 'tools/verify-cld-loopback.js' };
 
 console.log('Cold Shoulder — planted-drift run');
 console.log('='.repeat(58));

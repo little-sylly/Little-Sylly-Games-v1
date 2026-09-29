@@ -1117,6 +1117,55 @@ check('…and never an ACTION or a LOBBY packet',
   [...new Set(allSent.map(e => e.type))], ['SYNC']);
 check('no device recorded an error', errs(), []);
 
+section('17. Two bot seats beside a human client (SW v247)');
+{
+  const BNAMES = ['Ali', 'Bec', 'Sylvia 🤖', 'Sam 🤖'];
+  const BSLOTS = [{ uid: 'u0', nickname: 'Ali' }, { uid: 'u1', nickname: 'Bec' },
+                  { uid: 'bot:0', nickname: 'Sylvia', bot: { difficulty: 'medium' } },
+                  { uid: 'bot:1', nickname: 'Sam', bot: { difficulty: 'medium' } }];
+  const bh = makeDevice('bothost', 'host', 0, BSLOTS), bc = makeDevice('botclient', 'client', 1, BSLOTS);
+  const BH = bh.__cld, BC = bc.__cld;
+  const prompts = [], botSent = [];
+  bh.mpBotsPrompt = tag => prompts.push(tag);
+  bh.mpSendEnvelope = env => {
+    const onWire = wire({ ...env, originId: 'u0', timestamp: Date.now() });
+    botSent.push(onWire.payload.action);
+    try { BC.handle(onWire); } catch (e) { bc.__errors.push(`${onWire.payload.action}: ${e.message}`); }
+  };
+  bh.mpSendPrivate = () => { throw new Error('the host wrote the private channel'); };
+  bc.mpSendPrivate = (target, env) => {
+    const onWire = wire({ ...env, originId: 'u1', timestamp: Date.now() });
+    try { BH.handle(onWire); } catch (e) { bh.__errors.push(`private: ${e.message}`); }
+  };
+  bc.mpSendEnvelope = () => {};
+  const botMove = i => vm.runInContext(
+    `cldBotSubmit(${i}, cldBotDecide(cldBotView(${i}), 'medium', window.Physics.rng(${i})), cldSlideNo)`, bh);
+
+  BC.standby();
+  BH.iceBreaker = 0; BH.fishToWin = 3; BH.touched = true; BH.floeSize = 'standard';
+  BH.startMatch(BNAMES);
+  check('the client learned the 🤖 names over the wire', BC.names, BNAMES);
+  [bh, bc].forEach(step);                                  // intro → floe
+  check('the host prompted its bots as the Slide opened', prompts, [0]);
+  check('…and the client never does', typeof bc.mpBotsPrompt, 'undefined');
+
+  BC.arm(BC.myPenguins()[0], 1, 0, 0.6); BC.commit();
+  check('the human client is in; the bots are not yet', BH.commits.map(c => c !== null), [false, true, false, false]);
+  check('a bot move lands through cldBotSubmit', botMove(2), true);
+  check('…and the same seat cannot move twice', botMove(2), false);
+  check('the tally counts bot commits', BC.tally(), BH.tally());
+  BH.arm(BH.myPenguins()[0], -1, 0, 0.5); BH.commit();     // the host moves (a hold cannot commit)
+  botMove(3);
+  check('everyone in → the host resolved', BH.phase, 'resolving');
+  check('the client got the same Slide', BC.timeline && BC.timeline.bodyIds, BH.lastBodyIds);
+  playback(bh, BH); playback(bc, BC);
+  check('host and client agree on the penguins after the Slide', BC.penguins, BH.penguins);
+  check('the next Slide prompted the bots again', prompts, [0, 1]);
+  check('a move for the resolved Slide is refused',
+        vm.runInContext(`cldBotSubmit(2, { aims: [], dive: null, snowball: null }, 0)`, bh), false);
+  check('no errors on either device', [...bh.__errors, ...bc.__errors], []);
+}
+
 console.log('\n' + '='.repeat(70));
 console.log(failures ? 'FAILED — ' + failures + ' check(s)' : 'ALL CHECKS PASSED');
 process.exit(failures ? 1 : 0);

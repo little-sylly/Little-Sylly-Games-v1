@@ -534,7 +534,7 @@ const MP_GAME_CONFIGS = {
       // Names come straight from the lobby — cld has no setup screen. The slot
       // object is { uid, nickname }: .name returns undefined silently.
       cldPlayerCount = mpPlayerSlots.length;
-      cldPlayerNames = mpPlayerSlots.map(p => p.nickname);
+      cldPlayerNames = cldSeatNames();   // a bot's name carries 🤖 (SW v247)
       // Straight onto the ice, NOT back to the game menu: settings were locked in
       // before the lobby, so a menu re-visit is just a second tap. GTH, FRT, SHP,
       // FLW, PKO and CJAR all do this.
@@ -557,6 +557,15 @@ const MP_GAME_CONFIGS = {
     // literal in a bare vm with no game file at all. Same shape as frtPearOff.
     getMaxPlayers:   () => (typeof cldPeckOff !== 'undefined' && cldPeckOff) ? 2 : 8,
     getMinPlayers:   () => (typeof cldPeckOff !== 'undefined' && cldPeckOff) ? 2 : 3,
+    // Bots (SW v247). Arrow wrappers: this object is built before cld.js loads.
+    bots: {
+      names:     ['Sylvia', 'Sam', 'Shirley', 'Jeff', 'Chillbert', 'Waddles', 'Fishstick', 'Flipper', 'Slushie'],
+      pillClass: 'pill-active-cld',
+      view:      i => cldBotView(i),
+      decide:    (v, d, rng) => cldBotDecide(v, d, rng),
+      submit:    (i, move, tag) => cldBotSubmit(i, move, tag),
+      thinkMs:   (d, rng) => cldBotThinkMs(d, rng),
+    },
   },
   comb: {
     gameName:       'Honeycomb Hills',

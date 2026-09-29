@@ -272,7 +272,7 @@ ok('engine handles MP_REJOIN before per-game routing', /'MP_REJOIN'/.test(engine
 // ── 8. Bots — the optional hook is whole wherever it is present (SW v247) ─────
 section('8. Bots — adopters and hook shape');
 const BOT_GAMES = IDS.filter(id => CONFIGS[id].bots !== undefined);
-check('the bot adopters are exactly the reviewed list', BOT_GAMES, []);
+check('the bot adopters are exactly the reviewed list', BOT_GAMES, ['cld']);
 for (const id of BOT_GAMES) {
   const b = CONFIGS[id].bots;
   ok(id + ': bots has view, decide and submit', ['view', 'decide', 'submit'].every(k => typeof b[k] === 'function'));

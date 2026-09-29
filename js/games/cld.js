@@ -2119,6 +2119,8 @@ function cldShowFloe() {
   if (cldSlideNo === 0) cldCamFrame(cldView, cldFloeRadius); else cldCamOverview(cldView, false);
   cldSyncFloeUI();
   cldStartLoop();
+  // The host prompts its bots as each Slide opens (SW v247). The engine owns the timers.
+  if (window.syllyMultiplayerMode === 'host' && typeof mpBotsPrompt === 'function') mpBotsPrompt(cldSlideNo);
 }
 
 function cldSyncFloeUI() {
@@ -3788,6 +3790,13 @@ function cldWireCommit(c) {
 // ── Seat plumbing ──────────────────────────────────────────────────────────
 // mpPlayerSlots is a bare top-level `let` in engine-multiplayer.js, NOT on
 // window — reading it through window. returns undefined silently (BLD Bug 8).
+// Every seat's display name — a bot's carries 🤖 (SW v247). mpSeatLabel lives in
+// engine-multiplayer.js, which the rules harnesses never load.
+function cldSeatNames() {
+  if (typeof mpPlayerSlots === 'undefined' || !mpPlayerSlots) return [];
+  return mpPlayerSlots.map((p, i) => (typeof mpSeatLabel === 'function' ? mpSeatLabel(i) : p.nickname));
+}
+
 function cldHostUid() {
   return (typeof mpPlayerSlots !== 'undefined' && mpPlayerSlots && mpPlayerSlots[0])
     ? mpPlayerSlots[0].uid : null;
@@ -3984,7 +3993,7 @@ function cldHandleEnvelope(env) {
     case 'CLD_FLOEOFF_START': {
       cldPlayerNames = cldWireList(p.playerNames).map(String);
       if (!cldPlayerNames.length && typeof mpPlayerSlots !== 'undefined' && mpPlayerSlots) {
-        cldPlayerNames = mpPlayerSlots.map(s => s.nickname);
+        cldPlayerNames = cldSeatNames();
       }
       cldPlayerCount = cldPlayerNames.length;
       cldFloeOffNo   = cldWireNum(p.floeOffNo, 1);
@@ -4106,7 +4115,7 @@ document.addEventListener('DOMContentLoaded', () => {
     playLaunch();
     if (window.syllyMultiplayerMode !== 'single') {
       cldStartMatchLocal((typeof mpPlayerSlots !== 'undefined' && mpPlayerSlots)
-        ? mpPlayerSlots.map(p => p.nickname) : cldPlayerNames);
+        ? cldSeatNames() : cldPlayerNames);
     } else {
       mpShowModeScreen('cld');
     }
