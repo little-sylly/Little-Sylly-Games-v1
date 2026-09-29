@@ -4787,3 +4787,19 @@ piece of that game's Stage 1. The one entry worth knowing about from outside: **
 `Physics.rng(seed)` returned a near-zero first draw for every small seed, so any caller that seeds
 a stream and immediately takes one draw got the same answer from all of them. Fixed with a warm-up
 inside `rng()`. If a second game ever adopts `Physics`, read that entry first.
+
+### DD-53 — Little Sylly's paintings: wall art that opens a gallery [30 Sep 2026, SW v248]
+**Decision.** The Lounge's two wall prints (procedural abstracts, in `lounge-room.js`) became the owner's
+daughter's real paintings, and a tap opens a gallery overlay above the room.
+**Rationale.** Pick targets can only come from `props` (`louBuildAll`), so the frames moved out of the
+room shell into two builders (`painting-a`/`painting-b`); the door is an *effect* (`openPainting(id)`, like
+`openSound`), so the Lounge stays mounted behind a plain overlay — no router state, no push-in, no fade.
+**Technical impact.** `LOU_PAINTINGS` (lounge-props.js) is the single row per painting: files, aspect (the
+frame is cut to the picture), plaque copy. `lobby-host.js` `lobbyOpenPainting`; markup in `lobby.html`,
+styles `css/lobby.css` § gallery. Images: 1200 px JPEG for the overlay (~200–270 KB), 320 px for the
+canvas (~20 KB), runtime-cached under `data/paintings/` like the lamp photos. Originals (PNG, 19 MB each)
+are in `wip/paintings-originals/` (git-ignored). `#lou-heading` went click-through — it overlapped the
+first frame (as it did the old print). Harness: `verify-lounge-props.js` "paintings" section (files, size
+ceilings, JPEG aspect vs the frame), door-count and effect-door expectations updated. Layout proved in
+real Chromium (click → overlay → next → Esc → backdrop). Lesson: an optional door with no prop
+behaviour to fall back on is legitimate when it is an effect — the "never silent" harness rule now names that.

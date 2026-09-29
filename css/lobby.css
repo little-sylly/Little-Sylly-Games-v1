@@ -2306,7 +2306,7 @@
   background: radial-gradient(ellipse at 50% 55%, rgba(0,0,0,0) 48%, rgba(43,27,69,0.40) 100%); }
 #lou-hud { position: absolute; inset: 0; pointer-events: none; z-index: 2; }
 #lou-hud > * { pointer-events: auto; }
-#lou-heading { position: absolute; left: 32px; top: 24px; margin: 0; font-size: 28px; font-weight: 700; }
+#lou-heading { position: absolute; left: 32px; top: 24px; pointer-events: none; margin: 0; font-size: 28px; font-weight: 700; }
 #lou-status { position: absolute; left: 32px; top: 64px; font-size: 14px; color: #6b5d80; min-height: 18px; }
 #lou-focus { position: absolute; display: none; border: 3px solid #2B1B45; border-radius: 10px; pointer-events: none; }
 #lou-fade { position: absolute; inset: 0; z-index: 1; background: #FAFAF9; opacity: 0; pointer-events: none; transition: opacity 200ms ease-out; }
@@ -2336,3 +2336,74 @@
 .lb-lg-you-wrap { position: relative; display: flex; justify-content: center; }
 .lb-lg-you-wrap .lb-you-pop { right: auto; left: 50%; margin-left: -118px; }
 .lb-lg-you-wrap .lb-you-pop-arrow { right: auto; left: 111px; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Little Sylly's gallery (#painting-overlay, lobby-host.js lobbyOpenPainting).
+   The Lounge's two paintings open here: the picture in a birch frame with a cream
+   mount, and a museum plaque beside it (below on a narrow screen). Plum backdrop and
+   ink are the stickerbook's, so the two overlays read as one room. Motion: opacity +
+   transform only; the global reduced-motion block zeroes the durations.
+   ═══════════════════════════════════════════════════════════════════════════ */
+#painting-overlay {
+  --pnt-ink: #2B1B45; --pnt-dim: #6b6478; --pnt-brass: #a67c2e; --pnt-card: #fbf6ea;
+  position: fixed; inset: 0; z-index: 90; background: rgba(43, 27, 69, .84);
+  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+  font-family: Fredoka, system-ui, sans-serif; color: var(--pnt-ink);
+  scrollbar-width: none; overflow-y: auto;
+}
+#painting-overlay::-webkit-scrollbar { display: none; }
+#painting-overlay[hidden] { display: none !important; }
+#painting-overlay .pnt-stage { min-height: 100%; display: flex; align-items: center; justify-content: center; padding: 20px 16px; }
+#painting-overlay .pnt {
+  position: relative; display: flex; align-items: center; justify-content: center; gap: clamp(20px, 4vw, 44px);
+  width: 100%; max-width: 980px; animation: pnt-in 240ms ease-out;
+}
+#painting-overlay .pnt.pnt-swap { animation: pnt-in 240ms ease-out; }
+@keyframes pnt-in { from { opacity: 0; transform: translateY(8px) scale(.97); } to { opacity: 1; transform: none; } }
+
+/* the frame: birch, as on the wall, then a cream mount round the picture */
+#painting-overlay .pnt-frame { margin: 0; flex: 0 1 auto; min-width: 0; }
+#painting-overlay .pnt-frame {
+  padding: clamp(8px, 1.6vmin, 14px); border-radius: 6px;
+  background: linear-gradient(135deg, #d9b98c, #b08a5c 55%, #c9a77f);
+  box-shadow: 0 2px 0 rgba(255, 255, 255, .35) inset, 0 -2px 0 rgba(0, 0, 0, .2) inset, 0 22px 50px rgba(0, 0, 0, .5), 0 4px 10px rgba(0, 0, 0, .35);
+}
+#painting-overlay .pnt-mount { padding: clamp(10px, 2.2vmin, 22px); background: #f6efe0; box-shadow: 0 0 0 1px rgba(0, 0, 0, .18) inset, 0 3px 8px rgba(0, 0, 0, .18) inset; }
+#painting-overlay .pnt-mount img {
+  display: block; width: auto; height: auto; max-width: 100%; max-height: min(78vh, 780px);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, .25), 0 2px 6px rgba(0, 0, 0, .3);
+}
+
+/* the plaque */
+#painting-overlay .pnt-plaque {
+  flex: 0 1 320px; min-width: 0; padding: 22px 22px 20px; border-radius: 10px; background: var(--pnt-card);
+  border: 1px solid #d9c9a0; box-shadow: 0 0 0 4px rgba(166, 124, 46, .18), 0 14px 34px rgba(0, 0, 0, .4);
+  display: flex; flex-direction: column; gap: 6px;
+}
+#painting-overlay .pnt-eyebrow { margin: 0 0 4px; font-size: .72rem; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--pnt-brass); }
+#painting-overlay .pnt-eyebrow span { color: var(--pnt-dim); letter-spacing: .06em; }
+#painting-overlay .pnt-plaque h2 { margin: 0; font-size: 1.7rem; line-height: 1.1; font-weight: 700; }
+#painting-overlay .pnt-artist { margin: 2px 0 0; font-size: 1rem; }
+#painting-overlay .pnt-artist strong { font-weight: 600; }
+#painting-overlay .pnt-medium { margin: 0 0 8px; padding-bottom: 12px; font-size: .85rem; font-style: italic; color: var(--pnt-dim); border-bottom: 1px solid #e3d5ad; }
+#painting-overlay .pnt-blurb { margin: 0; font-size: .95rem; line-height: 1.5; color: #4a3d5e; }
+#painting-overlay .pnt-next {
+  margin-top: 14px; min-height: 44px; padding: 0 16px; border: 0; border-radius: 14px; cursor: pointer;
+  background: #2B1B45; color: #fff; font: inherit; font-weight: 600; font-size: .95rem; transition: transform 100ms ease;
+}
+#painting-overlay .pnt-next:active { transform: scale(.97); }
+#painting-overlay .pnt-x {
+  position: absolute; top: -6px; right: -6px; z-index: 2; width: 44px; height: 44px; border-radius: 50%; border: 0; cursor: pointer;
+  background: rgba(255, 255, 255, .16); color: #fff; font: inherit; font-size: 1.1rem; font-weight: 700; transition: transform 100ms ease, background-color 150ms ease;
+}
+#painting-overlay .pnt-x:hover { background: rgba(255, 255, 255, .28); }
+#painting-overlay .pnt-x:active { transform: scale(.94); }
+#painting-overlay .pnt-x:focus-visible, #painting-overlay .pnt-next:focus-visible { outline: 3px solid #EAC45F; outline-offset: 2px; }
+
+/* narrow or short: picture over plaque, the whole thing scrolls as one column */
+@media (max-width: 760px), (max-height: 520px) {
+  #painting-overlay .pnt { flex-direction: column; gap: 18px; padding-top: 30px; }
+  #painting-overlay .pnt-mount img { max-height: min(56vh, 520px); }
+  #painting-overlay .pnt-plaque { flex-basis: auto; width: 100%; max-width: 440px; }
+  #painting-overlay .pnt-x { top: -2px; right: 0; }
+}

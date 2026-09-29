@@ -262,6 +262,7 @@ section('the door map');
     lampPanels: { base: 'y/', manifest: {} }, music: { keys: [], nowPlaying: () => null, playFor() {} },
     dispatch: (a) => seen.push(a),
     openSound: () => seen.push({ t: '@openSound' }),
+    openPainting: (id) => seen.push({ t: '@openPainting', id }),
   };
   const host = H.lobbyCreateHost(deps);
 
@@ -278,9 +279,9 @@ section('the door map');
   // Each door actually dispatches the action the table promises.
   Object.entries(H.LOBBY_DOORS).forEach(([fn, action]) => {
     seen.length = 0;
-    host[fn]();
+    host[fn]('birches');
     eq(seen.length, 1, `${fn}() produces exactly one effect`);
-    eq(seen[0].t, action || '@openSound', `${fn}() ${action ? 'dispatches ' + action : 'calls the injected openSound effect'}`);
+    eq(seen[0].t, action || (fn === 'openPainting' ? '@openPainting' : '@openSound'), `${fn}() ${action ? 'dispatches ' + action : 'calls the injected effect'}`);
   });
 
   // No router action is unreachable: every one is either a door's destination

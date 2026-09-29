@@ -1,6 +1,6 @@
 // ═══════════════════════════════════════════════════════════════════════════
 // lounge-room.js — Premium lounge: the shell. Walls, floor, rug, furniture, the
-// curtain, the window, the sill plant, two prints, the couch's throw cushions (room pass, round 7).
+// curtain, the window, the sill plant, the couch's throw cushions (room pass, round 7).
 // Spec § 6 + the 2026-09-19 re-block. Everything is geometry; every
 // patterned surface is a canvas texture from lou-lib. Fixed warm neutrals —
 // never the player's colours (the props are what pop).
@@ -520,12 +520,8 @@
       { x: -0.304, y: R.rugTopY, z: 0.056, yaw: 1.21, scale: 0.86, patch: [-0.02, 0.05, 0.015] },   // the near one; the patch is round its right eye (its -x)
     ]));
 
-    // two prints on the shelf wall
-    const print = (id, x, y, seed) => {
-      add('print' + id, new THREE.BoxGeometry(0.22, 0.28, 0.02), mats.birchDark, [x, y, R.backZ + 0.01]);
-      add('print' + id + 'Face', new THREE.PlaneGeometry(0.18, 0.24), new THREE.MeshStandardMaterial({ map: tex.abstract(seed), roughness: .9 }), [x, y, R.backZ + 0.021]);
-    };
-    print('A', -0.88, 1.18, 1); print('B', -0.52, 1.06, 5);   // above the jukebox: over the telly they cluttered it
+    // The two pictures over the jukebox are NOT here any more: they are Little Sylly's paintings and a
+    // tap opens them, so they are props (lounge-props.js LOU_PAINTINGS, 'painting-a' / 'painting-b').
 
     g.userData.louRoom = R; g.userData.louShelf = S; g.userData.louBench = BENCH;
     return g;

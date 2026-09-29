@@ -454,6 +454,26 @@ Rock Paper Scissors
        in css/lobby.css. Do NOT add it to resetToLobby()'s style.display list — an
        inline display:none would outlive the next open (spec § 3). -->
   <div id="stickerbook-overlay" hidden></div>
+
+  <!-- Little Sylly's gallery: the two paintings on the Lounge wall open here. lobby-host.js
+       (lobbyOpenPainting) owns it and toggles `hidden`; css/lobby.css guards [hidden]. Not in
+       resetToLobby()'s display list, for the same reason as the stickerbook. -->
+  <div id="painting-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="painting-title">
+    <div class="pnt-stage">
+      <div class="pnt">
+        <button type="button" class="pnt-x" data-pnt="close" aria-label="Close the gallery">✕</button>
+        <figure class="pnt-frame"><div class="pnt-mount"><img data-pnt="img" alt="" decoding="async"></div></figure>
+        <aside class="pnt-plaque">
+          <p class="pnt-eyebrow">Little Sylly's Gallery <span data-pnt="count"></span></p>
+          <h2 id="painting-title" data-pnt="title"></h2>
+          <p class="pnt-artist"><strong data-pnt="artist"></strong> · <span data-pnt="age"></span></p>
+          <p class="pnt-medium" data-pnt="medium"></p>
+          <p class="pnt-blurb" data-pnt="blurb"></p>
+          <button type="button" class="pnt-next" data-pnt="next"></button>
+        </aside>
+      </div>
+    </div>
+  </div>
   <!-- ═══════════════════════════════════════════════════════════════
        LIKE I'M FIVE (LI5)
        Screens : #screen-menu, #screen-setup, #screen-gatekeeper,

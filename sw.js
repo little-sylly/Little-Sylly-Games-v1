@@ -1,7 +1,7 @@
 // Little Sylly Games — Service Worker v236
 // All assets are local — no external CDN URLs, no opaque response issues.
 
-const CACHE_NAME = 'sylly-games-v247';
+const CACHE_NAME = 'sylly-games-v248';
 
 const PRECACHE_URLS = [
   './',
@@ -75,7 +75,7 @@ const PRECACHE_URLS = [
   'js/lib/canvas-draw.js',
   'data/words.json',
   // Expansion/skin packs (data/packs/), background music (data/music/), controller
-  // stickers (data/stickers/) and the Lounge's lamp photos (data/lamp/) are NOT precached — they are runtime-cached on first use
+  // stickers (data/stickers/), the Lounge's lamp photos (data/lamp/) and Little Sylly's paintings (data/paintings/) are NOT precached — they are runtime-cached on first use
   // so adding one needs no version bump. See the fetch handler below.
   //
   // CORE ART (data/art/) IS precached — it is a game's default artwork, so it must be
@@ -324,7 +324,7 @@ self.addEventListener('fetch', event => {
   // data/music/: a new sticker or photo is a file drop plus one manifest line.
   // The lamp photos are ~317 KB a phone never sees (docs/cost-envelope.md § 5).
   // The CODE that reads both IS precached — app code is part of the app version.
-  if (url.pathname.includes('/data/stickers/') || url.pathname.includes('/data/lamp/')) {
+  if (url.pathname.includes('/data/stickers/') || url.pathname.includes('/data/lamp/') || url.pathname.includes('/data/paintings/')) {
     if (url.pathname.endsWith('.json')) {
       // Manifest: network-first, so a newly-drawn sticker is discovered on the
       // next online load; the cache covers offline.

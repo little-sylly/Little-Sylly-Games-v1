@@ -762,7 +762,7 @@ not precached**, the `data/stickers/` contract.
 |------|-----------|------------|
 | `js/lounge/lounge-lib.js` | `LouLib` | Pure geometry/material helpers for the room (`louCreateLib`, `louApplyDesign`, contact shade) |
 | `js/lounge/lounge-room.js` | `LouRoom` | The room itself: walls, window, couch, table, stand, shelf, rug… |
-| `js/lounge/lounge-props.js` | `LouProps` | The props (telly, dial, jukebox, binder, phone, controller, lamp, shelf dressing), `LOU_ACTIONS` (door map), `LOU_BUILDERS` |
+| `js/lounge/lounge-props.js` | `LouProps` | The props (telly, dial, jukebox, binder, phone, controller, lamp, shelf dressing), `LOU_ACTIONS` (door map), `LOU_BUILDERS`; SW v248: `LOU_PAINTINGS` + `louBuildPainting` — the two wall paintings (pick ids `painting-a`/`painting-b`), their plaque copy, `data/paintings/` (runtime-cached). The gallery overlay `#painting-overlay` is `lobbyOpenPainting`/`lobbyClosePainting` in `lobby-host.js`, markup in `src/screens/lobby.html`, styles `css/lobby.css` § gallery; host effect `openPainting(id)` |
 | `js/lounge/lounge-scene.js` | `LouScene` | `louMount(canvas, host, opts)` → the scene api (incl. `syncMusic()`, SW v233 — re-read `host.music` into the jukebox prop); `louValidateHost`, `louEligible`, `louCanArrive`, `LOU_PROVIDER_FUNCS` |
 | `js/lounge/lounge-sfx.js` | `LouSfx` | `louCreateSfx()` — the room's synthesised voices (gated on `isMuted \|\| !sfxEnabled` by the host): `dialPress`, `phoneOpen`, `binderOpen`, `controllerRumble` (SW v232) |
 | `js/lobby/lobby-games.js` | `GAMES`, `SHELVES` | The verified 20-game data table (regenerate with `tools/build-games.js`) |

@@ -323,6 +323,49 @@ function lobbyOpenStickerbook() {
   lobbySb.open();
 }
 
+// ── Little Sylly's gallery (the two paintings over the jukebox) ────────────
+/* An overlay above the room, not a router state: the Lounge stays mounted behind it and nothing
+   about "where a game returns to" changes. The words and pictures are LouProps.LOU_PAINTINGS —
+   the same rows that cut the frames on the wall. Every read of the overlay is by id and guarded:
+   a page without the markup simply has no gallery. */
+let lobbyPaintingId = null;
+function lobbyPaintingEl() { return document.getElementById('painting-overlay'); }
+function lobbyShowPainting(id) {
+  const el = lobbyPaintingEl(), list = LouProps.LOU_PAINTINGS, p = list.find(x => x.id === id);
+  if (!el || !p) return;
+  lobbyPaintingId = id;
+  const set = (k, v) => { const n = el.querySelector('[data-pnt="' + k + '"]'); if (n) n.textContent = v; };
+  set('title', p.title); set('artist', p.artist); set('age', p.age); set('medium', p.medium); set('blurb', p.blurb);
+  set('count', (list.indexOf(p) + 1) + ' of ' + list.length);
+  const other = list[(list.indexOf(p) + 1) % list.length];
+  set('next', 'See ' + other.title + ' →');
+  const img = el.querySelector('[data-pnt="img"]');
+  if (img) { img.src = LouProps.LOU_PAINTINGS_BASE + p.image; img.alt = p.title + ', a painting by ' + p.artist + ', ' + p.age.toLowerCase(); }
+  const card = el.querySelector('.pnt'); if (card) { card.classList.remove('pnt-swap'); void card.offsetWidth; card.classList.add('pnt-swap'); }   // replays the fade-in
+}
+function lobbyOpenPainting(id) {
+  const el = lobbyPaintingEl(); if (!el) return;
+  if (!el.dataset.wired) {
+    el.dataset.wired = '1';
+    const q = (s) => el.querySelector(s);
+    q('[data-pnt="close"]').addEventListener('click', lobbyClosePainting);
+    q('[data-pnt="next"]').addEventListener('click', () => {
+      const list = LouProps.LOU_PAINTINGS, i = list.findIndex(x => x.id === lobbyPaintingId);
+      lobbyShowPainting(list[(i + 1) % list.length].id);
+    });
+    el.addEventListener('click', (e) => { if (e.target === el || e.target.classList.contains('pnt-stage')) lobbyClosePainting(); });   // dead space closes; the picture and plaque never do
+    el.addEventListener('keydown', (e) => { if (e.key === 'Escape') { lobbyClosePainting(); e.stopPropagation(); } });
+  }
+  lobbyShowPainting(id);
+  el.hidden = false;
+  const x = el.querySelector('[data-pnt="close"]'); if (x) x.focus({ preventScroll: true });
+}
+function lobbyClosePainting() {
+  const el = lobbyPaintingEl(); if (!el || el.hidden) return;
+  el.hidden = true; lobbyPaintingId = null;
+  const cv = document.getElementById('lou-canvas'); if (cv && cv.focus) cv.focus({ preventScroll: true });
+}
+
 // ── Content: each runtime-cached source fails ALONE (spec § 9.2) ───────────
 function lobbyFetchJson(url) {
   return fetch(url).then(r => (r.ok ? r.json() : null)).catch(() => null);
@@ -372,6 +415,7 @@ async function lobbyLoadContent() {
     openSound: () => openSoundOverlay(),
     sfx: (name) => { if (!isMuted && sfxEnabled) lobbyPlaySfx(name); },
     controllerParts: () => (ctlEnsureModel() ? ctlModelParts() : null),
+    openPainting: (id) => lobbyOpenPainting(id),
     debug: lobbyDebug,
   });
   Jukebox.jbxConfigure({

@@ -69,6 +69,7 @@ For where each game's screens/overlays live in `index.html`, see the **Per-Game 
 | **New game** | `docs/rules/new-game-process.md` (3-stage: brief → tech spec → implementation) | tech spec `docs/new-game-tech-[name].md` (archived at the gate — `phase-audit.md` Protocol A § 5) + phase snapshot + `docs/decision-log.md` |
 | **Audit / phase gate** | `docs/rules/phase-audit.md` (Protocols A/B/C) | phase snapshot + `docs/decision-log.md` |
 | **Bug / update / polish** | `docs/templates/task-bug-polish.md` (fill the intake form first) | `docs/implementation-notes/[abbr]-implementation-notes.md` — or `shared-implementation-notes.md` if the root cause is in engine/secret-mode/art.js rather than a specific game (+ `docs/decision-log.md` if it became architectural) |
+| **UI / layout design work** | Invoke `/impeccable <command>` (`critique`, `audit`, `polish`, `layout`, `shape`…) **on request only** — the design hook is deliberately off, so it never runs on ordinary edits. It reads `PRODUCT.md` + `DESIGN.md` (repo root); `.claude/rules/ui-style.md` stays the guidebook and either may be updated when a better design earns it — propose the rule change, don't silently depart. Size it with the Triage Gate first; a two-line CSS tweak doesn't need the skill. | the game's impl-notes as above; if the design system itself moved, update `DESIGN.md` (`/impeccable document`) and the matching `ui-style.md` rule |
 
 **`docs/decision-log.md`** — the running index of big architectural / strategic / process decisions (newest on top). Read it to recall *why* something was done; append a one-line entry whenever a change is architectural, strategic, or process-level (wired into the Documentation Integrity Protocol below).
 
@@ -293,11 +294,12 @@ On every bump the outgoing SW entry moves **verbatim** to `docs/sw-changelog.md`
 "keep the last three". **A second `**SW v…**` paragraph appearing here means that move didn't
 happen: do it before anything else.**
 
-**SW v247 — Bots (29 Sep 2026).** Host-side bot seats in the engine, opt-in per game via
-`MP_GAME_CONFIGS[abbr].bots`; the host adds them by hand in the lobby (+ Add bot, one Easy/Medium/Hard
-per match) and a human always outranks a bot for a seat. **Solo** is a fourth mode — the host lobby on a
-null wire, no Firebase, works offline. Cold Shoulder is the first adopter (Hard looks ahead through the
-real rules). `MP_PROTOCOL_VERSION` → `'v247'`. Detail: `shared-implementation-notes.md` DD-52, `cld-implementation-notes.md` DD-21.
+**SW v248 — Little Sylly's paintings (30 Sep 2026).** The two prints over the Lounge jukebox are now the
+owner's daughter's paintings (*Rainbow Birches*, *Big Beak Toucan*, age 5): real pick targets
+(`painting-a`/`painting-b`) that open a gallery overlay (`#painting-overlay` — birch frame, cream mount,
+museum plaque, "See the other one"). New optional host effect `openPainting(id)`; pictures and plaque
+copy live in `LOU_PAINTINGS`. `data/paintings/` is runtime-cached (~0.5 MB), not precached. No packet
+change. Detail: `shared-implementation-notes.md` DD-53.
 
 **Previous versions: `docs/sw-changelog.md`** — continuous, v246 back to v167.
 

@@ -162,7 +162,7 @@ const roomNames = new Set(); room.traverse(o => { if (o.name) roomNames.add(o.na
  'bench', 'benchBase', 'benchDrawerL', 'benchDrawerR', 'benchKnobL', 'benchKnobR', 'cubby', 'cubbyLid', 'shelfBack', 'shelfSideL', 'shelfSideR',
  'shelfBoard0', 'shelfBoard1', 'shelfBoard2', 'shelfTop', 'seatFront', 'seatLeft', 'seatRight',
  'backFront', 'backLeft', 'backRight', 'armLeft', 'armRight',
- 'rugEdge', 'plant', 'window', 'windowFrame', 'windowPulls', 'windowBloom', 'windowShafts', 'curtainRod', 'curtainL', 'curtainR', 'tiebackL', 'tiebackR', 'tiebackHookL', 'tiebackHookR', 'sill', 'ledge', 'printA', 'printAFace', 'printB', 'printBFace', 'mugGroup', 'slippersGroup']
+ 'rugEdge', 'plant', 'window', 'windowFrame', 'windowPulls', 'windowBloom', 'windowShafts', 'curtainRod', 'curtainL', 'curtainR', 'tiebackL', 'tiebackR', 'tiebackHookL', 'tiebackHookR', 'sill', 'ledge', 'mugGroup', 'slippersGroup']
   .forEach(n => ok(roomNames.has(n), `room has ${n}`));
 {
   const R = room.userData.louRoom;
@@ -1297,16 +1297,39 @@ section('lamp-shelf');
     ok(tris < 16000, `inside its budget (${tris} triangles)`); }
 }
 
+section('paintings (Little Sylly, age 5)');
+{
+  const fsx = require('fs'), pathx = require('path');
+  const jpegSize = (file) => { const b = fsx.readFileSync(file); let i = 2;
+    while (i < b.length) { if (b[i] !== 0xFF) { i++; continue; } const m = b[i + 1];
+      if (m >= 0xC0 && m <= 0xCF && m !== 0xC4 && m !== 0xC8 && m !== 0xCC) return { h: b.readUInt16BE(i + 5), w: b.readUInt16BE(i + 7) };
+      i += 2 + b.readUInt16BE(i + 2); } return null; };
+  const built = LouProps.louBuildAll(global.__prmCtx);
+  eq(LouProps.LOU_PAINTINGS.length, 2, 'two paintings');
+  LouProps.LOU_PAINTINGS.forEach(p => {
+    const big = pathx.join(ROOT, LouProps.LOU_PAINTINGS_BASE, p.image), thumb = pathx.join(ROOT, LouProps.LOU_PAINTINGS_BASE, p.thumb);
+    ok(fsx.existsSync(big) && fsx.existsSync(thumb), p.id + ': both files exist');
+    ok(fsx.statSync(big).size < 400 * 1024 && fsx.statSync(thumb).size < 40 * 1024, p.id + ': inside its size ceiling (400 KB / 40 KB)');
+    [big, thumb].forEach(fl => { const d = jpegSize(fl); ok(d && Math.abs(d.w / d.h - p.aspect) < 0.005, p.id + ': ' + pathx.basename(fl) + ' matches the frame aspect'); });
+    ok(p.title && p.artist === 'Little Sylly' && p.age && p.blurb.length > 80, p.id + ': the plaque is filled in');
+    const g = built[p.pick]; ok(g && g.userData.louId === p.pick, p.id + ': builds as its own pick node');
+    eq(LouProps.LOU_ACTIONS[p.pick].arg, p.id, p.id + ': its action names it');
+    ok(LouProps.LOU_PLACES[p.pick], p.id + ': has a place');
+    let img = null; g.traverse(o => { if (o.material && o.material.userData.louImage) img = o.material.userData.louImage; });
+    eq(img, LouProps.LOU_PAINTINGS_BASE + p.thumb, p.id + ': the canvas loads the thumbnail');
+  });
+}
+
 section('contracts');
 {
   const A = LouProps.LOU_ACTIONS, built = LouProps.louBuildAll(global.__prmCtx);
   const ids = new Set(); Object.values(built).forEach(g => g.traverse(o => { if (o.userData.louId) ids.add(o.userData.louId); }));
   Object.keys(A).forEach(id => ok(ids.has(id), `action id "${id}" exists as a pick node`));
   ids.forEach(id => ok(A[id], `pick node "${id}" has an action`));
-  const HOST = new Set(['enterTV', 'enterShelves', 'openWorkshop', 'openSound', 'openSwitcher', 'openStickerbook', 'openJukebox', 'music.next']);
+  const HOST = new Set(['enterTV', 'enterShelves', 'openWorkshop', 'openSound', 'openSwitcher', 'openStickerbook', 'openJukebox', 'openPainting', 'music.next']);
   Object.entries(A).forEach(([id, a]) => ok(a.local || HOST.has(a.callback), `"${id}" names a host callback or a local api`));
   ['enterTV', 'enterShelves', 'openWorkshop', 'openSound', 'openSwitcher'].forEach(cb => ok(Object.values(A).some(a => a.callback === cb), `required callback ${cb} is reachable from a prop`));
-  eq(Object.values(A).filter(a => a.optional).length, 2, 'exactly two optional actions (the binder and the jukebox knob)');
+  eq(Object.values(A).filter(a => a.optional).length, 4, 'exactly four optional actions (the binder, the jukebox knob and the two paintings)');
   LouProps.LOU_TAB_ORDER.forEach(id => ok(ids.has(id), `tab order id "${id}" exists`));
   // footprints: each prop, placed, sits inside its surface's region (spec § 14 check 1)
   const place = (id) => { const g = built[id], p = LouProps.LOU_PLACES[id]; g.position.set(...p.pos); if (p.rot) g.rotation.set(...p.rot); g.updateMatrixWorld(true); return new THREE.Box3().setFromObject(g); };
@@ -1322,11 +1345,10 @@ section('contracts');
     lamp:      { x: [S.x - 0.30, S.x + 0.30], z: [R.backZ, R.backZ + 0.32], y: [S.ys[0], 1.0] },
   };
   Object.entries(REGIONS).forEach(([id, r]) => { const bb = place(id); ok(inside(bb, r), `${id} sits inside its surface region (x ${bb.min.x.toFixed(2)}..${bb.max.x.toFixed(2)}, z ${bb.min.z.toFixed(2)}..${bb.max.z.toFixed(2)}, y ${bb.min.y.toFixed(2)})`); });
-  { const pa = new THREE.Box3().setFromObject(room.getObjectByName('printA'));
-    const pb2 = new THREE.Box3().setFromObject(room.getObjectByName('printB'));
+  { const pa = place('painting-a'), pb2 = place('painting-b');
     const jbX = LouProps.LOU_PLACES.jukebox.pos[0], tvX = LouProps.LOU_PLACES.tv.pos[0];
     [pa, pb2].forEach((b, i) => ok(Math.abs((b.min.x + b.max.x) / 2 - jbX) < Math.abs((b.min.x + b.max.x) / 2 - tvX),
-      'print ' + (i ? 'B' : 'A') + ' hangs over the jukebox, not the telly')); }
+      'painting ' + (i ? 'B' : 'A') + ' hangs over the jukebox, not the telly')); }
   // the telly is the focus: centred horizontally, the jukebox left of it (owner, 19 Sep 2026)
   { const tvB = place('tv'), jbB = place('jukebox');
     const tvMid = (tvB.min.x + tvB.max.x) / 2, jbMid = (jbB.min.x + jbB.max.x) / 2;
@@ -1391,7 +1413,9 @@ section('shell-doors');
 
   // A dormant door may never be silent.
   Object.entries(A).filter(([, a]) => a.optional).forEach(([id, a]) => {
-    ok(a.turn || a.spin || a.pushIn || a.fallback,
+    /* the paintings are the sanctioned exception: an effect door (a gallery over the room), and a picture
+       with no gallery is simply a picture — there is no prop behaviour to fall back to */
+    ok(a.turn || a.spin || a.pushIn || a.fallback || a.callback === 'openPainting',
        `optional door "${id}" answers a tap (turn/spin/pushIn or a named fallback)`);
   });
 

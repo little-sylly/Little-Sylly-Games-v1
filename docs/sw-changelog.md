@@ -4,6 +4,13 @@ Historical SW release notes, moved out of `CLAUDE.md` (1 Aug 2026) so they stop 
 The **current** version and its notes stay in `CLAUDE.md` § Current Focus — append the outgoing entry here on each bump.
 
 
+## v247 — Bots (29 Sep 2026).
+ Host-side bot seats in the engine, opt-in per game via
+`MP_GAME_CONFIGS[abbr].bots`; the host adds them by hand in the lobby (+ Add bot, one Easy/Medium/Hard
+per match) and a human always outranks a bot for a seat. **Solo** is a fourth mode — the host lobby on a
+null wire, no Firebase, works offline. Cold Shoulder is the first adopter (Hard looks ahead through the
+real rules). `MP_PROTOCOL_VERSION` → `'v247'`. Detail: `shared-implementation-notes.md` DD-52, `cld-implementation-notes.md` DD-21.
+
 ## v246 — Cold Shoulder, "looks fun" (29 Sep 2026).
 
 Every CLD pixel is redrawn in the sticker's look

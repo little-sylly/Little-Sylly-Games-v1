@@ -17,6 +17,7 @@
     openSound:    null,            // an effect, not one of the router's actions
     openStickerbook: 'stickerbookOpen',   // OPTIONAL in the scene's contract; the lobby supplies it
     openJukebox:  'jukeboxOpen',          // OPTIONAL too; supplied since SW v233 (the jukebox screen)
+    openPainting: null,                   // OPTIONAL, and an effect like openSound: a gallery overlay over the room, no router state
   };
 
   function lobbyCreateHost(deps) {
@@ -65,6 +66,9 @@
        to borrow the Workshop's painted model (js/controller.js ctlModelParts).
        Absent-not-undefined, same reason as sfx; absent means flat colour. */
     if (deps.controllerParts) host.controllerParts = deps.controllerParts;
+    /* An optional EFFECT: the room says which painting (a LOU_PAINTINGS id) was tapped. Absent-not-
+       undefined, so a host with no gallery leaves the frames as plain wall art. */
+    if (deps.openPainting) host.openPainting = (id) => deps.openPainting(id);
 
     /* Both optional doors are supplied now: openStickerbook since the stickerbook
        prototype (23 Sep 2026), openJukebox since the jukebox screen (SW v233). A

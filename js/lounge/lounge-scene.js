@@ -24,7 +24,7 @@
   /* Optional host callbacks: absent is fine (the door is dormant), present
      must be a function. Adding a third dormant door means adding it here and
      flagging its action `optional: true` — no third hardcoded name. */
-  const LOU_OPTIONAL_FUNCS = ['openStickerbook', 'openJukebox'];
+  const LOU_OPTIONAL_FUNCS = ['openStickerbook', 'openJukebox', 'openPainting'];
   /* Optional host EFFECTS — validated the same way, but deliberately not in the
      list above, because that one is about dormant DOORS and a door is a thing
      with a destination. `sfx(name)` is the shell's audio hook: the scene names
@@ -451,7 +451,7 @@
              closes on the prop, the fade comes up, then the host takes over (the
              jukebox, SW v233). */
           if (a.pushIn) { busy = true; pushIn(nodes[a.pushIn], () => { busy = false; host[a.callback](); }); return; }
-          host[a.callback]();
+          host[a.callback](a.arg);   // undefined for every door but the paintings
         } else if (a.fallback && owner && owner.userData.api) owner.userData.api[a.fallback](reduced());
         wake(); return;
       }

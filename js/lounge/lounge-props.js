@@ -43,9 +43,14 @@
        open spread (api.focusPose), then the host opens the book. Still optional:
        a host with no openStickerbook gets the old cover flip (fallback). */
     'binder':         { callback: 'openStickerbook', optional: true, open: 'open', pushIn: 'binder', fallback: 'openCover' },
+    /* Little Sylly's two paintings over the jukebox. An EFFECT, not a place: the host opens a gallery
+       overlay above the room (the room stays put behind it), so no push-in and no fade. `arg` names
+       the painting; a host with no openPainting leaves the frames as plain wall art. */
+    'painting-a':     { callback: 'openPainting', arg: 'birches', optional: true },
+    'painting-b':     { callback: 'openPainting', arg: 'toucan',  optional: true },
   };
   /* Keyboard / remote order, spec § 9.2. */
-  const LOU_TAB_ORDER = ['tv-screen', 'jukebox-knob', 'jukebox-record', 'dial', 'binder', 'phone', 'controller', 'lamp'];
+  const LOU_TAB_ORDER = ['tv-screen', 'jukebox-knob', 'jukebox-record', 'painting-a', 'painting-b', 'dial', 'binder', 'phone', 'controller', 'lamp'];
   /* World placement per prop group. y values sit on the room's surfaces
      (lounge-room.js louRoom): bench top 0.52, table top 0.44, arm top 0.58,
      side table top 0.565. x/z mirror louRoom's tableX/tableZ/benchZ — keep
@@ -58,6 +63,8 @@
     binder:        { pos: [ 0.03, 0.44, -0.08], rot: [0, 0.18, 0] },
     phone:         { pos: [ 0.33, 0.44,  0.26], rot: [0, -0.35, 0] },  // front-centre: the Shelves door, and Scene B's hero
     controller:    { pos: [-0.68, 0.47,  0.22], rot: [0, -0.30, 0] },  // on the U's left run, not on an arm
+    'painting-a':  { pos: [-0.88, 1.18, -1.55] },                      // on the back wall (louRoom backZ), above the jukebox — over the telly they cluttered it
+    'painting-b':  { pos: [-0.52, 1.06, -1.55] },
     lamp:          { pos: [ 1.52, 0.43, -1.425] },                     // the shelf's LOWEST board, 15 mm proud of centre so a swinging photo clears the back panel
     shelfContents: { pos: [0, 0, 0] },
   };
@@ -3153,7 +3160,39 @@
   }
   LOU_BUILDERS.shelfContents = (ctx) => louBuildShelf(ctx.lib, ctx.roomData && ctx.roomData.louShelf);
 
-  const api = { LOU_ACTIONS, LOU_TAB_ORDER, LOU_PLACES, LOU_BUILDERS, LOU_ATTRACT_LINES, louBuildAll, louMotion, louEaseOutCubic, louEaseOutBack, louMesh, louTag, louAttract, louSpinPlan, louLampSlots, LOU_LAMP_TIERS, louBuildShelf, LOU_SHELF_COVERS, LOU_PHONE_OPEN_DEG, LOU_PHONE_FLIP_MS, LOU_PHONE_MENU };
+  /* ── Little Sylly's paintings (owner's daughter, age 5) ────────────────────────
+     The wall art over the jukebox, and the words the gallery overlay shows for each. Both halves live
+     here so a painting's picture, its frame's proportions and its plaque cannot drift apart.
+     `image` is the overlay's (1200 px tall), `thumb` the canvas on the wall (320 px) — both
+     runtime-cached like the lamp photos, never precached (a phone never sees the Lounge).
+     `aspect` is width / height of the JPEG, so the frame is cut to the picture, never the reverse. */
+  const LOU_PAINTINGS_BASE = 'data/paintings/';
+  const LOU_PAINTINGS = [
+    { id: 'birches', pick: 'painting-a', image: 'art1.jpg', thumb: 'art1-t.jpg', aspect: 958 / 1200,
+      title: 'Rainbow Birches', artist: 'Little Sylly', age: 'Age 5', medium: 'Acrylic on canvas',
+      blurb: 'Tall white birch trunks, freckled with blue dashes and fat dots of pink, green and yellow, stand in front of a sky that melts from red through orange and yellow into grass green. A dark blue hill at the bottom is crowded with olive-gold blobs, and if you look up near the top, a black-and-white eye is peeking out at you. It looks like a forest that decided every day should be a sunset.' },
+    { id: 'toucan', pick: 'painting-b', image: 'art2.jpg', thumb: 'art2-t.jpg', aspect: 908 / 1200,
+      title: 'Big Beak Toucan', artist: 'Little Sylly', age: 'Age 5', medium: 'Acrylic on canvas',
+      blurb: 'A very serious toucan sits on a brown branch, its enormous orange-and-red beak sweeping across the picture and one round blue eye looking straight at you. Its feathers are deep navy with lilac stripes, painted one flick at a time. Behind it the jungle is a party of turquoise, pink flowers, tiny red dots, and a wee white mushroom sitting right by the tip of the beak.' },
+  ];
+
+  /* One painting: a birch frame cut to the picture's proportions, and a canvas a hair proud of it.
+     The canvas carries its image the way every other prop does (userData.louImage, loaded by the
+     scene after mount) — so this builder stays pure. Group origin = the wall; the whole thing sits
+     within 2.2 cm of it. */
+  function louBuildPainting(lib, p) {
+    const { THREE } = lib; const g = new THREE.Group(); louTag(g, p.pick);
+    const H = 0.26, W = H * p.aspect, B = 0.014, D = 0.02;
+    g.add(louMesh(THREE, new THREE.BoxGeometry(W + 2 * B, H + 2 * B, D), lib.mats.birchDark, 'paintingFrame', [0, 0, D / 2]));
+    const mat = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: .85, metalness: 0 });
+    mat.userData.louImage = LOU_PAINTINGS_BASE + p.thumb;
+    g.add(louMesh(THREE, new THREE.PlaneGeometry(W, H), mat, 'paintingCanvas', [0, 0, D + 0.0015], null, false));
+    g.userData.louPainting = p.id;
+    return g;
+  }
+  LOU_PAINTINGS.forEach(p => { LOU_BUILDERS[p.pick] = (ctx) => louBuildPainting(ctx.lib, p); });
+
+  const api = { LOU_PAINTINGS, LOU_PAINTINGS_BASE, louBuildPainting, LOU_ACTIONS, LOU_TAB_ORDER, LOU_PLACES, LOU_BUILDERS, LOU_ATTRACT_LINES, louBuildAll, louMotion, louEaseOutCubic, louEaseOutBack, louMesh, louTag, louAttract, louSpinPlan, louLampSlots, LOU_LAMP_TIERS, louBuildShelf, LOU_SHELF_COVERS, LOU_PHONE_OPEN_DEG, LOU_PHONE_FLIP_MS, LOU_PHONE_MENU };
   if (typeof window !== 'undefined') window.LouProps = api;
   if (typeof module !== 'undefined') module.exports = api;
 })();

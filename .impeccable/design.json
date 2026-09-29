@@ -1,0 +1,87 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-30T00:00:00Z",
+  "title": "Design System: Little Sylly Games",
+  "extensions": {
+    "colorMeta": {
+      "page-stone": { "role": "neutral", "displayName": "Warm Page Stone", "canonical": "#fafaf9", "tonalRamp": ["#1c1917","#292524","#44403c","#78716c","#a8a29e","#d6d3d1","#e7e5e4","#fafaf9"] },
+      "track-stone": { "role": "neutral", "displayName": "Track Stone", "canonical": "#e7e5e4", "tonalRamp": ["#1c1917","#292524","#44403c","#78716c","#a8a29e","#d6d3d1","#e7e5e4","#fafaf9"] },
+      "gm-violet": { "role": "primary", "displayName": "Great Minds Violet", "canonical": "#8b5cf6" }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Menu Title", "purpose": "Menu game title, split neutral + brand." },
+      "label": { "displayName": "Step Label", "purpose": "Uppercase step labels in a darkened brand colour." }
+    },
+    "shadows": [
+      { "name": "card-soft", "value": "0 1px 2px rgba(0,0,0,0.05)", "purpose": "White settings and how-to cards (Tailwind shadow-sm)." },
+      { "name": "gel-keycap", "value": "0 0 0 1.5px rgba(0,0,0,0.20), 0 5px 0 rgba(0,0,0,0.20), 0 8px 15px rgba(0,0,0,0.18)", "purpose": "Menu gel buttons: bezel, keycap drop, soft ground shadow." }
+    ],
+    "motion": [
+      { "name": "screen-enter", "value": "200ms ease-out", "purpose": "Screen fade-in with a 6px rise." },
+      { "name": "sheet-slide-up", "value": "300ms ease-out", "purpose": "Data overlay entering from below." },
+      { "name": "gel-press", "value": "100ms ease-out", "purpose": "Menu button sinks 3px on press." }
+    ],
+    "breakpoints": [
+      { "name": "iphone-se", "value": "375px" },
+      { "name": "display-zoom", "value": "320px" },
+      { "name": "lobby-wide", "value": "860px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "How to Play Button",
+      "kind": "button",
+      "refersTo": "button-menu-how-to",
+      "description": "Constant stone menu button, identical on every game.",
+      "html": "<button class=\"ds-btn-howto\">How to Play</button>",
+      "css": ".ds-btn-howto{width:100%;min-height:56px;border:0;border-radius:16px;background:#44403c;color:#fff;font-family:Fredoka,system-ui,sans-serif;font-size:1.25rem;font-weight:600;cursor:pointer;transition:transform 100ms ease-out,background .15s}.ds-btn-howto:hover{background:#292524}.ds-btn-howto:active{transform:translateY(3px)}.ds-btn-howto:focus-visible{outline:3px solid #a8a29e;outline-offset:2px}"
+    },
+    {
+      "name": "Back to the Box Button",
+      "kind": "button",
+      "refersTo": "button-menu-back",
+      "description": "Neutral back button on every game menu.",
+      "html": "<button class=\"ds-btn-back\">← Back to the Box</button>",
+      "css": ".ds-btn-back{width:100%;min-height:56px;border:0;border-radius:16px;background:#e7e5e4;color:#78716c;font-family:Fredoka,system-ui,sans-serif;font-size:1.25rem;font-weight:600;cursor:pointer;transition:transform 100ms ease-out,background .15s}.ds-btn-back:hover{background:#d6d3d1}.ds-btn-back:active{transform:translateY(3px)}.ds-btn-back:focus-visible{outline:3px solid #a8a29e;outline-offset:2px}"
+    },
+    {
+      "name": "Pill Group",
+      "kind": "chip",
+      "refersTo": "pill",
+      "description": "Multi-choice setting; the active pill takes the game colour.",
+      "html": "<div class=\"ds-pills\"><button class=\"ds-pill\">3 min</button><button class=\"ds-pill ds-pill-on\">5 min</button><button class=\"ds-pill\">8 min</button></div>",
+      "css": ".ds-pills{display:flex;gap:8px}.ds-pill{flex:1;padding:8px 0;border:0;border-radius:9999px;background:#e7e5e4;color:#78716c;font-family:Fredoka,system-ui,sans-serif;font-weight:600;font-size:.95rem;cursor:pointer;transition:background .15s,color .15s}.ds-pill-on{background:#a855f7;color:#fff}.ds-pill:focus-visible{outline:3px solid #a8a29e;outline-offset:2px}"
+    },
+    {
+      "name": "Settings Card",
+      "kind": "card",
+      "refersTo": "settings-card",
+      "description": "White card with title, plain description and a control row.",
+      "html": "<div class=\"ds-card\"><p class=\"ds-card-t\">Round Timer</p><p class=\"ds-card-d\">How long each turn lasts.</p></div>",
+      "css": ".ds-card{background:#fff;border-radius:16px;padding:16px;box-shadow:0 1px 2px rgba(0,0,0,.05);font-family:Fredoka,system-ui,sans-serif}.ds-card-t{margin:0;color:#292524;font-weight:600}.ds-card-d{margin:2px 0 0;color:#a8a29e;font-size:.875rem}"
+    },
+    {
+      "name": "Decision Modal",
+      "kind": "custom",
+      "refersTo": "modal-card",
+      "description": "Centred confirmation card with a brand-tinted border.",
+      "html": "<div class=\"ds-modal\"><h3>Pack up?</h3><p>You'll lose this round.</p><button class=\"ds-m-go\">Yeah, pack up!</button><button class=\"ds-m-no\">Keep going!</button></div>",
+      "css": ".ds-modal{background:#fafaf9;border:1px solid #d8b4fe;border-radius:24px;padding:24px 24px 32px;max-width:24rem;text-align:center;font-family:Fredoka,system-ui,sans-serif;display:flex;flex-direction:column;gap:12px}.ds-modal h3{margin:0;color:#292524;font-size:1.125rem}.ds-modal p{margin:0;color:#78716c;font-size:.875rem}.ds-modal button{min-height:56px;border:0;border-radius:16px;font-size:1.125rem;font-weight:600;cursor:pointer;transition:transform 150ms ease-out}.ds-modal button:active{transform:scale(.95)}.ds-m-go{background:#a855f7;color:#fff}.ds-m-no{background:#e7e5e4;color:#44403c}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Toy Shelf",
+    "overview": "Twenty tactile, brightly coloured toys sitting on one warm shelf. The shelf is the shared neutral: a soft stone page, one rounded typeface, generous corners. Each toy (game) carries exactly one saturated brand colour and its own voice.",
+    "keyCharacteristics": ["One warm-neutral page, one accent per game", "Fredoka everywhere", "Big rounded shapes", "Menus tactile, play flat", "One centred column (the Stack)"],
+    "rules": [
+      { "name": "The One Brand Rule", "body": "A screen shows one game's brand colour, never a neighbour's.", "section": "colors" },
+      { "name": "The White Ink Rule", "body": "Brand fill takes white ink for every game, including the light fills; the contrast cost is a knowing owner decision.", "section": "colors" },
+      { "name": "The Neutral Chrome Rule", "body": "Exit, back and How to Play never take a brand colour.", "section": "colors" },
+      { "name": "The Split Title Rule", "body": "A menu title is never one flat colour: neutral half plus brand half.", "section": "typography" },
+      { "name": "The Gel Stays On The Shelf Rule", "body": "gel-btn belongs to the menu and lobby buttons only.", "section": "elevation" },
+      { "name": "The Compositor Rule", "body": "Animate only transform and opacity.", "section": "elevation" }
+    ],
+    "dos": ["Do use the game's single brand colour for Play, active pills, ON toggles and focus.", "Do keep Header, Stage and Controls in one max-w-sm column.", "Do use .gel-btn on menu buttons only, with .gel-btn-light on pale fills.", "Do animate transform and opacity only, and honour reduced motion in JS loops.", "Do write UK/Australian spelling and let personality live in the words."],
+    "donts": ["Don't make it corporate or SaaS-clean.", "Don't go dark-mode neon gaming.", "Don't put emoji on action button labels or in setting-card titles.", "Don't put a brand colour on exit, back or How to Play.", "Don't add transition-all, ease-in, or a third overlay pattern."]
+  }
+}
