@@ -2729,6 +2729,31 @@ body.flash-red   { background-color: #fecaca; }
   content: ''; position: absolute; left: 22px; bottom: -6px; width: 12px; height: 12px;
   background: rgba(255, 255, 255, 0.93); transform: rotate(45deg);
 }
+
+/* Barks — WASHOUT!, ICE BATH!, the plunge lines, Boing! (SW v246). Chunky white
+   outlined text that pops in, then drifts up. `scale` and `translate` are separate
+   properties so the two animations never fight over `transform`. No fill-mode:
+   under reduced motion (the global block) the bark simply sits still and readable,
+   and the drift (1500 ms) outlasts the JS removal (CLD_BARK_MS, 1400 ms), so its
+   natural end never snaps back into view. */
+.cld-bark {
+  color: #ffffff;
+  font-weight: 800;
+  font-size: 1.5rem;
+  line-height: 1.1;
+  letter-spacing: 0.02em;
+  -webkit-text-stroke: 1.5px #123B4C;
+  paint-order: stroke fill;
+  text-shadow: 0 3px 0 rgba(18, 59, 76, 0.35);
+  animation: cld-bark-pop 180ms ease-out, cld-bark-drift 1500ms linear;
+}
+@keyframes cld-bark-pop   { from { scale: 0.95; } to { scale: 1; } }
+@keyframes cld-bark-drift {
+  0%   { translate: 0 4px;   opacity: 0; }
+  10%  {                     opacity: 1; }
+  85%  {                     opacity: 1; }
+  100% { translate: 0 -16px; opacity: 0; }
+}
 #cld-pr-canvas { display: block; touch-action: none; }
 /* The coach's soft ring — a box-shadow TRANSITION, never an animation, so the
    global reduced-motion block already zeroes it. One rule carries the press

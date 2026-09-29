@@ -667,7 +667,7 @@ if (!TUNE) {
   section('H2. Isolation under a live replay');
   S.__forbidden = [];
   ['cldBeginPlayback', 'cldEndPlayback', 'cldAdvancePlayback', 'cldShowFloe', 'cldSyncFloeUI',
-   'cldHostResolveSlide', 'cldStartIceBathLocal', 'cldShowResult', 'cldFloatBark', 'cldFloatText']
+   'cldHostResolveSlide', 'cldStartIceBathLocal', 'cldShowResult', 'cldFloatText']
     .forEach(fn => RUN(`(() => { const o = ${fn}; ${fn} = function () {
       if (cldPrSwapDepth > 0) __forbidden.push('${fn}'); return o.apply(this, arguments); }; })()`));
   const realShow = S.showScreen;
@@ -1208,12 +1208,137 @@ if (!TUNE) {
     vm.runInContext(`cldPenguins = [{ id: '0-0', ownerIdx: 0, x: 180, y: 180, drowned: false }];
       cldBergs = []; cldFloeRadius = 170; cldPlayerNames = ['A', 'B'];`, S2);
     S2.__v = v2;
-    vm.runInContext(`(() => { const m = cldFloeModel(); cldDraw(__v, m);
+    vm.runInContext(`(() => { const m = cldFloeModel(); cldViewStep(__v, 0.016, m); cldDraw(__v, m);
       cldRenderPenguin(__v.ctx, 'idle', 0, 180, 180, 11, {});
       cldShowResult({ winnerIdx: 0, matchOver: false }); })()`, S2);
   } catch (e) { noArtErr = e; }
   ok('cld.js with cld-art.js missing draws nothing and never throws', noArtErr === null, noArtErr && noArtErr.stack);
   ok('…and cldArt() says so', vm.runInContext('cldArt()', S2) === null);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// O. The world: the composer, the floe's story, particles (spec § 4.3–4.4)
+// ═══════════════════════════════════════════════════════════════════════════
+if (!TUNE) {
+  section('O. The world');
+  const A = S.window.CldArt;
+  const step = RUN('cldViewStep'), fxEv = RUN('cldFxEvent');
+  const base = ex => Object.assign({ radius: 170, floeKey: 'f:1', floeSeed: 32, phase: 'aiming', penguins: [], clock: 0 }, ex || {});
+
+  // The floe surface: one per floe; The Thaw repaints it, marks kept.
+  const v = mkView();
+  step(v, 0.016, base());
+  const f1 = v.floe;
+  ok('a floe surface is made for the view', !!f1 && f1.radius === 170);
+  const slider = x => ({ id: '0-0', pose: 'slide', drowned: false, vel: { x: 200, y: 0 }, x: x, y: 180 });
+  step(v, 0.016, base({ phase: 'resolving', penguins: [slider(100)] }));
+  step(v, 0.016, base({ phase: 'resolving', penguins: [slider(120)] }));
+  step(v, 0.016, base({ phase: 'resolving', penguins: [slider(140)] }));
+  check('a belly-slide gathers one run while the Slide plays', v.trails['0-0'].map(r => r.length), [3]);
+  step(v, 0.016, base());
+  check('…and is cut into the ice when it ends', [f1.marks.length, f1.marks[0].kind, f1.marks[0].a.length], [1, 'groove', 3]);
+  ok('…then the live trails clear', Object.keys(v.trails).length === 0);
+  fxEv(v, { type: 'landing', x: 200, y: 200, hit: null });
+  check('an open-ice Snowball splats the floe', f1.marks.length, 2);
+  fxEv(v, { type: 'landing', x: 179, y: 400, hit: null });
+  check('…but not a landing in the water', f1.marks.length, 2);
+  // Review Focus 3 — the story survives The Thaw, and a new floe starts clean.
+  step(v, 0.016, base({ radius: 160 }));
+  check('The Thaw repaints the same surface and keeps its story', [v.floe === f1, f1.radius, f1.marks.length], [true, 160, 2]);
+  step(v, 0.016, base({ floeKey: 'f:1b', radius: 90 }));
+  check('an Ice Bath is a fresh floe', [v.floe !== f1, v.floe.marks.length, v.floe.radius], [true, 0, 90]);
+  step(v, 0.016, base({ floeKey: 'f:2' }));
+  check('…and so is the next Floe-Off', v.floe.marks.length, 0);
+  // A key can repeat across matches ('f:1' again after a first-to-1 match and Play
+  // Again), so every Floe-Off intro drops the live view's surface as well.
+  RUN('cldInitCanvas()');
+  const lv = G('cldView');
+  step(lv, 0.016, base()); fxEv(lv, { type: 'landing', x: 200, y: 200, hit: null });
+  ok('(the live floe has a splat on it)', !!lv.floe && lv.floe.marks.length === 1);
+  RUN("cldShowFloeOffIntro('intro')");
+  step(lv, 0.016, base());
+  check('a Floe-Off intro starts the live floe clean, even on a repeated key', lv.floe.marks.length, 0);
+
+  // Splats on a penguin fade over CLD_SPLAT_FADE_S.
+  fxEv(v, { type: 'landing', x: 150, y: 150, hit: 'penguin', id: '1-0' });
+  check('a Snowball hit splats that penguin', v.splat['1-0'], 1);
+  step(v, G('CLD_SPLAT_FADE_S') / 2, base({ floeKey: 'f:2' }));
+  ok('…fading as time passes', near(v.splat['1-0'], 0.5, 1e-9));
+  step(v, G('CLD_SPLAT_FADE_S'), base({ floeKey: 'f:2' }));
+  ok('…and gone', !('1-0' in v.splat));
+
+  // The fx hook: every event reaches the view — BEFORE the sound throttle.
+  const seen = [], barks = [];
+  const hooks = { sfx() {}, bark: t => barks.push(t || 'plunge-line'), fx: e => seen.push(e.type) };
+  SET('cldPenguins', [{ id: '0-0', ownerIdx: 0, x: 180, y: 180 }]);
+  SET('cldPlaybackT', 1000); SET('cldLastSfxT', 999);          // inside the throttle window
+  [{ type: 'collision', a: '0-0', b: '1-0', x: 1, y: 1, speed: 5 },
+   { type: 'rebound', id: '0-0', off: 'berg', x: 1, y: 1, speed: 5 },
+   { type: 'seat', id: '0-0', x: 1, y: 1 }, { type: 'knockback', id: '0-0', x: 1, y: 1 },
+   { type: 'shatter', id: 'b1', x: 1, y: 1 }, { type: 'landing', x: 1, y: 1, from: { x: 0, y: 0 } }]
+    .forEach(e => RUN('cldPlayEvent')(Object.assign({ t: 0 }, e), hooks));
+  check('every event type reaches hooks.fx, a soft or throttled bump included', seen,
+        ['collision', 'rebound', 'seat', 'knockback', 'shatter', 'landing']);
+  SET('cldLastSfxT', -1e9);
+  RUN('cldPlayEvent')({ t: 0, type: 'rebound', id: '0-0', off: 'drowned', x: 1, y: 1, speed: 120 }, hooks);
+  SET('cldLastSfxT', -1e9);            // clear the throttle again, or the chunk case never reaches its bark line
+  RUN('cldPlayEvent')({ t: 0, type: 'rebound', id: '0-0', off: 'berg', x: 1, y: 1, speed: 120 }, { sfx() {}, bark: t => barks.push(t) });
+  check('a bounce off a plug barks Boing! — a chunk doesn’t', barks, [G('CLD_BOING')]);
+  let noFx = null;
+  try { RUN('cldPlayEvent')({ t: 0, type: 'seat', id: '0-0', x: 1, y: 1 }, { sfx() {}, bark() {} }); } catch (e) { noFx = e; }
+  ok('hooks without fx still work (the loopback’s hooks)', noFx === null, noFx && noFx.stack);
+
+  // Reduced motion: the rings stay, nothing travels.
+  const rm = S.window.matchMedia;
+  S.window.matchMedia = () => ({ matches: true });
+  const vr = mkView(); step(vr, 0.016, base());
+  fxEv(vr, { type: 'seat', x: 180, y: 10 }); fxEv(vr, { type: 'collision', x: 180, y: 180, speed: 190 });
+  check('reduced motion: a plunge leaves its rings, a bump nothing', vr.fx.count(), 2);
+  S.window.matchMedia = rm;
+
+  // Draw order (spec § 4.3): water, floe, then chunks and penguins y-sorted, then snowballs.
+  const order = [], undo = [];
+  ['water', 'floe', 'berg', 'penguin', 'snowball'].forEach(n => {
+    const f = A[n];
+    A[n] = function (c, o) { order.push([n, n === 'berg' || n === 'penguin' ? o.y : null]); return f.apply(this, arguments); };
+    undo.push(() => { A[n] = f; });
+  });
+  const vd = mkView(); step(vd, 0.016, base());
+  const md = RUN('cldBuildModel')({ penguins: [{ id: '0-0', ownerIdx: 0, x: 180, y: 250 }, { id: '1-0', ownerIdx: 1, x: 150, y: 120 }],
+    bergs: [{ id: 'b1', x: 180, y: 20, r: 16, hits: 2, angle: 0 }, { id: 'b2', x: 180, y: 345, r: 16, hits: 2, angle: 1 }],
+    radius: 170, iceBreaker: 2, ice: 'slush', slideNo: 1 },
+    { meIdx: 0, phase: 'resolving', playbackT: 10, aims: [], clock: 0, floeKey: 'f:1', floeSeed: 32,
+      timeline: { bodyIds: [], samples: [], aftermath: [], durationMs: 100,
+                  events: [{ t: 90, type: 'landing', x: 200, y: 120, from: { x: 40, y: 180 } }] } });
+  RUN('cldDraw')(vd, md);
+  undo.forEach(u => u());
+  const idx = n => order.findIndex(o => o[0] === n);
+  const stand = order.filter(o => o[0] === 'berg' || o[0] === 'penguin');
+  ok('water, then the floe, then the standing things, then snowballs',
+     idx('water') < idx('floe') && idx('floe') < idx('berg') && idx('snowball') > order.lastIndexOf(stand[stand.length - 1]),
+     JSON.stringify(order));
+  ok('chunks and penguins are painted back to front (y ascending)',
+     stand.every((o, i) => i === 0 || o[1] >= stand[i - 1][1]), JSON.stringify(stand));
+
+  // The Arena's replay feeds ITS view, never the live floe's.
+  RUN('cldInitCanvas()');
+  const live = G('cldView');
+  ok('the live view has its own particles', !!live && !!live.fx);
+  const before = live.fx.count();
+  RUN("cldPracticeStart(); cldPrLoadDrill('headon')");
+  for (let i = 0; i < 3; i++) {
+    RUN('cldPrResolve')({ aims: [{ penguinId: '0-0', dx: -1, dy: 0, power: 1 }], dive: null, snowball: null });
+    RUN('cldPrTick')(1e9);
+  }
+  check('three Arena Slides leave the live view’s particles alone', live.fx.count(), before);
+  RUN('cldPracticeStop()');
+  // Teardown drops both views' art state: the Arena restarts at floe 1 next time,
+  // and a reused key must never bring the old grooves back.
+  const pv = G('cldPrView');
+  step(pv, 0.016, RUN('cldArenaModel()'));             // the Arena's RAF never runs here — step it by hand
+  ok('(the Arena view has a floe)', !!pv && !!pv.floe);
+  RUN('cldResetState()');
+  check('resetToLobby drops the Arena’s and the floe’s surfaces', [pv.floe, G('cldView').floe], [null, null]);
 }
 
 // ── Report (keep LAST in the file) ─────────────────────────────────────────

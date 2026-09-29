@@ -345,6 +345,15 @@ Well, that’s that.
 Splash.
 ```
 
+#### Barks over the floe (SW v246)
+
+A bounce off a plug barks **Boing!**. The barks are chunky white outlined text, drawn over the water.
+
+```copy
+# screen-cld-floe — barks
+Boing!
+```
+
 #### Settings — The Huddle
 
 ```copy

@@ -263,8 +263,8 @@ const M = [
   '    marks.forEach(mk => floeMark(f, mk.kind, mk.a, mk.b));', '']], 'practice'],
 // ── SW v246: the seam and the model (verify-cld-practice.js) ─────────────────
 ['seam-bypassed', 'game', [[
-  '    cldRenderPenguin(ctx, p.pose, p.ownerIdx, p.x, p.y, CLD_PENGUIN_R, {',
-  '    cldArt().penguin(ctx, { x: p.x, y: p.y, r: CLD_PENGUIN_R, tint: cldTintOf(p.ownerIdx), pose: p.pose }); if (0) cldRenderPenguin(ctx, p.pose, p.ownerIdx, p.x, p.y, CLD_PENGUIN_R, {']], 'practice'],
+  '  cldRenderPenguin(ctx, p.pose, p.ownerIdx, p.x, p.y, CLD_PENGUIN_R, {',
+  '  cldArt().penguin(ctx, { x: p.x, y: p.y, r: CLD_PENGUIN_R, tint: cldTintOf(p.ownerIdx), pose: p.pose }); if (0) cldRenderPenguin(ctx, p.pose, p.ownerIdx, p.x, p.y, CLD_PENGUIN_R, {']], 'practice'],
 ['drowned-stay-hungry', 'game', [[
   '             seed: cldSeedOf(p.id), hunger: inWater ? 0 : hunger,',
   '             seed: cldSeedOf(p.id), hunger: hunger,']], 'practice'],
@@ -274,6 +274,17 @@ const M = [
   'to: { x: e.x, y: e.y }, k: Math.max(0, tMs / e.t) }));', 'to: { x: e.x, y: e.y }, k: Math.max(0, 1 - tMs / e.t) }));']], 'practice'],
 ['shattered-chunk-lingers', 'game', [[
   "  return (tl.events || []).filter(e => e.type === 'shatter' && e.t <= tMs).map(e => e.id);", '  return [];']], 'practice'],
+// ── SW v246: the world (verify-cld-practice.js) ──────────────────────────────
+['fx-hook-missing', 'game', [[
+  '  if (hooks.fx) hooks.fx(e);\n', '']], 'practice'],
+['arena-paints-the-live-floe', 'game', [[
+  '                  fx: e => cldFxEvent(cldPrView, e) };', '                  fx: e => cldFxEvent(cldView, e) };']], 'practice'],
+['grooves-never-cut', 'game', [[
+  '  if (view.wasResolving && !resolving) {', '  if (false) {']], 'practice'],
+['new-floe-off-keeps-old-marks', 'game', [[
+  '    cldViewForget(cldView);             // a new Floe-Off is a new floe, even on a repeated key\n', '']], 'practice'],
+['teardown-keeps-the-floes', 'game', [[
+  '  cldViewForget(cldView); cldViewForget(cldPrView);', '']], 'practice'],
 ];
 
 // Which harness a mutant is aimed at. The rules/sim mutants above run the loop

@@ -837,7 +837,7 @@ function cldMatchWinner() {
 // MAY NOT — ever: anything touching screens, the live loop, timers, the network
 // or the live DOM — cldBeginPlayback, cldEndPlayback, cldAdvancePlayback,
 // cldShowFloe, cldSyncFloeUI, cldHostResolveSlide, cldStartIceBathLocal,
-// cldShowResult, cldFloatBark, cldFloatText, showScreen, mp*. And never an
+// cldShowResult, cldFloatText, showScreen, mp*. And never an
 // `await` or a setTimeout inside `fn`: the swap only holds for synchronous code.
 // verify-cld-practice.js spies on every name in that list.
 // ═══════════════════════════════════════════════════════════════════════════
@@ -1010,6 +1010,15 @@ const CLD_SLIDE_POSE_V = 40;                // units/s — faster than this read
 const CLD_SQUASH_MS    = 240;               // a bump's squash, playback ms
 const CLD_SQUASH_MIN_V = 0.12 * CLD_V_MAX;  // a softer bump doesn't squash
 const CLD_PLUNGE_MS    = 500;               // the tip-over at a seat, playback ms
+
+// ── The world (SW v246, fun-pass spec § 4.3–4.4) ───────────────────────────
+const CLD_BOING        = 'Boing!';   // a bounce off a plug
+const CLD_GROOVE_MIN_V = 45;         // units/s — a belly-slide this fast cuts a groove
+const CLD_GROOVE_W     = 8;          // groove width, world units
+const CLD_SPLAT_FADE_S = 3;          // a Snowball's splat on a penguin fades over this
+const CLD_FLOE_Q       = 3;          // floe surface px per world unit…
+const CLD_FLOE_PX_MAX  = 1200;       // …capped so a Roomy floe stays ≤ 1,200 px square
+const CLD_FX_MIN_POWER = 0.12;       // a softer bump than this raises no puff
 const CLD_ASSIST_STEPS   = 90;    // aim-assist trace resolution (first bounce only)
 
 
@@ -1138,7 +1147,11 @@ function cldMakeView(canvas) {
            base: 1, fitR: CLD_R_STD,
            cam: { x: CLD_W / 2, y: CLD_H / 2, z: 1, tx: CLD_W / 2, ty: CLD_H / 2, tz: 1,
                   manual: false, holdUntil: 0, clock: 0, prev: {} },
-           ptrs: null, pinch: null, lastTap: null };
+           ptrs: null, pinch: null, lastTap: null,
+           // View-owned art state (SW v246): each canvas has its own particles, floe
+           // surface and trails, so the Arena can never paint on the live floe's.
+           fx: cldArt() ? cldArt().makeFx() : null, floe: null, floeKey: null,
+           trails: {}, splat: {}, wasResolving: false };
 }
 
 // Size the canvas to its stage and recompute the base fit. The CAMERA is kept —
@@ -1332,6 +1345,7 @@ function cldLoop(now) {
   if (!paused && cldPhase === 'resolving') cldAdvancePlayback(dt * 1000);
   if (!paused && !cldReducedMotion()) cldClock += dt;      // idle sway stands still under reduced motion
   const m = cldFloeModel();
+  cldViewStep(cldView, paused ? 0 : dt, m);
   cldCamStep(cldView, paused ? 0 : dt,
     cldCamTarget(cldView, m, cldPhase === 'aiming' ? 'aiming' : cldPhase === 'resolving' ? 'resolving' : 'overview'),
     cldDragging);
@@ -1359,99 +1373,134 @@ function cldStopLoop() {
 // ═══════════════════════════════════════════════════════════════════════════
 let cldClock = 0;   // seconds of wall time on this screen — drives idle sway
 
+// Above: the view's own art state. Below: the scene composer — reads only the
+// model and the view, so the live floe and the Practice Arena are one renderer.
+function cldFloeQ(radius) { return Math.min(CLD_FLOE_Q, (CLD_FLOE_PX_MAX - 4) / (2 * radius)); }
+
+// One frame of the view's own art state — particles, splats, the floe surface
+// and the belly-slide trails. Reads only the model; never the live globals.
+function cldViewStep(view, dtS, m) {
+  if (!view || !m) return;
+  const A = cldArt(), reduced = cldReducedMotion();
+  if (view.fx) { view.fx.setReduced(reduced); view.fx.step(dtS); }
+  Object.keys(view.splat).forEach(id => {
+    view.splat[id] = Math.max(0, view.splat[id] - dtS / CLD_SPLAT_FADE_S);
+    if (!view.splat[id]) delete view.splat[id];
+  });
+  // A fresh surface per floe (a Floe-Off, an Ice Bath, an Arena restart); The
+  // Thaw repaints the same one, its story replayed onto the smaller rim.
+  if (A && m.radius) {
+    if (!view.floe || view.floeKey !== m.floeKey) {
+      view.floe = A.makeFloe(CLD_W / 2, CLD_H / 2, m.radius, m.floeSeed, cldFloeQ(m.radius));
+      view.floeKey = m.floeKey; view.trails = {};
+    } else if (view.floe.radius !== m.radius) {
+      A.setFloeRadius(view.floe, m.radius);
+    }
+  }
+  // Belly-slides cut grooves: gathered while the Slide plays, stamped when it ends.
+  const resolving = m.phase === 'resolving';
+  if (resolving) m.penguins.forEach(p => {
+    const tr = view.trails[p.id] || (view.trails[p.id] = [[]]);
+    const run = tr[tr.length - 1];
+    if (!p.drowned && p.pose === 'slide' && Math.hypot(p.vel.x, p.vel.y) > CLD_GROOVE_MIN_V) {
+      run.push({ x: p.x, y: p.y });
+      if (view.fx && Math.random() < 0.7) view.fx.spray(p.x, p.y, p.vel.x, p.vel.y, 1);
+    } else if (run.length) tr.push([]);
+  });
+  if (view.wasResolving && !resolving) {
+    if (A && view.floe) Object.keys(view.trails).forEach(id =>
+      view.trails[id].forEach(run => { if (run.length > 1) A.floeMark(view.floe, 'groove', run, CLD_GROOVE_W); }));
+    view.trails = {};
+  }
+  view.wasResolving = resolving;
+}
+
+// Forget a view's art state, so the next floe drawn on it starts clean. A floe's
+// key can repeat — 'f:1' again after a first-to-1 match and Play Again, 'pr1:…'
+// again after resetToLobby — so a new Floe-Off and teardown drop it outright.
+function cldViewForget(view) {
+  if (!view) return;
+  view.floe = null; view.floeKey = null; view.trails = {}; view.splat = {}; view.wasResolving = false;
+  if (view.fx) view.fx.clear();
+}
+
+// A timeline event (or an aftermath beat) → this view's particles, splats and
+// floe marks. Called through hooks.fx, so the live replay and the Arena each
+// feed their OWN view. Reads only its arguments.
+function cldFxEvent(view, e) {
+  if (!view || !e) return;
+  const fx = view.fx, pw = s => Math.min(1, (s || 0) / CLD_V_MAX);
+  if (e.type === 'landing') {
+    if (fx) fx.landing(e.x, e.y);
+    if (e.hit === 'penguin' && e.id) view.splat[e.id] = 1;
+    else if (!e.hit && view.floe && Math.hypot(e.x - CLD_W / 2, e.y - CLD_H / 2) < view.floe.radius) {
+      const A = cldArt(); if (A) A.floeMark(view.floe, 'splat', { x: e.x, y: e.y });
+    }
+    return;
+  }
+  if (!fx) return;
+  if (e.type === 'collision' && pw(e.speed) > CLD_FX_MIN_POWER) fx.puff(e.x, e.y, pw(e.speed));
+  else if (e.type === 'rebound') fx.puff(e.x, e.y, e.off === 'drowned' ? Math.max(0.6, pw(e.speed)) : pw(e.speed));
+  else if (e.type === 'seat' || e.type === 'thaw-drop') fx.splash(e.x, e.y, 1);
+  else if (e.type === 'knockback') fx.splash(e.x, e.y, 0.6);
+  else if (e.type === 'shatter') fx.shatter(e.x, e.y);
+}
+
 function cldDraw(view, m) {
   if (!view || !view.ctx) return;
-  const ctx = view.ctx;
-  const cx = CLD_W / 2, cy = CLD_H / 2;
+  const A = cldArt();
+  if (!A) return;                                        // no art module → nothing to draw with
+  const ctx = view.ctx, cx = CLD_W / 2, cy = CLD_H / 2, t = m.clock, reduced = cldReducedMotion();
+  const R = m.radius || view.fitR || CLD_R_STD;
 
   ctx.clearRect(view.x, view.y, view.w, view.h);
-
-  // ── The Drink — a cold gradient with slow concentric swell rings. Animated by
-  // phase, not by frames. Painted across the whole VISIBLE region, which is wider
-  // than the 360x360 world on any non-square stage.
-  const water = ctx.createLinearGradient(0, view.y, 0, view.y + view.h);
-  water.addColorStop(0, '#1c3f57');
-  water.addColorStop(1, '#0e2536');
-  ctx.fillStyle = water;
-  ctx.fillRect(view.x, view.y, view.w, view.h);
-  ctx.strokeStyle = 'rgba(142,202,230,0.10)';
-  ctx.lineWidth = 1.5;
-  for (let k = 0; k < 4; k++) {
-    const ph = (m.clock * 0.25 + k * 0.25) % 1;
-    ctx.globalAlpha = 1 - ph;
-    ctx.beginPath();
-    ctx.arc(cx, cy, m.radius + 6 + ph * 46, 0, CLD_TAU);
-    ctx.stroke();
+  // 1. The Drink — across the whole VISIBLE region, wider than the world on a phone.
+  A.water(ctx, view, t, cx, cy, R, reduced);
+  A.scenery(ctx, view, t, cx, cy, R, reduced);
+  if (view.fx) view.fx.draw(ctx, 'ground');
+  if (m.radius) {
+    // 2. The floe (painted once per floe) and this Slide's grooves still being cut.
+    if (view.floe) A.floe(ctx, view.floe, t, reduced);
+    Object.keys(view.trails || {}).forEach(id => view.trails[id].forEach(run => A.groove(ctx, run, CLD_GROOVE_W)));
+    // 3. Marks on the ice and in the water, under everyone.
+    cldDrawAimLayer(view, m);
+    // 4. Everything that stands up, back to front — the slight 3D read.
+    const objs = [];
+    m.bergs.forEach(b => objs.push({ y: b.y, draw: () => A.berg(ctx, b, m.iceBreaker, t) }));
+    m.penguins.forEach(p => objs.push({ y: p.y, draw: () => cldDrawModelPenguin(view, m, p) }));
+    objs.sort((a, b) => a.y - b.y).forEach(o => o.draw());
+    // 5. Snowballs in flight, then the air.
+    m.snowballs.forEach(s => A.snowball(ctx, s.from, s.to, s.k, CLD_SNOWBALL_R * 0.7));
+    if (view.fx) view.fx.draw(ctx, 'air');
+    // 6. Reticles and markers, over everything in the world.
+    cldDrawMarkers(view, m);
   }
-  ctx.globalAlpha = 1;
+  // 7. The mini-map, in screen space.
+  if (view.cam && view.box && view.box.w && (view.cam.manual || view.cam.z > CLD_CAM_MAP_Z)) cldDrawMiniMap(view, m);
+}
 
-  if (!m.radius) return;
-
-  // ── The floe. A ring of shadow, then the ice, then a few procedural cracks.
-  ctx.beginPath();
-  ctx.arc(cx, cy + 3, m.radius, 0, CLD_TAU);
-  ctx.fillStyle = 'rgba(0,0,0,0.28)';
-  ctx.fill();
-
-  const ice = ctx.createRadialGradient(cx - m.radius * 0.3, cy - m.radius * 0.35,
-                                       m.radius * 0.1, cx, cy, m.radius);
-  ice.addColorStop(0, '#ffffff');
-  ice.addColorStop(0.72, '#eaf6fb');
-  ice.addColorStop(1, '#c9e4f0');
-  ctx.beginPath();
-  ctx.arc(cx, cy, m.radius, 0, CLD_TAU);
-  ctx.fillStyle = ice;
-  ctx.fill();
-  ctx.strokeStyle = '#8ECAE6';
-  ctx.lineWidth = 2;
-  ctx.stroke();
-
-  // Cracks — deterministic from the radius so they don't crawl frame to frame,
-  // and they visibly redraw when The Thaw shrinks the floe.
-  ctx.save();
-  ctx.beginPath();
-  ctx.arc(cx, cy, m.radius, 0, CLD_TAU);
-  ctx.clip();
-  ctx.strokeStyle = 'rgba(120,170,195,0.22)';
-  ctx.lineWidth = 0.9;
-  for (let k = 0; k < 9; k++) {
-    const a  = (k * 2.399963) + m.radius * 0.013;        // golden-angle scatter
-    const r0 = m.radius * (0.18 + (k % 4) * 0.20);
-    const r1 = r0 + m.radius * 0.20;                     // SHORT — a crack, not a
-    const a1 = a + 0.34;                                 // scratch across the floe
-    ctx.beginPath();
-    ctx.moveTo(cx + Math.cos(a) * r0, cy + Math.sin(a) * r0);
-    ctx.lineTo(cx + Math.cos(a1) * r1, cy + Math.sin(a1) * r1);
-    ctx.stroke();
+// One model penguin: Peck Off's selection ring, then the seam.
+function cldDrawModelPenguin(view, m, p) {
+  const ctx = view.ctx;
+  if (p.selected) {
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255,255,255,0.75)'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.ellipse(p.x, p.y + 1, CLD_PENGUIN_R * 1.7, CLD_PENGUIN_R * 0.85, 0, 0, CLD_TAU); ctx.stroke();
+    ctx.restore();
   }
-  ctx.restore();
+  cldRenderPenguin(ctx, p.pose, p.ownerIdx, p.x, p.y, CLD_PENGUIN_R, {
+    t: m.clock, look: p.look, power: p.power, vel: p.vel, k: p.k, outward: p.outward,
+    hunger: p.hunger, seed: p.seed, splat: p.splat, ring: true, me: p.me, second: p.ringDark,
+    dim: p.dim, px: view.scale, reduced: cldReducedMotion(),
+  });
+}
 
-  // ── Bergs. Never illustrated — a procedural chunk plus a crack overlay whose
-  // density reads the remaining hits, so damage is visible before it shatters.
-  m.bergs.forEach(b => cldDrawBerg(ctx, b, m.iceBreaker));
-
+// The aim layer: cues and the aim guide, and Dive mode's seats — on the ice and
+// in the water, under everyone. (Task 4 of the fun pass redraws it.)
+function cldDrawAimLayer(view, m) {
+  const ctx = view.ctx;
   // ── Cues + the aim guide, under the penguins so nothing is hidden.
   m.aims.forEach(a => cldDrawCue(ctx, m, a));
-
-  // ── Penguins. EVERY one goes through the seam — no bypass anywhere.
-  m.penguins.forEach(p => {
-    if (p.selected) {
-      // Peck Off: which penguin an anywhere-touch will aim (spec § 2.1).
-      ctx.save();
-      ctx.strokeStyle = 'rgba(255,255,255,0.75)';
-      ctx.lineWidth = 1.5;
-      ctx.beginPath(); ctx.arc(p.x, p.y, CLD_PENGUIN_R + 5, 0, CLD_TAU); ctx.stroke();
-      ctx.restore();
-    }
-    cldRenderPenguin(ctx, p.pose, p.ownerIdx, p.x, p.y, CLD_PENGUIN_R, {
-      t: m.clock, look: p.look, power: p.power, vel: p.vel, k: p.k, outward: p.outward,
-      hunger: p.hunger, seed: p.seed, splat: p.splat, ring: true, me: p.me, second: p.ringDark,
-      dim: p.dim, px: view.scale, reduced: cldReducedMotion(),
-    });
-  });
-
-  // ── HUNGRY! — a 🐟❗ bubble over every hungry penguin while the beat is up.
-  if (m.hungerBeat) m.penguins.forEach(p => { if (p.hunger > 0) cldDrawHungerBubble(ctx, p.x, p.y); });
 
   // ── Dive mode: the free seats round the ring, and the ghost at the chosen one.
   if (m.dive) {
@@ -1467,6 +1516,14 @@ function cldDraw(view, m) {
       ctx.restore();
     }
   }
+}
+
+// Markers over everything in the world: the Hunger bubbles, a rival's next
+// Snowball, and the snowball target.
+function cldDrawMarkers(view, m) {
+  const ctx = view.ctx;
+  // ── HUNGRY! — a 🐟❗ bubble over every hungry penguin while the beat is up.
+  if (m.hungerBeat) m.penguins.forEach(p => { if (p.hunger > 0) cldDrawHungerBubble(ctx, p.x, p.y); });
 
   // ── A Drowned rival's next Snowball (Practice): a small cross in its colour.
   (m.rivalThrows || []).forEach(s => {
@@ -1490,8 +1547,6 @@ function cldDraw(view, m) {
     ctx.stroke();
     ctx.restore();
   }
-
-  if (view.cam && view.box && view.box.w && (view.cam.manual || view.cam.z > CLD_CAM_MAP_Z)) cldDrawMiniMap(view, m);
 }
 
 // A thought bubble up and to the right of a penguin, its tail pointing at it.
@@ -1532,39 +1587,6 @@ function cldDrawMiniMap(view, m) {
   const y1 = Math.min(R, (view.box.y + view.box.h - view.offY) / view.scale - CLD_H / 2);
   ctx.strokeStyle = 'rgba(255,255,255,0.9)'; ctx.lineWidth = 1.2;
   ctx.strokeRect(mx + x0 * k, my + y0 * k, (x1 - x0) * k, (y1 - y0) * k);
-  ctx.restore();
-}
-
-function cldDrawBerg(ctx, b, iceBreaker) {
-  ctx.save();
-  ctx.beginPath();
-  // A five-point irregular chunk, deterministic from the Berg's own angle so it
-  // keeps its shape as The Thaw moves it inward.
-  for (let k = 0; k < 5; k++) {
-    const a = b.angle + k * (CLD_TAU / 5);
-    // Never exceeds b.r — the drawn chunk IS the collision circle's envelope.
-    const rr = b.r * (0.72 + ((k * 37 + Math.floor(b.angle * 100)) % 28) / 100);
-    const px = b.x + Math.cos(a) * rr, py = b.y + Math.sin(a) * rr;
-    if (k === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
-  }
-  ctx.closePath();
-  ctx.fillStyle = '#b7d9e8';
-  ctx.fill();
-  ctx.strokeStyle = '#5d92ab';
-  ctx.lineWidth = 1.5;
-  ctx.stroke();
-  // Damage cracks — one per hit already taken, so a Berg about to shatter LOOKS
-  // about to shatter rather than only being a number in the rules layer.
-  const taken = Math.max(0, iceBreaker - b.hits);
-  ctx.strokeStyle = 'rgba(60,100,120,0.55)';
-  ctx.lineWidth = 1;
-  for (let k = 0; k < taken; k++) {
-    const a = b.angle + k * 1.9;
-    ctx.beginPath();
-    ctx.moveTo(b.x - Math.cos(a) * b.r * 0.8, b.y - Math.sin(a) * b.r * 0.8);
-    ctx.lineTo(b.x + Math.cos(a + 0.5) * b.r * 0.8, b.y + Math.sin(a + 0.5) * b.r * 0.8);
-    ctx.stroke();
-  }
   ctx.restore();
 }
 
@@ -2268,6 +2290,7 @@ function cldStepPlayback(dtMs, hooks) {
 }
 
 function cldPlayEvent(e, hooks) {
+  if (hooks.fx) hooks.fx(e);
   if (e.type === 'collision' || e.type === 'rebound') {
     // Two gates, both mandatory (§9). The throttle is keyed on PLAYBACK time,
     // not wall-clock, so it behaves identically on a replayed timeline as it did
@@ -2276,6 +2299,7 @@ function cldPlayEvent(e, hooks) {
     if (cldPlaybackT - cldLastSfxT < CLD_COLLISION_SFX_MS) return;
     cldLastSfxT = cldPlaybackT;
     hooks.sfx(e.type === 'rebound' ? 'rebound' : 'collide');
+    if (e.type === 'rebound' && e.off === 'drowned') hooks.bark(CLD_BOING);
     return;
   }
   if (e.type === 'plunge') {
@@ -2312,7 +2336,7 @@ function cldPlayAftermath(b, hooks) {
     return;
   }
   if (b.type === 'thaw')      { cldFloeRadius = b.newRadius; hooks.sfx('thaw'); return; }
-  if (b.type === 'thaw-drop') { hooks.sfx('plunge'); hooks.bark(); return; }
+  if (b.type === 'thaw-drop') { if (hooks.fx) hooks.fx(b); hooks.sfx('plunge'); hooks.bark(); return; }
 }
 
 function cldEndPlayback() {
@@ -2417,6 +2441,7 @@ function cldShowFloeOffIntro(mode) {
     if (s) s.textContent = 'Waiting for the host to push everyone onto the ice.';
     if (n) n.style.display = 'none';
   } else {
+    cldViewForget(cldView);             // a new Floe-Off is a new floe, even on a repeated key
     if (h) h.textContent = 'Floe-Off ' + cldFloeOffNo;
     // Rotated per Floe-Off — the same sentence every time reads as filler by the
     // third showing. Host-picked and synced in Stage 5 so players sitting
@@ -2615,19 +2640,18 @@ function cldShowGameover() {
 // plays, which re-centres the whole Stack (ui-style.md, SHP's sheep parade).
 // ═══════════════════════════════════════════════════════════════════════════
 function cldBarkLine() { return CLD_PLUNGE_BARKS[Math.floor(Math.random() * CLD_PLUNGE_BARKS.length)]; }
-function cldFloatBark() { cldFloatText(cldBarkLine()); }
 
 // The live floe's replay effects. The Practice Arena passes its own pair, so a
 // bark in Practice lands in the Arena's float layer, never the floe's.
-const CLD_LIVE_HOOKS = { sfx: m => cldSfx(m), bark: () => cldFloatBark() };
+const CLD_LIVE_HOOKS = { sfx: m => cldSfx(m), bark: text => cldFloatText(text || cldBarkLine()),
+                         fx: e => cldFxEvent(cldView, e) };
 
 function cldFloatText(text) {
   const layer = document.getElementById('cld-float-layer');
   if (!layer) return;
   layer.innerHTML = '';
   const el = document.createElement('p');
-  el.className = 'text-white font-bold text-lg px-3 py-1 rounded-full';
-  el.style.cssText = 'background:rgba(18,59,76,0.72); text-shadow:0 1px 2px rgba(0,0,0,.5);';
+  el.className = 'cld-bark';
   el.textContent = text;
   layer.appendChild(el);
   if (cldFloatTimer) { clearTimeout(cldFloatTimer); cldFloatTimer = null; }
@@ -2959,7 +2983,8 @@ function cldPrTick(dtMs) {
   const u = cldPrUi;
   if (!u || !u.playing) return;
   let bark = null;
-  const hooks = { sfx: m => cldSfx(m), bark: () => { bark = cldBarkLine(); } };
+  const hooks = { sfx: m => cldSfx(m), bark: text => { bark = text || cldBarkLine(); },
+                  fx: e => cldFxEvent(cldPrView, e) };
   const r = cldArenaRun(() => cldStepPlayback(dtMs, hooks));
   if (bark) cldPrFloat(bark);
   if (r !== 'playing') cldPrSlideDone();
@@ -3006,8 +3031,7 @@ function cldPrFloat(text) {
   if (!layer) return;
   layer.innerHTML = '';
   const el = document.createElement('p');
-  el.className = 'text-white font-bold text-base px-3 py-1 rounded-full';
-  el.style.cssText = 'background:rgba(18,59,76,0.72); text-shadow:0 1px 2px rgba(0,0,0,.5);';
+  el.className = 'cld-bark';
   el.textContent = text;
   layer.appendChild(el);
   if (cldPrFloatTimer) { clearTimeout(cldPrFloatTimer); cldPrFloatTimer = null; }
@@ -3263,6 +3287,7 @@ function cldPrLoop(now) {
     const st = cldPrView.canvas && cldPrView.canvas.parentElement;
     if (st && st.clientHeight && (Math.round(cldPrView.cssH) !== st.clientHeight || Math.round(cldPrView.cssW) !== st.clientWidth)) cldResize(cldPrView);
     const m = cldArenaModel();
+    cldViewStep(cldPrView, dt, m);
     cldCamStep(cldPrView, dt, cldCamTarget(cldPrView, m,
       cldPrUi.playing ? 'resolving' : cldPrUi.end ? 'overview' : 'aiming'), !!cldPrUi.drag);
     cldDraw(cldPrView, m);
@@ -3715,6 +3740,7 @@ function cldResetState() {
   cldHowtoStop();                       // The Cast's loop — a RAF is a timer
   cldPracticeStop();                    // the Practice Arena's loop and bark timer
   cldPrUi = null; cldPrFloe = null; cldPrClock = 0;   // the Arena starts fresh next time
+  cldViewForget(cldView); cldViewForget(cldPrView);    // …and so do both views' floes
   const prLayer = document.getElementById('cld-pr-float');
   if (prLayer) prLayer.innerHTML = '';
   if (cldIntroTimer)  { clearTimeout(cldIntroTimer);  cldIntroTimer  = null; }
