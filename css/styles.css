@@ -2720,7 +2720,7 @@ body.flash-red   { background-color: #fecaca; }
   #cld-how-to-overlay .cld-howto-full .cld-howto-title { display: none; }
   #cld-howto-body-practice .cld-pr-power-labels { display: none; }
   #cld-howto-body-practice #btn-cld-pr-commit { min-height: 3rem; }
-  #cld-howto-body-practice #btn-cld-pr-restart, #cld-howto-body-practice #btn-cld-howto-close-practice { min-height: 2.5rem; }
+  #cld-howto-body-practice #btn-cld-pr-restart, #cld-howto-body-practice #btn-cld-howto-close-practice { min-height: 2.75rem; }   /* 44 px — never under the touch minimum */
   .cld-pr-bubble { font-size: 12px; padding: 6px 10px; }
   #cld-pr-stage { min-height: 100px; }
 }

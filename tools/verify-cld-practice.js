@@ -906,6 +906,29 @@ if (!TUNE) {
   ok('a second finger on the Arena is the camera, not an aim', G('cldPrUi').drag === null && v.cam.manual === true);
   RUN('cldPrPointerUp')(pev(2, you.x - 60, you.y)); RUN('cldPrPointerUp')(pev(1, you.x + 60, you.y));
   check('…and arms nothing', G('cldPrUi').aim, null);
+
+  // Final review — a lost pointer-up must never turn every later touch into a pinch.
+  const lost = Object.assign(pev(5, you.x + 40, you.y), { isPrimary: true });
+  RUN('cldCamPointer')(v, lost, 'down');                       // …and its 'up' never arrives
+  const next = Object.assign(pev(6, you.x + 40, you.y), { isPrimary: true, timeStamp: 99999 });
+  ok('a new first finger after a lost pointer-up is an aim, not a pinch',
+     RUN('cldCamPointer')(v, next, 'down') === false && v.pinch === null && v.ptrs.size === 1);
+  RUN('cldCamPointer')(v, next, 'up');
+
+  // Final review — a press on the end card is never an aim.
+  RUN("CLD_PR_DRILLS.headon.cap = 1"); load('headon'); resolveWith(HOLD); RUN("delete CLD_PR_DRILLS.headon.cap");
+  ok('the round is over (end card up)', !!G('cldPrUi').end);
+  arena("(() => { const me = cldPenguins.find(p => p.id === '0-0'); me.drowned = false; me.plug = false; me.angle = null; })()");   // standing, so a press WOULD aim
+  RUN('cldPrPointerDown')(Object.assign(pev(7, you.x + 30, you.y), { isPrimary: true, timeStamp: 200000 }));
+  check('…and a press while it shows starts no drag', G('cldPrUi').drag, null);
+
+  // Final review — under reduced motion the Slide camera holds; it never re-centres every frame.
+  S.window.matchMedia = () => ({ matches: true });
+  const m = RUN('cldArenaModel()');
+  m.penguins = m.penguins.map((p, i) => Object.assign({}, p, { x: p.x + i + 5 }));
+  RUN('cldCamTarget')(v, RUN('cldArenaModel()'), 'resolving');
+  check('reduced motion: no moving Slide target, so the camera holds', RUN('cldCamTarget')(v, m, 'resolving'), null);
+  S.window.matchMedia = () => ({ matches: false });
   RUN('cldResetState()');
 }
 

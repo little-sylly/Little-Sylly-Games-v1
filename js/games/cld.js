@@ -1377,6 +1377,9 @@ function cldCamTarget(view, m, phase) {
              y: CLD_H / 2 + (mine[0].y - CLD_H / 2) * CLD_CAM_AIM_LEAN, z: CLD_CAM_AIM_Z };
   }
   if (phase === 'resolving') {
+    // Reduced motion: the Slide camera holds rather than cutting to a new frame
+    // every frame — a target that moves each frame is motion, however it's applied.
+    if (cldReducedMotion()) return null;
     const pts = m.penguins.filter(p => prev[p.id] &&
       Math.hypot(p.x - prev[p.id].x, p.y - prev[p.id].y) > CLD_CAM_MOVE_EPS).map(p => ({ x: p.x, y: p.y }));
     mine.forEach(p => pts.push({ x: p.x, y: p.y }));
@@ -1409,6 +1412,9 @@ function cldCamPointer(view, e, kind) {
   const at = { x: e.clientX, y: e.clientY };
   if (!view.ptrs) view.ptrs = new Map();
   if (kind === 'down') {
+    // A new FIRST finger means nothing else is down — so a pointer-up that never
+    // arrived can't turn every later touch into a pinch (final review).
+    if (e.isPrimary) { view.ptrs.clear(); view.pinch = null; }
     view.ptrs.set(id, at);
     if (view.ptrs.size >= 2) {
       const pq = [...view.ptrs.values()], p = pq[0], q = pq[1];
@@ -3105,7 +3111,7 @@ function cldArenaModel() {
 function cldPrPointerDown(e) {
   if (cldPrUi && cldCamPointer(cldPrView, e, 'down')) { cldPrUi.drag = null; cldPrSyncUI(); return; }
   const u = cldPrUi;
-  if (!u || u.playing || u.drag || !cldPrView) return;
+  if (!u || u.playing || u.end || u.drag || !cldPrView) return;   // the end card is up: a press is a button, not an aim
   const pt = cldToLogical(cldPrView, e);
   const me = cldPrMe();
   if (me.drowned) {
@@ -3893,6 +3899,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // Captured, so a drag off the stage keeps steering and a mouse-up over the
     // backdrop can never close the sheet mid-aim (SW v244 minors).
     prStage.addEventListener('pointerdown', e => {
+      // Never capture a press on the end card: a captured pointer-up lands on the
+      // stage and the button never gets its click (a mouse; final review).
+      const onCard = e.target && e.target.closest && e.target.closest('#cld-pr-end');
+      if (onCard) return;
       try { if (e.pointerId !== undefined) prStage.setPointerCapture(e.pointerId); } catch (_) {}
       cldPrPointerDown(e);
     });
