@@ -952,6 +952,7 @@ function mpStopListeners() {
 //     requires Firebase RTDB rules scoping private/{uid} reads to that uid.
 async function mpSendPrivate(targetUid, envelope) {
   if (!mpActiveRoomCode || !window.syllyFirebase || !targetUid) return;
+  if (mpIsBotUid(targetUid)) return;             // a bot has no queue (SW v247)
   // A refused write must be loud (BUG-26): the live rules are the only thing that can
   // refuse it, and no harness's fake Firebase has rules — so this warn is the one signal.
   try {
@@ -1151,6 +1152,7 @@ function mpStartPresenceWatcher() {
       // The host is never Away (a host drop deletes the room) — and it is matched by
       // uid, because a 'teams' roster reorders the slots and it is not always seat 0.
       if (!uid || uid === window.syllyDeviceUid) return;
+      if (mpIsBotUid(uid)) return;               // a bot has no device to drop (SW v247)
       if (mpReleasedSeats.has(idx)) return;      // left on purpose — not a drop
       const kids = present[uid];
       const here = !!kids && typeof kids === 'object' && Object.keys(kids).length > 0;
@@ -1807,8 +1809,12 @@ function mpHandleEnvelope(env) {
       document.getElementById('mp-version-mismatch-overlay').style.display = 'flex';
       return;
     }
-    const slotIdx = mpPlayerSlots.length;
+    // The /players key counts HUMANS only — bots never live there (SW v247).
+    const slotIdx = mpPlayerSlots.filter(s => !mpIsBotSlot(s)).length;
+    mpBotsMakeRoomFor(1);                 // a human outranks a bot for the last seat
     mpPlayerSlots.push({ uid: env.originId, nickname: env.payload.nickname });
+    mpSortSlots();                        // humans first, bots after
+    mpBotsRenameClashes();
     window.syllyFirebase.set(
       window.syllyFirebase.ref(`rooms/${mpActiveRoomCode}/players/${slotIdx}`),
       { uid: env.originId, nickname: env.payload.nickname }
@@ -3140,6 +3146,7 @@ async function mpConfirmRoster() {
 
   // Freeze the seats and start watching presence BEFORE GAME_START goes out: a
   // client's first presence write can land the instant it applies GAME_START.
+  mpBotsStampDifficulty();
   await mpBeginMatchSeats();
 
   // Send SETTINGS_SYNC then GAME_START
@@ -3402,13 +3409,95 @@ function mpStartPlayersWatcher() {
     const newCount = entries.length;
     if (newCount < lastCount) {
       // Player left — update slot list from Firebase
-      mpPlayerSlots = entries.map(p => ({ uid: p.uid, nickname: p.nickname }));
+      // Bots live only here, never in /players — carry them across the rebuild (SW v247).
+      mpPlayerSlots = [...entries.map(p => ({ uid: p.uid, nickname: p.nickname })),
+                       ...mpPlayerSlots.filter(mpIsBotSlot)];
       if (document.getElementById('screen-mp-lobby-host').style.display !== 'none') {
         mpRenderHostPlayerList();
       }
     }
     lastCount = newCount;
   });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// BOTS (SW v247) — host-side bot seats. A bot is an mpPlayerSlots entry
+// held ONLY in the host's memory: { uid: 'bot:N', nickname, bot: { difficulty } }.
+// Never written to /players — that node is keyed by slot index, and the
+// players watcher rebuilds mpPlayerSlots from it (spec § 3.1).
+// Spec: docs/superpowers/specs/2026-09-29-bots-design.md
+// ═══════════════════════════════════════════════════════════════
+const MP_BOT_DIFFICULTIES = ['easy', 'medium', 'hard'];
+let mpBotDifficulty = 'medium';   // one difficulty for every bot in a match; memory only
+let mpBotSeq        = 0;          // per-room counter behind 'bot:N' uids
+
+// A Firebase uid never contains a colon, so 'bot:' can never collide with a device.
+function mpIsBotUid(uid)  { return typeof uid === 'string' && uid.indexOf('bot:') === 0; }
+function mpIsBotSlot(s)   { return !!s && mpIsBotUid(s.uid); }
+function mpBotCount()     { return mpPlayerSlots.filter(mpIsBotSlot).length; }
+
+// Names as printed: a bot's carries the marker. Works on every device (GAME_START
+// carries the slots), so a game prints names through this, never .nickname.
+function mpSeatLabel(idx) {
+  const s = mpPlayerSlots[idx];
+  if (!s) return '';
+  return mpIsBotSlot(s) ? s.nickname + ' 🤖' : s.nickname;
+}
+
+// The next name from the game's pool that no human and no OTHER bot holds —
+// case-insensitive — else 'Bot N' (spec § 3.3).
+function mpBotNextName(selfUid) {
+  const pool  = mpActiveGameConfig?.bots?.names || [];
+  const taken = new Set(mpPlayerSlots.filter(s => s.uid !== selfUid)
+                                     .map(s => String(s.nickname).trim().toLowerCase()));
+  const hit = pool.find(n => !taken.has(n.toLowerCase()));
+  if (hit) return hit;
+  for (let n = 1; ; n++) if (!taken.has('bot ' + n)) return 'Bot ' + n;
+}
+
+// The one seat order: humans in join order, then bots in the order added (spec § 3.2).
+function mpSortSlots() {
+  mpPlayerSlots = [...mpPlayerSlots.filter(s => !mpIsBotSlot(s)), ...mpPlayerSlots.filter(mpIsBotSlot)];
+}
+
+function mpAddBot() {
+  if (window.syllyMultiplayerMode !== 'host' || !mpActiveGameConfig?.bots) return false;
+  const max = mpActiveGameConfig.getMaxPlayers?.() ?? 99;
+  if (mpPlayerSlots.length >= max) return false;
+  const uid = 'bot:' + (mpBotSeq++);
+  mpPlayerSlots.push({ uid, nickname: mpBotNextName(uid), bot: { difficulty: mpBotDifficulty } });
+  return true;
+}
+
+function mpRemoveBot(uid) {
+  if (!mpIsBotUid(uid)) return false;
+  const before = mpPlayerSlots.length;
+  mpPlayerSlots = mpPlayerSlots.filter(s => s.uid !== uid);
+  return mpPlayerSlots.length < before;
+}
+
+// A human always outranks a bot: make room by dropping the most recently added bot.
+function mpBotsMakeRoomFor(n) {
+  const max = mpActiveGameConfig?.getMaxPlayers?.() ?? 99;
+  while (mpPlayerSlots.length + n > max) {
+    const bots = mpPlayerSlots.filter(mpIsBotSlot);
+    if (!bots.length) return;
+    mpRemoveBot(bots[bots.length - 1].uid);
+  }
+}
+
+// A human arriving with a bot's name: the BOT gives it up.
+function mpBotsRenameClashes() {
+  const humans = new Set(mpPlayerSlots.filter(s => !mpIsBotSlot(s))
+                                      .map(s => String(s.nickname).trim().toLowerCase()));
+  mpPlayerSlots.forEach(s => {
+    if (mpIsBotSlot(s) && humans.has(String(s.nickname).toLowerCase())) s.nickname = mpBotNextName(s.uid);
+  });
+}
+
+// At roster confirm: every bot plays at the one match difficulty.
+function mpBotsStampDifficulty() {
+  mpPlayerSlots.forEach(s => { if (mpIsBotSlot(s)) s.bot = { difficulty: mpBotDifficulty }; });
 }
 
 // ── Multiplayer play-again: return all devices to lobby ───────────────────────
