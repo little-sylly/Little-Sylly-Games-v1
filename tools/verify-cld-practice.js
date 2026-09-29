@@ -883,6 +883,29 @@ if (!TUNE) {
   RUN('cldPrLoop')(5000); RUN('cldPrLoop')(5050);
   check('under reduced motion the Arena’s idle clock stands still', G('cldPrClock'), c0);
   S.window.matchMedia = () => ({ matches: false });
+
+  const inner = $('cld-how-to-inner');
+  RUN("cldSetHowtoTab('practice')");
+  ok('Practice takes the whole sheet height', inner.classList.contains('cld-howto-full'));
+  RUN("cldSetHowtoTab('rules')");
+  ok('…and The Rules gives it back', !inner.classList.contains('cld-howto-full'));
+  RUN("cldSetHowtoTab('practice')");
+  $('cld-pr-coach').offsetHeight = 60;
+  RUN('cldPrSyncUI()');
+  check('the camera’s box starts below the coach bubble', G('cldPrView').insetTop, 72);
+  // Review Focus 2 — the Arena's camera is its own.
+  const liveCam = safeJSON(G('cldView') && G('cldView').cam);
+  for (let k = 0; k < 10; k++) RUN('cldPrLoop')(9000 + k * 50);
+  check('stepping the Arena moves only the Arena’s camera', safeJSON(G('cldView') && G('cldView').cam), liveCam);
+  // A pinch on the Arena stage drops an aim in progress.
+  const v = G('cldPrView');
+  const you = arena("cldPenguins.find(p => p.id === '0-0')");
+  const pev = (id, x, y) => ({ clientX: v.offX + x * v.scale, clientY: v.offY + y * v.scale, pointerId: id });
+  RUN('cldPrPointerDown')(pev(1, you.x + 60, you.y));
+  RUN('cldPrPointerDown')(pev(2, you.x - 60, you.y));
+  ok('a second finger on the Arena is the camera, not an aim', G('cldPrUi').drag === null && v.cam.manual === true);
+  RUN('cldPrPointerUp')(pev(2, you.x - 60, you.y)); RUN('cldPrPointerUp')(pev(1, you.x + 60, you.y));
+  check('…and arms nothing', G('cldPrUi').aim, null);
   RUN('cldResetState()');
 }
 

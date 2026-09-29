@@ -2691,18 +2691,43 @@ body.flash-red   { background-color: #fecaca; }
   user-select: none;
 }
 #cld-canvas { display: block; touch-action: none; }
-/* The Practice Arena's stage (SW v244). Square, never taller than 46vh, so the
-   whole stage is on screen before a drag starts inside the scrolling overlay.
-   touch-action:none is load-bearing for the same reason as #cld-stage: without
-   it a drag scrolls the overlay instead of aiming. */
+/* CLD Practice, full height (SW v245 — spec 2026-09-29-cld-fun-pass § 3.5). The
+   sheet grows to the viewport while Practice shows; the stage takes every
+   leftover pixel and can never be squashed to nothing (DD-18's 0 px stage).
+   touch-action:none is load-bearing, as on #cld-stage: without it a drag
+   scrolls the sheet instead of aiming. */
+#cld-how-to-overlay .overlay-data-inner.cld-howto-full { height: 100%; max-height: 100%; border-radius: 1.25rem 1.25rem 0 0; }
+#cld-how-to-overlay .cld-howto-full .cld-howto-sub { display: none; }
+#cld-howto-body-practice { flex: 1 1 auto; min-height: 0; overflow: hidden; }
 #cld-pr-stage {
-  width: min(100%, 46vh);
-  aspect-ratio: 1 / 1;
-  flex-shrink: 0;             /* a flex child of the scrolling body: without this it squashes to 0 px tall */
-  margin: 0 auto;
+  flex: 1 1 0;
+  min-height: 120px;
+  width: 100%;
   background: #0e2536;
   touch-action: none;
   user-select: none; -webkit-user-select: none;
+}
+.cld-pr-bubble {
+  position: absolute; left: 8px; right: 8px; top: 8px; z-index: 1;
+  padding: 8px 12px; border-radius: 14px;
+  background: rgba(255, 255, 255, 0.93); box-shadow: 0 4px 12px rgba(4, 26, 44, 0.25);
+  pointer-events: none;
+}
+.cld-pr-bubble { transition: opacity 160ms ease-out; font-size: 13px; }
+/* A short phone (the SE at Display Zoom is 452 tall): Practice drops the sheet's title
+   and the power labels, and tightens the bottom row, so the stage keeps real height. */
+@media (max-height: 620px) {
+  #cld-how-to-overlay .cld-howto-full .cld-howto-title { display: none; }
+  #cld-howto-body-practice .cld-pr-power-labels { display: none; }
+  #cld-howto-body-practice #btn-cld-pr-commit { min-height: 3rem; }
+  #cld-howto-body-practice #btn-cld-pr-restart, #cld-howto-body-practice #btn-cld-howto-close-practice { min-height: 2.5rem; }
+  .cld-pr-bubble { font-size: 12px; padding: 6px 10px; }
+  #cld-pr-stage { min-height: 100px; }
+}
+.cld-pr-bubble.cld-pr-bubble-quiet { opacity: 0.18; }
+.cld-pr-bubble::after {
+  content: ''; position: absolute; left: 22px; bottom: -6px; width: 12px; height: 12px;
+  background: rgba(255, 255, 255, 0.93); transform: rotate(45deg);
 }
 #cld-pr-canvas { display: block; touch-action: none; }
 /* The coach's soft ring — a box-shadow TRANSITION, never an animation, so the

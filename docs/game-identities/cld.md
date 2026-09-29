@@ -445,7 +445,7 @@ Got it
 Sylvia and Sam are coming straight for you — every Slide, full power. Dodge them, or meet them.
 Sylvia and Sam only want each other, and you’re in the middle. Get out of the way — or use it.
 They’ll try to cut you into the nearest gap. Keep ice between you and the water.
-Touch anywhere and pull back — the shot goes the other way. Their next shoves are drawn in their colours.
+Touch anywhere and pull back — the shot goes the other way.
 The dots show your first hit. Tap Power to lock it, then Lock It In.
 Same plan every Slide. Read it, and counter it.
 You’re in the Drink, plugging the gap you went through. The next penguin to hit you bounces off harder. Tap the ice to aim a Snowball.

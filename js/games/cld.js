@@ -1015,7 +1015,7 @@ const CLD_CAM_OVERVIEW_S   = 0.8;    // s the whole floe holds at the start of e
 const CLD_CAM_SLIDE_HOLD_S = 0.35;   // s the camera waits before following a Slide
 const CLD_CAM_Z_MIN        = 0.8;    // pinch limits
 const CLD_CAM_Z_MAX        = 2.6;
-const CLD_CAM_MAP_Z        = 1.18;   // the mini-map shows above this zoom, or whenever the camera is manual
+const CLD_CAM_MAP_Z        = 1.05;   // the mini-map shows above this zoom (the aim cam crops a Roomy floe), or whenever manual
 const CLD_CAM_TAP_MS       = 300;    // two taps inside this, and CLD_CAM_TAP_PX apart, = a double-tap
 const CLD_CAM_TAP_PX       = 24;
 const CLD_CAM_MOVE_EPS     = 0.5;    // logical units a penguin must move in a frame to count as moving
@@ -2701,8 +2701,10 @@ function cldOpenOverlay(id) {
 
 function cldOpenHowTo(tab) {
   cldSyncSettingsUI();          // the two conditional cards read the live settings
-  cldSetHowtoTab(tab || 'rules');
+  // Shown FIRST: Practice sizes its canvas off the stage's box, and a hidden
+  // overlay has none (SW v245 visual pass — the Arena opened on a 300x150 canvas).
   cldOpenOverlay('cld-how-to-overlay');
+  cldSetHowtoTab(tab || 'rules');
 }
 
 // The Rules, Practice and The Cast are three tabs of ONE overlay; bodies are
@@ -2716,6 +2718,9 @@ function cldSetHowtoTab(tab) {
     const el = document.getElementById(bodies[k]);
     if (el) el.style.display = k === tab ? 'flex' : 'none';
   });
+  // Practice takes the whole sheet (spec § 3.5); every other tab gives it back.
+  const inner = document.getElementById('cld-how-to-inner');
+  if (inner) inner.classList.toggle('cld-howto-full', tab === 'practice');
   document.querySelectorAll('[data-cld-howto-tab]').forEach(b => {
     b.classList.remove('pill-active-cld');   // .pill is the base — never removed
     if (b.dataset.cldHowtoTab === tab) b.classList.add('pill-active-cld');
@@ -2888,7 +2893,7 @@ const CLD_PR_COACH = {
   'intro.headon':    'Sylvia and Sam are coming straight for you — every Slide, full power. Dodge them, or meet them.',
   'intro.crossfire': 'Sylvia and Sam only want each other, and you’re in the middle. Get out of the way — or use it.',
   'intro.edge':      'They’ll try to cut you into the nearest gap. Keep ice between you and the water.',
-  aim:               'Touch anywhere and pull back — the shot goes the other way. Their next shoves are drawn in their colours.',
+  aim:               'Touch anywhere and pull back — the shot goes the other way.',
   armed:             'The dots show your first hit. Tap Power to lock it, then Lock It In.',
   again:             'Same plan every Slide. Read it, and counter it.',
   meIn:              'You’re in the Drink, plugging the gap you went through. The next penguin to hit you bounces off harder. Tap the ice to aim a Snowball.',
@@ -3098,6 +3103,7 @@ function cldArenaModel() {
 // The same gesture as the floe (cldCueAim + cldReleaseAim); a Drowned You taps
 // for a Snowball, or — Knocked back, in Dive mode — for a gap.
 function cldPrPointerDown(e) {
+  if (cldPrUi && cldCamPointer(cldPrView, e, 'down')) { cldPrUi.drag = null; cldPrSyncUI(); return; }
   const u = cldPrUi;
   if (!u || u.playing || u.drag || !cldPrView) return;
   const pt = cldToLogical(cldPrView, e);
@@ -3121,6 +3127,7 @@ function cldPrPointerDown(e) {
 }
 
 function cldPrPointerMove(e) {
+  if (cldCamPointer(cldPrView, e, 'move')) return;
   const u = cldPrUi;
   if (!u || !u.drag) return;
   if ((e.pointerId === undefined ? 'mouse' : e.pointerId) !== u.drag.ptrId) return;
@@ -3131,6 +3138,7 @@ function cldPrPointerMove(e) {
 }
 
 function cldPrPointerUp(e) {
+  if (cldCamPointer(cldPrView, e, 'up')) return;
   const u = cldPrUi;
   if (!u || !u.drag) return;
   if ((e.pointerId === undefined ? 'mouse' : e.pointerId) !== u.drag.ptrId) return;
@@ -3251,6 +3259,22 @@ function cldPrSyncUI() {
   if (endLine) endLine.textContent = u.end ? v.line : '';
   const restart = $('btn-cld-pr-restart');
   if (restart) restart.disabled = !!u.playing;
+
+  // The coach bubble floats over the stage: the camera frames the ice below it.
+  // And the stage's height moves with the Throw · Dive row — refit when it does.
+  const bubble = $('cld-pr-coach');
+  const stageEl = $('cld-pr-stage');
+  // While you aim or watch, the tip steps back so it never hides the ice.
+  if (bubble && bubble.classList) bubble.classList.toggle('cld-pr-bubble-quiet', !!(u.drag || u.playing));
+  // Inset by the bubble, but never more than a quarter of the stage: on a short
+  // phone the bubble overlaps the water rather than crushing the floe (SE pass).
+  const cap = stageEl && stageEl.clientHeight ? Math.round(stageEl.clientHeight / 4) : 0;
+  const inset = bubble && bubble.offsetHeight ? Math.min(bubble.offsetHeight + 12, cap || Infinity) : 0;
+  if (cldPrView && (cldPrView.insetTop !== inset ||
+      (stageEl && stageEl.clientHeight && Math.round(cldPrView.cssH) !== stageEl.clientHeight))) {
+    cldPrView.insetTop = inset;
+    cldResize(cldPrView);
+  }
 }
 
 function cldPrLoop(now) {
@@ -3262,7 +3286,15 @@ function cldPrLoop(now) {
   const wasPlaying = !!(cldPrUi && cldPrUi.playing);
   cldPrTick(dt * 1000);
   if (wasPlaying && !cldPrUi.playing) cldPrSyncUI();
-  if (cldPrView && cldPrUi) cldDraw(cldPrView, cldArenaModel());
+  if (cldPrView && cldPrUi) {
+    // The stage's box can change without a sync (the sheet sliding up, a rotation).
+    const st = cldPrView.canvas && cldPrView.canvas.parentElement;
+    if (st && st.clientHeight && (Math.round(cldPrView.cssH) !== st.clientHeight || Math.round(cldPrView.cssW) !== st.clientWidth)) cldResize(cldPrView);
+    const m = cldArenaModel();
+    cldCamStep(cldPrView, dt, cldCamTarget(cldPrView, m,
+      cldPrUi.playing ? 'resolving' : cldPrUi.end ? 'overview' : 'aiming'), !!cldPrUi.drag);
+    cldDraw(cldPrView, m);
+  }
   if (!cldPrRaf) cldPrRaf = requestAnimationFrame(cldPrLoop);
 }
 
@@ -3858,11 +3890,15 @@ document.addEventListener('DOMContentLoaded', () => {
   // ── Practice (the Arena) ─────────────────────────────────────────────────
   const prStage = document.getElementById('cld-pr-stage');
   if (prStage) {
-    prStage.addEventListener('pointerdown', cldPrPointerDown);
+    // Captured, so a drag off the stage keeps steering and a mouse-up over the
+    // backdrop can never close the sheet mid-aim (SW v244 minors).
+    prStage.addEventListener('pointerdown', e => {
+      try { if (e.pointerId !== undefined) prStage.setPointerCapture(e.pointerId); } catch (_) {}
+      cldPrPointerDown(e);
+    });
     prStage.addEventListener('pointermove', cldPrPointerMove);
     prStage.addEventListener('pointerup', cldPrPointerUp);
     prStage.addEventListener('pointercancel', cldPrPointerUp);
-    prStage.addEventListener('pointerleave', cldPrPointerUp);
   }
   document.querySelectorAll('[data-cld-pr-drill]').forEach(b => {
     b.addEventListener('click', () => { playPillClick(); cldPrAction('drill', b.dataset.cldPrDrill); });

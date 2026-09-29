@@ -267,10 +267,10 @@
        Tap-Hold Reference exception. -->
   <div id="cld-how-to-overlay" style="display:none"
     class="fixed inset-0 bg-black/40 z-[90] flex items-end justify-center">
-    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
-      <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
+    <div id="cld-how-to-inner" class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
+      <div class="cld-howto-title px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
         <h2 class="text-xl font-bold text-stone-800">How to Play 🐧</h2>
-        <p class="text-xs text-stone-400 mt-1">Shove your mates off the ice. Last one dry wins.</p>
+        <p class="cld-howto-sub text-xs text-stone-400 mt-1">Shove your mates off the ice. Last one dry wins.</p>
       </div>
       <div class="px-5 pt-3 pb-3 border-b border-stone-200 flex-shrink-0 flex gap-2">
         <button id="btn-cld-howto-tab-rules" class="pill pill-active-cld" data-cld-howto-tab="rules">The Rules</button>
@@ -350,23 +350,24 @@
           class="cld-cta min-h-14 w-full rounded-2xl text-xl font-semibold active:scale-95 transition-all duration-150">Got it</button>
       </div>
 
-      <!-- PRACTICE — the Arena. You, Sylvia and Sam; Sylvia and Sam follow the drill's plan
-           every Slide; their next shoves are drawn before you move. #cld-pr-stage is touch-action:none so a drag never scrolls
-           the overlay (the same rule as #cld-stage). -->
-      <div id="cld-howto-body-practice" style="display:none" class="overflow-y-auto flex flex-col gap-3 px-5 py-5">
-        <div class="flex gap-2">
+      <!-- PRACTICE — the Arena, full height (SW v245, spec 2026-09-29-cld-fun-pass § 3.5).
+           Sylvia and Sam follow the drill's plan every Slide; their next shoves are drawn
+           before you move. The stage takes every leftover pixel; the coach is a bubble
+           floating in the water over it, so it costs no layout height. #cld-pr-stage is
+           touch-action:none so a drag never scrolls the sheet. -->
+      <div id="cld-howto-body-practice" style="display:none" class="flex-col gap-2 px-4 pt-3 pb-4">
+        <div class="flex gap-2 flex-shrink-0">
           <button class="pill pill-active-cld flex-1" data-cld-pr-drill="headon">Head-on</button>
           <button class="pill flex-1" data-cld-pr-drill="crossfire">Crossfire</button>
           <button class="pill flex-1" data-cld-pr-drill="edge">Edge</button>
         </div>
-        <div id="cld-pr-coach" class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-1">
-          <p id="cld-pr-coach-step" class="text-stone-400 text-xs font-semibold uppercase tracking-widest"></p>
-          <p id="cld-pr-coach-line" class="text-stone-700 text-sm"></p>
-        </div>
         <div id="cld-pr-stage" class="relative rounded-2xl overflow-hidden">
           <canvas id="cld-pr-canvas"></canvas>
-          <div id="cld-pr-float" class="absolute inset-0 pointer-events-none flex items-start justify-center pt-2"></div>
-          <!-- The end card: floats over the stage when the round is decided. -->
+          <div id="cld-pr-coach" class="cld-pr-bubble">
+            <p id="cld-pr-coach-step" class="text-stone-400 text-xs font-semibold uppercase tracking-widest"></p>
+            <p id="cld-pr-coach-line" class="text-stone-700 leading-snug"></p>
+          </div>
+          <div id="cld-pr-float" class="absolute inset-0 pointer-events-none flex items-end justify-center pb-3"></div>
           <div id="cld-pr-end" style="display:none" class="absolute inset-0 flex items-center justify-center p-4">
             <div class="bg-white rounded-2xl shadow-lg p-4 flex flex-col gap-3 text-center w-full max-w-[16rem]">
               <p id="cld-pr-end-line" class="text-stone-800 font-semibold"></p>
@@ -374,15 +375,15 @@
             </div>
           </div>
         </div>
-        <div id="cld-pr-drowned-row" style="display:none" class="flex flex-col gap-1">
+        <div id="cld-pr-drowned-row" style="display:none" class="flex-col gap-1 flex-shrink-0">
           <div class="flex gap-2">
             <button id="btn-cld-pr-mode-throw" class="pill pill-active-cld flex-1" data-cld-pr-mode="throw">Throw</button>
             <button id="btn-cld-pr-mode-dive" class="pill flex-1" data-cld-pr-mode="dive">Dive</button>
           </div>
           <p id="cld-pr-dive-reason" style="display:none" class="text-amber-600 text-xs"></p>
         </div>
-        <button id="btn-cld-pr-power" class="w-full flex flex-col gap-1 py-2 rounded-xl active:scale-[0.99]">
-          <div class="flex items-center justify-between w-full">
+        <button id="btn-cld-pr-power" class="w-full flex flex-col gap-1 py-1 rounded-xl active:scale-[0.99] flex-shrink-0">
+          <div class="cld-pr-power-labels flex items-center justify-between w-full">
             <p id="cld-pr-power-hint" class="text-stone-400 text-xs">Tap to lock power</p>
             <p class="text-stone-400 text-xs font-semibold uppercase tracking-widest">Power</p>
           </div>
@@ -390,12 +391,11 @@
             <div id="cld-pr-power-fill" class="cld-power-fill"></div>
           </div>
         </button>
-        <button id="btn-cld-pr-commit" class="cld-cta min-h-14 w-full rounded-2xl text-xl font-semibold flex items-center justify-center">Lock It In</button>
-        <div class="flex gap-2">
+        <button id="btn-cld-pr-commit" class="cld-cta min-h-14 w-full rounded-2xl text-xl font-semibold flex items-center justify-center flex-shrink-0">Lock It In</button>
+        <div class="flex gap-2 flex-shrink-0">
           <button id="btn-cld-pr-restart" class="flex-1 min-h-11 rounded-xl bg-stone-200 hover:bg-stone-300 text-stone-700 font-semibold text-sm active:scale-95">Start over</button>
+          <button id="btn-cld-howto-close-practice" class="cld-cta flex-1 min-h-11 rounded-2xl text-base font-semibold active:scale-95 transition-transform duration-150">Got it</button>
         </div>
-        <button id="btn-cld-howto-close-practice"
-          class="cld-cta min-h-14 w-full rounded-2xl text-xl font-semibold active:scale-95 transition-transform duration-150">Got it</button>
       </div>
 
       <!-- THE CAST — the six poses, each drawn through cldRenderPenguin, the one seam.
