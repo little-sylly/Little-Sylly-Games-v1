@@ -1104,6 +1104,7 @@ function mpSeatList(v) {
 
 // Host, from mpConfirmRoster(): freeze the seats and start watching presence.
 async function mpBeginMatchSeats() {
+  mpBotRngFn = null; mpBotsPaused = false;   // one rng stream per match
   mpSeats = mpPlayerSlots.map(p => p.uid);
   mpMatchLive = true;
   mpAwaySeats.clear(); mpClearAwayPending(); mpReleasedSeats.clear();
@@ -1185,6 +1186,7 @@ function mpMarkAway(idx) {
   const first = mpAwaySeats.size === 0;
   mpAwaySeats.add(idx);
   if (first) {
+    mpBotsPause();                          // nobody can act, so neither do the bots (SW v247)
     const rc = mpActiveGameConfig?.reconnect;
     if (rc) { try { rc.pause(); } catch (e) { console.warn('[MP] reconnect.pause', e); } }
     else mpArmAwayGrace();
@@ -1195,6 +1197,7 @@ function mpMarkAway(idx) {
 function mpMarkBack(idx) {
   if (!mpAwaySeats.delete(idx)) return;
   if (mpAwaySeats.size === 0) {
+    mpBotsResume();
     if (mpAwayTimer) { clearTimeout(mpAwayTimer); mpAwayTimer = null; }
     mpAwayAsking = false;
     const rc = mpActiveGameConfig?.reconnect;
@@ -1292,6 +1295,7 @@ function mpEndMatchLocal() {
   mpSeats = []; mpMatchLive = false; mpAwayGraceEndsAt = 0; mpAwayAsking = false; mpReleasedSeats.clear();
   mpAwaySeats.clear();
   mpShowAwayOverlay([], 0, false);       // also clears the countdown interval
+  mpBotsCancel(); mpBotsPaused = false;   // a pending bot move never outlives its match
 }
 
 // Everything reconnect owns, from resetToLobby(). Every deliberate exit ends here.
@@ -1306,6 +1310,7 @@ function mpReconnectTeardown() {
   }
   mpEndMatchLocal();
   mpClearRejoinKey();
+  mpBotsTeardown();                         // bots, Solo, the borrowed uid (SW v247)
   const h = document.getElementById('mp-host-disconnected-heading');
   const b = document.getElementById('mp-host-disconnected-body');
   if (h) h.textContent = 'Host Disconnected';
@@ -3498,6 +3503,88 @@ function mpBotsRenameClashes() {
 // At roster confirm: every bot plays at the one match difficulty.
 function mpBotsStampDifficulty() {
   mpPlayerSlots.forEach(s => { if (mpIsBotSlot(s)) s.bot = { difficulty: mpBotDifficulty }; });
+}
+
+let mpBotTimers       = new Map();   // seatIdx → { run, remaining, due, handle }
+let mpBotsPaused      = false;
+let mpBotSeed         = null;        // a harness pins the rng; null = seeded from Date.now() per match
+let mpBotRngFn        = null;
+let mpSolo            = false;       // Solo: a lobby nobody can join, on a null wire (spec § 4)
+let mpSoloBorrowedUid = false;       // Solo lent window.syllyDeviceUid = 'local:host'
+
+// A small seeded xorshift stream, one per match. decide() never calls Math.random.
+function mpBotRng() {
+  if (!mpBotRngFn) {
+    let x = ((mpBotSeed ?? Date.now()) >>> 0) || 1;
+    mpBotRngFn = () => { x ^= x << 13; x >>>= 0; x ^= x >>> 17; x ^= x << 5; x >>>= 0; return x / 4294967296; };
+  }
+  return mpBotRngFn;
+}
+
+function mpBotsThinkMs(difficulty, rng) {
+  const hook = mpActiveGameConfig?.bots?.thinkMs;
+  if (typeof hook === 'function') return hook(difficulty, rng);
+  return 1000 + rng() * 3000 + (difficulty === 'hard' ? 1000 : 0);
+}
+
+// The game says WHEN (the engine knows no phases). For each bot seat: the view is
+// captured NOW, before any bot's move has landed; decide + submit run after the
+// think time. A re-prompt replaces a seat's pending move (spec § 3.6).
+function mpBotsPrompt(tag, seatIdxs) {
+  const bots = mpActiveGameConfig?.bots;
+  if (window.syllyMultiplayerMode !== 'host' || !bots) return;
+  const seats = seatIdxs || mpPlayerSlots.map((s, i) => (mpIsBotSlot(s) ? i : -1)).filter(i => i >= 0);
+  seats.forEach(idx => {
+    const slot = mpPlayerSlots[idx];
+    if (!mpIsBotSlot(slot)) return;
+    mpBotCancelSeat(idx);
+    let view;
+    try { view = bots.view(idx); } catch (e) { console.warn('[MP] bots.view', e); return; }
+    const difficulty = (slot.bot && slot.bot.difficulty) || mpBotDifficulty;
+    const rng = mpBotRng();
+    const run = () => {
+      mpBotTimers.delete(idx);
+      let move;
+      try { move = bots.decide(view, difficulty, rng); } catch (e) { console.warn('[MP] bots.decide', e); return; }
+      try { bots.submit(idx, move, tag); } catch (e) { console.warn('[MP] bots.submit', e); }
+    };
+    const ms = mpBotsThinkMs(difficulty, rng);
+    const t = { run, remaining: ms, due: Date.now() + ms, handle: null };
+    if (!mpBotsPaused) t.handle = setTimeout(run, ms);
+    mpBotTimers.set(idx, t);
+  });
+}
+
+function mpBotCancelSeat(idx) {
+  const t = mpBotTimers.get(idx);
+  if (t && t.handle) clearTimeout(t.handle);
+  mpBotTimers.delete(idx);
+}
+function mpBotsCancel() { [...mpBotTimers.keys()].forEach(mpBotCancelSeat); }
+
+// While any human seat is Away nobody can act — so neither do the bots.
+function mpBotsPause() {
+  if (mpBotsPaused) return;
+  mpBotsPaused = true;
+  mpBotTimers.forEach(t => {
+    if (t.handle) { clearTimeout(t.handle); t.handle = null; }
+    t.remaining = Math.max(0, t.due - Date.now());
+  });
+}
+function mpBotsResume() {
+  if (!mpBotsPaused) return;
+  mpBotsPaused = false;
+  mpBotTimers.forEach(t => { t.due = Date.now() + t.remaining; t.handle = setTimeout(t.run, t.remaining); });
+}
+
+// From resetToLobby() (via mpReconnectTeardown) and the host lobby's ← Cancel.
+function mpBotsTeardown() {
+  mpBotsCancel();
+  mpBotsPaused = false; mpBotRngFn = null;
+  mpBotDifficulty = 'medium'; mpBotSeq = 0;
+  mpPlayerSlots = mpPlayerSlots.filter(s => !mpIsBotSlot(s));
+  if (mpSoloBorrowedUid) { window.syllyDeviceUid = null; mpSoloBorrowedUid = false; }
+  if (mpSolo) { mpSolo = false; mpPlayerSlots = []; }
 }
 
 // ── Multiplayer play-again: return all devices to lobby ───────────────────────

@@ -121,6 +121,95 @@ const uids  = d => d.run('mpPlayerSlots.map(s => s.uid)');
       check('no errors', errorsOf([host, c1]), []);
     }
 
+    section('4. mpBotsPrompt: view now, decide after the think time, submit with the tag');
+    {
+      fresh();
+      const host = await hostRoom('Ali');
+      const c1 = await join(host, 'c1', 'u1', 'Bec');
+      host.run('mpAddBot(); mpBotSeed = 7;');
+      host.run('mpConfirmRoster()'); await flush();
+      host.S.__bot.length = 0;
+      host.run('mpBotsPrompt(5)');
+      check('the view is taken at once', host.S.__bot, ['view:2']);
+      advance(1999);
+      check('nothing is decided inside the think time', host.S.__bot, ['view:2']);
+      advance(1);
+      check('then decide and submit, with the tag', host.S.__bot, ['view:2', 'decide:2:medium', 'submit:2:5']);
+      host.S.__bot.length = 0;
+      host.run('mpBotsPrompt(6, [0, 1, 2])');
+      check('only bot seats are prompted', host.S.__bot, ['view:2']);
+      host.run('mpBotsPrompt(7)');
+      advance(2000);
+      check('a re-prompt replaces the pending move', host.S.__bot.filter(x => x.startsWith('submit')), ['submit:2:7']);
+      host.run("MP_GAME_CONFIGS.botgame.bots.decide = () => { throw new Error('boom'); }");
+      host.S.__bot.length = 0; host.errors.length = 0;
+      host.run('mpBotsPrompt(8)'); advance(2000);
+      ok('a throwing decide is warned, not thrown', host.errors.some(e => /bots\.decide/.test(e)));
+      check('…and that seat submits nothing', host.S.__bot.filter(x => x.startsWith('submit')), []);
+      host.errors.length = 0;
+      check('no other errors', errorsOf([c1]), []);
+    }
+
+    section('5. The timer bag: paused while a seat is Away, cleared on every exit');
+    {
+      fresh();
+      const host = await hostRoom('Ali');
+      const c1 = await join(host, 'c1', 'u1', 'Bec');
+      host.run("mpAddBot(); MP_GAME_CONFIGS.botgame.bots.thinkMs = () => 5000;");
+      host.run('mpConfirmRoster()'); await flush();
+      host.S.__bot.length = 0;
+      host.run('mpBotsPrompt(1)');
+      c1.net.drop();
+      advance(3000); await flush();
+      check('the client is Away', host.run('[...mpAwaySeats]'), [1]);
+      advance(20000);
+      check('no bot moved while a seat was Away', host.S.__bot.filter(x => x.startsWith('submit')), []);
+      c1.net.heal(); await flush();
+      check('the seat is back', host.run('[...mpAwaySeats]'), []);
+      advance(1999);
+      check('resumed with the REMAINING time, not a fresh wait', host.S.__bot.filter(x => x.startsWith('submit')), []);
+      advance(1);
+      check('…then the move lands, once', host.S.__bot.filter(x => x.startsWith('submit')), ['submit:2:1']);
+
+      host.run('mpBotsPrompt(2)');
+      host.run('mpReturnToLobby()'); await flush();
+      advance(10000);
+      check('Play Again clears a pending bot move', host.S.__bot.filter(x => x === 'submit:2:2'), []);
+      check('…and keeps the bot seated', uids(host), ['uH', 'u1', 'bot:0']);
+
+      host.run('mpConfirmRoster()'); await flush();
+      host.run("mpBotDifficulty = 'hard'; mpBotsPrompt(3);");
+      host.run('resetToLobby()');                          // Review Focus 3: the host quits mid-match
+      advance(10000);
+      check('resetToLobby clears a pending bot move', host.S.__bot.filter(x => x === 'submit:2:3'), []);
+      check('…removes the bots', host.run('mpPlayerSlots.filter(mpIsBotSlot).length'), 0);
+      check('…and resets the difficulty', host.run('mpBotDifficulty'), 'medium');
+      check('no errors', errorsOf([host, c1]), []);
+    }
+
+    section('5b. A reconnect adopter with a bot: the dropped human rejoins, the bot is never Away');
+    {
+      fresh();
+      const host = await hostRoom('Ali', 'botrc');
+      const c1 = await join(host, 'c1', 'u1', 'Bec', 'botrc');
+      const code = host.run('mpActiveRoomCode');
+      host.run("mpAddBot(); MP_GAME_CONFIGS.botrc.bots.thinkMs = () => 5000;");
+      host.run('mpConfirmRoster()'); await flush();
+      host.S.__bot.length = 0;
+      host.run('mpBotsPrompt(4)');
+      c1.net.kill(); advance(3000); await flush();
+      check('only the human is Away', host.run('[...mpAwaySeats]'), [1]);
+      const back = boot("c1'", 'u1', c1.phone);
+      addBotGame(back); useGame(back, 'botrc');
+      advance(50);
+      back.run(`mpRejoinRoom('${code}')`); await flush();
+      check('the human is back in seat 1', back.run('mpMyPlayerIdx'), 1);
+      check('nobody is Away', host.run('[...mpAwaySeats]'), []);
+      advance(2000);
+      check('the bot finishes its paused think time', host.S.__bot.filter(x => x.startsWith('submit')), ['submit:2:4']);
+      check('no errors', errorsOf([host, back]), []);
+    }
+
     // ── Later tasks add sections here, above this line ──
 
   } catch (e) {
