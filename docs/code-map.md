@@ -2253,6 +2253,46 @@ Per-game: LI5 `ptp`★/`tlm` · GM `ptp`★/`mdlm` · SS `tlm`★/`mdlm`/`ptp` �
 
 Adopters (`MP_GAME_CONFIGS[abbr].reconnect`): **`flw`, `pko`, `cjar`, `comb`** (the first three SW v237) — pinned by `verify-mp-configs.js` § 7. Harness: `tools/verify-mp-reconnect.js`. Rule: `logic-engine.md` § Client Reconnect.
 
+### Bots (SW v247)
+Host-side bot seats + Solo, all in `js/engine-multiplayer.js` § BOTS. A bot is an `mpPlayerSlots` entry held only in the host's memory — `{ uid: 'bot:N', nickname, bot: { difficulty } }` — **never written to `/players`**. Rule: `logic-engine.md` § Bots. Detail: `shared-implementation-notes.md` DD-52.
+
+| State | Purpose |
+|-------|---------|
+| `MP_BOT_DIFFICULTIES` | `['easy', 'medium', 'hard']` — the lobby pill ids are `btn-mp-bot-` + each |
+| `mpBotDifficulty` | One difficulty for every bot in a match; `'medium'` default, memory only. Stamped onto each bot slot by `mpBotsStampDifficulty()` at `mpConfirmRoster`; reset by `resetToLobby()`, kept by Play Again |
+| `mpBotSeq` | Per-room counter behind the `bot:N` uids |
+| `mpBotTimers` | `Map` seatIdx → `{ run, remaining, due, handle }` — the one bag every pending bot move lives in |
+| `mpBotsPaused` | True while any human seat is Away — the bag holds each timer's remaining time |
+| `mpBotSeed` / `mpBotRngFn` | A harness pins the seed; otherwise the xorshift stream reseeds from `Date.now()` once per match (`mpBeginMatchSeats`) |
+| `mpSolo` / `mpSoloBorrowedUid` | Solo is on; Solo lent `window.syllyDeviceUid = 'local:host'` (handed back by `mpBotsTeardown`) |
+
+| Function | Purpose |
+|----------|---------|
+| `mpIsBotUid(uid)` / `mpIsBotSlot(s)` / `mpBotCount()` | The only bot test (`'bot:'` prefix — a Firebase uid never has a colon) |
+| `mpSeatLabel(idx)` | A seat's printed name — a bot's carries ` 🤖`. Works on every device (`GAME_START` carries the slots) |
+| `mpBotNextName(selfUid)` | Next name from `cfg.bots.names` no human and no other bot holds (case-insensitive), else `Bot N` |
+| `mpSortSlots()` | Humans in join order, then bots in the order added |
+| `mpAddBot()` / `mpRemoveBot(uid)` | Host lobby only; `mpAddBot` refuses at `getMaxPlayers()`; `mpRemoveBot` never removes a human |
+| `mpBotsMakeRoomFor(n)` / `mpBotsRenameClashes()` | HANDSHAKE: the newest bot steps aside for a human; a bot gives up a name a human arrives with |
+| `mpBotsStampDifficulty()` | At `mpConfirmRoster`, before `mpBeginMatchSeats` |
+| `mpBotRng()` / `mpBotsThinkMs(d, rng)` | The engine's seeded stream; the game's `thinkMs` or 1–4 s (+1 s on Hard) |
+| `mpBotsPrompt(tag, seatIdxs?)` | The game says when: each bot seat's `view` captured NOW, then `decide` + `submit(idx, move, tag)` after the think time. A throw is `console.warn`ed and that seat submits nothing |
+| `mpBotCancelSeat(idx)` / `mpBotsCancel()` | Drop pending moves — `mpEndMatchLocal()` (so Play Again) and `mpBotsTeardown()` |
+| `mpBotsPause()` / `mpBotsResume()` | From `mpMarkAway` (first seat) / `mpMarkBack` (last seat back) — once each, remaining time kept |
+| `mpBotsTeardown()` | From `mpReconnectTeardown()` (so `resetToLobby()`) and the host lobby's ← Cancel: bots, difficulty, Solo, the borrowed uid |
+| `mpEnterSolo()` / `mpLobbyCodeText()` | Solo: host mode, `mpActiveRoomCode = null`, no Firebase, seat 0 = nickname or `You`, pre-filled with bots to `getMinPlayers()`. The code panel reads `SOLO` |
+| `mpRenderBotControls(maxP)` | The lobby's bot controls — shown only for a game with `bots`; + Add bot dims at the maximum; the difficulty row only while a bot is seated |
+
+| DOM id (`src/screens/_mp.html`, host lobby zone 2) | Role |
+|------|------|
+| `mp-lobby-bots` | The bot controls wrapper |
+| `btn-mp-lobby-add-bot` | `+ Add bot` |
+| `mp-lobby-bot-difficulty` | `Bot difficulty` label + pill row |
+| `btn-mp-bot-easy` / `btn-mp-bot-medium` / `btn-mp-bot-hard` | Pills — `.pill` + the game's `bots.pillClass` |
+| `btn-mp-remove-bot-N` | JS-built ✕ on each bot chip (44 px target) |
+
+Solo on `screen-mp-mode`: `MODE_INFO.solo` (a single selectable row, `data-sel-mode="solo"`); offline it is the default and `mp-mode-offline-notice` reads *No internet — Solo still works.* Adopters: **`cld`** — pinned by `verify-mp-configs.js` § 8. Harness: `tools/verify-bots.js` (on `tools/lib/mp-world.js`).
+
 ### Per-Game ACTION/SYNC Packet Types
 | Game | ACTION packets | SYNC packets |
 |------|---------------|-------------|
@@ -2659,12 +2699,18 @@ All six added to `allScreens[]` in `engine.js` after the Cookie Jar block. `cldR
 | `cldCommit()` / `cldHostResolveSlide()` / `cldBeginPlayback(tl)` / `cldAdvancePlayback(dtMs)` / `cldEndPlayback()` | The Slide submit + playback pipeline. `cldCommit` sends the private `CLD_COMMIT` (client) or marks the host slot directly + resolves |
 | `cldArmPlayback(tl)` / `cldStepPlayback(dtMs, hooks)` / `CLD_LIVE_HOOKS` / `cldBarkLine()` / `cldPlayEvent(e, hooks)` / `cldPlayAftermath(b, hooks)` | **The replay split (SW v244).** `cldArmPlayback` is the state half of `cldBeginPlayback`; `cldStepPlayback` interpolates, walks events + aftermath and RETURNS `'idle'\|'playing'\|'done'` — it never navigates; every sound/bark goes through `hooks`. Live: `cldAdvancePlayback` = step with `CLD_LIVE_HOOKS`, then `cldEndPlayback()` on `'done'` |
 | `cldSwapOut()` / `cldSwapIn(s)` / `cldArenaRun(fn)` / `cldPrFreshFloe()` | **The swap (SW v244, spec § 5).** `cldArenaRun` swaps the Arena record into the module globals for ONE synchronous call and restores the live values in `finally`; nested calls never double-swap. The comment above it lists what may never run inside (screens, the live loop, timers, the network, the live DOM) |
+| `cldRulesRun(record, fn)` | **SW v247.** The swap generalised: any rules record swapped in for ONE synchronous call; the live globals come back in `finally` and the record keeps the run's end state in place. `cldArenaRun` is now a thin wrapper over it; a bot's look-ahead runs on it too |
+| `cldBotAimAt(me, tgt, cut)` | **SW v247.** Straight aim at `tgt`, or (`cut`) the ghost-ball Edge cut (≤ `CLD_PR_CUT_MAX`) — lifted out of `cldPrBotCommit`, shared by the Arena's drill bots and the live bots. Call inside a swap |
 | `cldPrLoadDrill(key)` / `cldPrPlanTarget(plan, i)` / `cldPrPower(d, i)` / `cldPrBotCommit(d, i)` / `cldPrRefreshPlans()` / `cldPrResolve(mine)` / `cldPrTick(dtMs)` / `cldPrSlideDone()` / `cldPrFloat(text)` / `cldReducedMotion()` | The Arena core (SW v245): load a drill on the real setup; each bot's commit comes from its drill's PLAN over the live Arena record (Head-on / Edge's pool cut at You, Crossfire at each other; Drowned bots throw at a Standing target); resolve the host's way with seed `ringSeed × 1000 + slide`; `cldPrSlideDone` settles, starts the real Ice Bath on a Washout, ends the round on a winner or at `CLD_PR_SLIDE_CAP` (a draw), and feeds the coach. Reduced motion (checked in JS) steps straight to the end |
 | `cldPrCoachStart(drill)` / `cldPrCoach(s, ev)` / `cldPrCoachView(s)` / `cldPrCoachDispatch(ev)` | The coach (SW v245) — a pure reducer that REACTS: `load`/`armed`/`locked`/`committed`/`slideDone {meIn, meKnocked, botIn, bath, winner, winnerName, draw}`; state `{key, name, slide, armedOnce, lockedOnce}`; the view gives `{line, step: 'Slide N', ring}` |
 | `cldPrMe()` / `cldPrCanCommit()` / `cldPrDragAim()` / `cldArenaModel()` / `cldPrPointerDown/Move/Up(e)` / `cldPrAction(kind, arg)` / `cldPrSyncUI()` / `cldPrLoop(now)` / `cldPracticeStart()` / `cldPracticeStop()` | The Arena on screen: the same cue gesture on `#cld-pr-stage`, one action router for every Practice control, the pane repaint (coach + ring, Throw · Dive + amber reason, power bar, CTA, end card, the bubble inset capped at a quarter of the stage), its RAF (`cldPrRaf`, which also steps the Arena's own camera and refits whenever the stage box changes). `cldOpenHowTo` shows the overlay BEFORE picking the tab, so Practice sizes against a real box. Never `mpSendEnvelope`/`mpSendPrivate`, never branches on `syllyMultiplayerMode` |
 | `cldWireArr` / `cldWireList` / `cldWireNum` / `cldWirePenguins` / `cldWireBergs` / `cldWireStats` / `cldWireCommit` | **The Firebase-erasure repair** (BUG-06 class) — every SYNC applier rebuilds its collection fields through these, never a raw payload assign |
 | `cldFloeOffStartPayload()` / `cldTimelinePayload(tl)` / `cldTimelineFromPayload(p)` / `cldApplyPost(post)` / `cldApplyCommit(...)` / `cldBroadcastTally()` | Packet build/apply helpers. Every accumulator resets **in the `CLD_FLOEOFF_START` payload**, not just locally |
 | `cldHandleEnvelope(env)` | Routes all CLD ACTION/SYNC + the private `CLD_COMMIT`; called from `engine-multiplayer.js` |
+| `cldHostTakeCommit(idx, commit, slideNo)` / `cldBotSubmit(i, move, tag)` | **SW v247.** HOST: apply → tally → UI → resolve once every seat is in — the `CLD_COMMIT` handler's body, lifted so a client's packet and a bot share it (and `cldApplyCommit`'s stale-tag and no-overwrite guards) |
+| `cldSeatNames()` | **SW v247.** Every seat's display name through `mpSeatLabel` (a bot's carries 🤖); used by the `cld` `onPassThePhone`, the `CLD_FLOEOFF_START` fallback and `btn-cld-menu-play` |
+| `cldBotView(i)` / `cldBotDecide(view, difficulty, rng)` / `cldBotThinkMs(d, rng)` / `cldClone(v)` | **Bots (SW v247).** The view = `cldSwapOut()` deep-cloned with every commit blanked, `timeline: null`, `me: i` — other seats' commits are CLD's only hidden state. `cldBotDecide` runs the brain inside `cldRulesRun` on a clone of the view |
+| `cldBotSimple(me, difficulty, rng)` / `cldBotHard(view, me)` / `cldBotScore(view, me, commits)` / `cldBotShoveOptions(p, me)` / `cldBotWetOptions(mine, me)` / `CLD_BOT_*` | Easy + Medium (a target, a line, noise); Hard simulates ≤ 24 candidates per penguin through the real `cldResolveSlide`, rivals assumed to play Medium on a fixed stream (`CLD_BOT_SEED`). Score: +1 per rival in, −`CLD_BOT_SELF_COST` (1.5) per own, 0.1 × rim-margin tiebreak. Detail: `cld-implementation-notes.md` DD-21 |
 | `cldSyncSettingsUI()` / `cldApplyExpansionOverrides()` / `cldShowClientStandby()` / `cldResetState()` | Settings repaint (+ conditional how-to cards + value lines), expansion hook, client standby surface, full teardown (also `cldHowtoStop()` + `cldPracticeStop()` and clears the Arena: `cldPrUi`/`cldPrFloe`/`#cld-pr-float`) |
 | `cldOpenHowTo(tab)` / `cldSetHowtoTab(tab)` | Open the how-to on a given tab (`'rules'` default); toggle the three body divs + pill states; start The Cast's loop on `cast` and the Arena on `practice`, stopping each on any other tab |
 | `cldHowtoStart()` / `cldHowtoStop()` / `cldHowtoLoop()` / `cldHowtoDrawCast()` / `cldHowtoBuildCast()` / `cldHowtoFit()` | **The Cast** — nine pose tiles (`CLD_HOWTO_CAST`) and six face tiles (`CLD_HOWTO_FACES`, SW v246), `CLD_HOWTO_TILE_R` 60; the clock stands still under reduced motion, DPR ≤ 2; their RAF (`cldHowtoRaf`) stopped on tab-away / close / teardown. (The Floe's practice sandbox — `cldHowtoSeed/Shove/Settle/DrawFloe`, `CLD_HOWTO_N/RADIUS/HOLD_MS` — was absorbed by the Practice Arena at SW v244) |
@@ -2684,9 +2730,11 @@ All six added to `allScreens[]` in `engine.js` after the Cookie Jar block. `cldR
 | `node tools/verify-cld-physics.js` (133) | Pure sim: determinism across repeated runs and seeds, rest detection terminates, no tunnelling at max power, the snowball distance-force curve, the per-throw invariant at every Ice Conditions setting + both radius extremes, sequential landing order incl. the race-miss, restitution asymmetry, Berg shatter opening the edge mid-sim, the 5 s cap forcing rest |
 | `node tools/verify-cld-loop.js` (156) | Game rules, `'single'` mode: Berth legality, the multi-hop shunt incl. a seeded ≥3-hop case, the exit-direction tie-break + clockwise default, Dive legality + the allowed-to-fail case, The Thaw radius schedule + floor at each Ice Conditions setting, Washout from a Slide AND a Thaw step, Peck Off's last-*player* win, Fish scoring + the Fish-to-Win terminator |
 | `node tools/verify-cld-practice.js` (348) | SW v246 adds sections M–T (the art module and its no-DOM no-op, the seam spy, the per-penguin model, the world, aim marks, the floe chrome, the other screens, the Cast, a still frame under reduced motion; accepts `CLD_ART_SRC=`). SW v244 — the cue + guide maths, the view, the render model, the live gesture (incl. a tap never re-aims, Peck Off's default penguin), the replay split, the swap (every top-level `let` swapped or in `CLD_SWAP_EXEMPT`, read from the source; a throw still restores; 20 Arena Slides between live replay steps leave the live game byte-identical; nothing on the "may not" list runs inside), the three drills' claims + a counter for each (`--tune` re-derives the ring seeds), the coach, the tabs, the pane. Accepts `CLD_SRC=` |
-| `node tools/verify-cld-loopback.js` (192) | Host ↔ 2 clients over a Firebase-shaped wire, real mock DOM: `fbWrite`/`fbRead` wire behaviour asserted first; the private commit path end to end; a duplicate commit rejected not applied; the tally never carries a name; a zero-collision Slide's empty `events[]` survives the round trip; Floe-Off 1's all-zero `fish[]` survives; host/client timelines replay identically; the mid-game quit contract. Accepts `CLD_SRC=` |
-| `node tools/mutate-cld.js` (68/68) | Mutation harness — plants defects in the rules/sim layer and asserts the loop/physics harnesses catch each; SW v246 adds an `art` source kind (`CLD_ART_SRC=`) and mutants over the seam, the model, the world, the aim marks and reduced motion, driven through `verify-cld-practice.js` |
+| `node tools/verify-cld-loopback.js` (209) | Host ↔ 2 clients over a Firebase-shaped wire, real mock DOM: `fbWrite`/`fbRead` wire behaviour asserted first; the private commit path end to end; a duplicate commit rejected not applied; the tally never carries a name; a zero-collision Slide's empty `events[]` survives the round trip; Floe-Off 1's all-zero `fish[]` survives; host/client timelines replay identically; the mid-game quit contract. Accepts `CLD_SRC=` |
+| `node tools/mutate-cld.js` (70/70) | Mutation harness — plants defects in the rules/sim layer and asserts the loop/physics harnesses catch each; SW v246 adds an `art` source kind (`CLD_ART_SRC=`) and mutants over the seam, the model, the world, the aim marks and reduced motion, driven through `verify-cld-practice.js` |
 | `node tools/simulate-cld-balance.js` | Balance instrument — asserts nothing, always exits 0. Slides per Floe-Off, plunges per Slide, leader-punishment rate, snowball race-miss rate, Slides-to-first-Berg-shatter across 3–8 players / all Ice Conditions / both Thaw states. Accepts `CLD_SEED=` |
+| `node tools/verify-cld-bots.js` (97) | **SW v247.** The bot brain, headless (`tools/lib/cld-rules-world.js`): think times, the view, **fairness** (junk in every other seat → byte-identical view and decision), legality, whole bot-only matches, a stale move refused, swap safety, Hard > Medium on the 3-way table and Medium > Easy head to head. `CLD_BOTS_MATCHES=` |
+| `node tools/simulate-cld-bots.js` | **SW v247.** Balance instrument — seeded bot-only matches, win share by difficulty and seat count. Asserts nothing, exits 0 |
 
 Re-run `verify-cld-loop.js` + `mutate-cld.js` after any `cld.js` rules/applier change; the full set after touching `physics.js`, the packets, or the render seam.
 

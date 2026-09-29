@@ -4620,6 +4620,62 @@ working-copy half (`pko.js`, `cjar.js`) was already fixed; a fresh `core.autocrl
 still bring CRLF back, so reading with `.replace(/\r\n/g, '\n')` is the durable fix. No mutant list
 changed: 71/71 (COMB) and 26/26 (CLD) still caught.
 
+### DD-52 — Bots: host-side seats in the engine, and Solo on the null wire [29 Sep 2026, SW v247]
+Spec: `docs/superpowers/specs/2026-09-29-bots-design.md`; plan: `docs/superpowers/plans/2026-09-29-bots.md`.
+
+**What happened.** Two friends could not play Cold Shoulder (minimum 3), and a lone player could not play
+it at all. Bots now fill seats in any game that opts in (`MP_GAME_CONFIGS[abbr].bots`), and **Solo** plays
+a whole match on one phone with no internet. Cold Shoulder is the first adopter.
+- **A bot is a roster slot held only in the host's memory** — `{ uid: 'bot:N', nickname, bot: { difficulty } }`
+  — and is **never written to `/players`**. That node is keyed by slot *index* and the players watcher
+  rebuilds `mpPlayerSlots` from it whenever anyone leaves: a bot written there would collide with the
+  next human's key, and the rebuild would erase every in-memory bot. So the watcher now carries bots
+  across its rebuild, HANDSHAKE seats a human **before** the first bot (the `/players` key counts humans
+  only), and a human always outranks a bot — the newest bot steps aside for the last seat, and a bot gives
+  up a name a human arrives with (case-insensitive). Presence, Away, rejoin and `mpSendPrivate` skip
+  `bot:` uids; clients learn which seats are bots from the `playerSlots` `GAME_START` already carries, and
+  print names through `mpSeatLabel(idx)` (a bot's carries 🤖). `MP_PROTOCOL_VERSION` → `'v247'` because
+  the slot shape gained a field.
+- **The game says when; the engine owns the timers.** `mpBotsPrompt(tag)` captures each bot's `view`
+  **at once** (before any bot move has landed, so no bot reads another's move), waits `thinkMs`, then
+  calls `decide` and `submit(idx, move, tag)` — the game's own host record path, never a self-sent ACTION
+  (the dedup guard would drop it). Every pending move lives in one bag, `mpBotTimers`: **paused** while
+  any human seat is Away (remaining time kept, resumed once when the last seat is back — with or without
+  a `reconnect` hook), and cleared by `mpEndMatchLocal()` (so Play Again) and `mpBotsTeardown()` (so
+  `resetToLobby()` and the host lobby's ← Cancel). A throw in any hook is `console.warn`ed and that seat
+  submits nothing.
+- **Fairness is the view, and a harness proves it.** `view(idx)` holds only what that seat's device
+  would be shown — the `reconnect.sendState` stripping rule — and `decide` is pure in effect, taking
+  randomness only from the engine's seeded `rng`. So "no bot cheats" reduces to one check per adopter:
+  junk in every other seat's hidden state gives a byte-identical view and decision.
+- **Solo is the host path on a null wire.** `mpSendEnvelope`/`mpSendPrivate` already returned without
+  a room code, `mpBeginMatchSeats` sets `mpSeats` before touching Firebase, and `mpReturnToLobby`'s
+  Firebase removes and `mpStartPlayersWatcher` are already guarded on a room — so `mpEnterSolo()` only sets
+  host mode, `mpSolo`, `mpActiveRoomCode = null`, borrows `'local:host'` as the uid when there is none
+  (handed back by `resetToLobby()`, so a later real room signs in cleanly), and pre-fills bots to
+  `getMinPlayers()`. **The game has no Solo branch** — CLD's loopback § 18 plays a Solo match to the
+  podium on its unchanged host path. The Solo lobby is the host lobby dressed: the code panel reads
+  **SOLO** (and is not copyable), *Just you and the bots.*, no "joined".
+- **The fake Firebase world is shared now.** `tools/lib/mp-world.js` is `verify-mp-reconnect.js`'s
+  wire + sockets + mock DOM + `boot()`, extracted verbatim, so `verify-bots.js` drives the same real
+  engine. `mutate-mp-reconnect.js` mutants may name their harness (four bot mutants aim at
+  `verify-bots.js`: 13 → 17).
+- **Layout (`visual-check`, 375×667 / 375×548 / 320×452).** A full Solo lobby (8 chips): every ✕ 44×44,
+  every 🤖 name on one line, the three difficulty pills on one row at 320 px, the CTA on screen at every
+  size, SOLO on the ← Cancel / 🔊 row, no sideways scroll; offline, the Solo row is live and picked.
+
+**Root cause (of the shape).** Every send in the engine already no-ops without a room, and every
+game's host path already records its own seat directly. Bots and Solo are those two facts used on
+purpose, not a second code path.
+
+**Lesson.** When a driver moves the app faster than a person, the lobby's own timers can land on top
+of what you are testing — Task 11's first run "found" Solo on Shelves; it was the Lounge's phone
+handoff firing after the navigation. Wait for the handoff before driving an MP screen in Chromium.
+And a plan's insert point can break a mutant's anchor: re-run the mutation harness, not just the
+harness, after touching a watched function (Task 3 went 13/13 → 11/13 on placement alone).
+**Numbers.** `verify-bots.js` 86 (new), `verify-mp-reconnect.js` 152, `mutate-mp-reconnect.js` 17/17,
+`verify-mp-configs.js` § 8 pins the bot adopters (`['cld']`).
+
 ## Template Gaps
 
 ### A render-on-demand loop with a wake-on-interval companion cannot be stopped by hiding its canvas

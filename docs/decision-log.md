@@ -19,6 +19,13 @@ Detail: pointer to the canonical doc (snapshot / impl note / spec / memory).
 ```
 
 
+## 2026-09-29 — Bots: host-side seats, Solo on the null wire (SW v247)
+Category: Architecture
+Decision: bots are host-memory roster slots (`bot:N`, never in `/players`) that a game opts into with `MP_GAME_CONFIGS[abbr].bots`; the game prompts, the engine owns the timers; Solo reuses the host path with no room.
+Why: two friends (or one) could not play Cold Shoulder; every send already no-ops without a room, so one opt-in hook serves both top-up and Solo with no game-side Solo branch. Fairness is enforced by the per-seat view and a harness, not by construction.
+Changed: `js/engine-multiplayer.js` (§ BOTS, lobby controls, the Solo mode), `src/screens/_mp.html`, `js/games/cld.js` (the brain), `js/engine.js` (`MP_PROTOCOL_VERSION` → `'v247'`); new `tools/verify-bots.js`, `tools/verify-cld-bots.js`, `tools/simulate-cld-bots.js`, `tools/lib/{mp-world,cld-rules-world}.js`. Deferred: personalities; PKO/PASS/DYB; non-`'none'` rosters.
+Detail: `shared-implementation-notes.md` DD-52, `cld-implementation-notes.md` DD-21; spec `2026-09-29-bots-design.md`.
+
 ## 2026-09-29 — Cold Shoulder: procedural art as a game-owned pure module (SW v246)
 Category: Architecture
 Decision: all of Cold Shoulder's art is drawn at runtime by `js/games/cld-art.js` — game-owned and pure like `dyb-dice.js`: it draws what it's given and reads no game state; the render seam (`cldRenderPenguin`) and the render model stay in the game.

@@ -12,6 +12,28 @@ the discovery record is kept there, not deleted. A section with nothing left ope
 
 ---
 
+## Bots — shipped for Cold Shoulder, what is left (29 Sep 2026, SW v247)
+
+Spec: `docs/superpowers/specs/2026-09-29-bots-design.md`. Engine: `shared-implementation-notes.md` DD-52;
+brain: `cld-implementation-notes.md` DD-21.
+
+1. **The owner's real-device pass** (spec § 6, "beyond every harness"): a **Solo** match on a cold offline
+   install, and a **two-phone top-up** session (two humans + a bot). Judge whether Easy feels beatable and
+   Hard feels fair, and time Hard's decide on the SE (desktop: ~5 ms). Above 3 seats Easy and Medium trade
+   places in `simulate-cld-bots.js` — decide there whether Medium needs to feel stronger.
+2. **Bot personalities** — parked by the owner (29 Sep 2026).
+3. **Next adopters: PKO, PASS, DYB** (NT for training at most; COMB not planned). Each needs a `view` that
+   strips like its `reconnect.sendState`, a pure `decide`, `submit` through its host record path, one
+   `mpBotsPrompt`, and a fairness harness — `logic-engine.md` § Bots.
+4. **Bots for games whose roster type is not `'none'`** (team/assigned seating) — out of scope; the
+   schema check refuses it today.
+5. **The host lobby CTA is stone, not the game's brand**, on both the room and Solo paths — only the mode
+   screen's CTA takes `brandBtnClass`. Pre-existing; seen in the Task 11 layout pass.
+6. **`visual-lobby.js`'s Konami audio check flakes** ("0 press voices, 0 beeps", 2 runs in 3 during this
+   build; the harness's own comment records 2 in 5 on 26 Sep 2026). Unrelated to bots.
+
+---
+
 ## Found during the DYB dice/table/Practice build (28 Sep 2026, SW v241)
 
 Spec § 10's deliberate outs — each is its own later piece of work, none blocks anything.
@@ -320,7 +342,7 @@ loopback pass. **Not yet done:**
 1. **Live multi-device session** — host + ≥2 real devices, a full Match including a plunge that
    **plugs** a gap, a plug **knocked back**, a displacement, a rim Snowball, a **Dive** (Throw · Dive
    switch, tap-to-dive onto a dashed free seat — SW v243), a Washout that starts an **Ice Bath**, and
-   The Thaw on. **Every device must be on SW v245** (`MP_PROTOCOL_VERSION` `'v245'`). The Throw · Dive
+   The Thaw on. **Every device must be on SW v247** (`MP_PROTOCOL_VERSION` `'v247'`). The Throw · Dive
    row and the canvas re-fit have had `visual-check` only (375×667 / 375×548 / 320×452). Closes the
    phase gate along with item 2. Also
    check **How to Play → Practice** on a real device: all three drills' plans, a round played to a

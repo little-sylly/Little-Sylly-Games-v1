@@ -275,6 +275,7 @@ Required fields for every entry (grounded in the `li5` entry, `engine-multiplaye
 | `rosterConfig` | object | `{ type, ... }` — use `type: 'none'` for automatic/random seating |
 | `getMaxPlayers` | () => int | Upper bound enforced by the lobby |
 | `getMinPlayers` | () => int | Lower bound — **mandatory for any game with a minimum above 2** (role-table games, e.g. BLD min 5). Omitting it let BLD start under-strength. Defaults to the engine minimum when absent. |
+| `bots` | object (optional) | Bot seats (SW v247): `{ names, pillClass, view(idx), decide(view, difficulty, rng), submit(idx, move, tag), thinkMs? }`, all host-only arrow wrappers. Requires `rosterConfig.type: 'none'`; `'solo'` in `supportedModes` requires it. See § Bots |
 
 **A lobby bound may read NOTHING that a post-lobby screen sets.** `getMaxPlayers`/`getMinPlayers`
 are consulted at exactly two moments — `mpRenderHostPlayerList()` while the room fills, and the room
@@ -479,6 +480,34 @@ if (window.syllyMultiplayerMode !== 'single') {
 - Host: `'Restart in Lobby 🔄'`
 - Client: `'Leave Session'`
 - Single: original thematic label (e.g. `'New Expedition 🦁'`)
+
+### Bots (SW v247)
+
+**A bot is an `mpPlayerSlots` entry held only in the host's memory** — `{ uid: 'bot:N', nickname, bot:
+{ difficulty } }` — and **never written to `/players`** (keyed by slot index; the watcher rebuilds from
+it). `mpIsBotUid` is the only test. Humans first, bots after; **a human always outranks a bot** for the
+last seat (the newest bot steps aside) and a bot gives up a name a human arrives with. Presence, Away,
+rejoin and `mpSendPrivate` all skip bots. Print names through **`mpSeatLabel(idx)`** (a bot's carries 🤖).
+
+**The game says when; the engine owns the timers.** Call `mpBotsPrompt(tag)` as bot seats must act: each
+bot's **view is captured at once**, `decide` runs after `thinkMs`, then `submit(idx, move, tag)` through
+the game's own host record path — never a self-sent ACTION. `mpBotTimers` pauses while any human is Away
+and is cleared by `mpEndMatchLocal()` and `resetToLobby()`.
+
+**Fairness is the view.** `view(idx)` holds only what that seat's device would see (the
+`reconnect.sendState` stripping rule); `decide` is pure in effect and takes randomness only from `rng`.
+Every adopter's bots harness proves it: junk in the other seats' hidden state → byte-identical view and
+decision.
+
+**Solo** is the host path on a null wire: `mpSolo`, `mpActiveRoomCode = null` (every send already
+no-ops), Firebase never loaded, `'local:host'` borrowed as the uid when there is none and handed back by
+`resetToLobby()`. Its setup is the host lobby itself. A game needs no Solo branch.
+
+**Adopting bots in a new game:** a `bots` entry; a `view` that strips like `sendState`; a pure `decide`;
+`submit` through the host's own record function (lift it out of the envelope handler, as CLD's
+`cldHostTakeCommit`); one `mpBotsPrompt` at the single place a phase opens on the host; names through
+`mpSeatLabel`; a bots harness with the fairness check; `'solo'` in `supportedModes` if a lone phone can
+play. Reference: CLD. Detail: `shared-implementation-notes.md` DD-52.
 
 ### Mid-Game Quit Contract
 

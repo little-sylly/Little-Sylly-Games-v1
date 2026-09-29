@@ -4,6 +4,15 @@ Historical SW release notes, moved out of `CLAUDE.md` (1 Aug 2026) so they stop 
 The **current** version and its notes stay in `CLAUDE.md` § Current Focus — append the outgoing entry here on each bump.
 
 
+## v246 — Cold Shoulder, "looks fun" (29 Sep 2026).
+
+Every CLD pixel is redrawn in the sticker's look
+by a new pure module, `js/games/cld-art.js` (`window.CldArt`, precached): inked-watercolour penguins with
+nine poses and six faces, a Hunger mood ladder (a frown → fire in the eyes → a glow), a snow-slab floe
+that keeps its grooves and splats, ice-cube chunks, a moving Drink and particles. Aim marks are in your
+colour, and the cue stick is gone. The floe goes full bleed on an ice shelf. No packet change —
+`MP_PROTOCOL_VERSION` stays `'v245'`. Detail: `cld-implementation-notes.md` DD-20.
+
 ## v245 — Cold Shoulder, "plays fun" (29 Sep 2026).
 
 Plugs float in the Drink (touching the edge; gaps

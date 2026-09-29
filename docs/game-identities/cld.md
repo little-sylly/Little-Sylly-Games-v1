@@ -1,8 +1,8 @@
 # Cold Shoulder
 
 **Game 19** · `activeGameId: cld` · plugin `js/games/cld.js` · shared module `js/lib/physics.js`
-**Emoji:** 🐧 · **Brand:** glacier blue `#8ECAE6`, white ink · **Players:** 3–8 (Peck Off forces 2) · **Modes:** MDLM only
-**Status:** gold master · verified against SW v219 on 4 September 2026 · Drowned model rewritten for SW v243 (28 September 2026) · pool-style cue + Practice Arena SW v244 (29 September 2026) · plugs in the Drink, a bigger floe + camera, Practice plans SW v245 (29 September 2026)
+**Emoji:** 🐧 · **Brand:** glacier blue `#8ECAE6`, white ink · **Players:** 3–8 (Peck Off forces 2), bots fill empty seats · **Modes:** MDLM + Solo (SW v247)
+**Status:** gold master · verified against SW v219 on 4 September 2026 · Drowned model rewritten for SW v243 (28 September 2026) · pool-style cue + Practice Arena SW v244 (29 September 2026) · plugs in the Drink, a bigger floe + camera, Practice plans SW v245 (29 September 2026) · bots + Solo SW v247 (29 September 2026)
 
 > **Change contract.** Each section is tagged **free** (reword freely — but it must stay true),
 > **paired** (change the doc and the code together, or you open a gap between them), or **derived**
@@ -143,6 +143,8 @@ the funniest thing that can happen to you, not the worst.
 | **Hungry** | Every few Slides of a Floe-Off the penguins get hungrier and full power shoves further; the floe floats **HUNGRY!** as it bites. Starts fresh on every new floe. |
 | **The Thaw** | Sylly Mode — the floe shrinks a little after every Slide. See T8. |
 | **The Huddle** | The settings overlay's title, not an in-play term. |
+| **Bot** | A seat the host's phone plays (SW v247). Added by hand in the lobby, one difficulty — Easy, Medium or Hard — for every bot in a match; its name carries a 🤖 wherever names are printed. A bot sees only what a player in its seat would see. |
+| **Solo** | The fourth way to play (SW v247): you and the bots on one phone, no room and no internet. |
 
 ### Naming rules — constraints, not preferences · *suite-wide*
 
@@ -152,6 +154,10 @@ the funniest thing that can happen to you, not the worst.
 - **"Slide" is this game's round word.** Counting Sheep owns "Night", Cookie Jar owns "Raid",
   Pecking Order owns "Encounter" — do not reach for any of those here.
 - **"Drowned", not "eliminated" or "out".** A Drowned penguin is still playing.
+- **Bot names are drawn in order from** Sylvia, Sam, Shirley, Jeff, Chillbert, Waddles, Fishstick,
+  Flipper, Slushie — the Practice cast first, then penguin names. **"Snowball" was rejected**: it is
+  the thrown thing, and "Snowball threw a Snowball" reads as a bug. A bot never takes a name a player
+  in the room already has (any case), and gives its name up if a player joins with it.
 
 ---
 
@@ -207,6 +213,13 @@ run together with no gating.
 
 There is **no setup screen and no pass-gate** — names come from the lobby roster, every player is
 on their own phone, and no private information is ever revealed by handing a device over.
+
+**Before the floe — Solo, or a room with bots (SW v247).** *Hit the Ice* leads to the suite's shared
+"How are you playing?" screen, which offers **Solo** beside Multi-device (offline, Solo is the only live
+choice and is picked for you). Solo opens the host lobby as **SOLO**, you plus two bots already seated,
+and *Hit the Ice →* starts at once. A hosted room gets the same controls: **+ Add bot** under the
+player list, a ✕ on each bot, and one **Bot difficulty** row while any bot is seated. A player joining
+a full room takes the newest bot's seat.
 
 The two interstitials carry no chrome: they auto-advance *and* have nothing to tap, the two
 conditions of the interstitial exemption. `screen-cld-floeoff-intro` doubles as the client's
@@ -352,6 +365,24 @@ A bounce off a plug barks **Boing!**. The barks are chunky white outlined text, 
 ```copy
 # screen-cld-floe — barks
 Boing!
+```
+
+#### The lobby — bots and Solo (SW v247)
+
+The lobby is the engine's shared host lobby; these controls show only for a game with bots. Built in
+`engine-multiplayer.js` (so not in a `copy` block): the Solo row — **Solo** / *Just you and the bots, on
+this phone. No internet needed.* (sub-line *Just you and the bots*); the offline notice *No internet —
+Solo still works.*; the Solo lobby's code panel **SOLO** and its line *Just you and the bots.*; and the
+minimum hint's suffix, *"Need 1 more player to start (min 3) — or add a bot"*. A bot chip is tagged
+**BOT** and its name carries 🤖.
+
+```copy
+# screen-mp-lobby-host — bot controls
++ Add bot
+Bot difficulty
+Easy
+Medium
+Hard
 ```
 
 #### Settings — The Huddle
@@ -617,10 +648,11 @@ Tap-Hold Reference exception).
 
 ## T10 — At the Table · *derived — except the PTP judgement*
 
-**Modes.** Multi-device only (MDLM). Every player uses their own phone; one hosts, the rest join
-with a room code. No pass-the-phone or shared-device option in v1.
+**Modes.** Multi-device (MDLM) and **Solo** (SW v247). In MDLM every player uses their own phone; one
+hosts, the rest join with a room code, and the host can top the room up with **bots**. Solo is one
+player and bots on one phone, offline. No pass-the-phone or shared-device option.
 
-**Players.** 3 to 8. Peck Off forces exactly 2.
+**Players.** 3 to 8 seats, any of them bots. Peck Off forces exactly 2.
 
 **Devices.** One per player — the whole game is built on everyone aiming secretly and committing
 simultaneously, which a shared screen cannot do. The committed aim is routed to the host over the

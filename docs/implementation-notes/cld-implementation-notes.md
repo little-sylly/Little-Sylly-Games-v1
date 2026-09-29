@@ -584,6 +584,54 @@ frame (16 penguins, 30 chunks) is ~1,030 fill/stroke calls — the baseline for 
 *Lesson:* a render check that can't fail is a harness, not a test — when a reduced-motion or layout assertion
 passes on its first run, plant the one-line mutant that should break it before believing it.
 
+### DD-21 — the bot brain: three difficulties, and Hard looks ahead through the real rules (SW v247)
+
+Spec: `docs/superpowers/specs/2026-09-29-bots-design.md` § 5; engine half: `shared-implementation-notes.md` DD-52.
+
+**The hook.** `view` = `cldBotView(i)`: `cldSwapOut()` deep-cloned, **every commit blanked** (other seats'
+commits are CLD's only hidden state), `timeline: null`, `me: i`. `submit` = `cldBotSubmit(i, move, tag)` =
+`cldHostTakeCommit` — the `CLD_COMMIT` handler's body lifted out, so a client's packet and a bot share
+the stale-tag and no-overwrite guards. The prompt is one line at the end of `cldShowFloe()` — the single
+place a Slide opens for aiming on the host (Floe-Off start, Ice Bath start, after playback). There is no
+aiming clock, so nothing ever cancels. Names go through `cldSeatNames()` → `mpSeatLabel`, so 🤖 rides
+the `playerNames` `CLD_FLOEOFF_START` already carries to the scoreboard, podium and barks.
+
+**Easy / Medium** (`cldBotSimple`) simulate nothing. Easy: a random standing rival, a straight shove,
+power 0.5–1.0, ±15° noise, holds still one Slide in five (`CLD_BOT_EASY_HOLD`), dives half the time.
+Medium: the rival nearest the rim, the Practice Edge cut (`cldBotAimAt`, shared with the drill bots) else
+straight, power 0.85–1.0 divided by `cldHungerMult`, ±4°, dives into the nearest free gap.
+
+**Hard** (`cldBotHard`) runs the real `cldResolveSlide` on a clone of its view through `cldRulesRun`
+(the Arena swap generalised — `cldArenaRun` is now a wrapper over it). Every other seat is assumed to
+play its **Medium** move from the same public view on a fixed stream (`CLD_BOT_SEED`), so the
+assumption is part of the view, never the live game. One coordinate pass over its own penguins: hold,
+a dodge, and straight + cut × power {0.7, 0.85, 1.0} per rival (≤ 24 per penguin), then Throw/Dive
+options. Score: +1 per rival penguin newly in, −1.5 (`CLD_BOT_SELF_COST`) per own, + 0.1 × (own rim
+margin − rivals' mean), in floe radii.
+
+**The ordering, and an owner call.** At a 3-seat table with one of each, 60 matches: Hard 50, Medium 4,
+Easy 6 — Hard is clearly strongest, but it takes ~80% of the wins and leaves Medium and Easy ~10 to
+split, too few to order them. At 300 matches the three-way order holds (241 / 38 / 21), and head to head
+Medium beats Easy 241–59 (3 seats) and 222–78 (4 seats). **Owner, 29 Sep 2026:** no brain constant was
+tuned; `verify-cld-bots.js` § 8 asserts Hard > Medium on the three-way table and § 8b asserts Medium >
+Easy **head to head** (60 matches: 50–10). § 8b was run against a copy with Easy and Medium swapped
+first — 41–19, red.
+
+**Cost.** Hard's decide: mean ~4–5 ms per seat, max 12 ms, on a desktop — far under the spec's 250 ms
+tripwire. The SE pass is still the owner's. `simulate-cld-bots.js` (30 matches a row): Hard 80 / 77 / 67
+/ 63% at 3 / 4 / 5 / 6 seats; Easy and Medium trade places above 3 seats — a feel question for the
+real-device pass, not a harness one.
+
+**Harness.** `verify-cld-bots.js` 97 (on `tools/lib/cld-rules-world.js`): fairness over Standing /
+Knocked back / Drowned / Peck Off × every difficulty, legality, whole bot-only matches at 2–8 seats, a
+stale move refused, swap safety (50 Hard decisions leave the live state byte-identical), the ordering.
+`verify-cld-loopback.js` 192 → 209: § 17 two bot seats beside a human client over the wire, § 18 a Solo
+match on a null wire to the podium. `mutate-cld.js` 68 → 70 (a view that leaks commits; the prompt
+dropped).
+
+*Lesson:* an ordering asserted on a shared table is only as sharp as the weakest pair's share of the
+wins. When one entrant dominates, test the others head to head.
+
 ---
 
 ## Bug Index
