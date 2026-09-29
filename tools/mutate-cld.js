@@ -285,6 +285,13 @@ const M = [
   '    cldViewForget(cldView);             // a new Floe-Off is a new floe, even on a repeated key\n', '']], 'practice'],
 ['teardown-keeps-the-floes', 'game', [[
   '  cldViewForget(cldView); cldViewForget(cldPrView);', '']], 'practice'],
+// ── SW v246: aim marks in your colour (verify-cld-practice.js) ───────────────
+['aim-drawn-white', 'game', [[
+  'dy: a.dy, power: a.power, tint: cldTintOf(p.ownerIdx),', "dy: a.dy, power: a.power, tint: '#ffffff',"]], 'practice'],
+['rival-gets-the-guide', 'game', [[
+  'guide: (m.assist && !a.rival) ? cldAimGuide(m, a) : null,', 'guide: m.assist ? cldAimGuide(m, a) : null,']], 'practice'],
+['seat-drawn-white', 'art', [[
+  '    ctx.lineWidth = chosen ? 2.4 : 1.8; ctx.strokeStyle = tint; ctx.stroke();', "    ctx.lineWidth = chosen ? 2.4 : 1.8; ctx.strokeStyle = chosen ? tint : 'rgba(255,255,255,0.8)'; ctx.stroke();"]], 'practice'],
 ];
 
 // Which harness a mutant is aimed at. The rules/sim mutants above run the loop

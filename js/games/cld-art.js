@@ -1028,10 +1028,12 @@
     if (!ready(ctx)) return;
     const b = Math.sin(t * 2.4 + x * 0.1) * 0.8;
     ctx.save();
+    // Always in the player's colour (spec § 4.5) over a white halo, so it reads on
+    // the foam as well as the water; the chosen one is heavier.
+    ctx.beginPath(); ctx.ellipse(x, y + b, 1.1 * r, 0.55 * r, 0, 0, TAU);
+    ctx.lineWidth = chosen ? 4.4 : 3.6; ctx.strokeStyle = 'rgba(255,255,255,0.7)'; ctx.stroke();
     ctx.setLineDash([3, 3]);
-    ctx.lineWidth = chosen ? 2.4 : 1.8;
-    ctx.strokeStyle = chosen ? tint : 'rgba(255,255,255,0.8)';
-    ctx.beginPath(); ctx.ellipse(x, y + b, 1.1 * r, 0.55 * r, 0, 0, TAU); ctx.stroke();
+    ctx.lineWidth = chosen ? 2.4 : 1.8; ctx.strokeStyle = tint; ctx.stroke();
     ctx.restore();
   }
 

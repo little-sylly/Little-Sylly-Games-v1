@@ -1080,6 +1080,12 @@ if (!TUNE) {
     ok(`CldArt.${k} paints on the mock DOM`, !e && c.n > 0, e ? e.stack : 'no paint calls');
   });
 
+  // Spec § 4.5: every target mark is in the player's colour — a free Dive seat too, not only the chosen one.
+  { const c = recCtx(), seen = []; let st = '';
+    Object.defineProperty(c, 'strokeStyle', { get: () => st, set: v => { st = v; }, configurable: true });
+    const f = c.stroke; c.stroke = function () { seen.push(st); return f.apply(c, arguments); };
+    A.seat(c, 180, 10, 11, '#e4572e', 1, false);
+    ok('an unchosen Dive seat is drawn in the player’s colour', seen.includes('#e4572e'), JSON.stringify(seen)); }
   // The floe keeps its story: marks survive a Thaw repaint.
   const f = A.makeFloe(180, 180, 170, 1, 3);
   A.floeMark(f, 'groove', [{ x: 150, y: 180 }, { x: 200, y: 180 }], 8);
@@ -1339,6 +1345,79 @@ if (!TUNE) {
   ok('(the Arena view has a floe)', !!pv && !!pv.floe);
   RUN('cldResetState()');
   check('resetToLobby drops the Arena’s and the floe’s surfaces', [pv.floe, G('cldView').floe], [null, null]);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// P. Aiming and targets, all in your colour (spec § 4.5, owner item 4)
+// ═══════════════════════════════════════════════════════════════════════════
+if (!TUNE) {
+  section('P. Aiming and targets');
+  const A = S.window.CldArt, calls = {};
+  const undo = ['aim', 'reticle', 'seat', 'meMarker'].map(n => {
+    const f = A[n]; calls[n] = [];
+    A[n] = function () { calls[n].push([].slice.call(arguments, 1)); return f.apply(this, arguments); };
+    return () => { A[n] = f; };
+  });
+  const reset = () => Object.keys(calls).forEach(n => { calls[n].length = 0; });
+  const me = RUN('cldTintOf')(0), sylvia = RUN('cldTintOf')(1);
+  const pen3 = (id, o, x, y, ex) => Object.assign({ id, ownerIdx: o, x, y, drowned: false, plug: false }, ex || {});
+  SET('cldPenguins', [pen3('0-0', 0, 140, 180), pen3('1-0', 1, 220, 180)]);
+  SET('cldBergs', []); SET('cldFloeRadius', 170); SET('cldPhase', 'aiming'); SET('cldSlideNo', 2);
+  SET('cldMyAims', []); SET('cldMySnowball', null); SET('cldMyMode', 'throw'); SET('cldPowerLock', null);
+  SET('cldAimAssist', true);
+  // A live drag: finger left of the penguin, so the shot goes right.
+  SET('cldDragging', true); SET('cldDragPenguin', '0-0');
+  SET('cldDragFrom', { x: 140, y: 180 }); SET('cldDragTo', { x: 90, y: 180 });
+  const v = mkView();
+  let m = RUN('cldFloeModel()');
+  const live = m.aims.find(a => a.live);
+  check('the live aim carries the finger (world units) and its lock state', [live.finger, live.locked], [{ x: 90, y: 180 }, false]);
+  reset(); RUN('cldDraw')(v, m);
+  check('one aim drawn, in MY colour — never white', calls.aim.map(c => c[0].tint), [me]);
+  ok('…with the tether to my finger, live, and the guide (Aim Assist on)',
+     calls.aim[0][0].live === true && calls.aim[0][0].finger.x === 90 && !!calls.aim[0][0].guide);
+  SET('cldPowerLock', 0.7);
+  reset(); RUN('cldDraw')(v, RUN('cldFloeModel()'));
+  check('a locked bar shows the lock nub', calls.aim[0][0].locked, true);
+  SET('cldAimAssist', false);
+  reset(); RUN('cldDraw')(v, RUN('cldFloeModel()'));
+  check('Aim Assist off → no guide', calls.aim[0][0].guide, null);
+  SET('cldAimAssist', true); SET('cldPowerLock', null); SET('cldDragging', false);
+
+  // A rival's shove (the Arena's telegraph): same arrow, their colour, half strength, no guide.
+  m = RUN('cldFloeModel()');
+  m.aims.push({ penguinId: '1-0', dx: -1, dy: 0, power: 1, live: false, rival: true, finger: null, locked: false });
+  reset(); RUN('cldDraw')(v, m);
+  const riv = calls.aim.find(c => c[0].rival);
+  check('a rival shove: their colour, rival, no guide', [riv[0].tint, riv[0].rival, riv[0].guide], [sylvia, true, null]);
+
+  // Drowned: the Snowball reticle in my colour, thrown from me; rivals' in theirs.
+  SET('cldPenguins', [pen3('0-0', 0, 180, 5, { drowned: true, plug: true, angle: -Math.PI / 2 }), pen3('1-0', 1, 220, 180)]);
+  SET('cldMySnowball', { x: 220, y: 180 });
+  m = RUN('cldFloeModel()');
+  m.rivalThrows = [{ x: 150, y: 150, ownerIdx: 1 }];
+  reset(); RUN('cldDraw')(v, m);
+  const mine = calls.reticle.find(c => !c[0].rival), theirs = calls.reticle.find(c => c[0].rival);
+  check('my Snowball target: my colour, arcing from me', [mine[0].tint, mine[0].from], [me, { x: 180, y: 5 }]);
+  check('a rival’s target: their colour', theirs[0].tint, sylvia);
+  SET('cldMySnowball', null);
+
+  // Dive: free seats as rings in the water, the chosen one shows my ghost.
+  m = RUN('cldFloeModel()');
+  m.dive = { seats: [{ x: 10, y: 180 }, { x: 350, y: 180 }], ghost: { x: 10, y: 180, ownerIdx: 0 } };
+  reset(); RUN('cldDraw')(v, m);
+  check('a dashed ring per free seat, in my colour', calls.seat.map(c => c[3]), [me, me]);
+  ok('…and the chosen one is marked', calls.seat.some(c => c[5] === true));
+
+  // Slide 1: the bouncing "me" marker, and only then.
+  SET('cldPenguins', [pen3('0-0', 0, 140, 180), pen3('1-0', 1, 220, 180)]); SET('cldSlideNo', 0);
+  reset(); RUN('cldDraw')(v, RUN('cldFloeModel()'));
+  check('Slide 1, nothing aimed: the me marker in my colour', calls.meMarker.map(c => c[3]), [me]);
+  SET('cldSlideNo', 2);
+  reset(); RUN('cldDraw')(v, RUN('cldFloeModel()'));
+  check('…not after', calls.meMarker.length, 0);
+  undo.forEach(u => u());
+  ok('the cue stick is gone', RUN("typeof cldDrawCue === 'undefined' && typeof CLD_CUE_LEN === 'undefined'"));
 }
 
 // ── Report (keep LAST in the file) ─────────────────────────────────────────

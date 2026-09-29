@@ -111,11 +111,9 @@ const CLD_MIN_POWER   = 0.08;   // §7 — below this a drag is "Too soft", neve
 // ── The cue (SW v244 — pool-style drag; spec 2026-09-28-cld-cue-arena § 2) ──
 // Touch anywhere; the finger is the butt of the cue. Power is the pull-back
 // since touch-down in CSS PIXELS, so full power is the same thumb travel on
-// every phone. All five are tunables (spec § 9) — change them here only.
+// every phone. Every one is a tunable (spec § 9) — change them here only.
 const CLD_CUE_PULL_PX = 96;                   // CSS px of pull-back for full power
 const CLD_CUE_DEAD    = 2 * CLD_PENGUIN_R;    // logical — inside this the aim holds still
-const CLD_CUE_LEN     = 58;                   // cue stick length, logical
-const CLD_CUE_GAP_MAX = 22;                   // cue tip stand-off at full power, logical
 const CLD_GUIDE_STUB  = 30;                   // deflection stub, logical (~1.4 diameters)
 const CLD_GRAB_R      = CLD_PENGUIN_R * 3.2;  // touch this close to one of mine to pick it
 const CLD_CUE_TAP_PX  = 4;                    // CSS px a touch must travel before release can arm
@@ -1495,57 +1493,52 @@ function cldDrawModelPenguin(view, m, p) {
   });
 }
 
-// The aim layer: cues and the aim guide, and Dive mode's seats — on the ice and
-// in the water, under everyone. (Task 4 of the fun pass redraws it.)
+// Layer 3 — marks on the ice and in the water, under everyone (spec § 4.5).
+// Every aim and target is drawn in its OWNER's colour — yours in yours.
 function cldDrawAimLayer(view, m) {
-  const ctx = view.ctx;
-  // ── Cues + the aim guide, under the penguins so nothing is hidden.
-  m.aims.forEach(a => cldDrawCue(ctx, m, a));
-
-  // ── Dive mode: the free seats round the ring, and the ghost at the chosen one.
+  const A = cldArt(), ctx = view.ctx, t = m.clock, reduced = cldReducedMotion();
+  if (!A) return;
+  m.aims.forEach(a => {
+    const p = m.penguins.find(q => q.id === a.penguinId);
+    if (!p || p.drowned || a.power < CLD_MIN_POWER) return;         // a too-soft pull draws nothing
+    A.aim(ctx, { x: p.x, y: p.y, r: CLD_PENGUIN_R, dx: a.dx, dy: a.dy, power: a.power, tint: cldTintOf(p.ownerIdx),
+                 live: !!a.live, locked: !!a.locked, rival: !!a.rival, finger: a.finger || null,
+                 guide: (m.assist && !a.rival) ? cldAimGuide(m, a) : null,
+                 t: t, px: view.scale, reduced: reduced });
+  });
   if (m.dive) {
-    ctx.save();
-    ctx.strokeStyle = 'rgba(255,255,255,0.55)';
-    ctx.setLineDash([3, 3]);
-    m.dive.seats.forEach(s => { ctx.beginPath(); ctx.arc(s.x, s.y, CLD_PENGUIN_R, 0, CLD_TAU); ctx.stroke(); });
-    ctx.restore();
-    if (m.dive.ghost) {
+    const mine = m.penguins.find(p => p.me) || { ownerIdx: 0 };
+    const g = m.dive.ghost;
+    m.dive.seats.forEach(s => A.seat(ctx, s.x, s.y, CLD_PENGUIN_R, cldTintOf(mine.ownerIdx), t,
+                                     !!g && Math.hypot(g.x - s.x, g.y - s.y) < 1));
+    if (g) {
       ctx.save(); ctx.globalAlpha = 0.6;
-      cldRenderPenguin(ctx, 'bob', m.dive.ghost.ownerIdx, m.dive.ghost.x, m.dive.ghost.y, CLD_PENGUIN_R,
-                       { t: m.clock, ring: true, me: true, look: Math.PI / 2, reduced: cldReducedMotion() });
+      cldRenderPenguin(ctx, 'bob', g.ownerIdx, g.x, g.y, CLD_PENGUIN_R,
+                       { t: t, ring: true, me: true, look: Math.PI / 2, reduced: reduced });
       ctx.restore();
     }
   }
 }
 
-// Markers over everything in the world: the Hunger bubbles, a rival's next
-// Snowball, and the snowball target.
+// Layer 6 — reticles and markers, over everything in the world.
 function cldDrawMarkers(view, m) {
-  const ctx = view.ctx;
-  // ── HUNGRY! — a 🐟❗ bubble over every hungry penguin while the beat is up.
+  const A = cldArt(), ctx = view.ctx, t = m.clock, reduced = cldReducedMotion();
+  if (!A) return;
   if (m.hungerBeat) m.penguins.forEach(p => { if (p.hunger > 0) cldDrawHungerBubble(ctx, p.x, p.y); });
-
-  // ── A Drowned rival's next Snowball (Practice): a small cross in its colour.
   (m.rivalThrows || []).forEach(s => {
-    ctx.save();
-    ctx.strokeStyle = cldTintOf(s.ownerIdx); ctx.globalAlpha = 0.7; ctx.lineWidth = 1.5;
-    ctx.beginPath(); ctx.arc(s.x, s.y, 6, 0, CLD_TAU);
-    ctx.moveTo(s.x - 9, s.y); ctx.lineTo(s.x + 9, s.y); ctx.moveTo(s.x, s.y - 9); ctx.lineTo(s.x, s.y + 9);
-    ctx.stroke(); ctx.restore();
+    const from = m.penguins.find(p => p.ownerIdx === s.ownerIdx);
+    A.reticle(ctx, { x: s.x, y: s.y, tint: cldTintOf(s.ownerIdx), t: t, from: from ? { x: from.x, y: from.y } : null,
+                     rival: true, reduced: reduced });
   });
-
-  // ── The snowball target marker — a crosshair the thrower can see, nobody else.
   if (m.snowball) {
-    const s = m.snowball;
-    ctx.save();
-    ctx.strokeStyle = 'rgba(255,255,255,0.9)';
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.arc(s.x, s.y, 7, 0, CLD_TAU);
-    ctx.moveTo(s.x - 11, s.y); ctx.lineTo(s.x + 11, s.y);
-    ctx.moveTo(s.x, s.y - 11); ctx.lineTo(s.x, s.y + 11);
-    ctx.stroke();
-    ctx.restore();
+    // Thrown from a Standing penguin of mine if I have one, otherwise from the rim.
+    const src = m.penguins.find(p => p.me && !p.drowned) || m.penguins.find(p => p.me);
+    A.reticle(ctx, { x: m.snowball.x, y: m.snowball.y, tint: cldTintOf(src ? src.ownerIdx : 0), t: t,
+                     from: src ? { x: src.x, y: src.y } : null, rival: false, reduced: reduced });
+  }
+  if (m.meMarker) {
+    const p = m.penguins.find(q => q.me && !q.drowned);
+    if (p) A.meMarker(ctx, p.x, p.y, CLD_PENGUIN_R, cldTintOf(p.ownerIdx), t, view.scale);
   }
 }
 
@@ -1590,59 +1583,6 @@ function cldDrawMiniMap(view, m) {
   ctx.restore();
 }
 
-// The cue (spec § 2.3). The stick sits BEHIND the penguin on the finger's side
-// and stands off by CLD_CUE_GAP_MAX × power — the gap IS the power reading, so
-// it stays readable while the thumb covers the penguin. A rival's cue (the
-// Practice Arena) is the same drawing in its owner's colour at lower alpha.
-function cldDrawCue(ctx, m, a) {
-  const p = m.penguins.find(q => q.id === a.penguinId);
-  if (!p || p.drowned || a.power < CLD_MIN_POWER) return;   // a too-soft pull draws nothing
-  const len = Math.hypot(a.dx, a.dy) || 1;
-  const ux = a.dx / len, uy = a.dy / len;
-  const alpha = a.live ? 0.95 : (a.rival ? 0.5 : 0.62);
-
-  ctx.save();
-  ctx.globalAlpha = alpha;
-  ctx.lineCap = 'round';
-  ctx.setLineDash([]);
-  const gap  = CLD_PENGUIN_R + 2 + CLD_CUE_GAP_MAX * a.power;
-  const tipX = p.x - ux * gap, tipY = p.y - uy * gap;
-  ctx.strokeStyle = a.rival ? cldTintOf(p.ownerIdx) : '#e4572e';
-  ctx.lineWidth = a.live ? 4 : 3;
-  ctx.beginPath();
-  ctx.moveTo(tipX, tipY);
-  ctx.lineTo(tipX - ux * CLD_CUE_LEN, tipY - uy * CLD_CUE_LEN);
-  ctx.stroke();
-  ctx.strokeStyle = '#ffffff';                              // the pale tip
-  ctx.beginPath();
-  ctx.moveTo(tipX, tipY);
-  ctx.lineTo(tipX - ux * 5, tipY - uy * 5);
-  ctx.stroke();
-
-  // Aim Assist: forward to the FIRST contact only (cldAimGuide), never beyond.
-  if (m.assist) {
-    const g = cldAimGuide(m, a);
-    if (g) {
-      ctx.lineWidth = 2;
-      ctx.setLineDash([4, 5]);
-      ctx.strokeStyle = 'rgba(18,59,76,0.6)';   // dark ice-blue: white vanished against the ice (SE visual pass)
-      ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(g.end.x, g.end.y); ctx.stroke();
-      ctx.setLineDash([]);
-      if (g.ghost) {
-        ctx.lineWidth = 1.5;
-        ctx.beginPath(); ctx.arc(g.ghost.x, g.ghost.y, CLD_PENGUIN_R, 0, CLD_TAU); ctx.stroke();
-      } else {
-        ctx.fillStyle = 'rgba(18,59,76,0.75)';
-        ctx.beginPath(); ctx.arc(g.end.x, g.end.y, 4, 0, CLD_TAU); ctx.fill();
-      }
-      if (g.stub) {
-        ctx.lineWidth = 2.5;
-        ctx.beginPath(); ctx.moveTo(g.stub.x1, g.stub.y1); ctx.lineTo(g.stub.x2, g.stub.y2); ctx.stroke();
-      }
-    }
-  }
-  ctx.restore();
-}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Seat identity. In Stage 4 (single-device) seat 0 is "me"; Stage 5 swaps this
@@ -1831,8 +1771,10 @@ function cldDiveModel(back, chosen) {
 function cldFloeModel() {
   const live = cldDragging ? cldCurrentDragAim() : null;
   const aims = cldMyAims.filter(a => !live || a.penguinId !== live.penguinId)
-    .map(a => ({ penguinId: a.penguinId, dx: a.dx, dy: a.dy, power: a.power, live: false, rival: false }));
-  if (live) aims.push({ penguinId: live.penguinId, dx: live.dx, dy: live.dy, power: live.power, live: true, rival: false });
+    .map(a => ({ penguinId: a.penguinId, dx: a.dx, dy: a.dy, power: a.power, live: false, rival: false,
+                 finger: null, locked: false }));
+  if (live) aims.push({ penguinId: live.penguinId, dx: live.dx, dy: live.dy, power: live.power, live: true, rival: false,
+                        finger: cldDragTo ? { x: cldDragTo.x, y: cldDragTo.y } : null, locked: cldPowerLock !== null });
   const standing = cldMyPenguins().filter(p => !p.drowned);
   const back = (cldMyMode === 'dive' && cldPhase === 'aiming') ? cldMyBackPenguin() : null;
   return cldBuildModel(cldCurrentSrc(), {
@@ -3075,10 +3017,13 @@ function cldArenaModel() {
     const standing = id => { const p = cldPenguins.find(q => q.id === id); return !!p && !p.drowned; };
     const aims = [];
     if (!u.playing) {
-      u.plans.forEach(c => { if (c && c.aims[0] && standing(c.aims[0].penguinId)) aims.push(Object.assign({}, c.aims[0], { live: false, rival: true })); });
+      u.plans.forEach(c => { if (c && c.aims[0] && standing(c.aims[0].penguinId)) aims.push(Object.assign({}, c.aims[0], { live: false, rival: true, finger: null, locked: false })); });
       const mine = live || u.aim;
       if (mine && standing('0-0')) aims.push({ penguinId: '0-0', dx: mine.dx, dy: mine.dy, power: mine.power,
-                                               live: !!live, rival: false });
+                                               live: !!live, rival: false,
+                                               // u.drag.now is already logical (cldToLogical) — the finger in world units
+                                               finger: live && u.drag && u.drag.now ? { x: u.drag.now.x, y: u.drag.now.y } : null,
+                                               locked: u.lock !== null && u.lock !== undefined });
     }
     const me = cldPenguins.find(q => q.id === '0-0');
     const back = (u.mode === 'dive' && !u.playing && me.drowned && !me.plug) ? me : null;
