@@ -413,6 +413,41 @@ remembered. And a layout bug in a pane no harness renders is found only by a rea
 
 Spec: `docs/superpowers/specs/2026-09-29-cld-fun-pass-design.md` § 3; plan: `docs/superpowers/plans/2026-09-29-cld-fun-pass-phase1.md`.
 
+**Why.** The owner's v244 review: one practice bot did nothing, a drill was one Slide, a drowned penguin
+sat on the ice ring instead of in the water, and the board was too small to have fun on.
+
+**What changed (owner calls in bold).**
+- **Plugs float fully in the Drink**, touching the edge from outside: `cldSeatR()` = rim + `CLD_PLUG_OUT`
+  (one radius); Knocked back drifts `CLD_BACK_OFFSET` = 2.2 r. A seat opens only where a penguin could pass
+  the chunk ring — each anchor's ban is taken at its OWN radius — so a plug is never behind a chunk. Slip gaps
+  cap at **1.8** diameters (was 2.4): the widest one floating plug seals on Roomy, Standard and Cramped
+  (the seal proof uses an unbreakable plug — with the real one hit, a glancing blow knocks it back and the
+  shover may follow it in, which is the rule, not a leak). Plugs can no longer calve a chunk
+  (seat − chunk circle = r + r_berg exactly), so that filter was deleted.
+- **A bigger floe, a stronger shove**: radii ×1.3 (195 / 170 / 143), `CLD_V_MAX` 195, Snowball 780, Thaw
+  step 10 — every derived distance scales, penguins do not (~2× the ice each).
+- **A camera** (the view no longer holds the whole floe): overview at each Slide start → aim cam (1.14,
+  32% toward you) → slide cam (moving bodies ∪ you, ≤ 1.25); pinch/pan, double-tap back to auto; a
+  mini-map above zoom 1.05. **It never moves under a finger** — the style prototype showed a camera that
+  frames the aim feeds back into the aim.
+- **Practice: each drill is a plan both bots follow**, played as a **real Floe-Off to a natural end** (Ice
+  Bath included, 40-Slide draw cap), with a coach that reacts to what happened and a full-height sheet whose
+  coach floats over the water. Crossfire's bots are unequal (0.95 / 0.8): equal head-on shoves swap
+  velocities and replay the same Slide forever. Drill seeds (`--tune`): Head-on 1, Crossfire 1, Edge 3.
+- Folded in from v244's minors: pointer capture on both stages, Aim Assist read on every Practice open,
+  reduced motion stops the idle clocks, Peck Off's selection ring only while aiming.
+
+**Found while building it.** The Arena had always opened on an unsized 300×150 canvas: `cldOpenHowTo` picked
+the tab (which sizes the canvas) before showing the overlay — visible in the v244 screenshot's black strip.
+Now the overlay shows first and `cldPrLoop` refits whenever the stage box changes. And three mutants
+survived the new geometry because the overlap sweeps that used to catch them by side effect went quiet
+(plugs can't overlap chunks any more); they now have direct checks (a pre-seated plug is knocked back, the
+rng's first draws spread, a wide-gap seat sweep). SE stage heights: 291 / 269 / 173 px at 375×667 /
+375×548 / 320×452 — the smallest is workable but small (owner to judge in hand).
+
+**Lesson.** A camera must never move the world under a finger; and an invariant that stops being reachable
+takes its mutants' coverage with it — when a rule makes an old failure impossible, re-run the mutants.
+
 **Balance** (`simulate-cld-balance.js 60`, `CLD_SEED` default, mean Slides/Floe-Off; target ±15% of v244):
 
 | config | v244 | target band | v245 first cut (gaps [2,3], cover 0.80) | [3,4] 0.80 | [3,4] 0.75 **shipped (provisional)** | [4,5] 0.80 | [4,5] 0.75 | [3,4] 0.85 | [2,3] 0.75 | [3,4] 0.70 | [3,4] 0.65 | [4,5] 0.70 |

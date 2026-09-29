@@ -7,6 +7,22 @@ game abbreviation, function or screen id. Items keep their original section head
 
 ---
 
+## Cold Shoulder (CLD) — phase 40 gate still OPEN + two presentation follow-ons (4 Sep 2026, SW v219 → v221)
+
+Item 6, SW v244 final-review minors — five **RESOLVED 29 Sep 2026 (SW v245, the fun pass Phase 1;
+`cld-impl-notes` DD-19)**:
+- Peck Off's selection ring still showed during a replay / after Lock It In — `cldFloeModel`'s
+  `selectedId` now requires `cldPhase === 'aiming' && !cldCommitted`.
+- The Arena's Aim Assist was copied once per drill load — `cldPracticeStart` now sets
+  `cldPrFloe.aimAssist` on every open.
+- A *mouse* drag ending over the backdrop could close How to Play, and a mouse drag leaving the stage
+  released early on `pointerleave` — both stages now `setPointerCapture` on pointer-down and no longer
+  listen for `pointerleave`.
+- Picking another drill at coach step 2/3 kept a step asking for an aim you no longer had — moot: the
+  coach is a reacting reducer now, and a new drill shows its own plan line.
+- The Arena's idle sway + swell rings moved under reduced motion — `cldPrClock` (and the live `cldClock`)
+  stand still under `prefers-reduced-motion`.
+
 ## RAF animations and `prefers-reduced-motion` — NT and CLD unswept (10 Sep 2026)
 
 **RESOLVED 29 Sep 2026 (SW v244) — the CLD How-to practice-sim part only.** The open entry noted

@@ -4,6 +4,13 @@ Historical SW release notes, moved out of `CLAUDE.md` (1 Aug 2026) so they stop 
 The **current** version and its notes stay in `CLAUDE.md` § Current Focus — append the outgoing entry here on each bump.
 
 
+## v244 — Cold Shoulder: the pool-style cue + the Practice Arena (29 Sep 2026).
+
+Touch anywhere and pull back — the finger is the butt of the cue; a ghost + stub guide shows the first
+contact. How to Play is now Rules | Practice | The Cast: three drills against Sylvia and Sam on the real
+rules and renderer (`cldArenaRun` swaps the Arena's record into the globals for one synchronous call).
+**No packet changed — `MP_PROTOCOL_VERSION` stays `'v243'`.** Detail: `cld-implementation-notes.md` DD-18.
+
 ## v243 — Cold Shoulder: Drowned plug gaps, Throw or Dive, the Ice Bath (28 Sep 2026).
 
 A penguin goes in only through a gap and plugs it mid-Slide (`Physics` gains `params.seatOnPlunge`;

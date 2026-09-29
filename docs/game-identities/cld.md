@@ -2,7 +2,7 @@
 
 **Game 19** · `activeGameId: cld` · plugin `js/games/cld.js` · shared module `js/lib/physics.js`
 **Emoji:** 🐧 · **Brand:** glacier blue `#8ECAE6`, white ink · **Players:** 3–8 (Peck Off forces 2) · **Modes:** MDLM only
-**Status:** gold master · verified against SW v219 on 4 September 2026 · Drowned model rewritten for SW v243 (28 September 2026) · pool-style cue + Practice Arena SW v244 (29 September 2026)
+**Status:** gold master · verified against SW v219 on 4 September 2026 · Drowned model rewritten for SW v243 (28 September 2026) · pool-style cue + Practice Arena SW v244 (29 September 2026) · plugs in the Drink, a bigger floe + camera, Practice plans SW v245 (29 September 2026)
 
 > **Change contract.** Each section is tagged **free** (reword freely — but it must stay true),
 > **paired** (change the doc and the code together, or you open a gap between them), or **derived**

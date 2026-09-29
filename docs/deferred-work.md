@@ -320,16 +320,14 @@ loopback pass. **Not yet done:**
 1. **Live multi-device session** — host + ≥2 real devices, a full Match including a plunge that
    **plugs** a gap, a plug **knocked back**, a displacement, a rim Snowball, a **Dive** (Throw · Dive
    switch, tap-to-dive onto a dashed free seat — SW v243), a Washout that starts an **Ice Bath**, and
-   The Thaw on. **Every device must be on SW v243** (`MP_PROTOCOL_VERSION` `'v243'`). The Throw · Dive
+   The Thaw on. **Every device must be on SW v245** (`MP_PROTOCOL_VERSION` `'v245'`). The Throw · Dive
    row and the canvas re-fit have had `visual-check` only (375×667 / 375×548 / 320×452). Closes the
    phase gate along with item 2. Also
-   check **How to Play → Practice** on a real device: all three drills, the Berth branch, and the
-   cue's feel (96 px, the dead zone) (SW v244). Two things the SE `visual-check` pass logged for this
-   hardware pass (`cld-impl-notes` DD-18): the coach card and the Practice stage cannot both fit the
-   overlay's visible height at any SE size — the stage alone fits, so a drag works after one scroll;
-   decide whether that reads fine in the hand or wants a layout change. And a *mouse* drag that
-   leaves the stage releases early on `pointerleave` (touch has implicit capture — phones are fine;
-   `setPointerCapture` would fix a desktop).
+   check **How to Play → Practice** on a real device: all three drills' plans, a round played to a
+   winner, the camera (pinch, double-tap, the mini-map) and the cue's feel (96 px, the dead zone)
+   (SW v245). The SE `visual-check` pass (`cld-impl-notes` DD-19) measured the Practice stage at
+   291 / 269 / 173 px — judge the 320×452 one in the hand. And **the balance is provisional**: Floe-Offs
+   with the Thaw off run ~30% longer than v244 (DD-19's table) — the owner picks the lever.
    **First attempt 28 Sep 2026 (3 players) stalled at the first non-host Lock In** — the live
    Firebase rules had no `private` block (`cld-impl-notes` BUG-12 → `shared` BUG-26). Re-run once
    the owner has pasted the §2.7 `private` rule into the console. The same session's feel notes
@@ -353,16 +351,7 @@ loopback pass. **Not yet done:**
      so its first armable power is already ~0.21 — a very soft shot needs pull-out-then-push-back.
      Fix if wanted after the hardware pass: baseline `max(|D−P|, CLD_CUE_DEAD)` (departs from spec
      § 2.1's formula — owner call);
-   - Peck Off's selection ring still shows during a replay / after Lock It In (`cldFloeModel`'s
-     `selectedId` ignores phase — add `cldPhase === 'aiming' && !cldCommitted`);
-   - the Arena's Aim Assist is copied once per drill load, so toggling Assist in Settings between
-     Practice openings shows the old value until Resurface (set `cldPrFloe.aimAssist` in
-     `cldPracticeStart`);
-   - a *mouse* drag that ends over the backdrop can close How to Play (the delegated backdrop click)
-     — same fix as the `pointerleave` note: `setPointerCapture` in both pointer-down handlers;
-   - picking another drill at coach step 2 or 3 clears your aim but keeps the step, so the line asks
-     you to lock/commit an aim you no longer have (drop back to step 1 on a reset with no aim);
-   - the Arena's idle sway + swell rings still move under reduced motion (only the Slide honours it);
+   - (five more resolved 29 Sep 2026, SW v245 — moved to `deferred-work-log.md`);
    - the loopback does not execute `cldDraw` (its `requestAnimationFrame` returns 0) — the renderer is
      covered on one device by `verify-cld-practice.js`, not on three as spec § 7.2 hoped.
 
