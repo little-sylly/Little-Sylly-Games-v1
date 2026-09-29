@@ -57,7 +57,7 @@ function makeDocument() {
       getBoundingClientRect: () => ({ top: 0, left: 0, width: 320, height: 320 }),
       getContext: () => ctx2d(),
       scrollIntoView() {},
-      setAttribute() {}, getAttribute: () => null,
+      attrs: {}, setAttribute(k, v) { this.attrs[k] = String(v); }, getAttribute(k) { return k in this.attrs ? this.attrs[k] : null; },
     };
     el.classList = {
       add: (...c) => c.forEach(x => el._cls.add(x)),
@@ -1469,6 +1469,58 @@ if (!TUNE) {
   RUN('cldStaticCanvas')(cv, 100, 40);
   check('a static canvas caps DPR at 2', [cv.width, cv.height, cv.style.width], [200, 80, '100px']);
   S.window.devicePixelRatio = 1;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// R. The other screens (spec § 4.6 table)
+// ═══════════════════════════════════════════════════════════════════════════
+if (!TUNE) {
+  section('R. The other screens');
+  const $ = id => S.document.getElementById(id);
+  SET('cldPlayerCount', 5); SET('cldPlayerNames', ['Ada', 'Bo', 'Cy', 'Di', 'Ed']);
+  SET('cldFish', [2, 0, 7, 1, 0]); SET('cldFishToWin', 3);
+  SET('cldMatchStats', [0, 1, 2, 3, 4].map(() => ({ slidesStood: 1, plunges: 1 })));
+  SET('cldPenguins', [0, 1, 2, 3, 4].map(i => ({ id: i + '-0', ownerIdx: i, x: 180, y: 180, drowned: i === 1 || i === 3 })));
+  const spy = seamSpy();
+  const fresh = () => { spy.opts.length = 0; spy.inside = 0; };
+
+  RUN('cldPaintMenuArt()');
+  check('the menu: three penguins on a floe', spy.inside, 3);
+  RUN('cldPaintMenuArt()');
+  check('…painted once (it is a static canvas)', spy.inside, 3);
+
+  fresh(); RUN("cldShowFloeOffIntro('intro')");
+  check('the intro vignette: one penguin per player', spy.inside, 5);
+  // Painted back to front (y-sorted), so compare as sets, not in seat order.
+  check('…each in its player’s colour', spy.opts.map(o => o.tint).sort(), [0, 1, 2, 3, 4].map(i => RUN('cldTintOf')(i)).sort());
+
+  fresh(); RUN('cldShowResult')({ winnerIdx: 2, matchOver: false });
+  const big = spy.opts.find(o => o.pose === 'win');
+  ok('the result: the winner, big, jumping with a Fish', !!big && big.fish === true && big.r >= 30, JSON.stringify(big));
+  check('…and a head for each penguin in the Drink', spy.opts.filter(o => o.head).length, 2);
+
+  fresh(); RUN('cldShowScoreboard()');
+  check('the scoreboard: an avatar per row', spy.opts.filter(o => o.head).length, 5);
+  const rows = $('cld-scoreboard-rows').children;
+  check('drawn Fish for the tally, labelled for screen readers (Cy, 7 Fish, tops the table)',
+        rows[0].children[1].attrs['aria-label'], '🐟 × 7');
+  check('no Fish reads as a dash', rows[4].children[1].textContent, '—');
+
+  fresh(); RUN('cldShowGameover()');
+  const pod = spy.opts.filter(o => !o.head);
+  check('the podium: the top three on ice blocks', pod.length, 3);
+  ok('…the winner holding a Fish', pod.some(o => o.pose === 'win' && o.fish === true));
+
+  check('every chrome penguin went through the seam', spy.outside, 0);
+  spy.restore();
+
+  const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+  const classOf = id => { const m = html.match(new RegExp('id="' + id + '"[^>]*class="([^"]*)"')); return m ? m[1] : ''; };
+  ok('Waddle Off is an ice block at March On!’s size (DD-31 parity)',
+     /\bcld-ice-btn\b/.test(classOf('btn-cld-go-leave')) && /\bmin-h-14\b/.test(classOf('btn-cld-go-leave')));
+  ok('Start over and Practice again are ice blocks',
+     /\bcld-ice-btn\b/.test(classOf('btn-cld-pr-restart')) && /\bcld-ice-btn\b/.test(classOf('btn-cld-pr-again')));
+  check('…and nothing else is — the Decision Modals stay suite-standard', (html.match(/\bcld-ice-btn\b/g) || []).length, 3);
 }
 
 // ── Report (keep LAST in the file) ─────────────────────────────────────────

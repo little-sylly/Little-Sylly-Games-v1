@@ -290,6 +290,9 @@ const M = [
   'dy: a.dy, power: a.power, tint: cldTintOf(p.ownerIdx),', "dy: a.dy, power: a.power, tint: '#ffffff',"]], 'practice'],
 ['rival-gets-the-guide', 'game', [[
   'guide: (m.assist && !a.rival) ? cldAimGuide(m, a) : null,', 'guide: m.assist ? cldAimGuide(m, a) : null,']], 'practice'],
+['chrome-bypasses-seam', 'game', [[
+  "  if (ctx) cldRenderPenguin(ctx, 'idle', ownerIdx, cssR, cssR, cssR, { head: true, look: Math.PI / 2 });",
+  "  if (ctx && cldArt()) cldArt().penguin(ctx, { x: cssR, y: cssR, r: cssR, tint: cldTintOf(ownerIdx), pose: 'idle', head: true });"]], 'practice'],
 ['seat-drawn-white', 'art', [[
   '    ctx.lineWidth = chosen ? 2.4 : 1.8; ctx.strokeStyle = tint; ctx.stroke();', "    ctx.lineWidth = chosen ? 2.4 : 1.8; ctx.strokeStyle = chosen ? tint : 'rgba(255,255,255,0.8)'; ctx.stroke();"]], 'practice'],
 ];

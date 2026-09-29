@@ -201,7 +201,7 @@
   }
   // The head inside the bean, in local units of r: its centre (0, HEAD_CY) and a
   // radius that encloses it — what a head-only avatar (o.head) is fitted to.
-  const HEAD_CY = -1.55, HEAD_R = 0.62;
+  const HEAD_CY = -1.38, HEAD_R = 0.68;      // tuned by eye (SW v246 visual pass): the face centred, the beak inside
   const bodyCache = new Map();
   function bodyOf(r) {
     const k = Math.round(r * 100);

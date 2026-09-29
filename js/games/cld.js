@@ -2419,6 +2419,7 @@ function cldShowFloeOffIntro(mode) {
       n.style.display = notes.length ? 'block' : 'none';
     }
   }
+  cldPaintIntroArt();
   showScreen('screen-cld-floeoff-intro');
 
   // The auto-advance is armed in 'intro' mode ONLY. Arming it in standby would
@@ -2459,6 +2460,93 @@ function cldPaintTallyHeads(cv, total, done) {
   ctx.globalAlpha = 1;
 }
 
+// ── Chrome art (spec § 4.6) — static canvases, drawn once per show. Every
+// penguin goes through the seam; any motion is CSS (the reduced-motion block
+// covers it), so no new requestAnimationFrame appears.
+
+// A small floe (world units) with penguins on it, fitted into a W×H canvas.
+function cldPaintVignette(cv, W, H, radius, seats) {
+  const A = cldArt();
+  const ctx = A ? cldStaticCanvas(cv, W, H) : null;
+  if (!ctx) return;
+  // world → CSS px: the floe and its skirt fit the height, the bodies above it the width
+  const k = Math.min(W / (2 * radius + 60), H / (2 * radius + 40));
+  ctx.save();
+  ctx.translate(W / 2, H * 0.55); ctx.scale(k, k); ctx.translate(-CLD_W / 2, -CLD_H / 2);
+  A.floe(ctx, A.makeFloe(CLD_W / 2, CLD_H / 2, radius, 7, 1), 0, true);
+  seats.slice().sort((a, b) => a.y - b.y).forEach(s =>
+    cldRenderPenguin(ctx, 'idle', s.colour, CLD_W / 2 + s.x, CLD_H / 2 + s.y, CLD_PENGUIN_R,
+                     { look: Math.PI / 2, seed: s.colour, reduced: true, px: k }));
+  ctx.restore();
+}
+
+// The menu: three penguins on a small floe (replaces the 🐧). Painted once.
+function cldPaintMenuArt() {
+  const cv = document.getElementById('cld-menu-art');
+  if (!cv || !cldArt() || (cv.dataset && cv.dataset.painted)) return;
+  if (cv.dataset) cv.dataset.painted = '1';
+  cldPaintVignette(cv, 180, 120, 46, [{ x: -24, y: 6, colour: 0 }, { x: 0, y: -8, colour: 1 }, { x: 24, y: 6, colour: 2 }]);
+}
+
+// The Floe-Off intro: the players' penguins on the fresh floe (replaces the 🧊).
+function cldPaintIntroArt() {
+  const cv = document.getElementById('cld-intro-art');
+  if (!cv) return;
+  const n = Math.max(2, cldPlayerCount || 2), R = 60, ring = n > 1 ? R * 0.55 : 0;
+  const seats = Array.from({ length: n }, (_, i) => {
+    const a = -Math.PI / 2 + i * CLD_TAU / n;
+    return { x: Math.cos(a) * ring, y: Math.sin(a) * ring * 0.7, colour: i };
+  });
+  cldPaintVignette(cv, 220, 130, R, seats);
+}
+
+// A head avatar for chrome rows — the scoreboard, the plunge list.
+function cldHeadEl(ownerIdx, cssR) {
+  const cv = document.createElement('canvas');
+  cv.className = 'cld-art-canvas shrink-0';
+  const ctx = cldStaticCanvas(cv, cssR * 2, cssR * 2);
+  if (ctx) cldRenderPenguin(ctx, 'idle', ownerIdx, cssR, cssR, cssR, { head: true, look: Math.PI / 2 });
+  return cv;
+}
+
+// Drawn Fish for a tally: up to 5, else one Fish and "× n"; "—" for none.
+function cldFishEl(n) {
+  const wrap = document.createElement('span');
+  wrap.className = 'flex items-center gap-1 text-stone-500 text-sm';
+  wrap.setAttribute('aria-label', cldFishLabel(n));
+  if (n <= 0) { wrap.textContent = '—'; return wrap; }
+  const shown = n <= 5 ? n : 1, s = 13;
+  const cv = document.createElement('canvas');
+  cv.setAttribute('aria-hidden', 'true');
+  const ctx = cldStaticCanvas(cv, shown * (s * 1.4), s * 1.2);
+  const A = cldArt();
+  if (ctx && A) for (let i = 0; i < shown; i++) A.fish(ctx, s * 0.7 + i * s * 1.4, s * 0.6, s, -0.15);
+  wrap.appendChild(cv);
+  if (n > 5) { const t = document.createElement('span'); t.textContent = '× ' + n; wrap.appendChild(t); }
+  return wrap;
+}
+
+// The Final Floe's podium: the top three on ice blocks of 1st / 2nd / 3rd
+// height, the winner jumping with a Fish.
+function cldPaintPodium(order) {
+  const cv = document.getElementById('cld-podium-art');
+  const A = cldArt();
+  if (!cv || !A) return;
+  const host = cv.parentElement;
+  const W = Math.min(384, (host && host.clientWidth) || 320), H = 150;
+  const ctx = cldStaticCanvas(cv, W, H);
+  if (!ctx) return;
+  const slots = [{ rank: 1, x: W * 0.22, h: 42 }, { rank: 0, x: W * 0.5, h: 60 }, { rank: 2, x: W * 0.78, h: 30 }];
+  const bw = W * 0.24, base = H - 4, pr = 18;
+  slots.forEach(sl => {
+    const row = order[sl.rank];
+    if (!row) return;
+    A.plinth(ctx, sl.x, base - sl.h, bw, sl.h);
+    cldRenderPenguin(ctx, sl.rank === 0 ? 'win' : 'idle', row.i, sl.x, base - sl.h - 2, pr,
+                     { t: sl.rank === 0 ? 0.3 : 0, look: Math.PI / 2, fish: sl.rank === 0, seed: row.i, reduced: true });
+  });
+}
+
 function cldShowResult(tl) {
   cldStopLoop();
   if (cldResultTimer) { clearTimeout(cldResultTimer); cldResultTimer = null; }
@@ -2472,17 +2560,12 @@ function cldShowResult(tl) {
   if (art) {
     art.innerHTML = '';
     const c = document.createElement('canvas');
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    c.style.width = '96px'; c.style.height = '96px';
-    c.width = 96 * dpr; c.height = 96 * dpr;
-    const g = c.getContext('2d');
-    if (g) {
-      g.setTransform(dpr, 0, 0, dpr, 0, 0);
-      // No ring — it exists to answer "which one is me" on a crowded floe; here the
-      // winner's name is directly beneath the art. (Task 6 restyles this screen.)
-      cldRenderPenguin(g, winner >= 0 ? 'win' : 'bob', winner >= 0 ? winner : 0, 48, 78, 26,
-                       { t: 0.3, look: Math.PI / 2, fish: winner >= 0 });
-    }
+    c.className = 'cld-art-canvas';
+    const g = cldStaticCanvas(c, 132, 176);   // tall enough for the jump and the Fish held over it
+    // The winner, big, jumping with a Fish. No ring — it answers "which one is me"
+    // on a crowded floe; here the winner's name is directly beneath the art.
+    if (g) cldRenderPenguin(g, winner >= 0 ? 'win' : 'bob', winner >= 0 ? winner : 0, 66, 146, 34,
+                            { t: 0.3, look: Math.PI / 2, fish: winner >= 0, reduced: true });
     art.appendChild(c);
   }
 
@@ -2498,16 +2581,22 @@ function cldShowResult(tl) {
   const box = document.getElementById('cld-result-plunges');
   if (box) {
     box.innerHTML = '';
-    const wentIn = cldPenguins.filter(p => p.drowned);
-    if (wentIn.length) {
-      const line = document.createElement('p');
-      const names = [];
-      wentIn.forEach(p => {
-        const nm = cldPlayerNames[p.ownerIdx] || ('P' + (p.ownerIdx + 1));
-        if (names.indexOf(nm) < 0) names.push(nm);
+    const owners = [];
+    cldPenguins.filter(p => p.drowned).forEach(p => { if (owners.indexOf(p.ownerIdx) < 0) owners.push(p.ownerIdx); });
+    if (owners.length) {
+      const label = document.createElement('p');
+      label.textContent = 'In the Drink:';
+      const row = document.createElement('div');
+      row.className = 'flex flex-wrap justify-center gap-2';
+      owners.forEach(i => {
+        const chip = document.createElement('span');
+        chip.className = 'flex items-center gap-1 text-stone-500';
+        const nm = document.createElement('span');
+        nm.textContent = cldPlayerNames[i] || ('P' + (i + 1));
+        chip.appendChild(cldHeadEl(i, 10)); chip.appendChild(nm);
+        row.appendChild(chip);
       });
-      line.textContent = 'In the Drink: ' + names.join(', ');
-      box.appendChild(line);
+      box.appendChild(label); box.appendChild(row);
     }
   }
 
@@ -2530,17 +2619,11 @@ function cldShowScoreboard() {
         el.className = 'flex items-center justify-between bg-white rounded-2xl px-4 py-3 shadow-sm';
         const left = document.createElement('div');
         left.className = 'flex items-center gap-2';
-        const dot = document.createElement('span');
-        dot.style.cssText = 'width:0.75rem;height:0.75rem;border-radius:9999px;flex-shrink:0;' +
-                            'background:' + cldTintOf(row.i);
         const nameEl = document.createElement('span');
-        nameEl.className = 'font-semibold text-stone-800';
+        nameEl.className = 'font-semibold text-stone-800 truncate';
         nameEl.textContent = row.nm;
-        left.appendChild(dot); left.appendChild(nameEl);
-        const right = document.createElement('span');
-        right.className = 'text-stone-500 text-sm';
-        right.textContent = cldFishLabel(row.fish);
-        el.appendChild(left); el.appendChild(right);
+        left.appendChild(cldHeadEl(row.i, 14)); left.appendChild(nameEl);
+        el.appendChild(left); el.appendChild(cldFishEl(row.fish));
         box.appendChild(el);
       });
   }
@@ -2574,12 +2657,12 @@ function cldShowGameover() {
     ? (cldPlayerNames[winner] || 'Someone') + ' is the last one dry.'
     : 'Everyone back to the water.';
 
+  const sorted = cldPlayerNames.map((nm, i) => ({ nm: nm, i: i, fish: cldFish[i] || 0 }))
+    .sort((a, b) => b.fish - a.fish);
   const podium = document.getElementById('cld-podium');
   if (podium) {
     podium.innerHTML = '';
-    cldPlayerNames.map((nm, i) => ({ nm: nm, i: i, fish: cldFish[i] || 0 }))
-      .sort((a, b) => b.fish - a.fish)
-      .forEach((row, rank) => {
+    sorted.forEach((row, rank) => {
         const el = document.createElement('div');
         el.className = 'flex items-center justify-between bg-white rounded-2xl px-4 py-3 shadow-sm';
         const left = document.createElement('div');
@@ -2593,10 +2676,7 @@ function cldShowGameover() {
         nameEl.className = 'font-semibold text-stone-800';
         nameEl.textContent = row.nm;
         left.appendChild(medal); left.appendChild(nameEl);
-        const right = document.createElement('span');
-        right.className = 'text-stone-500 text-sm';
-        right.textContent = cldFishLabel(row.fish);
-        el.appendChild(left); el.appendChild(right);
+        el.appendChild(left); el.appendChild(cldFishEl(row.fish));
         podium.appendChild(el);
       });
   }
@@ -2627,6 +2707,7 @@ function cldShowGameover() {
   }
 
   showScreen('screen-cld-gameover');
+  cldPaintPodium(sorted);   // after the show — a hidden column measures 0 wide (320 px overflowed)
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -3780,7 +3861,10 @@ document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('[id^="screen-cld-"] .btn-open-sound')
     .forEach(btn => btn.addEventListener('click', openSoundOverlay));
 
-  on('btn-cld', () => { playLaunch(); activeGameId = 'cld'; showScreen('screen-cld-menu'); });
+  // The menu's key art. Painted once, here at boot, so every way onto the menu
+  // (the lobby button, and the engine's own menuScreen after a lobby) has it.
+  cldPaintMenuArt();
+  on('btn-cld', () => { playLaunch(); activeGameId = 'cld'; cldPaintMenuArt(); showScreen('screen-cld-menu'); });
 
   // Dual-context CTA (§2). Pre-lobby this opens the mode screen; post-lobby
   // onPassThePhone has already shown this menu with the roster ready, so it must

@@ -11,7 +11,7 @@
   <section id="screen-cld-menu" style="display:none"
     class="relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6">
     <button class="btn-open-sound absolute top-4 right-4 text-2xl active:scale-90 transition-transform duration-100">🔊</button>
-    <div class="text-5xl" role="img" aria-label="Penguin">🐧</div>
+    <canvas id="cld-menu-art" class="cld-menu-art" role="img" aria-label="Three penguins on an ice floe"></canvas>
     <div>
       <h1 class="text-5xl font-bold leading-tight text-stone-800">Cold</h1>
       <h1 class="text-5xl font-bold leading-tight cld-label">Shoulder</h1>
@@ -33,7 +33,7 @@
   <section id="screen-cld-floeoff-intro" style="display:none"
     class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
     <div class="flex flex-col w-full max-w-sm gap-4 text-center">
-      <div class="text-6xl" role="img" aria-label="Ice floe">🧊</div>
+      <canvas id="cld-intro-art" class="cld-art-canvas" role="img" aria-label="Penguins on a fresh floe"></canvas>
       <h2 id="cld-intro-heading" class="text-3xl font-bold text-stone-800"></h2>
       <p id="cld-intro-sub" class="text-stone-500 text-base"></p>
       <p id="cld-intro-note" style="display:none" class="text-stone-400 text-sm"></p>
@@ -150,12 +150,13 @@
           <button id="btn-cld-go-exit" class="text-stone-500 font-bold text-xl active:scale-90 transition-transform duration-100">✕</button>
         </div>
       </div>
+      <canvas id="cld-podium-art" class="cld-art-canvas w-full" role="img" aria-label="The podium"></canvas>
       <div id="cld-podium" class="flex flex-col gap-2"></div>
       <!-- Both stat lines are hidden at Fish to Win = 1, where a single Floe-Off makes
            them meaningless (brief §17). The podium always shows. -->
       <div id="cld-go-stats" class="flex flex-col gap-1"></div>
       <button id="btn-cld-go-new" class="cld-cta min-h-14 w-full rounded-2xl active:scale-95 text-xl font-semibold transition-all duration-150">March On!</button>
-      <button id="btn-cld-go-leave" class="min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-500 text-xl font-semibold transition-all duration-150">Waddle Off</button>
+      <button id="btn-cld-go-leave" class="cld-ice-btn min-h-14 w-full text-xl">Waddle Off</button>
     </div>
   </section>
 
@@ -378,7 +379,7 @@
           <div id="cld-pr-end" style="display:none" class="absolute inset-0 flex items-center justify-center p-4">
             <div class="bg-white rounded-2xl shadow-lg p-4 flex flex-col gap-3 text-center w-full max-w-[16rem]">
               <p id="cld-pr-end-line" class="text-stone-800 font-semibold"></p>
-              <button id="btn-cld-pr-again" class="min-h-11 rounded-xl bg-stone-200 hover:bg-stone-300 text-stone-700 font-semibold text-sm active:scale-95">Practice again</button>
+              <button id="btn-cld-pr-again" class="cld-ice-btn text-sm">Practice again</button>
             </div>
           </div>
         </div>
@@ -400,7 +401,7 @@
         </button>
         <button id="btn-cld-pr-commit" class="cld-cta min-h-14 w-full rounded-2xl text-xl font-semibold flex items-center justify-center flex-shrink-0">Lock It In</button>
         <div class="flex gap-2 flex-shrink-0">
-          <button id="btn-cld-pr-restart" class="flex-1 min-h-11 rounded-xl bg-stone-200 hover:bg-stone-300 text-stone-700 font-semibold text-sm active:scale-95">Start over</button>
+          <button id="btn-cld-pr-restart" class="cld-ice-btn flex-1 text-sm">Start over</button>
           <button id="btn-cld-howto-close-practice" class="cld-cta flex-1 min-h-11 rounded-2xl text-base font-semibold active:scale-95 transition-transform duration-150">Got it</button>
         </div>
       </div>
