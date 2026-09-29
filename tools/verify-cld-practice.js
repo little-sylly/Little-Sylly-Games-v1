@@ -310,8 +310,8 @@ if (!TUNE) {
   let m = RUN('cldFloeModel()');
   check('three penguins in the model', m.penguins.length, 3);
   ok('mine is flagged me', m.penguins[0].me === true && m.penguins[1].me === false);
-  ok('the armed penguin faces along its aim', near(m.penguins[0].facing, 0, 1e-9));
-  check('a plug is drawn bob, not dim', [m.penguins[2].state, m.penguins[2].dim], ['bob', false]);
+  ok('the armed penguin faces along its aim', near(m.penguins[0].look, 0, 1e-9));
+  check('a plug is drawn bob, not dim', [m.penguins[2].pose, m.penguins[2].dim], ['bob', false]);
   check('the armed aim is in m.aims as mine, not live', m.aims.map(a => [a.penguinId, a.live, a.rival]), [['0-0', false, false]]);
   ok('reach is the full-power slide distance', near(m.reach, RUN("cldFullSlideDist('slush')")));
   check('one Standing penguin of mine → no selection ring', m.penguins.filter(p => p.selected).length, 0);
@@ -321,11 +321,11 @@ if (!TUNE) {
   SET('cldSlideNo', 4);
   let hm = RUN('cldFloeModel()');
   ok('hungry: the guide’s reach grows by the SQUARE of the multiplier', near(hm.reach, RUN("cldFullSlideDist('slush')") * G('CLD_HUNGER_STEP') ** 2, 1e-9));
-  check('…every Standing penguin is hungry, a plug is not', hm.penguins.map(p => p.hungry), [true, true, false]);
+  check('…every Standing penguin is at Hunger level 1, a plug at 0', hm.penguins.map(p => p.hunger), [1, 1, 0]);
   check('…and the beat is off until something starts it', hm.hungerBeat, false);
   SET('cldPhase', 'resolving');
   hm = RUN('cldFloeModel()');
-  check('while the 4th Slide plays out (count already 4) nobody is hungry yet', hm.penguins.map(p => p.hungry), [false, false, false]);
+  check('while the 4th Slide plays out nobody is hungry yet', hm.penguins.map(p => p.hunger), [0, 0, 0]);
   SET('cldPhase', 'aiming');
   SET('cldHungerBeatUntil', Date.now() + 60000);
   hm = RUN('cldFloeModel()');
@@ -342,7 +342,7 @@ if (!TUNE) {
   try { RUN('cldDraw')(v, m); } catch (e) { threw = e; }
   ok('cldDraw(view, m) renders without throwing', threw === null, threw && threw.stack);
   ok('a hungry model with the beat up draws too (brows + 🐟❗ bubbles)', (() => {
-    const h = Object.assign({}, m, { hungerBeat: true, penguins: m.penguins.map(p => Object.assign({}, p, { hungry: !p.drowned })) });
+    const h = Object.assign({}, m, { hungerBeat: true, penguins: m.penguins.map(p => Object.assign({}, p, { hunger: p.drowned ? 0 : 1 })) });
     try { RUN('cldDraw')(v, h); return true; } catch (e) { return false; }
   })());
   ok('cldDraw reads no live globals: an empty live floe still draws the model', (() => {
@@ -376,7 +376,7 @@ if (!TUNE) {
   fresh([pen('0-0', 0, 140, 180), pen('1-0', 1, 260, 180)]);
   down(60, 180); move(60 - PULL / view.scale, 180);
   const m = RUN('cldFloeModel()');
-  check('mid-drag: my penguin leans', m.penguins.find(p => p.id === '0-0').state, 'lean');
+  check('mid-drag: my penguin leans', m.penguins.find(p => p.id === '0-0').pose, 'aim');
   ok('mid-drag: the live aim is in the model', m.aims.some(a => a.live && a.penguinId === '0-0'));
   up(60 - PULL / view.scale, 180);
   let aims = G('cldMyAims');
@@ -975,6 +975,29 @@ if (!TUNE) {
   RUN('cldResetState()');
 }
 
+function mkView(w, h, S_) {
+  const s = S_ || S;
+  const box = s.document.createElement('div'); box.clientWidth = w || 320; box.clientHeight = h || 320;
+  const cv = s.document.createElement('canvas'); box.appendChild(cv);
+  const v = vm.runInContext('cldMakeView', s)(cv); vm.runInContext('cldResize', s)(v);
+  return v;
+}
+// Every CldArt.penguin call must happen INSIDE cldRenderPenguin — the seam rule,
+// checked by call depth rather than by trusting the call sites.
+function seamSpy() {
+  const A = S.window.CldArt, real = A.penguin;
+  const log = { inside: 0, outside: 0, opts: [] };
+  S.__seam = { depth: 0, real: RUN('cldRenderPenguin') };
+  RUN('cldRenderPenguin = function () { __seam.depth++; try { return __seam.real.apply(null, arguments); } finally { __seam.depth--; } }');
+  A.penguin = function (c, o) {
+    if (S.__seam.depth > 0) log.inside++; else log.outside++;
+    log.opts.push(o);
+    return real.apply(this, arguments);
+  };
+  log.restore = () => { A.penguin = real; RUN('cldRenderPenguin = __seam.real'); };
+  return log;
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // M. The art module (fun-pass spec § 4.1–4.2)
 // ═══════════════════════════════════════════════════════════════════════════
@@ -1095,6 +1118,102 @@ if (!TUNE) {
      bErr ? bErr.stack : 'paint calls: ' + bc.n);
   ok('pure helpers still answer with no DOM',
      BA.posePars({ pose: 'idle' }).expr === 'happy' && BA.moodPars(2, 0, 0, false).brow === 1);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// N. The seam and the per-penguin model (fun-pass spec § 4.1–4.2)
+// ═══════════════════════════════════════════════════════════════════════════
+if (!TUNE) {
+  section('N. The seam and the per-penguin model');
+  const BM = RUN('cldBuildModel');
+  const pen2 = (id, o, x, y, ex) => Object.assign({ id, ownerIdx: o, x, y, drowned: false, plug: false }, ex || {});
+  // 20 Hz samples: one every 50 ms. Two bodies, 0-0 then 1-0.
+  const tl = { bodyIds: ['0-0', '1-0'],
+    samples: [[100, 180, 260, 180], [110, 180, 255, 180], [120, 180, 250, 180], [121, 180, 250, 180], [121, 180, 250, 180]],
+    events: [{ t: 60,  type: 'collision', a: '0-0', b: '1-0', x: 180, y: 180, speed: 150 },
+             { t: 120, type: 'shatter', id: 'b1', x: 180, y: 20 },
+             { t: 150, type: 'landing', x: 200, y: 120, from: { x: 40, y: 180 } }],
+    aftermath: [], durationMs: 200 };
+  const bergs = [{ id: 'b1', x: 180, y: 20, r: 16, hits: 0, angle: 0 }, { id: 'b2', x: 180, y: 340, r: 16, hits: 2, angle: 1 }];
+  const src = (pens, slideNo) => ({ penguins: pens, bergs, radius: 170, iceBreaker: 2, ice: 'slush', slideNo: slideNo === undefined ? 5 : slideNo });
+  const pens = () => [pen2('0-0', 0, 110, 180), pen2('1-0', 1, 255, 180)];
+  const ui = (t, ex) => Object.assign({ meIdx: 0, phase: 'resolving', playbackT: t, aims: [], timeline: tl, clock: 0 }, ex || {});
+
+  let m = BM(src(pens()), ui(25));
+  check('vel comes from the bracketing samples (units/s)', [m.penguins[0].vel.x, m.penguins[1].vel.x], [200, -100]);
+  check('fast → a belly-slide', m.penguins[0].pose, 'slide');
+  m = BM(src(pens()), ui(70));
+  check('a bump just now → squash, k running through it',
+        [m.penguins[0].pose, near(m.penguins[0].k, 10 / G('CLD_SQUASH_MS'))], ['squash', true]);
+  m = BM(src(pens()), ui(320));
+  check('at rest → idle, and still → no look (the art glances about)', [m.penguins[0].pose, m.penguins[0].look], ['idle', null]);
+
+  check('a Snowball in flight, k = t / arrival', BM(src(pens()), ui(75)).snowballs,
+        [{ from: { x: 40, y: 180 }, to: { x: 200, y: 120 }, k: 0.5 }]);
+  check('…and early in its flight it is near the thrower (k 0.2 at t 30)', near(BM(src(pens()), ui(30)).snowballs[0].k, 0.2), true);
+  check('…and gone once it has landed', BM(src(pens()), ui(150)).snowballs, []);
+  check('a chunk is drawn until its shatter beat', BM(src(pens()), ui(110)).bergs.map(b => b.id), ['b1', 'b2']);
+  check('…and not after it', BM(src(pens()), ui(120)).bergs.map(b => b.id), ['b2']);
+  check('aiming: no velocities, no flights, every chunk (a stale timeline is ignored)',
+        (() => { const a = BM(src(pens()), ui(75, { phase: 'aiming' })); return [a.penguins[0].vel, a.snowballs.length, a.bergs.length]; })(),
+        [{ x: 0, y: 0 }, 0, 2]);
+
+  // Review Focus 1 — a penguin that went in THIS Slide is in the water from its seat beat.
+  const inPens = ex => [pen2('0-0', 0, 110, 180), pen2('1-0', 1, 255, 180, ex)];
+  m = BM(src(inPens({ plungedThisSlide: true })), ui(25));
+  check('frozen at the lip → plunge at k 0, never a belly-slide', [m.penguins[1].pose, m.penguins[1].k], ['plunge', 0]);
+  m = BM(src(inPens({ seatT: 100 })), ui(150));
+  check('seated this Slide → plunge, k through the tip-over', [m.penguins[1].pose, near(m.penguins[1].k, 50 / G('CLD_PLUNGE_MS'))], ['plunge', true]);
+  m = BM(src(inPens({ seatT: 100 })), ui(100 + G('CLD_PLUNGE_MS') + 50));
+  check('…then a plug: bob, in the water, no mood',
+        [m.penguins[1].pose, m.penguins[1].drowned, m.penguins[1].plug, m.penguins[1].hunger], ['bob', true, true, 0]);
+
+  // Review Focus 2 — the level you aim under is the level you wear for the whole replay.
+  const lv = (slideNo, phase) => BM(src(pens(), slideNo), ui(75, { phase })).penguins[0].hunger;
+  ok('the mood never changes mid-Slide (aiming Slide s = its replay, s = 0…12)',
+     Array.from({ length: 13 }, (_, s) => lv(s, 'aiming') === lv(s + 1, 'resolving')).every(Boolean));
+  check('Hunger level per penguin (slideNo 5 resolving → level 1)', BM(src(pens()), ui(75)).penguins.map(p => p.hunger), [1, 1]);
+
+  // Aiming poses.
+  m = BM(src(pens(), 0), { meIdx: 0, phase: 'aiming', aims: [], live: { penguinId: '0-0', dx: 0, dy: -1, power: 0.8 }, clock: 0 });
+  check('a live drag → aim, with its power and look',
+        [m.penguins[0].pose, m.penguins[0].power, near(m.penguins[0].look, -Math.PI / 2)], ['aim', 0.8, true]);
+  m = BM(src(pens(), 0), { meIdx: 0, phase: 'aiming', aims: [], winnerIdx: 1, clock: 0 });
+  check('the winner jumps', m.penguins.map(p => p.pose), ['idle', 'win']);
+  check('Slide 1, nothing aimed → the "me" marker', m.meMarker, true);
+  check('…gone once I aim', BM(src(pens(), 0), { meIdx: 0, phase: 'aiming', aims: [{ penguinId: '0-0', dx: 1, dy: 0, power: 0.5 }], clock: 0 }).meMarker, false);
+  check('…and after Slide 1', BM(src(pens(), 1), { meIdx: 0, phase: 'aiming', aims: [], clock: 0 }).meMarker, false);
+  check('seeds are stable per penguin', [RUN('cldSeedOf')('0-0'), RUN('cldSeedOf')('2-1')], [0, 13]);
+
+  // The seam: every penguin pixel goes through cldRenderPenguin.
+  SET('cldPenguins', [pen2('0-0', 0, 140, 180), pen2('1-0', 1, 220, 180), pen2('2-0', 2, 180, 20, { drowned: true, plug: true, angle: -Math.PI / 2 })]);
+  SET('cldBergs', []); SET('cldFloeRadius', 170); SET('cldPhase', 'aiming'); SET('cldMyAims', []);
+  SET('cldDragging', false); SET('cldMySnowball', null); SET('cldMyMode', 'throw');
+  const v = mkView();
+  const spy = seamSpy();
+  RUN('cldDraw')(v, RUN('cldFloeModel()'));
+  check('the floe: three penguins, all through the seam', [spy.inside, spy.outside], [3, 0]);
+  SET('cldPlayerNames', ['Ada', 'Bo', 'Cy']);
+  RUN('cldShowResult')({ winnerIdx: 1, matchOver: false });
+  ok('the result art goes through the seam too', spy.inside >= 4 && spy.outside === 0, JSON.stringify([spy.inside, spy.outside]));
+  spy.restore();
+
+  // Review Focus 4 — cld.js with cld-art.js missing never throws.
+  const S2 = freshSandbox(); vm.createContext(S2);
+  vm.runInContext(fs.readFileSync(PHYS, 'utf8'), S2, { filename: PHYS });
+  vm.runInContext(fs.readFileSync(GAME, 'utf8'), S2, { filename: GAME });     // NO cld-art.js
+  let noArtErr = null;
+  try {
+    const v2 = mkView(320, 320, S2);
+    vm.runInContext(`cldPenguins = [{ id: '0-0', ownerIdx: 0, x: 180, y: 180, drowned: false }];
+      cldBergs = []; cldFloeRadius = 170; cldPlayerNames = ['A', 'B'];`, S2);
+    S2.__v = v2;
+    vm.runInContext(`(() => { const m = cldFloeModel(); cldDraw(__v, m);
+      cldRenderPenguin(__v.ctx, 'idle', 0, 180, 180, 11, {});
+      cldShowResult({ winnerIdx: 0, matchOver: false }); })()`, S2);
+  } catch (e) { noArtErr = e; }
+  ok('cld.js with cld-art.js missing draws nothing and never throws', noArtErr === null, noArtErr && noArtErr.stack);
+  ok('…and cldArt() says so', vm.runInContext('cldArt()', S2) === null);
 }
 
 // ── Report (keep LAST in the file) ─────────────────────────────────────────

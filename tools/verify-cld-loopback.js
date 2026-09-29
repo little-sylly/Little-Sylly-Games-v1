@@ -125,8 +125,9 @@ function makeDocument() {
   };
 }
 
-// cldPaintBody builds the penguin silhouette as a Path2D and hands it to
-// ctx.fill(path). No shape is inspected here — only that every call answers.
+// The render seam draws through CldArt.penguin, which builds the body as a
+// Path2D and hands it to ctx.fill(path). No shape is inspected here — only that
+// every call answers.
 function Path2DStub() {}
 Path2DStub.prototype.moveTo = function () {};
 Path2DStub.prototype.lineTo = function () {};

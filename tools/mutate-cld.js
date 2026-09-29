@@ -261,6 +261,19 @@ const M = [
   '    if (L >= 5) { M.fire = 1; M.flameT = reduced ? 0 : tt; }', '    if (L >= 5) { M.fire = 1; M.flameT = tt; }']], 'practice'],
 ['thaw-repaint-drops-marks', 'art', [[
   '    marks.forEach(mk => floeMark(f, mk.kind, mk.a, mk.b));', '']], 'practice'],
+// ── SW v246: the seam and the model (verify-cld-practice.js) ─────────────────
+['seam-bypassed', 'game', [[
+  '    cldRenderPenguin(ctx, p.pose, p.ownerIdx, p.x, p.y, CLD_PENGUIN_R, {',
+  '    cldArt().penguin(ctx, { x: p.x, y: p.y, r: CLD_PENGUIN_R, tint: cldTintOf(p.ownerIdx), pose: p.pose }); if (0) cldRenderPenguin(ctx, p.pose, p.ownerIdx, p.x, p.y, CLD_PENGUIN_R, {']], 'practice'],
+['drowned-stay-hungry', 'game', [[
+  '             seed: cldSeedOf(p.id), hunger: inWater ? 0 : hunger,',
+  '             seed: cldSeedOf(p.id), hunger: hunger,']], 'practice'],
+['seated-still-standing', 'game', [[
+  '    const seated  = !!tl && p.seatT !== undefined;', '    const seated  = false;']], 'practice'],
+['snowball-flies-backwards', 'game', [[
+  'to: { x: e.x, y: e.y }, k: Math.max(0, tMs / e.t) }));', 'to: { x: e.x, y: e.y }, k: Math.max(0, 1 - tMs / e.t) }));']], 'practice'],
+['shattered-chunk-lingers', 'game', [[
+  "  return (tl.events || []).filter(e => e.type === 'shatter' && e.t <= tMs).map(e => e.id);", '  return [];']], 'practice'],
 ];
 
 // Which harness a mutant is aimed at. The rules/sim mutants above run the loop

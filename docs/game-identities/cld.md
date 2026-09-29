@@ -278,10 +278,10 @@ Header is built at runtime as *"Floe-Off N · Slide M"* (*"Floe-Off N · Ice Bat
 The Throw · Dive pills show only to a player with a Drowned penguin; for a Peck Off player who still
 has one Standing, *Throw* reads *Aim*. On a Washout the tally line reads *"Nobody made it. Into the
 Ice Bath with {names}."*, the floe floats **WASHOUT!**, then **ICE BATH!** as the bath starts.
-Every few Slides the floe floats **HUNGRY!** (with a 🐟❗ bubble over every Standing penguin, who keep
-angry brows while it lasts) — Hunger, SW v245. The brows are a placeholder: Phase 2 (SW v246) turns
-them into a ladder that escalates with each Hunger level, from a frown to fire in the eyes
-(`2026-09-29-cld-fun-pass-design.md` § 4.2).
+Every few Slides the floe floats **HUNGRY!** (with a 🐟❗ bubble over every Standing penguin) — Hunger,
+SW v245. Each Hunger level also shows on the penguins' faces (SW v246): a frown now and then, then all
+the time, then a huff and a stamp, then angry, then fire in the eyes, then a glow in the player's colour
+that grows until the Floe-Off ends. A Drowned penguin keeps its own face.
 
 ```copy
 # screen-cld-floe — controls

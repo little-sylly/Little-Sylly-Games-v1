@@ -1004,6 +1004,12 @@ const CLD_TINTS = [
 // is smooth at 60fps off a 20Hz timeline.
 const CLD_AFTERMATH_MS   = 900;   // beat held after the last sample, for surfacings
 const CLD_BARK_MS        = 1400;  // how long a plunge bark floats
+
+// ── The render model's poses (SW v246, fun-pass spec § 4.2) ─────────────────
+const CLD_SLIDE_POSE_V = 40;                // units/s — faster than this reads as a belly-slide
+const CLD_SQUASH_MS    = 240;               // a bump's squash, playback ms
+const CLD_SQUASH_MIN_V = 0.12 * CLD_V_MAX;  // a softer bump doesn't squash
+const CLD_PLUNGE_MS    = 500;               // the tip-over at a seat, playback ms
 const CLD_ASSIST_STEPS   = 90;    // aim-assist trace resolution (first bounce only)
 
 
@@ -1067,252 +1073,55 @@ function cldDarken(hex, amt)  { return cldMix(hex, 0,   amt); }
 function cldTintOf(idx) { return CLD_TINTS[((idx % CLD_TINTS.length) + CLD_TINTS.length) % CLD_TINTS.length]; }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// THE POSE TABLE (§10) — animation is transform parameters, never drawn frames.
-// Every state returns the same shape, so cldPaintProcedural has exactly one
-// draw path and the states differ only in the numbers fed to it.
-//   rot    — radians, applied around the body's own centre
-//   sx/sy  — squash/stretch
-//   flip   — flipper sweep, radians from rest
-//   alpha  — global alpha
-//   sink   — 0..1, how far the waterline clips the body (bob only)
-//   lift   — vertical offset in body radii (the plunge's fall-away)
+// THE RENDER SEAM (§10, §17 deviation 3; SW v246 — fun-pass spec § 4.1)
+//
+//   cldRenderPenguin(ctx, pose, colourIdx, x, y, r, opts) → undefined
+//
+// Every pixel of every penguin, in play and in chrome alike, goes through here
+// and on to CldArt.penguin (js/games/cld-art.js). The poses, faces and moods
+// live in the art module; this maps the game's colours and options onto it.
+//
+// `opts`: { t, look, power, vel, k, outward, expr, hunger, seed, splat, me,
+//           second, dim, ring, head, fish, px, reduced, tint }
+//   look   — radians the penguin faces; null lets an idle penguin glance about
+//   hunger — the Hunger level (0 when Drowned): the mood over its face
+//   ring   — the owner ring on the ice; off unless true (chrome leaves it off)
+//   second — Peck Off's second penguin: same hue, darker ring. NEVER a second
+//            hue, which would read as two more players.
+//   tint   — a hex that overrides the owner's colour (the tally's neutral heads)
 // ═══════════════════════════════════════════════════════════════════════════
-function cldPose(state, t) {
-  switch (state) {
-    case 'lean':
-      // Wind-up: leaning back against the pull, flippers swept behind.
-      return { rot: 0, sx: 0.94, sy: 1.07, flip: 0.55, alpha: 1, sink: 0, lift: 0 };
-    case 'squash':
-      // Impact frame. One frame is enough — the physics carries the motion.
-      return { rot: 0, sx: 1.20, sy: 0.82, flip: 0.20, alpha: 1, sink: 0, lift: 0 };
-    case 'plunge':
-      // The comedy beat: spin, shrink, fade, drop. t is 0..1 across the fall.
-      return { rot: t * Math.PI * 4, sx: 1 - t * 0.45, sy: 1 - t * 0.45,
-               flip: -1.1, alpha: 1 - t * 0.85, sink: 0, lift: t * 0.7 };
-    case 'bob':
-      // Half-submerged, riding a slow swell. Same paint call clipped twice at a
-      // waterline — not a sixth-and-a-half state.
-      return { rot: Math.sin(t * 2.1) * 0.10, sx: 1, sy: 1, flip: 0.05,
-               alpha: 1, sink: 0.42 + Math.sin(t * 2.1) * 0.05, lift: 0 };
-    case 'throw':
-      // Flipper cocked back over the shoulder.
-      return { rot: -0.18, sx: 0.97, sy: 1.03, flip: -1.25,
-               alpha: 1, sink: 0.42, lift: 0 };
-    case 'idle':
-    default:
-      // A slow idle sway so a still floe is never a dead one.
-      return { rot: Math.sin(t * 1.4) * 0.055, sx: 1, sy: 1,
-               flip: Math.sin(t * 1.4) * 0.12, alpha: 1, sink: 0, lift: 0 };
-  }
-}
+const CLD_POSE_ALIAS = { lean: 'aim' };     // the pre-v246 name for the wind-up
 
-// ═══════════════════════════════════════════════════════════════════════════
-// THE RENDER SEAM (§10, §17 deviation 3)
-//
-//   cldRenderPenguin(ctx, state, colourIdx, x, y, r, opts) → undefined
-//
-// The suite's first CANVAS render seam: it draws to a 2D context and returns
-// nothing, where every other game's seam returns a DOM node. The RULE the seam
-// exists to serve is unchanged and binding — every pixel of the penguin, in
-// play and in chrome alike, is produced here and nowhere else. There is no
-// second code path to diverge from, because there is no DOM version at all.
-//
-// `opts`: { t, facing, ring, ringDark, dim }
-//   t        — animation clock in seconds (drives cldPose)
-//   facing   — radians; the beak points here, so facing IS free aim feedback
-//   ring     — draw the owner ring under the body (false for chrome)
-//   ringDark — Peck Off's second penguin: same hue, darker ring. NEVER a second
-//              hue, which would read as two more players.
-// ═══════════════════════════════════════════════════════════════════════════
-function cldRenderPenguin(ctx, state, colourIdx, x, y, r, opts) {
+// The art module, or null when cld-art.js never loaded (a rules-only harness,
+// a failed fetch). Every caller treats null as "draw nothing".
+function cldArt() { return (typeof window !== 'undefined' && window.CldArt) || null; }
+
+function cldRenderPenguin(ctx, pose, colourIdx, x, y, r, opts) {
   if (!ctx) return;
   const o = opts || {};
+  const p = CLD_POSE_ALIAS[pose] || pose;
   // A future skin's raster art, if one is ever built. cldSkinArt stays an empty
-  // object for the whole of v1 — there is no core art pack and no cldPreloadArt()
-  // — so this branch never fires. It exists only so a skin CAN override a state
-  // without a render-seam rewrite (§10).
-  const skinUrl = (typeof assetFace === 'function') && assetFace('cld', state);
-  if (skinUrl && cldSkinArt[state]) {
+  // object — there is no core art pack — so this branch never fires. It exists
+  // only so a skin CAN override a pose without a render-seam rewrite (§10).
+  const skinUrl = (typeof assetFace === 'function') && assetFace('cld', p);
+  if (skinUrl && cldSkinArt[p]) {
     ctx.save();
     ctx.translate(x, y);
-    ctx.rotate(o.facing || 0);
-    ctx.drawImage(cldSkinArt[state], -r, -r, r * 2, r * 2);
+    ctx.rotate(typeof o.look === 'number' ? o.look : 0);
+    ctx.drawImage(cldSkinArt[p], -r, -r, r * 2, r * 2);
     ctx.restore();
     return;
   }
-  cldPaintProcedural(ctx, state, colourIdx, x, y, r, o);
-}
-
-// The v1 default — always reached. Bézier silhouettes plus a gradient clipped
-// to the body path. Not stacked primitives: a circle-plus-two-ellipses penguin
-// is exactly the stiff programmer art this is drawn to avoid (§15).
-function cldPaintProcedural(ctx, state, colourIdx, x, y, r, o) {
-  const p     = cldPose(state, o.t || 0);
-  const tint  = cldTintOf(colourIdx);
-  const face  = (o.facing || 0);
-
-  ctx.save();
-  ctx.globalAlpha = (o.dim ? 0.55 : 1) * p.alpha;
-
-  // ── Owner ring — programmatic, drawn UNDER the body, and deliberately the
-  // primary "which one is me" signal at a glance. Sits outside the transform so
-  // a squash frame never distorts the identity cue.
-  if (o.ring) {
-    // A soft dark disc first, so a penguin sits ON the ice rather than floating
-    // over it — without this the rings read as bubbles.
-    ctx.beginPath();
-    ctx.arc(x, y + r * 0.16, r * 1.02, 0, CLD_TAU);
-    ctx.fillStyle = 'rgba(30,60,80,0.16)';
-    ctx.fill();
-
-    // FULL tint, not a lightened wash. Peck Off's second penguin darkens it —
-    // never a second hue, which would read as two more players.
-    ctx.beginPath();
-    ctx.arc(x, y, r * 1.26, 0, CLD_TAU);
-    ctx.strokeStyle = o.ringDark ? cldDarken(tint, 0.42) : tint;
-    ctx.lineWidth = Math.max(1.6, r * 0.15);
-    ctx.stroke();
-
-    // "Me" gets a white outer ring on top of its tint ring. At 24px on a busy
-    // floe this is the only seat cue that survives a glance.
-    if (o.me) {
-      ctx.beginPath();
-      ctx.arc(x, y, r * 1.45, 0, CLD_TAU);
-      ctx.strokeStyle = 'rgba(255,255,255,0.95)';
-      ctx.lineWidth = Math.max(1.4, r * 0.12);
-      ctx.stroke();
-    }
-  }
-
-  ctx.translate(x, y + r * p.lift);
-  ctx.rotate(face + p.rot);
-  ctx.scale(p.sx, p.sy);
-
-  // ── The waterline clip (bob / throw). Everything below it draws at reduced
-  // alpha, which is what makes a bobbing penguin read as IN the water rather
-  // than ON it. Two passes over one paint call, not a separate sprite.
-  const passes = p.sink > 0
-    ? [{ from: -r * 2, to: r * (2 * p.sink - 1), alpha: 1 },
-       { from: r * (2 * p.sink - 1), to: r * 2,  alpha: 0.30 }]
-    : [{ from: -r * 2, to: r * 2, alpha: 1 }];
-
-  passes.forEach(pass => {
-    ctx.save();
-    ctx.beginPath();
-    ctx.rect(-r * 2, pass.from, r * 4, pass.to - pass.from);
-    ctx.clip();
-    ctx.globalAlpha *= pass.alpha;
-    cldPaintBody(ctx, r, tint, p, !!o.hungry);
-    ctx.restore();
+  const A = cldArt();
+  if (!A) return;
+  A.penguin(ctx, {
+    x: x, y: y, r: r, tint: o.tint || cldTintOf(colourIdx), pose: p,
+    t: o.t || 0, look: typeof o.look === 'number' ? o.look : null,
+    power: o.power || 0, vel: o.vel || null, k: o.k || 0, outward: o.outward || 0,
+    expr: o.expr || null, hunger: o.hunger || 0, seed: o.seed || 0, splat: o.splat || 0,
+    me: !!o.me, second: !!o.second, dim: !!o.dim, ring: o.ring === true,
+    head: !!o.head, fish: !!o.fish, px: o.px || 2, reduced: !!o.reduced,
   });
-
-  ctx.restore();
-}
-
-// One body, drawn at the origin, facing +x. Called once per waterline pass.
-function cldPaintBody(ctx, r, tint, p, hungry) {
-  // ── Flippers — behind the body, swept by the pose's `flip`. Drawn first so
-  // the body silhouette overlaps them cleanly with no seam.
-  ctx.fillStyle = cldDarken(tint, 0.34);
-  ctx.strokeStyle = cldDarken(tint, 0.58);
-  ctx.lineWidth = Math.max(0.5, r * 0.05);
-  [1, -1].forEach(side => {
-    ctx.save();
-    ctx.rotate(side * p.flip * 0.5);
-    ctx.beginPath();
-    // A blade, not a blob: leaves the shoulder, sweeps BACK along the flank, and
-    // stays inside the body's own widest point so the silhouette reads as one shape.
-    ctx.moveTo(r * 0.10, side * r * 0.62);
-    ctx.quadraticCurveTo(-r * 0.34, side * r * 0.98, -r * 0.78, side * r * 0.74);
-    ctx.quadraticCurveTo(-r * 0.46, side * r * 0.66, -r * 0.16, side * r * 0.44);
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
-    ctx.restore();
-  });
-
-  // ── Body silhouette — one closed bézier ovoid, narrower at the tail, fuller
-  // at the shoulders. This curve is the whole reason the penguin reads as drawn
-  // rather than assembled.
-  const body = new Path2D();
-  body.moveTo(r * 0.92, 0);                                        // nose
-  body.bezierCurveTo(r * 0.88, -r * 0.62,  r * 0.30, -r * 0.98, -r * 0.18, -r * 0.86);
-  body.bezierCurveTo(-r * 0.78, -r * 0.70, -r * 1.00, -r * 0.26, -r * 0.96, 0);
-  body.bezierCurveTo(-r * 1.00,  r * 0.26, -r * 0.78,  r * 0.70, -r * 0.18,  r * 0.86);
-  body.bezierCurveTo(r * 0.30,  r * 0.98,  r * 0.88,  r * 0.62,  r * 0.92, 0);
-  body.closePath();
-
-  ctx.fillStyle = tint;
-  ctx.fill(body);
-
-  // ── Shading gradient, CLIPPED TO THE BODY PATH — never drawn past the
-  // silhouette (§15). Light from the top-left, the same key the gel buttons use.
-  ctx.save();
-  ctx.clip(body);
-  const g = ctx.createLinearGradient(-r * 0.7, -r * 0.9, r * 0.6, r * 0.9);
-  g.addColorStop(0,    cldLighten(tint, 0.30));
-  g.addColorStop(0.45, cldLighten(tint, 0.04));
-  g.addColorStop(1,    cldDarken(tint, 0.24));
-  ctx.fillStyle = g;
-  ctx.fill(body);
-  ctx.restore();
-
-  // ── Belly — a second bézier, offset forward, in a cold cream. Clipped to the
-  // body so it can never spill past the outline on a squash frame.
-  ctx.save();
-  ctx.clip(body);
-  // Deliberately SMALL and pushed forward — a chest, not a second body. The first
-  // pass gave the belly nearly the whole silhouette and the tint stopped reading.
-  const belly = new Path2D();
-  belly.moveTo(r * 0.66, 0);
-  belly.bezierCurveTo(r * 0.62, -r * 0.30,  r * 0.30, -r * 0.44,  r * 0.04, -r * 0.38);
-  belly.bezierCurveTo(-r * 0.18, -r * 0.32, -r * 0.26, -r * 0.14, -r * 0.24, 0);
-  belly.bezierCurveTo(-r * 0.26,  r * 0.14, -r * 0.18,  r * 0.32,  r * 0.04,  r * 0.38);
-  belly.bezierCurveTo(r * 0.30,  r * 0.44,  r * 0.62,  r * 0.30,  r * 0.66, 0);
-  belly.closePath();
-  ctx.fillStyle = '#F7F3E8';
-  ctx.fill(belly);
-  ctx.restore();
-
-  // ── Beak — points along +x, so `facing` doubles as free aim feedback with no
-  // extra UI (brief §11, the top-down camera decision).
-  ctx.beginPath();
-  ctx.moveTo(r * 0.78, -r * 0.28);
-  ctx.lineTo(r * 1.30, 0);
-  ctx.lineTo(r * 0.78, r * 0.28);
-  ctx.closePath();
-  ctx.fillStyle = '#F2A03D';
-  ctx.fill();
-  ctx.strokeStyle = '#B96C13';
-  ctx.lineWidth = Math.max(0.5, r * 0.05);
-  ctx.stroke();
-
-  // ── Eyes — two dots either side of the beak. At 24px they are a suggestion,
-  // not detail, which is exactly the point of drawing rather than painting.
-  ctx.fillStyle = '#1C1917';
-  [1, -1].forEach(side => {
-    ctx.beginPath();
-    ctx.arc(r * 0.48, side * r * 0.27, Math.max(0.75, r * 0.098), 0, CLD_TAU);
-    ctx.fill();
-  });
-
-  // ── Hungry: angry brows, sloping in toward the beak. Kept while it lasts.
-  if (hungry) {
-    ctx.strokeStyle = '#1C1917';
-    ctx.lineWidth = Math.max(0.8, r * 0.11);
-    ctx.lineCap = 'round';
-    [1, -1].forEach(side => {
-      ctx.beginPath();
-      ctx.moveTo(r * 0.30, side * r * 0.47);
-      ctx.lineTo(r * 0.62, side * r * 0.33);
-      ctx.stroke();
-    });
-  }
-
-  // ── Outline last, so nothing above bleeds over the silhouette edge.
-  ctx.strokeStyle = cldDarken(tint, 0.55);
-  ctx.lineWidth = Math.max(0.6, r * 0.075);
-  ctx.stroke(body);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -1634,13 +1443,15 @@ function cldDraw(view, m) {
       ctx.beginPath(); ctx.arc(p.x, p.y, CLD_PENGUIN_R + 5, 0, CLD_TAU); ctx.stroke();
       ctx.restore();
     }
-    cldRenderPenguin(ctx, p.state, p.ownerIdx, p.x, p.y, CLD_PENGUIN_R, {
-      t: m.clock, facing: p.facing, ring: true, me: p.me, ringDark: p.ringDark, dim: p.dim, hungry: p.hungry,
+    cldRenderPenguin(ctx, p.pose, p.ownerIdx, p.x, p.y, CLD_PENGUIN_R, {
+      t: m.clock, look: p.look, power: p.power, vel: p.vel, k: p.k, outward: p.outward,
+      hunger: p.hunger, seed: p.seed, splat: p.splat, ring: true, me: p.me, second: p.ringDark,
+      dim: p.dim, px: view.scale, reduced: cldReducedMotion(),
     });
   });
 
   // ── HUNGRY! — a 🐟❗ bubble over every hungry penguin while the beat is up.
-  if (m.hungerBeat) m.penguins.forEach(p => { if (p.hungry) cldDrawHungerBubble(ctx, p.x, p.y); });
+  if (m.hungerBeat) m.penguins.forEach(p => { if (p.hunger > 0) cldDrawHungerBubble(ctx, p.x, p.y); });
 
   // ── Dive mode: the free seats round the ring, and the ghost at the chosen one.
   if (m.dive) {
@@ -1652,7 +1463,7 @@ function cldDraw(view, m) {
     if (m.dive.ghost) {
       ctx.save(); ctx.globalAlpha = 0.6;
       cldRenderPenguin(ctx, 'bob', m.dive.ghost.ownerIdx, m.dive.ghost.x, m.dive.ghost.y, CLD_PENGUIN_R,
-                       { t: m.clock, ring: true, me: true });
+                       { t: m.clock, ring: true, me: true, look: Math.PI / 2, reduced: cldReducedMotion() });
       ctx.restore();
     }
   }
@@ -1686,13 +1497,13 @@ function cldDraw(view, m) {
 // A thought bubble up and to the right of a penguin, its tail pointing at it.
 // World space, so it rides the camera with the penguin. Static — nothing travels.
 function cldDrawHungerBubble(ctx, x, y) {
-  const r = CLD_PENGUIN_R, bx = x + r * 1.1, by = y - r * 2.3;
+  const r = CLD_PENGUIN_R, bx = x + r * 1.1, by = y - r * 3.4;   // above the upright body (SW v246)
   ctx.save();
   ctx.fillStyle = 'rgba(255,255,255,0.94)';
   ctx.strokeStyle = 'rgba(18,59,76,0.55)';
   ctx.lineWidth = 1;
   ctx.beginPath(); ctx.ellipse(bx, by, r * 1.45, r * 0.95, 0, 0, CLD_TAU); ctx.fill(); ctx.stroke();
-  ctx.beginPath(); ctx.arc(x + r * 0.45, y - r * 1.15, r * 0.22, 0, CLD_TAU); ctx.fill(); ctx.stroke();
+  ctx.beginPath(); ctx.arc(x + r * 0.45, y - r * 2.45, r * 0.22, 0, CLD_TAU); ctx.fill(); ctx.stroke();
   ctx.font = (r * 1.05) + 'px sans-serif';
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.fillStyle = '#1C1917';
@@ -1866,39 +1677,115 @@ function cldCurrentSrc() {
            iceBreaker: cldIceBreaker, ice: cldIceConditions, slideNo: cldSlideNo };
 }
 
-// PURE over its arguments. Every pose and facing decision the old cldDraw
-// made inline is made here, so the renderer has nothing left to decide.
+// A stable small integer per penguin — desyncs blinks, glances and huffs.
+function cldSeedOf(id) {
+  const parts = String(id).split('-').map(Number);
+  return (parts[0] || 0) * 3 + (parts[1] || 0) * 7;
+}
+
+// PURE. Velocity from the two samples bracketing tMs (units/s), or zero.
+function cldModelVel(tl, tMs, id) {
+  if (!tl || !tl.samples || !tl.samples.length) return { x: 0, y: 0 };
+  const k = (tl.bodyIds || []).indexOf(id);
+  if (k < 0) return { x: 0, y: 0 };
+  const n = tl.samples.length;
+  const i0 = Math.min(Math.floor(tMs * CLD_SAMPLE_HZ / 1000), n - 1), i1 = Math.min(i0 + 1, n - 1);
+  if (i0 === i1) return { x: 0, y: 0 };
+  const s0 = tl.samples[i0], s1 = tl.samples[i1];
+  return { x: (s1[k * 2] - s0[k * 2]) * CLD_SAMPLE_HZ, y: (s1[k * 2 + 1] - s0[k * 2 + 1]) * CLD_SAMPLE_HZ };
+}
+
+// PURE. How far through its squash a penguin is (0..1), or null: the latest
+// hard-enough bump it took inside the last CLD_SQUASH_MS.
+function cldModelSquash(tl, tMs, id) {
+  if (!tl) return null;
+  let at = null;
+  (tl.events || []).forEach(e => {
+    if (e.t > tMs || tMs - e.t >= CLD_SQUASH_MS || (e.speed || 0) < CLD_SQUASH_MIN_V) return;
+    const mine = (e.type === 'collision' && (e.a === id || e.b === id)) || (e.type === 'rebound' && e.id === id);
+    if (mine && (at === null || e.t > at)) at = e.t;
+  });
+  return at === null ? null : (tMs - at) / CLD_SQUASH_MS;
+}
+
+// PURE. Snowballs still in the air. Every throw leaves at t = 0 and lands at its
+// `landing` event's t (cldBuildSlideInputs schedules it), and `from` is the
+// thrower's spot — all already on the wire, so no packet change (spec § 4.4).
+function cldModelSnowballs(tl, tMs) {
+  if (!tl) return [];
+  return (tl.events || []).filter(e => e.type === 'landing' && e.from && e.t > 0 && tMs < e.t)
+    .map(e => ({ from: { x: e.from.x, y: e.from.y }, to: { x: e.x, y: e.y }, k: Math.max(0, tMs / e.t) }));
+}
+
+// PURE. The chunks that have already shattered this Slide.
+function cldModelGone(tl, tMs) {
+  if (!tl) return [];
+  return (tl.events || []).filter(e => e.type === 'shatter' && e.t <= tMs).map(e => e.id);
+}
+
+// PURE over its arguments. Every pose, look and mood decision is made here, so
+// the renderer has nothing left to decide. Nothing in it is sent — every field
+// is derived from the timeline (ui.timeline, while a Slide plays) or from input.
 function cldBuildModel(src, ui) {
   const aims = ui.aims || [];
   // Hunger. While a Slide plays out the count has already moved on, so the
-  // Slide on screen is the one before it.
+  // Slide on screen is the one before it — the level you aim under is the level
+  // you wear for the whole replay (spec § 4.2: a level up shows at the beat).
   const hunger = cldHungerLevel(ui.phase === 'resolving' ? (src.slideNo || 0) - 1 : src.slideNo);
+  const tl  = ui.phase === 'resolving' ? (ui.timeline || null) : null;
+  const tMs = ui.playbackT || 0;
   const aimFor = id => aims.find(a => a.penguinId === id) || null;
+  const toCentre = (x, y) => Math.atan2(CLD_H / 2 - y, CLD_W / 2 - x);
   const penguins = src.penguins.map(p => {
     const mine = p.ownerIdx === ui.meIdx;
-    let state = 'idle';
-    if (p.drowned) state = 'bob';
-    if (p.drowned && p.seatT !== undefined && ui.phase === 'resolving' &&
-        ui.playbackT - p.seatT < 500)                        state = 'plunge';  // tumbling in, bottom already blocking
-    if (p.drowned && ui.snowball && mine)                    state = 'throw';
-    if (!p.drowned && ui.live && ui.live.penguinId === p.id) state = 'lean';
-    const a = aimFor(p.id);
-    // A penguin faces along its aim while aiming, and outward from the centre
-    // otherwise — so a bobbing Drowned penguin faces the ice it wants back.
-    const facing = (a && !p.drowned) ? Math.atan2(a.dy, a.dx)
-                 : p.drowned ? Math.atan2(CLD_H / 2 - p.y, CLD_W / 2 - p.x)
-                 : Math.atan2(p.y - CLD_H / 2, p.x - CLD_W / 2);
+    const vel  = cldModelVel(tl, tMs, p.id);
+    // A penguin that went in THIS Slide is still `drowned: false` in the live
+    // record until the post-state lands — but from its seat beat it is a plug.
+    const seated  = !!tl && p.seatT !== undefined;
+    const inWater = !!p.drowned || seated;
+    let pose = 'idle', look = null, power = 0, k = 0, outward = 0;
+    if (tl && p.plungedThisSlide) {
+      pose = 'plunge';
+      outward = Math.cos(Math.atan2(p.y - CLD_H / 2, p.x - CLD_W / 2));
+    } else if (inWater) {
+      look = toCentre(p.x, p.y);            // a Drowned penguin faces the ice it wants back
+      if (seated && tMs - p.seatT < CLD_PLUNGE_MS) {
+        pose = 'plunge'; k = (tMs - p.seatT) / CLD_PLUNGE_MS;
+        outward = Math.cos(Math.atan2(p.y - CLD_H / 2, p.x - CLD_W / 2));
+      } else if (mine && ui.snowball) pose = 'throw';
+      else pose = (p.plug || seated) ? 'bob' : 'back';
+    } else if (ui.live && ui.live.penguinId === p.id) {
+      pose = 'aim'; power = ui.live.power; look = Math.atan2(ui.live.dy, ui.live.dx);
+    } else if (tl) {
+      const sq = cldModelSquash(tl, tMs, p.id), sp = Math.hypot(vel.x, vel.y);
+      if (sq !== null)                 { pose = 'squash'; k = sq; }
+      else if (sp > CLD_SLIDE_POSE_V)  pose = 'slide';
+      else if (sp > 1)                 look = Math.atan2(vel.y, vel.x);
+    } else if (ui.winnerIdx === p.ownerIdx) {
+      pose = 'win';
+    } else {
+      const a = aimFor(p.id);
+      if (a) look = Math.atan2(a.dy, a.dx);
+    }
     return { id: p.id, ownerIdx: p.ownerIdx, x: p.x, y: p.y,
-             drowned: !!p.drowned, plug: !!p.plug, state: state, facing: facing,
+             drowned: inWater, plug: !!p.plug || seated,
+             pose: pose, look: look, power: power, vel: vel, k: k, outward: outward,
+             seed: cldSeedOf(p.id), hunger: inWater ? 0 : hunger,
              me: mine, ringDark: cldIsSecondPenguin(p),
-             dim: !!(p.drowned && !p.plug),              // Plugged reads solid, Knocked back reads faded
-             selected: ui.selectedId === p.id, hungry: hunger > 0 && !p.drowned };
+             dim: !!(inWater && !(p.plug || seated)),       // Plugged reads solid, Knocked back reads faded
+             selected: ui.selectedId === p.id,
+             splat: (ui.splat && ui.splat[p.id]) || 0 };
   });
-  return { radius: src.radius, bergs: src.bergs, iceBreaker: src.iceBreaker,
+  const gone = cldModelGone(tl, tMs);
+  return { radius: src.radius, bergs: src.bergs.filter(b => gone.indexOf(b.id) < 0), iceBreaker: src.iceBreaker,
            // Reach goes as v² — decel is the base one — so the guide scales by mult².
            reach: cldFullSlideDist(src.ice) * Math.pow(CLD_HUNGER_STEP, 2 * hunger), penguins: penguins, aims: aims,
            hunger: hunger, hungerBeat: !!ui.hungerBeat,
            assist: !!ui.assist, dive: ui.dive || null, snowball: ui.snowball || null, rivalThrows: ui.rivalThrows || [],
+           snowballs: cldModelSnowballs(tl, tMs), phase: ui.phase || 'aiming',
+           meMarker: ui.phase === 'aiming' && (src.slideNo || 0) === 0 && !aims.some(a => !a.rival),
+           winnerIdx: typeof ui.winnerIdx === 'number' ? ui.winnerIdx : -1,
+           floeKey: ui.floeKey || '', floeSeed: ui.floeSeed || 1,
            clock: ui.clock || 0 };
 }
 
@@ -1930,6 +1817,8 @@ function cldFloeModel() {
     meIdx: cldMyIdx(), phase: cldPhase, playbackT: cldPlaybackT, aims: aims, live: live,
     snowball: cldMySnowball, dive: back ? cldDiveModel(back, cldMyDive) : null,
     assist: cldAimAssist, clock: cldClock, hungerBeat: Date.now() < cldHungerBeatUntil,
+    timeline: cldTimeline, winnerIdx: -1, splat: cldView ? cldView.splat : null,
+    floeKey: 'f:' + cldFloeOffNo + (cldInBath ? 'b' : ''), floeSeed: cldFloeOffNo * 31 + (cldInBath ? 7 : 1),
     // The ring only means something when there is a choice to make (Peck Off).
     selectedId: (standing.length > 1 && cldPhase === 'aiming' && !cldCommitted) ? cldDefaultPenguin(standing, cldMyAims).id : null,
   });
@@ -2569,11 +2458,10 @@ function cldShowResult(tl) {
     const g = c.getContext('2d');
     if (g) {
       g.setTransform(dpr, 0, 0, dpr, 0, 0);
-      // ring:false — the ring exists to answer "which one is me" on a crowded floe.
-      // Here the winner's name is directly beneath the art, and the ring's gap reads
-      // as a page-coloured halo against chrome instead of the ice it was drawn for.
-      cldRenderPenguin(g, winner >= 0 ? 'idle' : 'bob', winner >= 0 ? winner : 0,
-                       48, 48, 32, { t: 0, facing: -0.35, ring: false });
+      // No ring — it exists to answer "which one is me" on a crowded floe; here the
+      // winner's name is directly beneath the art. (Task 6 restyles this screen.)
+      cldRenderPenguin(g, winner >= 0 ? 'win' : 'bob', winner >= 0 ? winner : 0, 48, 78, 26,
+                       { t: 0.3, look: Math.PI / 2, fish: winner >= 0 });
     }
     art.appendChild(c);
   }
@@ -2805,7 +2693,7 @@ function cldSetHowtoTab(tab) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// "The Cast" — the How-to pose reference: the six cldPose states, each drawn
+// "The Cast" — the How-to pose reference: the poses (CldArt.posePars), each drawn
 // through cldRenderPenguin, so the poses shown here cannot drift from the
 // ones played. (The Floe's practice sandbox was absorbed by the Practice
 // Arena at SW v244 — spec 2026-09-28-cld-cue-arena.)
@@ -2886,7 +2774,7 @@ function cldHowtoDrawCast() {
     // so a still frame is never caught mid-vanish.
     const t = tile.pose === 'plunge' ? ((cldHowtoClock * 0.45) % 1) * 0.7 : cldHowtoClock;
     cldRenderPenguin(tile.ctx, tile.pose, tile.colour, CLD_W / 2, CLD_H / 2, CLD_HOWTO_TILE_R,
-      { t: t, ring: true });
+      { t: t, ring: true, look: Math.PI / 2, reduced: cldReducedMotion() });
   });
 }
 
@@ -3040,9 +2928,10 @@ function cldPrLoadDrill(key) {
       cldPenguins[i].x = pos.x; cldPenguins[i].y = pos.y;
     });
   });
+  const floeId = ((cldPrUi && cldPrUi.floeId) || 0) + 1;
   cldPrUi = { drill: key, aim: null, lock: null, mode: 'throw', snowball: null, dive: null,
               playing: false, end: null, before: null, slides: 0, plans: [null, null, null],
-              drag: null, coach: coach };
+              drag: null, coach: coach, floeId: floeId };
   cldPrRefreshPlans();
   if (cldPrView) cldCamFrame(cldPrView, cldArenaRun(() => cldFloeRadius));
 }
@@ -3175,6 +3064,10 @@ function cldArenaModel() {
       dive: back ? cldDiveModel(back, u.dive) : null,
       assist: cldAimAssist, clock: cldPrClock, selectedId: null, hungerBeat: Date.now() < (u.hungerUntil || 0),
       rivalThrows: u.playing ? [] : u.plans.map((c, i) => c && c.snowball ? { x: c.snowball.x, y: c.snowball.y, ownerIdx: i } : null).filter(Boolean),
+      timeline: cldTimeline, winnerIdx: (u.end && !u.end.draw) ? u.end.winner : -1,
+      splat: cldPrView ? cldPrView.splat : null,
+      floeKey: 'pr' + (u.floeId || 0) + ':' + cldFloeOffNo + (cldInBath ? 'b' : ''),
+      floeSeed: CLD_PR_DRILLS[u.drill].ringSeed * 101 + (u.floeId || 0),
     });
   });
 }
