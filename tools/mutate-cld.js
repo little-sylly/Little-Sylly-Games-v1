@@ -195,12 +195,12 @@ const M = [
 `  try { return fn(); }
   finally {
     cldPrSwapDepth--;
-    cldPrFloe = cldSwapOut();
+    Object.assign(record, cldSwapOut());
     cldSwapIn(live);
   }`,
 `  const r = fn();
   cldPrSwapDepth--;
-  cldPrFloe = cldSwapOut();
+  Object.assign(record, cldSwapOut());
   return r;`]], 'practice'],
 
 ['swap-misses-a-global', 'game', [

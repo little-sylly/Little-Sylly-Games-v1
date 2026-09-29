@@ -909,18 +909,25 @@ function cldPrFreshFloe() {
 let cldPrFloe      = null;   // the Arena's record while it is NOT swapped in
 let cldPrSwapDepth = 0;      // > 0 while the Arena's values sit in the globals
 
-function cldArenaRun(fn) {
-  if (cldPrSwapDepth > 0) return fn();         // already swapped in — never double-swap
-  if (!cldPrFloe) cldPrFloe = cldPrFreshFloe();
+// Any rules record, swapped into the module globals for ONE synchronous call.
+// The live values come back in `finally`, and the record keeps the run's end
+// state IN PLACE. The Arena runs on it; so does a bot's look-ahead (SW v247).
+function cldRulesRun(record, fn) {
   const live = cldSwapOut();
-  cldSwapIn(cldPrFloe);
+  cldSwapIn(record);
   cldPrSwapDepth++;
   try { return fn(); }
   finally {
     cldPrSwapDepth--;
-    cldPrFloe = cldSwapOut();
+    Object.assign(record, cldSwapOut());
     cldSwapIn(live);
   }
+}
+
+function cldArenaRun(fn) {
+  if (cldPrSwapDepth > 0) return fn();         // already swapped in — never double-swap
+  if (!cldPrFloe) cldPrFloe = cldPrFreshFloe();
+  return cldRulesRun(cldPrFloe, fn);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -2955,21 +2962,31 @@ function cldPrBotCommit(d, i) {
   const me = cldPenguins.find(q => q.ownerIdx === i), tgt = cldPrPlanTarget(d.plan, i);
   if (!me || !tgt) return hold;
   if (me.drowned) return tgt.drowned ? hold : { aims: [], dive: null, snowball: { x: tgt.x, y: tgt.y } };
+  const dir = cldBotAimAt(me, tgt, d.plan === 'edge');
+  if (!dir) return hold;
+  return { aims: [{ penguinId: me.id, dx: dir.dx, dy: dir.dy, power: cldPrPower(d, i) }], dive: null, snowball: null };
+}
+
+// A straight shove at `tgt`, or — `cut` — Practice's Edge cut: aim at the
+// ghost-ball point one diameter behind `tgt`, toward the free gap nearest it,
+// when the cut is no sharper than CLD_PR_CUT_MAX. Shared by the Arena's drill
+// bots and the live bots (SW v247). Call inside a swap.
+function cldBotAimAt(me, tgt, cut) {
   let ax = tgt.x, ay = tgt.y;
-  if (d.plan === 'edge' && !tgt.drowned) {
+  if (cut && !tgt.drowned) {
     const seat = cldSeatSpot(cldAngleOf(tgt.x, tgt.y), null);
     if (seat) {
       const g = cldRimPos(seat.angle, cldFloeRadius);
       const ul = Math.hypot(g.x - tgt.x, g.y - tgt.y) || 1, ux = (g.x - tgt.x) / ul, uy = (g.y - tgt.y) / ul;
       const hx = tgt.x - 2 * CLD_PENGUIN_R * ux, hy = tgt.y - 2 * CLD_PENGUIN_R * uy;
       const dl = Math.hypot(hx - me.x, hy - me.y) || 1;
-      const cut = Math.acos(Math.max(-1, Math.min(1, ((hx - me.x) * ux + (hy - me.y) * uy) / dl)));
-      if (cut <= CLD_PR_CUT_MAX) { ax = hx; ay = hy; }
+      const c = Math.acos(Math.max(-1, Math.min(1, ((hx - me.x) * ux + (hy - me.y) * uy) / dl)));
+      if (c <= CLD_PR_CUT_MAX) { ax = hx; ay = hy; }
     }
   }
   const l = Math.hypot(ax - me.x, ay - me.y);
-  if (l < 1e-6) return hold;
-  return { aims: [{ penguinId: me.id, dx: (ax - me.x) / l, dy: (ay - me.y) / l, power: cldPrPower(d, i) }], dive: null, snowball: null };
+  if (l < 1e-6) return null;
+  return { dx: (ax - me.x) / l, dy: (ay - me.y) / l };
 }
 
 // Their next moves, worked out from the ice as it stands — drawn before you aim.
@@ -3739,6 +3756,19 @@ function cldApplyCommit(playerIdx, commit, slideNo) {
   return true;
 }
 
+// HOST. One commit, from a client's packet or a bot (SW v247): apply → tally →
+// UI → resolve once every seat is in. cldApplyCommit's stale-tag and
+// no-overwrite guards cover both paths.
+function cldHostTakeCommit(idx, commit, slideNo) {
+  if (!cldApplyCommit(idx, commit, slideNo)) return false;
+  cldBroadcastTally();
+  cldSyncFloeUI();
+  // Plain .every() — a gate reading a per-seat array must be checked in the
+  // mode where that array is EMPTY, because [].every() is true (CJAR BUG-05).
+  if (cldPlayerCount > 0 && cldCommits.every(c => c !== null)) cldHostResolveSlide();
+  return true;
+}
+
 // A COUNT, never a name. The same rule holds on a single device so the two paths
 // cannot diverge — there is no name in this packet to print.
 function cldBroadcastTally() {
@@ -3762,14 +3792,7 @@ function cldHandleEnvelope(env) {
     // that a client never writes the private channel at all.
     if (window.syllyMultiplayerMode !== 'host') return;
     if (p.action === 'CLD_COMMIT') {
-      if (!cldApplyCommit(cldSenderIdx(env.originId), cldWireCommit(p.commit), p.slideNo)) return;
-      cldBroadcastTally();
-      cldSyncFloeUI();
-      // Plain .every() — a gate reading a per-seat array must be checked in the
-      // mode where that array is EMPTY, because [].every() is true (CJAR BUG-05).
-      if (cldPlayerCount > 0 && cldCommits.every(c => c !== null)) {
-        cldHostResolveSlide();
-      }
+      cldHostTakeCommit(cldSenderIdx(env.originId), cldWireCommit(p.commit), p.slideNo);
     }
     return;
   }
