@@ -266,7 +266,7 @@ const M = [
   '  cldRenderPenguin(ctx, p.pose, p.ownerIdx, p.x, p.y, CLD_PENGUIN_R, {',
   '  cldArt().penguin(ctx, { x: p.x, y: p.y, r: CLD_PENGUIN_R, tint: cldTintOf(p.ownerIdx), pose: p.pose }); if (0) cldRenderPenguin(ctx, p.pose, p.ownerIdx, p.x, p.y, CLD_PENGUIN_R, {']], 'practice'],
 ['drowned-stay-hungry', 'game', [[
-  '             seed: cldSeedOf(p.id), hunger: inWater ? 0 : hunger,',
+  '             seed: cldSeedOf(p.id), hunger: (inWater || (!!tl && !!p.plungedThisSlide)) ? 0 : hunger,',
   '             seed: cldSeedOf(p.id), hunger: hunger,']], 'practice'],
 ['seated-still-standing', 'game', [[
   '    const seated  = !!tl && p.seatT !== undefined;', '    const seated  = false;']], 'practice'],
@@ -293,6 +293,14 @@ const M = [
 ['chrome-bypasses-seam', 'game', [[
   "  if (ctx) cldRenderPenguin(ctx, 'idle', ownerIdx, cssR, cssR, cssR, { head: true, look: Math.PI / 2 });",
   "  if (ctx && cldArt()) cldArt().penguin(ctx, { x: cssR, y: cssR, r: cssR, tint: cldTintOf(ownerIdx), pose: 'idle', head: true });"]], 'practice'],
+['aftermath-surface-stays-dry', 'game', [[
+  "    if (p && b.type === 'surface') { p.seatT = cldPlaybackT; p.seatPlug = b.plug !== false; }", '']], 'practice'],
+['second-bath-keeps-marks', 'game', [[
+  "  cldViewForget(cldView);               // a Floe-Off can wash out twice", '  //']], 'practice'],
+['idle-never-glances', 'art', [[
+  "      ? Math.PI / 2 + ((o.pose || 'idle') === 'idle' ? Math.sin(t * 0.45 + sd) * 0.9 : 0)", '      ? Math.PI / 2']], 'practice'],
+['paused-trail-grows', 'game', [[
+  '      if (!last || last.x !== p.x || last.y !== p.y) run.push({ x: p.x, y: p.y });', '      run.push({ x: p.x, y: p.y });']], 'practice'],
 ['reduced-motion-clock-runs', 'game', [[
   '  if (!paused && !cldReducedMotion()) cldClock += dt;', '  if (!paused) cldClock += dt;']], 'practice'],
 ['seat-drawn-white', 'art', [[

@@ -1411,8 +1411,9 @@ function cldViewStep(view, dtS, m) {
     const tr = view.trails[p.id] || (view.trails[p.id] = [[]]);
     const run = tr[tr.length - 1];
     if (!p.drowned && p.pose === 'slide' && Math.hypot(p.vel.x, p.vel.y) > CLD_GROOVE_MIN_V) {
-      run.push({ x: p.x, y: p.y });
-      if (view.fx && Math.random() < 0.7) view.fx.spray(p.x, p.y, p.vel.x, p.vel.y, 1);
+      const last = run[run.length - 1];
+      if (!last || last.x !== p.x || last.y !== p.y) run.push({ x: p.x, y: p.y });   // a paused Slide adds nothing
+      if (view.fx && dtS > 0 && Math.random() < 0.7) view.fx.spray(p.x, p.y, p.vel.x, p.vel.y, 1);
     } else if (run.length) tr.push([]);
   });
   if (view.wasResolving && !resolving) {
@@ -1715,6 +1716,7 @@ function cldBuildModel(src, ui) {
     // record until the post-state lands — but from its seat beat it is a plug.
     const seated  = !!tl && p.seatT !== undefined;
     const inWater = !!p.drowned || seated;
+    const seatPlug = seated && p.seatPlug !== false;   // a surface beat may land it Knocked back
     let pose = 'idle', look = null, power = 0, k = 0, outward = 0;
     if (tl && p.plungedThisSlide) {
       pose = 'plunge';
@@ -1725,7 +1727,7 @@ function cldBuildModel(src, ui) {
         pose = 'plunge'; k = (tMs - p.seatT) / CLD_PLUNGE_MS;
         outward = Math.cos(Math.atan2(p.y - CLD_H / 2, p.x - CLD_W / 2));
       } else if (mine && ui.snowball) pose = 'throw';
-      else pose = (p.plug || seated) ? 'bob' : 'back';
+      else pose = (p.plug || seatPlug) ? 'bob' : 'back';
     } else if (ui.live && ui.live.penguinId === p.id) {
       pose = 'aim'; power = ui.live.power; look = Math.atan2(ui.live.dy, ui.live.dx);
     } else if (tl) {
@@ -1740,11 +1742,11 @@ function cldBuildModel(src, ui) {
       if (a) look = Math.atan2(a.dy, a.dx);
     }
     return { id: p.id, ownerIdx: p.ownerIdx, x: p.x, y: p.y,
-             drowned: inWater, plug: !!p.plug || seated,
+             drowned: inWater, plug: !!p.plug || seatPlug,
              pose: pose, look: look, power: power, vel: vel, k: k, outward: outward,
-             seed: cldSeedOf(p.id), hunger: inWater ? 0 : hunger,
+             seed: cldSeedOf(p.id), hunger: (inWater || (!!tl && !!p.plungedThisSlide)) ? 0 : hunger,   // going in wears no mood
              me: mine, ringDark: cldIsSecondPenguin(p),
-             dim: !!(inWater && !(p.plug || seated)),       // Plugged reads solid, Knocked back reads faded
+             dim: !!(inWater && !(p.plug || seatPlug)),     // Plugged reads solid, Knocked back reads faded
              selected: ui.selectedId === p.id,
              splat: (ui.splat && ui.splat[p.id]) || 0 };
   });
@@ -2296,11 +2298,18 @@ function cldPlayAftermath(b, hooks) {
   if (b.type === 'surface' || b.type === 'displace' || b.type === 'knockback') {
     const p = cldPenguins.find(q => q.id === b.penguinId);
     if (p) { p.x = b.x; p.y = b.y; p.plungedThisSlide = false; }
+    // A surface is a penguin going in by a beat, not a sim seat (a refused seat, a
+    // Thaw-drop): the model reads it as in the water from here, like a seat event.
+    if (p && b.type === 'surface') { p.seatT = cldPlaybackT; p.seatPlug = b.plug !== false; }
     if (b.type === 'displace') hooks.sfx('dive');
     return;
   }
   if (b.type === 'thaw')      { cldFloeRadius = b.newRadius; hooks.sfx('thaw'); return; }
-  if (b.type === 'thaw-drop') { if (hooks.fx) hooks.fx(b); hooks.sfx('plunge'); hooks.bark(); return; }
+  if (b.type === 'thaw-drop') {
+    const p = cldPenguins.find(q => q.id === b.penguinId);
+    if (p) p.plungedThisSlide = true;           // over the lip until its surface beat
+    if (hooks.fx) hooks.fx(b); hooks.sfx('plunge'); hooks.bark(); return;
+  }
 }
 
 function cldEndPlayback() {
@@ -2365,6 +2374,7 @@ function cldStartFloeOffLocal() {
 function cldStartIceBathLocal(bathIds) {
   if (window.syllyMultiplayerMode === 'client') return;
   cldStartIceBath(bathIds, (Date.now() ^ 0x1ceba7) >>> 0);
+  cldViewForget(cldView);               // a Floe-Off can wash out twice — both baths are 'f:Nb'
   if (window.syllyMultiplayerMode === 'host') {
     mpSendEnvelope({ type: 'SYNC', payload: cldFloeOffStartPayload() });
   }
@@ -3112,6 +3122,7 @@ function cldPrSlideDone() {
     return out;
   });
   u.playing = false; u.snowball = null; u.dive = null;
+  if (res.bath) cldViewForget(cldPrView);           // outside the swap: the Arena's second bath starts clean too
   if (res.winner === null && !res.bath && u.slides >= (d.cap || CLD_PR_SLIDE_CAP)) res.draw = true;
   if (res.winner !== null || res.draw) u.end = { winner: res.winner === null ? -1 : res.winner, draw: !!res.draw };
   // HUNGRY! — the same beat as the floe's, in the Arena's own float layer.
@@ -3798,6 +3809,7 @@ function cldHandleEnvelope(env) {
       cldMyMode     = 'throw';
       cldMySnowball = null;
       if (cldInBath) {
+        cldViewForget(cldView);           // a second bath reuses 'f:Nb' — start it clean
         // The Washout beat's own timer may still be pending here; it would park
         // this device on standby AFTER the bath had already started.
         if (cldResultTimer) { clearTimeout(cldResultTimer); cldResultTimer = null; }

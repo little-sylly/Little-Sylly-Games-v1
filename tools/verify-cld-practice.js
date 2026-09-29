@@ -1032,6 +1032,10 @@ if (!TUNE) {
   ok('a plug sits shallower than a knocked-back penguin',
      A.posePars({ pose: 'bob' }).sink < A.posePars({ pose: 'back' }).sink);
   check('expr overrides the pose’s face', A.posePars({ pose: 'idle', expr: 'dizzy' }).expr, 'dizzy');
+  // Final review — an idle penguin with no look of its own glances about (spec § 4.2); a given look wins.
+  ok('an idle penguin glances about when nothing sets its look',
+     A.posePars({ pose: 'idle', t: 0, seed: 1 }).lookX !== A.posePars({ pose: 'idle', t: 2, seed: 1 }).lookX);
+  ok('…and a given look always wins', A.posePars({ pose: 'idle', t: 2, seed: 1, look: 0 }).lookX === 1);
 
   // The Hunger ladder (§ 4.2): a mood OVER the face, one rung per level.
   const mood = (l, t, reduced) => A.moodPars(l, t || 0, 3, !!reduced);
@@ -1174,6 +1178,27 @@ if (!TUNE) {
   check('…then a plug: bob, in the water, no mood',
         [m.penguins[1].pose, m.penguins[1].drowned, m.penguins[1].plug, m.penguins[1].hunger], ['bob', true, true, 0]);
 
+  // Final review — Review Focus 1 through the AFTERMATH: a Thaw-drop, and a refused seat that surfaces.
+  // Both reach the water by a beat, not a sim seat, and neither sets drowned until the post-state.
+  (() => {
+    const hk = { sfx() {}, bark() {}, fx() {} };
+    const afterBeat = (beats, tAt) => {
+      SET('cldPenguins', [pen2('0-0', 0, 110, 180), pen2('1-0', 1, 180, 20)]);
+      beats.forEach(([b, t]) => { SET('cldPlaybackT', t); RUN('cldPlayAftermath')(b, hk); });
+      return BM(src(G('cldPenguins'), 18), ui(tAt)).penguins[1];
+    };
+    const drop = { type: 'thaw-drop', penguinId: '1-0', x: 180, y: 20 };
+    const surf = plug => ({ type: 'surface', penguinId: '1-0', x: 180, y: 8, plug: plug });
+    let q = afterBeat([[drop, 700]], 710);
+    check('a Thaw-drop: over the lip at once, never standing', [q.pose, q.hunger], ['plunge', 0]);
+    q = afterBeat([[drop, 700], [surf(true), 750]], 760);
+    check('…then tipping in from its surface beat', q.pose, 'plunge');
+    q = afterBeat([[drop, 700], [surf(true), 750]], 750 + G('CLD_PLUNGE_MS') + 20);
+    check('…then a plug: bob, in the water, no mood', [q.pose, q.drowned, q.plug, q.hunger, q.dim], ['bob', true, true, 0, false]);
+    q = afterBeat([[surf(false), 750]], 750 + G('CLD_PLUNGE_MS') + 20);
+    check('a refused seat that surfaces Knocked back: back, dimmed, no mood', [q.pose, q.drowned, q.plug, q.hunger, q.dim], ['back', true, false, 0, true]);
+  })();
+
   // Review Focus 2 — the level you aim under is the level you wear for the whole replay.
   const lv = (slideNo, phase) => BM(src(pens(), slideNo), ui(75, { phase })).penguins[0].hunger;
   ok('the mood never changes mid-Slide (aiming Slide s = its replay, s = 0…12)',
@@ -1265,6 +1290,23 @@ if (!TUNE) {
   step(lv, 0.016, base());
   check('a Floe-Off intro starts the live floe clean, even on a repeated key', lv.floe.marks.length, 0);
 
+  // Final review — a paused Slide (the sound overlay up: the loop steps at dt 0) gathers no trail points.
+  const tv = mkView(); step(tv, 0.016, base());
+  for (let i = 0; i < 50; i++) step(tv, 0, base({ phase: 'resolving', penguins: [slider(120)] }));
+  check('a paused Slide never piles up trail points', tv.trails['0-0'].map(r => r.length), [1]);
+
+  // Final review — Review Focus 3: a Floe-Off can wash out twice, and both Ice Baths share 'f:Nb'.
+  (() => {
+    RUN('cldInitCanvas()');
+    const bv = G('cldView');
+    RUN('cldStartFloeOff(21)');
+    step(bv, 0.016, base({ floeKey: 'f:1b', radius: 90 })); fxEv(bv, { type: 'landing', x: 180, y: 190, hit: null });
+    ok('(the first bath floe has a splat)', bv.floe.marks.length === 1);
+    RUN('cldStartIceBathLocal(cldPenguins.slice(0, 2).map(p => p.id))');
+    step(bv, 0.016, base({ floeKey: 'f:1b', radius: 90 }));
+    check('a second Ice Bath on the same key starts clean (live floe)', bv.floe.marks.length, 0);
+  })();
+
   // Splats on a penguin fade over CLD_SPLAT_FADE_S.
   fxEv(v, { type: 'landing', x: 150, y: 150, hit: 'penguin', id: '1-0' });
   check('a Snowball hit splats that penguin', v.splat['1-0'], 1);
@@ -1337,6 +1379,21 @@ if (!TUNE) {
     RUN('cldPrTick')(1e9);
   }
   check('three Arena Slides leave the live view’s particles alone', live.fx.count(), before);
+  // Final review — the Arena's second Ice Bath in one round starts clean too.
+  (() => {
+    const pv = G('cldPrView');
+    const washOut = () => {
+      RUN("cldArenaRun(() => { cldTimeline = { washout: true, bathIds: cldPenguins.map(p => p.id), floeOffOver: false, winnerIdx: -1 }; })");
+      RUN('cldPrUi.before = cldArenaRun(() => cldPenguins.map(p => ({ id: p.id, drowned: false, plug: false })))');
+      RUN('cldPrUi.playing = true'); RUN('cldPrSlideDone()');
+    };
+    washOut();
+    step(pv, 0.016, RUN('cldArenaModel()')); fxEv(pv, { type: 'landing', x: 180, y: 185, hit: null });
+    ok('(the Arena bath floe has a splat)', !!pv.floe && pv.floe.marks.length === 1);
+    washOut();
+    step(pv, 0.016, RUN('cldArenaModel()'));
+    check('a second Arena Ice Bath starts clean', pv.floe.marks.length, 0);
+  })();
   RUN('cldPracticeStop()');
   // Teardown drops both views' art state: the Arena restarts at floe 1 next time,
   // and a reused key must never bring the old grooves back.

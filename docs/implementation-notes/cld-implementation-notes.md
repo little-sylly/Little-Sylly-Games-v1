@@ -565,7 +565,19 @@ needs to go".
   which `cldLoop` reads as open, so the loop was paused and its clock never moved. A mutant proved it.
 - Tuned by eye: `HEAD_CY` −1.38 / `HEAD_R` 0.68 (the face centred in an avatar), the result art 132 × 176.
 
-**Numbers.** `verify-cld-practice.js` 189 → 337 (sections M–T), `mutate-cld.js` 45 → 64 (an `art` source kind,
+**The final review (a fresh reviewer over the whole range) found four more, each fixed RED → GREEN with a mutant.**
+- *In the water by a beat.* A Thaw-drop or a refused seat reaches the water through an AFTERMATH beat, not a sim
+  seat, so the model drew the penguin upright, with its Hunger mood, outside the rim until the post-state. A
+  `thaw-drop` now marks it over the lip; a `surface` stamps `seatT` (and `seatPlug`, so a Knocked-back surface is
+  `back`); anything going in wears no mood.
+- *A second Ice Bath.* A Floe-Off can wash out twice, and both baths are `f:Nb` — the second opened with the
+  first one's splats. Every bath start (host, client, Arena) now forgets the view.
+- *The idle glance* (spec § 4.2) was lost in the port: `posePars` pinned a null look to face-front. An idle penguin
+  with no look of its own now glances about, as the prototype's composer did.
+- *A paused Slide* (the sound overlay up, the loop stepping at dt 0) pushed the same trail point every frame —
+  unbounded. A repeated point is now skipped, and nothing sprays at dt 0.
+
+**Numbers.** `verify-cld-practice.js` 189 → 348 (sections M–T + the review's checks), `mutate-cld.js` 45 → 68 (an `art` source kind,
 `CLD_ART_SRC=`). Practice stage 291 / 265 / 169 px at the three SE sizes (DD-19: 291 / 269 / 173). A crowded
 frame (16 penguins, 30 chunks) is ~1,030 fill/stroke calls — the baseline for the SE's frame-rate pass.
 

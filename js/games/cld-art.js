@@ -89,7 +89,11 @@
     const t = o.t || 0, sd = o.seed || 0;
     const P = { rot: 0, sx: 1, sy: 1, lift: 0, flipL: 0.22, flipR: 0.22, frontL: false, frontR: false,
                 feet: true, sink: 0, expr: 'happy', lookX: 0, lookY: 1, back: false, bob: 0, pivot: 0 };
-    const look = (o.look === undefined || o.look === null) ? Math.PI / 2 : o.look;
+    // No look of its own: an idle penguin glances about (the prototype's composer did this);
+    // any other pose faces front. The caller's clock stands still under reduced motion.
+    const look = (o.look === undefined || o.look === null)
+      ? Math.PI / 2 + ((o.pose || 'idle') === 'idle' ? Math.sin(t * 0.45 + sd) * 0.9 : 0)
+      : o.look;
     const lx = Math.cos(look), ly = Math.sin(look);
     P.lookX = lx; P.lookY = ly;
     switch (o.pose) {
