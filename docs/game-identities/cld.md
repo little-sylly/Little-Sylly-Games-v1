@@ -37,7 +37,7 @@ reacting to a rival's move. You are **guessing** it, and being wrong is most of 
 Getting knocked in is not the end of you. You go in through a gap in the ice ring, and a **Drowned**
 penguin **plugs** the gap it went through — that is its **Berth**. The next penguin to hit it
 bounces off, once, and knocks it back into the water; from there, every Slide, it either flings a
-**Snowball** at a survivor's aim or **Dives** into any free gap and plugs that one instead. So the
+**Snowball** at a survivor's aim or **Dives** into any *other* free gap and plugs that one instead. So the
 floe is never quiet: it empties of standing penguins while the rim fills with spiteful ones, and the
 two pressures pull against each other until one player is left.
 
@@ -76,7 +76,8 @@ off the first one's bottom instead of following it in. That plug is its **Berth*
   leaving the gap open;
 - every Slide it may throw one **Snowball** at a standing penguin (stronger the closer it is);
 - once **knocked back**, it chooses **Throw or Dive** each Slide — the Snowball, *or* a Dive into any
-  free gap, which it plugs again. Dives land *before* the Slide, so a Dive can seal a gap before
+  free gap **except the one it was knocked out of** (so hitting a plug really opens that gap — owner,
+  29 Sep 2026), which it plugs. On the ringless Ice Bath that is just the spot it left. Dives land *before* the Slide, so a Dive can seal a gap before
   anyone slides at it; two Dives at one spot go to the closer penguin;
 - if someone falls through the gap a knocked-back penguin is bobbing behind, it is **displaced** to
   the nearest free gap, plugged again. Every arrival plugs.
@@ -132,7 +133,7 @@ the funniest thing that can happen to you, not the worst.
 | **Plugged** | The Drowned state that blocks its gap from the water: floating just past the edge, an immovable, energetic bumper that absorbs **one** contact. |
 | **Knocked back** | The Drowned state after that contact: drifted out past its gap, no longer a bumper, the gap open again. |
 | **Snowball** | The single throw a Drowned penguin gets each Slide, aimed at a standing penguin to nudge their Slide off line. Stronger the closer it lands to the thrower. Also takes one hit off a Berg; does nothing to a plug. |
-| **Dive** | A Knocked-back penguin's move into any free gap, *instead of* throwing that Slide (Throw or Dive). Resolves before the Slide; contested spots go to the closer penguin. Arrives Plugged. |
+| **Dive** | A Knocked-back penguin's move into any free gap but the one it was knocked out of, *instead of* throwing that Slide (Throw or Dive). Resolves before the Slide; contested spots go to the closer penguin. Arrives Plugged. |
 | **Resurface** | The reset of every penguin to Standing at the start of a Floe-Off. Never used for surfacing at a Berth. |
 | **Washout** | A Slide or melt step that leaves nobody Standing. No Fish yet — it starts an Ice Bath. |
 | **Ice Bath** | The sudden-death floe a Washout starts: the penguins that went in at that step, on a small ringless floe; same Floe-Off, same Fish. |
@@ -301,7 +302,7 @@ that grows until the Floe-Off ends. A Drowned penguin keeps its own face.
 Throw
 Dive
 You can Dive once you’re knocked back.
-Every gap is taken — nowhere to Dive.
+No other gap is open — nowhere to Dive.
 Tap to lock power
 Power locked — tap to release
 Too soft
@@ -497,7 +498,7 @@ Touch anywhere and pull back — the shot goes the other way.
 The dots show your first hit. Tap Power to lock it, then Lock It In.
 Same plan every Slide. Read it, and counter it.
 You’re in the Drink, plugging the gap you went through. The next penguin to hit you bounces off harder. Tap the ice to aim a Snowball.
-Knocked back — now it’s Throw or Dive. Dive into a free gap to plug it again.
+Knocked back — now it’s Throw or Dive. Dive into another free gap to plug that one.
 {Name}’s in the Drink — a plug now. Hit it and you bounce back harder.
 Everyone went in at once — into the Ice Bath. Last one dry still wins.
 Last one dry — that’s a Fish.

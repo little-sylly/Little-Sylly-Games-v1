@@ -27,7 +27,12 @@ brain: `cld-implementation-notes.md` DD-21.
    `mpBotsPrompt`, and a fairness harness — `logic-engine.md` § Bots.
 4. **Bots for games whose roster type is not `'none'`** (team/assigned seating) — out of scope; the
    schema check refuses it today.
-5. **The host lobby CTA is stone, not the game's brand**, on both the room and Solo paths — only the mode
+5. **Cold Shoulder's Hunger faces don't read at play size** (owner, first Solo matches, 29 Sep 2026).
+   The ladder renders — at Slide 24 the fire eyes and glow are there — but a face is a few px wide on a
+   phone, so the frown/angry rungs are invisible. Options: a growing tell ABOVE the head (a steam puff, a
+   💢, a fish thought-bubble), a stronger body cue (a colour flush, a visible glow) from rung 3 up, or
+   lean on the HUNGRY! call-out alone. Art tuning in `js/games/cld-art.js` `moodPars` + its drawing.
+5b. **The host lobby CTA is stone, not the game's brand**, on both the room and Solo paths — only the mode
    screen's CTA takes `brandBtnClass`. Pre-existing; seen in the Task 11 layout pass.
 6. **From the final review (Minors, 29 Sep 2026):**
    - **A throwing bot hangs the Slide.** Spec § 3.6 says a throwing seat "submits nothing"; in CLD every seat

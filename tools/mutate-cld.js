@@ -315,6 +315,9 @@ const M = [
 ['raf-rearms-after-stop', 'game', [[
   '  if (cldRafHandle === CLD_RAF_RUNNING) cldRafHandle = requestAnimationFrame(cldLoop);',
   '  if (!cldRafHandle || cldRafHandle === CLD_RAF_RUNNING) cldRafHandle = requestAnimationFrame(cldLoop);']], 'loopback'],
+// ── SW v247: owner rule — no Dive back into the gap you were knocked out of (verify-cld-loop.js) ──
+['dive-back-into-own-gap', 'game', [[
+  '    anchors.push({ id: back.id, x: was.x, y: was.y, r: CLD_PENGUIN_R });\n', '']], 'loop'],
 ];
 
 // Which harness a mutant is aimed at. The rules/sim mutants above run the loop

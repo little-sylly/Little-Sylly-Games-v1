@@ -632,6 +632,29 @@ dropped).
 *Lesson:* an ordering asserted on a shared table is only as sharp as the weakest pair's share of the
 wins. When one entrant dominates, test the others head to head.
 
+### DD-22 — no Dive back into the gap you were knocked out of (owner, 29 Sep 2026, SW v247)
+
+**Why.** In the owner's first Solo matches a plug looked permanent: hit it, and it was back before
+the next Slide moved. The knock-back worked; the Dive undid it. Throw or Dive let a knocked-back
+penguin Dive into *any* free gap — including the one it had just been knocked out of — and a Dive
+resolves before the Slide. Medium bots did exactly that 14 times in 15 (a probe over 20 six-bot
+matches). The owner chose the rule change over a bot-only one: hitting a plug should open that gap.
+
+**The rule.** A Knocked-back penguin may Dive into any free gap **except the seat it was knocked
+out of**. `cldDiveSpot(angle, back)` adds a ghost plug on that seat (it still floats at its angle) and
+asks the ordinary seat finder; the ghost bans exactly the arc the penguin would cover there, so in a
+ring gap (≤ 1.8 penguins wide) the whole gap is out, and on the ringless Ice Bath only that spot is —
+a whole-gap ban there would ban the whole rim. Every Dive path goes through it: the resolver, the
+dashed seats, tap-to-dive, the "nowhere to Dive" check, the bots and the Arena. No packet change:
+every device already has the penguin's angle. Copy: *"No other gap is open — nowhere to Dive."*
+(was *"Every gap is taken"*, untrue when only its own gap is free); the How to Play card and the
+coach line say *another* gap.
+
+**Proof.** `verify-cld-loop.js` 156 → 162 (a Dive aimed at its own gap is offered another; the
+resolver never seats it there; any other gap still lands exactly); `mutate-cld.js` 71 → 72
+(`dive-back-into-own-gap`); `cld-rules-world.js` `legal()` now judges a bot's Dive through
+`cldDiveSpot`. The probe after: 0 of 15 Medium re-dives land in the gap they left.
+
 ---
 
 ## Bug Index

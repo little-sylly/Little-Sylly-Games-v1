@@ -73,7 +73,7 @@ globalThis.__cld = {
     cldPlaceBergs, cldProjectBergsToRim, cldBergInset,
     cldStartMatch, cldStartFloeOff, cldBuildSlideInputs, cldResolveSlide,
     cldThawStep, cldCheckWashout, cldResolveFloeOff, cldMatchWinner, cldSimParams,
-    cldChunkR, cldSeatR, cldAngleOf, cldArcDist, cldSeatSpotFrom, cldRingAnchors, cldSeatSpot,
+    cldChunkR, cldSeatR, cldAngleOf, cldArcDist, cldSeatSpotFrom, cldRingAnchors, cldSeatSpot, cldDiveSpot,
     cldHungerLevel, cldHungerMult, cldHungerRises,
   },
   rng(s) { return window.Physics.rng(s); },
@@ -891,6 +891,37 @@ function rimLegal() {
     const tl = F.cldResolveSlide(405);
     ok('a Dive is in place for the Slide it was committed with — the shove rebounds',
       !tl.events.some(e => e.type === 'plunge' && e.id === p1.id));
+  }
+  {
+    // Owner, 29 Sep 2026: a knocked-back penguin cannot Dive back into the gap it
+    // was knocked from — so hitting a plug really opens that gap.
+    setup({ players: 3, iceBreaker: 3, seed: 75 });
+    const [p0] = G.penguins;
+    const s = F.cldSeatSpot(0, null);                          // a free gap
+    F.cldSeatAt(p0, s); F.cldKnockBack(p0);                    // plugged there, then knocked out of it
+    const clash = 2 * Math.asin(C.CLD_PENGUIN_R / F.cldSeatR()) - 1e-9;   // touching the old seat is allowed, overlapping it not
+    close('knocked back, it floats behind the gap it came out of', F.cldArcDist(p0.angle, s.angle), 0, 1e-9);
+    ok('…and that gap is open again', !!F.cldSeatSpot(s.angle, p0.id) && F.cldArcDist(F.cldSeatSpot(s.angle, p0.id).angle, s.angle) < 1e-9);
+    const offered = F.cldDiveSpot(s.angle, p0);
+    ok('a Dive aimed at its own gap is offered a DIFFERENT gap', !!offered && F.cldArcDist(offered.angle, s.angle) >= clash,
+       offered ? 'arc ' + F.cldArcDist(offered.angle, s.angle).toFixed(3) : 'no spot');
+    const cs = allHold();
+    cs[0].dive = { penguinId: p0.id, angle: s.angle };
+    G.commits = cs;
+    F.cldResolveSlide(406);
+    ok('…and the resolver never seats it back in its own gap', pen(p0.id).plug === true && F.cldArcDist(pen(p0.id).angle, s.angle) >= clash);
+    check('the rim stays legal', rimLegal(), null);
+  }
+  {
+    setup({ players: 3, iceBreaker: 3, seed: 76 });
+    const [p0] = G.penguins;
+    const s = F.cldSeatSpot(0, null), other = F.cldSeatSpot(Math.PI, null);
+    F.cldSeatAt(p0, s); F.cldKnockBack(p0);
+    const cs = allHold();
+    cs[0].dive = { penguinId: p0.id, angle: other.angle };
+    G.commits = cs;
+    F.cldResolveSlide(407);
+    close('a Dive into any OTHER free gap still lands exactly', F.cldArcDist(pen(p0.id).angle, other.angle), 0, 1e-9);
   }
   {
     // Review Focus 3 — The Thaw to its floor never leaves overlaps.

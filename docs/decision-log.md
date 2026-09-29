@@ -19,6 +19,13 @@ Detail: pointer to the canonical doc (snapshot / impl note / spec / memory).
 ```
 
 
+## 2026-09-29 — Cold Shoulder: no Dive back into the gap you were knocked out of (SW v247)
+Category: Strategy
+Decision: a Knocked-back penguin may Dive into any free gap except the seat it was knocked out of.
+Why: the owner's first Solo matches — a plug that was hit was back before the next Slide (bots re-dived 14 in 15), so knocking a plug out felt pointless; the owner chose a rule change over a bot-only one.
+Changed: `js/games/cld.js` (`cldDiveSpot`, every Dive path), `src/screens/cld.html` (How to Play), `cld.md` T2/T3/T5/T7b, `verify-cld-loop.js` + a mutant. No packet change.
+Detail: `cld-implementation-notes.md` DD-22.
+
 ## 2026-09-29 — Bots: host-side seats, Solo on the null wire (SW v247)
 Category: Architecture
 Decision: bots are host-memory roster slots (`bot:N`, never in `/players`) that a game opts into with `MP_GAME_CONFIGS[abbr].bots`; the game prompts, the engine owns the timers; Solo reuses the host path with no room.

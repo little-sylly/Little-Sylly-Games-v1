@@ -30,7 +30,7 @@ vm.runInContext(`
 globalThis.__cld = {
   C: { CLD_W, CLD_H, CLD_MIN_POWER, CLD_PENGUIN_R },
   fn: { cldStartMatch, cldStartFloeOff, cldResolveSlide, cldStartIceBath, cldMatchWinner,
-        cldSeatSpot, cldSwapOut, cldRulesRun, cldApplyCommit,
+        cldSeatSpot, cldDiveSpot, cldSeatR, cldSwapOut, cldRulesRun, cldApplyCommit,
         cldBotView, cldBotDecide, cldBotThinkMs },
   rng(s) { return window.Physics.rng(s); },
   get penguins()    { return cldPenguins; },
@@ -69,7 +69,7 @@ function legal(i, c) {
   if (c.dive) {
     const p = mine.find(q => q.id === c.dive.penguinId);
     if (!p || !p.drowned || p.plug) return 'a Dive by a penguin that is not knocked back';
-    if (!F.cldSeatSpot(c.dive.angle, p.id)) return 'a Dive into no gap';
+    if (!F.cldDiveSpot(c.dive.angle, p)) return 'a Dive into no gap (its own gap does not count)';
   }
   if (c.snowball && !mine.some(p => p.drowned)) return 'a Throw with nobody in the Drink';
   return null;

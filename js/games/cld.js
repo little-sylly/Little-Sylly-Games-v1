@@ -448,6 +448,20 @@ function cldRingAnchors(excludeId) {
 }
 
 function cldSeatSpot(angle, excludeId) { return cldSeatSpotFrom(cldRingAnchors(excludeId), angle); }
+// Where a Knocked-back penguin's Dive lands: the free seat nearest `angle`, but never
+// the seat it was knocked out of (owner, 29 Sep 2026) — hitting a plug really opens
+// that gap. A ghost plug on the old seat bans exactly the arc the penguin itself
+// would cover there, so in a ring gap (≤ 1.8 penguins wide) the whole gap is out,
+// and on the ringless Ice Bath only that spot is. Every Dive path goes through here:
+// the resolver, the dashed seats, tap-to-dive, "nowhere to Dive", the bots, the Arena.
+function cldDiveSpot(angle, back) {
+  const anchors = cldRingAnchors(back.id);
+  if (back.angle !== null && back.angle !== undefined && !back.plug) {
+    const was = cldRimPos(back.angle, cldSeatR());
+    anchors.push({ id: back.id, x: was.x, y: was.y, r: CLD_PENGUIN_R });
+  }
+  return cldSeatSpotFrom(anchors, angle);
+}
 
 // ── Drowned placement ─────────────────────────────────────────────────────
 function cldPlaceDrowned(p) {
@@ -606,7 +620,7 @@ function cldResolveDives() {
   }
   want.sort((a, b) => { const d = a.dist - b.dist; return Math.abs(d) > 0.01 ? d : a.seat - b.seat; });
   return want.map(w => {
-    const spot = cldSeatSpot(w.target, w.p.id);
+    const spot = cldDiveSpot(w.target, w.p);
     if (spot) cldSeatAt(w.p, spot);
     return { penguinId: w.p.id, moved: !!spot, x: w.p.x, y: w.p.y };
   });
@@ -981,7 +995,7 @@ function cldBotNoisy(dir, noise, rng) {
   return { dx: Math.cos(a), dy: Math.sin(a) };
 }
 function cldBotDiveAt(back, angle) {
-  const spot = cldSeatSpot(angle, back.id);
+  const spot = cldDiveSpot(angle, back);
   return spot ? { penguinId: back.id, angle: spot.angle } : null;
 }
 
@@ -1956,7 +1970,7 @@ function cldDiveModel(back, chosen) {
   const apart = 2 * Math.asin(Math.min(1, CLD_PENGUIN_R / cldSeatR()));
   const seats = [], drawn = [];
   for (let k = 0; k < 96; k++) {
-    const s = cldSeatSpot(k * CLD_TAU / 96, back.id);
+    const s = cldDiveSpot(k * CLD_TAU / 96, back);
     if (!s || drawn.some(a => cldArcDist(a, s.angle) < apart)) continue;
     drawn.push(s.angle);
     seats.push({ x: s.x, y: s.y });
@@ -2033,7 +2047,7 @@ function cldPointerDown(e) {
   // Dive mode: the tap picks a gap. It snaps to the free seat nearest the tap.
   if (cldMyMode === 'dive') {
     const back = cldMyBackPenguin();
-    const spot = back ? cldSeatSpot(cldAngleOf(pt.x, pt.y), back.id) : null;
+    const spot = back ? cldDiveSpot(cldAngleOf(pt.x, pt.y), back) : null;
     if (spot) { cldMyDive = { penguinId: back.id, angle: spot.angle }; cldSfx('dive'); cldSyncFloeUI(); }
     return;
   }
@@ -2143,9 +2157,9 @@ function cldSyncFloeUI() {
   if (row) row.style.display = (anyDrowned && cldPhase === 'aiming') ? 'flex' : 'none';
   if (anyDrowned) {
     const back = cldMyBackPenguin();
-    const room = back ? cldSeatSpot(back.angle, back.id) : null;
+    const room = back ? cldDiveSpot(back.angle, back) : null;
     const why  = !back ? 'You can Dive once you’re knocked back.'
-               : !room ? 'Every gap is taken — nowhere to Dive.' : '';
+               : !room ? 'No other gap is open — nowhere to Dive.' : '';
     if (why && cldMyMode === 'dive') { cldMyMode = 'throw'; cldMyDive = null; }
     const throwBtn = document.getElementById('btn-cld-mode-throw');
     const diveBtn  = document.getElementById('btn-cld-mode-dive');
@@ -3188,7 +3202,7 @@ const CLD_PR_COACH = {
   armed:             'The dots show your first hit. Tap Power to lock it, then Lock It In.',
   again:             'Same plan every Slide. Read it, and counter it.',
   meIn:              'You’re in the Drink, plugging the gap you went through. The next penguin to hit you bounces off harder. Tap the ice to aim a Snowball.',
-  meKnocked:         'Knocked back — now it’s Throw or Dive. Dive into a free gap to plug it again.',
+  meKnocked:         'Knocked back — now it’s Throw or Dive. Dive into another free gap to plug that one.',
   botIn:             '{Name}’s in the Drink — a plug now. Hit it and you bounce back harder.',
   hungry:            'Hungry! From here on every shove goes further — pull back a little less.',
   bath:              'Everyone went in at once — into the Ice Bath. Last one dry still wins.',
@@ -3417,7 +3431,7 @@ function cldPrPointerDown(e) {
   if (me.drowned) {
     if (u.mode === 'dive') {
       if (me.plug) return;                        // only a Knocked-back penguin Dives
-      const spot = cldArenaRun(() => cldSeatSpot(cldAngleOf(pt.x, pt.y), '0-0'));
+      const spot = cldArenaRun(() => cldDiveSpot(cldAngleOf(pt.x, pt.y), me));
       if (spot) { u.dive = { penguinId: '0-0', angle: spot.angle }; cldSfx('dive'); }
     } else if (cldArenaRun(() => cldDistFromCentre(pt.x, pt.y) <= cldFloeRadius)) {
       u.snowball = { x: pt.x, y: pt.y };
@@ -3513,9 +3527,9 @@ function cldPrSyncUI() {
   const row = $('cld-pr-drowned-row');
   if (row) row.style.display = (me.drowned && !u.playing) ? 'flex' : 'none';
   if (me.drowned) {
-    const room = !me.plug ? cldArenaRun(() => cldSeatSpot(me.angle, '0-0')) : null;
+    const room = !me.plug ? cldArenaRun(() => cldDiveSpot(me.angle, me)) : null;
     const why = me.plug ? 'You can Dive once you’re knocked back.'
-              : !room   ? 'Every gap is taken — nowhere to Dive.' : '';
+              : !room   ? 'No other gap is open — nowhere to Dive.' : '';
     if (why && u.mode === 'dive') { u.mode = 'throw'; u.dive = null; }
     const tb = $('btn-cld-pr-mode-throw'), db = $('btn-cld-pr-mode-dive');
     if (tb) tb.classList.toggle('pill-active-cld', u.mode === 'throw');
