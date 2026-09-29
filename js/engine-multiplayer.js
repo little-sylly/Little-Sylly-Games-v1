@@ -15,7 +15,7 @@ window.mpLobbyStyle         = 'individual'; // 'team' | 'individual' — set at 
 // ── MP Navigation State (Sprint 2) ───────────────────────────────────────────
 let mpActiveGame       = null;   // current game abbr ('li5' | 'gm' | etc.)
 let mpActiveGameConfig = null;   // full config object for active game
-let mpSelectedMode     = 'host'; // 'host' | 'join' | 'ptp'
+let mpSelectedMode     = 'host'; // 'host' | 'join' | 'ptp' | 'solo'
 
 // ── MP Session State (Sprint 3) ───────────────────────────────────────────────
 let mpActiveRoomCode  = null;  // '4-char code' when in a room
@@ -542,7 +542,7 @@ const MP_GAME_CONFIGS = {
       else cldShowClientStandby();
     },
     recommendedMode: 'mdlm',
-    supportedModes:  ['mdlm'],
+    supportedModes:  ['mdlm', 'solo'],
     multiplayerOnly: true,
     // 'individual' requires every player to be hand-assigned in Assign Spots; anyone
     // left unassigned produces reordered[-1] and corrupts the slot array. Seating in
@@ -635,6 +635,7 @@ const MODE_INFO = {
   ptp:  { label: 'Pass the Phone',          desc: 'Take turns on a single device. No internet needed.',                              icon: '📲' },
   tlm:  { label: 'Team Lobby Mode',         desc: 'Each team shares one device. Host creates a room, others join with a code.',      icon: '👥' },
   mdlm: { label: 'Multi-device Lobby Mode', desc: 'Each player uses their own phone. Host creates a room, others join with a code.', icon: '📱' },
+  solo: { label: 'Solo',                    desc: 'Just you and the bots, on this phone. No internet needed.',                        icon: '🤖' },
 };
 
 // ── Mode selection card visuals ───────────────────────────────────────────────
@@ -645,7 +646,7 @@ function mpSetModeSelection(mode, lobbyStyle) {
   document.querySelectorAll('#screen-mp-mode .mp-mode-dot-btn').forEach(btn => {
     const btnMode  = btn.dataset.selMode;
     const btnStyle = btn.dataset.lobbyStyle || null;
-    const isSelected = (btnMode === mode) && (mode === 'ptp' || btnStyle === lobbyStyle);
+    const isSelected = (btnMode === mode) && (mode === 'ptp' || mode === 'solo' || btnStyle === lobbyStyle);
     const dot = btn.querySelector('.mp-mode-dot');
     btn.classList.toggle('border-stone-800', isSelected);
     btn.classList.toggle('bg-stone-50',      isSelected);
@@ -715,19 +716,19 @@ function mpBuildModeSection(modes, isRecommended, online) {
         wrap.appendChild(btn);
       });
     } else {
-      // PTP: single selectable row
+      // One selectable row: Pass the Phone, or Solo (SW v247).
       const btn = document.createElement('button');
       btn.className = `flex items-center gap-3 w-full p-4 rounded-2xl border-2 border-stone-200 bg-white active:scale-95 transition-all duration-150 text-left mp-mode-dot-btn${locked ? ' opacity-40 pointer-events-none' : ''}`;
-      btn.dataset.selMode = 'ptp';
+      btn.dataset.selMode = modeKey;
       btn.disabled        = locked;
       btn.innerHTML = `
         <span class="mp-mode-dot w-5 h-5 rounded-full border-2 border-stone-300 bg-transparent flex-shrink-0 transition-all duration-150"></span>
         <div>
-          <p class="font-semibold text-stone-800 text-sm leading-tight">${info.icon} Pass the Phone</p>
-          <p class="text-stone-400 text-xs mt-0.5">Take turns on a single device</p>
+          <p class="font-semibold text-stone-800 text-sm leading-tight">${info.icon} ${info.label}</p>
+          <p class="text-stone-400 text-xs mt-0.5">${modeKey === 'solo' ? 'Just you and the bots' : 'Take turns on a single device'}</p>
         </div>
       `;
-      btn.addEventListener('click', () => { playPillClick(); mpSetModeSelection('ptp', null); });
+      btn.addEventListener('click', () => { playPillClick(); mpSetModeSelection(modeKey, null); });
       wrap.appendChild(btn);
     }
 
@@ -764,8 +765,8 @@ function mpShowModeScreen(gameAbbr) {
   // The Host/Join buttons are already correctly dimmed by mpBuildModeSection's own
   // `dimmed = isLobby && !online`; this only fixes the copy that used to promise a
   // path the game doesn't have (docs/deferred-work.md, 7 Sep 2026).
-  offlineNotice.textContent = cfg.supportedModes.includes('ptp')
-    ? 'No internet connection — Pass-the-Phone only.'
+  offlineNotice.textContent = cfg.supportedModes.includes('solo') ? 'No internet — Solo still works.'
+    : cfg.supportedModes.includes('ptp') ? 'No internet connection — Pass-the-Phone only.'
     : 'This one needs everyone online. Reconnect and try again.';
 
   const recMode    = cfg.recommendedMode;
@@ -782,7 +783,9 @@ function mpShowModeScreen(gameAbbr) {
   }
 
   // Default selection: first option of the recommended mode
-  if (!online || recMode === 'ptp') {
+  if (!online && cfg.supportedModes.includes('solo')) {
+    mpSetModeSelection('solo', null);
+  } else if (!online || recMode === 'ptp') {
     mpSetModeSelection('ptp', null);
   } else if (recMode === 'tlm') {
     mpSetModeSelection('host', 'team');
@@ -3185,7 +3188,7 @@ async function mpConfirmRoster() {
     if (cta2) { cta2.disabled = false; cta2.textContent = 'Start Game →'; }
     // Return to lobby so host can see the updated player list
     mpShowLobbyHost();
-    document.getElementById('mp-lobby-host-room-code').textContent = mpActiveRoomCode || '----';
+    document.getElementById('mp-lobby-host-room-code').textContent = mpLobbyCodeText();
     mpRenderHostPlayerList();
     showScreen('screen-mp-lobby-host');
     return;
@@ -3632,6 +3635,26 @@ function mpBotsTeardown() {
   if (mpSolo) { mpSolo = false; mpPlayerSlots = []; }
 }
 
+// Solo (spec § 4): the host path on a null wire. mpActiveRoomCode = null makes every
+// send a no-op already; Firebase is never loaded. The lobby is the host lobby, dressed.
+function mpEnterSolo() {
+  if (!mpActiveGameConfig?.bots) return;
+  window.syllyMultiplayerMode = 'host';
+  window.mpLobbyStyle         = 'individual';
+  mpSolo = true;
+  mpActiveRoomCode = null; mpRoomRef = null;
+  if (!window.syllyDeviceUid) { window.syllyDeviceUid = 'local:host'; mpSoloBorrowedUid = true; }
+  mpBotSeq = 0;
+  mpPlayerSlots = [{ uid: window.syllyDeviceUid, nickname: mpGetNickname() || 'You' }];
+  const min = mpActiveGameConfig.getMinPlayers?.() ?? 2;
+  while (mpPlayerSlots.length < min && mpAddBot()) { /* pre-fill to the minimum */ }
+  mpShowLobbyHost();
+  document.getElementById('mp-lobby-host-room-code').textContent = mpLobbyCodeText();
+  mpRenderHostPlayerList();
+}
+
+function mpLobbyCodeText() { return mpSolo ? 'SOLO' : (mpActiveRoomCode || '----'); }
+
 // ── Multiplayer play-again: return all devices to lobby ───────────────────────
 async function mpReturnToLobby() {
   if (window.syllyMultiplayerMode === 'host') {
@@ -3645,7 +3668,7 @@ async function mpReturnToLobby() {
       await mpSendEnvelope({ type: 'LOBBY', payload: { action: 'LOBBY_RESET' } });
     } catch (_) {}
     mpShowLobbyHost();
-    document.getElementById('mp-lobby-host-room-code').textContent = mpActiveRoomCode || '----';
+    document.getElementById('mp-lobby-host-room-code').textContent = mpLobbyCodeText();
     mpRenderHostPlayerList();
     showScreen('screen-mp-lobby-host');
     // Re-subscribe players watcher so host sees any departures in the new lobby
@@ -3701,6 +3724,8 @@ document.addEventListener('DOMContentLoaded', () => {
       setTimeout(() => document.getElementById('mp-host-nickname').focus(), 100);
     } else if (mpSelectedMode === 'join') {
       playLaunch(); mpShowLobbyJoin();
+    } else if (mpSelectedMode === 'solo') {
+      playLaunch(); mpEnterSolo();
     } else {
       playLaunch(); mpActiveGameConfig.onPassThePhone();
     }
@@ -3730,6 +3755,7 @@ document.addEventListener('DOMContentLoaded', () => {
     playDone();
     if (window.syllyMultiplayerMode === 'host') await syllyTeardownRoom();
     window.syllyMultiplayerMode = 'single';
+    mpBotsTeardown();
     mpShowModeScreen(mpActiveGame);
   });
   document.getElementById('btn-mp-lobby-host-cta').addEventListener('click', () => {
@@ -3751,6 +3777,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
   document.getElementById('mp-lobby-host-room-code').addEventListener('click', () => {
+    if (mpSolo) return;                  // 'SOLO' is four letters — never a code to copy
     const code = document.getElementById('mp-lobby-host-room-code').textContent.replace(/\s|-/g, '');
     if (code.length === 4) navigator.clipboard?.writeText(code);
   });
@@ -3759,7 +3786,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-mp-roster-back').addEventListener('click', () => {
     playDone();
     mpShowLobbyHost();
-    document.getElementById('mp-lobby-host-room-code').textContent = mpActiveRoomCode || '----';
+    document.getElementById('mp-lobby-host-room-code').textContent = mpLobbyCodeText();
     mpRenderHostPlayerList();
     showScreen('screen-mp-lobby-host');
   });

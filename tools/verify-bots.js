@@ -242,6 +242,47 @@ const uids  = d => d.run('mpPlayerSlots.map(s => s.uid)');
       check('no errors', errorsOf([host]), []);
     }
 
+    section('6. Solo: a lobby nobody can join, on a null wire');
+    {
+      fresh();
+      const d = boot('solo', 'unused', makePhone());          // Review Focus 4: no saved nickname
+      d.run('window.syllyFirebase = null; window.syllyDeviceUid = null;');
+      addBotGame(d);
+      d.S.document._l.DOMContentLoaded.forEach(f => f());
+      d.S.navigator.onLine = false;
+      d.run("mpShowModeScreen('botgame')");
+      check('offline, Solo is selected', d.run('mpSelectedMode'), 'solo');
+      check('…and the notice says Solo still works', d.el('mp-mode-offline-notice').textContent, 'No internet — Solo still works.');
+      d.el('btn-mp-mode-cta').click();
+      check('Solo lands on the host lobby', d.screens[d.screens.length - 1], 'screen-mp-lobby-host');
+      check('the code panel says SOLO', d.el('mp-lobby-host-room-code').textContent, 'SOLO');
+      check('the uid is borrowed', d.run('window.syllyDeviceUid'), 'local:host');
+      check('pre-filled to the minimum', names(d), ['You', 'Sylvia', 'Sam']);
+      check('the start CTA is live', d.el('btn-mp-lobby-host-cta').disabled, false);
+      check('the waiting line speaks to Solo', d.el('mp-lobby-host-waiting').textContent, 'Just you and the bots.');
+      d.el('mp-lobby-host-room-code').click();              // must not throw (no clipboard in Node) or copy
+      d.el('btn-mp-lobby-host-cta').click(); await flush();
+      check('the match started on the host path', d.S.__rc, ['onPassThePhone:host']);
+      check('seats', d.run('mpSeats'), ['local:host', 'bot:0', 'bot:1']);
+      check('Firebase was never loaded', d.run('window.syllyFirebase'), null);
+      check('nothing reached the server', server.tree, {});
+      d.run('mpBotsPrompt(1)'); advance(2000);
+      check('bots play in Solo', d.S.__bot.filter(x => x.startsWith('submit')), ['submit:1:1', 'submit:2:1']);
+      d.run('mpReturnToLobby()'); await flush();
+      check('Play Again goes back to the Solo lobby', [d.screens[d.screens.length - 1], d.el('mp-lobby-host-room-code').textContent],
+            ['screen-mp-lobby-host', 'SOLO']);
+      check('…with the bots still seated', d.run('mpPlayerSlots.length'), 3);
+      d.run('resetToLobby()');
+      check('resetToLobby hands the uid back', d.run('window.syllyDeviceUid'), null);
+      check('…and leaves Solo', [d.run('mpSolo'), d.run('mpPlayerSlots.length')], [false, 0]);
+      d.S.navigator.onLine = true;
+      d.run("mpShowModeScreen('botgame'); mpSetModeSelection('solo', null);");
+      d.el('btn-mp-mode-cta').click();
+      d.el('btn-mp-lobby-host-cancel').click(); await flush();
+      check('← Cancel from the Solo lobby leaves Solo', [d.run('mpSolo'), d.run('window.syllyDeviceUid')], [false, null]);
+      check('no errors', errorsOf([d]), []);
+    }
+
     // ── Later tasks add sections here, above this line ──
 
   } catch (e) {

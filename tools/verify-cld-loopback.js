@@ -1166,6 +1166,35 @@ section('17. Two bot seats beside a human client (SW v247)');
   check('no errors on either device', [...bh.__errors, ...bc.__errors], []);
 }
 
+section('18. Solo — a whole match on one device, a null wire, a real mock DOM (SW v247)');
+{
+  const SSLOTS = [{ uid: 'local:host', nickname: 'You' },
+                  { uid: 'bot:0', nickname: 'Sylvia', bot: { difficulty: 'easy' } },
+                  { uid: 'bot:1', nickname: 'Sam', bot: { difficulty: 'medium' } }];
+  const so = makeDevice('solo', 'host', 0, SSLOTS), S = so.__cld;
+  const prompts = [];
+  so.mpSendEnvelope = () => {};                 // the engine's own no-op without a room
+  so.mpSendPrivate  = () => {};
+  so.mpBotsPrompt   = tag => prompts.push(tag);
+  const seatMove = (i, d) => vm.runInContext(
+    `cldBotSubmit(${i}, cldBotDecide(cldBotView(${i}), '${d}', window.Physics.rng(${i} + cldSlideNo * 7)), cldSlideNo)`, so);
+  S.fishToWin = 2; S.touched = true; S.floeSize = 'standard';
+  S.startMatch(['You', 'Sylvia 🤖', 'Sam 🤖']);
+  let guard = 0;
+  while (guard++ < 5000) {
+    const scr = lastScreen(so);
+    if (scr === 'screen-cld-gameover') break;
+    if (scr === 'screen-cld-scoreboard') { vm.runInContext('cldStartFloeOffLocal()', so); continue; }
+    if (S.phase === 'resolving' && scr === 'screen-cld-floe') { playback(so, S); continue; }   // the result screen keeps 'resolving'; its dwell timer moves on
+    if (prompts.length) { prompts.shift(); seatMove(1, 'easy'); seatMove(2, 'medium'); seatMove(0, 'medium'); continue; }
+    if (!step(so)) break;
+  }
+  check('the Solo match reached the podium', lastScreen(so), 'screen-cld-gameover');
+  ok('…with a winner holding the Fish to Win', Math.max(...S.fish) >= 2, JSON.stringify(S.fish));
+  ok('the podium names the bots with 🤖', JSON.stringify(S.podiumRows()).includes('🤖'));
+  check('no errors on the Solo device', so.__errors, []);
+}
+
 console.log('\n' + '='.repeat(70));
 console.log(failures ? 'FAILED — ' + failures + ' check(s)' : 'ALL CHECKS PASSED');
 process.exit(failures ? 1 : 0);
