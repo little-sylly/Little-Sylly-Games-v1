@@ -444,6 +444,12 @@ survived the new geometry because the overlap sweeps that used to catch them by 
 (plugs can't overlap chunks any more); they now have direct checks (a pre-seated plug is knocked back, the
 rng's first draws spread, a wide-gap seat sweep). SE stage heights: 291 / 269 / 173 px at 375×667 /
 375×548 / 320×452 — the smallest is workable but small (owner to judge in hand).
+The whole-branch review then found two more, both invisible to the mock-DOM harness: the stage's pointer
+capture stole the end card's click, so **Practice again was dead with a mouse** (the card is now skipped
+before capturing — proved with a real-Chromium `page.click`, red on the old code); and a camera target
+that moves every frame made reduced motion *cut* every frame (the Slide camera now holds). A lost
+pointer-up could also have left every later touch reading as a pinch; a new primary touch now clears the
+finger list.
 
 **Lesson.** A camera must never move the world under a finger; and an invariant that stops being reachable
 takes its mutants' coverage with it — when a rule makes an old failure impossible, re-run the mutants.
