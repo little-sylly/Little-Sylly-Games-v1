@@ -842,20 +842,28 @@ function mpUpdateJoinCta() {
 // ═══════════════════════════════════════════════════════════════
 
 // ── Firebase lazy-loader ──────────────────────────────────────────────────────
+// Bumped by anything that abandons a pending load (Solo, SW v247): a sign-in that
+// lands after the player moved on must not run the old Host/Join callback.
+let mpLoadGen = 0;
+
 function syllyLoadFirebase(onReady) {
   if (window.syllyFirebase) { onReady(); return; }
+  const gen = mpLoadGen;
   const s  = document.createElement('script');
   s.type   = 'module';
   s.src    = 'js/lib/firebase-init.js';
 
-  // Timeout: if neither event fires in 12s the module likely failed silently
+  // Timeout: if neither event fires in 12s the module likely failed silently.
+  // Remove the listeners actually registered — a late 'ready' after the give-up
+  // must not run onReady behind the network-error overlay.
   const giveUp = setTimeout(() => {
-    document.removeEventListener('sylly-firebase-ready', onReady);
-    syllyShowNetworkError();
+    document.removeEventListener('sylly-firebase-ready', onSuccess);
+    document.removeEventListener('sylly-firebase-error', onFail);
+    if (gen === mpLoadGen) syllyShowNetworkError();
   }, 12000);
 
-  const onSuccess = () => { clearTimeout(giveUp); onReady(); };
-  const onFail    = () => { clearTimeout(giveUp); syllyShowNetworkError(); };
+  const onSuccess = () => { clearTimeout(giveUp); if (gen === mpLoadGen) onReady(); };
+  const onFail    = () => { clearTimeout(giveUp); if (gen === mpLoadGen) syllyShowNetworkError(); };
 
   document.addEventListener('sylly-firebase-ready', onSuccess, { once: true });
   document.addEventListener('sylly-firebase-error', onFail,    { once: true });
@@ -3631,7 +3639,8 @@ function mpBotsTeardown() {
   mpBotsPaused = false; mpBotRngFn = null;
   mpBotDifficulty = 'medium'; mpBotSeq = 0;
   mpPlayerSlots = mpPlayerSlots.filter(s => !mpIsBotSlot(s));
-  if (mpSoloBorrowedUid) { window.syllyDeviceUid = null; mpSoloBorrowedUid = false; }
+  // Hand back only what was lent: a late sign-in may have written a REAL uid since.
+  if (mpSoloBorrowedUid) { if (window.syllyDeviceUid === 'local:host') window.syllyDeviceUid = null; mpSoloBorrowedUid = false; }
   if (mpSolo) { mpSolo = false; mpPlayerSlots = []; }
 }
 
@@ -3639,6 +3648,7 @@ function mpBotsTeardown() {
 // send a no-op already; Firebase is never loaded. The lobby is the host lobby, dressed.
 function mpEnterSolo() {
   if (!mpActiveGameConfig?.bots) return;
+  mpLoadGen++;                           // an abandoned Host/Join load never lands on Solo
   window.syllyMultiplayerMode = 'host';
   window.mpLobbyStyle         = 'individual';
   mpSolo = true;

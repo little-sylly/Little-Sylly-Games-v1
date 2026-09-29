@@ -4673,7 +4673,16 @@ of what you are testing — Task 11's first run "found" Solo on Shelves; it was 
 handoff firing after the navigation. Wait for the handoff before driving an MP screen in Chromium.
 And a plan's insert point can break a mutant's anchor: re-run the mutation harness, not just the
 harness, after touching a watched function (Task 3 went 13/13 → 11/13 on placement alone).
-**Numbers.** `verify-bots.js` 86 (new), `verify-mp-reconnect.js` 152, `mutate-mp-reconnect.js` 17/17,
+**Found by the final review — an abandoned Firebase load could take over Solo.** `syllyLoadFirebase`'s
+12 s give-up removed `onReady`, but the listener it had registered was `onSuccess`, so a sign-in landing
+late still ran the old Host/Join callback (pre-existing). Solo made that reachable on its own path — the
+player gives up on a slow network and picks Solo — and the late room reset `mpPlayerSlots`, set a real room
+code under `mpSolo`, and the late sign-in's real uid was then nulled by Solo's teardown, leaving the next
+real room with `syllyDeviceUid === null`. Fixed three ways: the give-up removes the listeners actually
+registered; a load generation (`mpLoadGen`, bumped by `mpEnterSolo`) makes an abandoned load a no-op; and
+teardown hands back the uid only if it still reads `'local:host'`. `verify-bots.js` § 6b (the mock
+document's `removeEventListener` is real now, or the first check could not fail).
+**Numbers.** `verify-bots.js` 91 (new), `verify-mp-reconnect.js` 152, `mutate-mp-reconnect.js` 17/17,
 `verify-mp-configs.js` § 8 pins the bot adopters (`['cld']`).
 
 ## Template Gaps

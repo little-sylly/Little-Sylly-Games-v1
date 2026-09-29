@@ -193,7 +193,7 @@ function makeDocument() {
   const doc = {
     body: mk('body'), head: mk('head'), _l: {},
     addEventListener(t, fn) { (this._l[t] = this._l[t] || []).push(fn); },
-    removeEventListener() {},
+    removeEventListener(t, fn) { const a = this._l[t]; const i = a ? a.indexOf(fn) : -1; if (i >= 0) a.splice(i, 1); },
     dispatchEvent() {},
     createElement: tag => mk(null, tag),
     querySelector: () => null, querySelectorAll: () => [],

@@ -283,6 +283,36 @@ const uids  = d => d.run('mpPlayerSlots.map(s => s.uid)');
       check('no errors', errorsOf([d]), []);
     }
 
+    section('6b. An abandoned Firebase load never reaches Solo (final review, Important #1)');
+    {
+      fresh();
+      const d = boot('late', 'unused', makePhone());
+      const fb = d.run('window.syllyFirebase');
+      d.run('window.syllyFirebase = null; window.syllyDeviceUid = null;');
+      addBotGame(d);
+      d.S.document._l.DOMContentLoaded.forEach(f => f());
+      const ready = () => (d.S.document._l['sylly-firebase-ready'] || []).slice().forEach(f => f());
+
+      d.S.__late = 0;
+      d.run('syllyLoadFirebase(() => { __late++; })');
+      advance(12000);                                        // the give-up fires
+      d.S.window.syllyFirebase = fb; ready();
+      check('a load that gave up never runs its callback', d.S.__late, 0);
+
+      d.run('window.syllyFirebase = null;');
+      useGame(d, 'botgame');
+      d.run('mpHostCreateRoom()');                           // Host → Generate, then the network stalls
+      d.run('mpEnterSolo()');                                // …and the player picks Solo instead
+      d.S.window.syllyFirebase = fb; d.run("window.syllyDeviceUid = 'uReal'"); ready();   // sign-in lands late
+      await flush();
+      check('Solo is not taken over by the late room', [d.run('mpSolo'), d.run('mpActiveRoomCode'), d.run('mpPlayerSlots.length')],
+            [true, null, 3]);
+      check('…and the lobby still reads SOLO', d.el('mp-lobby-host-room-code').textContent, 'SOLO');
+      d.run('resetToLobby()');
+      check('leaving Solo keeps a REAL uid the late sign-in wrote', d.run('window.syllyDeviceUid'), 'uReal');
+      check('no errors', errorsOf([d]), []);
+    }
+
     // ── Later tasks add sections here, above this line ──
 
   } catch (e) {

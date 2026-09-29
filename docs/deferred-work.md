@@ -29,7 +29,23 @@ brain: `cld-implementation-notes.md` DD-21.
    schema check refuses it today.
 5. **The host lobby CTA is stone, not the game's brand**, on both the room and Solo paths — only the mode
    screen's CTA takes `brandBtnClass`. Pre-existing; seen in the Task 11 layout pass.
-6. **`visual-lobby.js`'s Konami audio check flakes** ("0 press voices, 0 beeps", 2 runs in 3 during this
+6. **From the final review (Minors, 29 Sep 2026):**
+   - **A throwing bot hangs the Slide.** Spec § 3.6 says a throwing seat "submits nothing"; in CLD every seat
+     must commit, so the table waits forever. An optional `bots.fallback(idx)` (CLD: a minimum-power nudge)
+     would un-stick it.
+   - **Bots may commit a hold a human cannot** (Easy ~19% of Slides, Hard ~6%, while a penguin stands) —
+     spec-sanctioned (§ 5.3); owner call whether a bot's hold should become a minimum-power nudge, and
+     whether `legal()` in `verify-cld-bots.js` should assert the human commit gate.
+   - **The bot tag is `cldSlideNo`,** which restarts every Floe-Off/Ice Bath. Safe while every Slide needs
+     every commit and every open re-prompts; any future resolve-without-all-commits path needs a composite
+     tag or `mpBotsCancel()` in `cldHostResolveSlide`.
+   - **No harness composes the real engine with the real CLD** — `verify-bots.js` uses a stub game and the
+     loopback stubs `mpBotsPrompt`. Add one Solo Floe-Off on both before a second game adopts bots.
+   - **`cldBotView` carries host-local UI fields** (`powerLock`, `phase`, `playbackT`…). Inert — `decide`
+     reads none — but strip them for hygiene.
+   - **The pre-lobby Cancel does not abandon a pending Firebase load** (only Solo bumps `mpLoadGen`); a late
+     Host callback can still land on the mode screen. Pre-existing.
+7. **`visual-lobby.js`'s Konami audio check flakes** ("0 press voices, 0 beeps", 2 runs in 3 during this
    build; the harness's own comment records 2 in 5 on 26 Sep 2026). Unrelated to bots.
 
 ---

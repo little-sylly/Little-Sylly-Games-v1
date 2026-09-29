@@ -2265,6 +2265,7 @@ Host-side bot seats + Solo, all in `js/engine-multiplayer.js` § BOTS. A bot is 
 | `mpBotsPaused` | True while any human seat is Away — the bag holds each timer's remaining time |
 | `mpBotSeed` / `mpBotRngFn` | A harness pins the seed; otherwise the xorshift stream reseeds from `Date.now()` once per match (`mpBeginMatchSeats`) |
 | `mpSolo` / `mpSoloBorrowedUid` | Solo is on; Solo lent `window.syllyDeviceUid = 'local:host'` (handed back by `mpBotsTeardown`) |
+| `mpLoadGen` | Bumped by `mpEnterSolo`: a Firebase load abandoned for Solo is a no-op when it lands (`syllyLoadFirebase` checks it) |
 
 | Function | Purpose |
 |----------|---------|
