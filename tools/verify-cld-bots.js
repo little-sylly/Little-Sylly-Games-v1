@@ -111,6 +111,66 @@ try {
     check('…and the seat stays open', G.commits[1], null);
   }
 
+  section('6. Swap safety: 50 Hard decisions mid-match leave the live game byte-identical');
+  {
+    setup({ players: 5, seed: 61, floe: 'cramped', iceBreaker: 2 });
+    for (let s = 0; s < 4; s++) {
+      const cs = []; for (let i = 0; i < G.playerCount; i++) cs.push(F.cldBotDecide(F.cldBotView(i), 'medium', rng(s + i)));
+      cs.forEach((c, i) => F.cldApplyCommit(i, c, G.slideNo));
+      F.cldResolveSlide(600 + s);
+    }
+    const before = JSON.stringify(F.cldSwapOut());
+    for (let k = 0; k < 50; k++) F.cldBotDecide(F.cldBotView(k % G.playerCount), 'hard', rng(k));
+    check('the live rules state is unchanged', JSON.stringify(F.cldSwapOut()), before);
+  }
+
+  section('7. Hard sees further: a free push off the rim is always taken');
+  {
+    // Seat 1 stands on the rim with seat 0 straight behind it toward the centre.
+    setup({ players: 2, seed: 71, fishToWin: 1 });
+    const cx = C.CLD_W / 2, cy = C.CLD_H / 2;
+    const r = F.cldSwapOut().floeRadius;
+    const me = G.penguins.find(p => p.ownerIdx === 0), them = G.penguins.find(p => p.ownerIdx === 1);
+    them.x = cx + r - C.CLD_PENGUIN_R * 1.2; them.y = cy;
+    me.x = cx + r - C.CLD_PENGUIN_R * 4;      me.y = cy;
+    const m = F.cldBotDecide(F.cldBotView(0), 'hard', rng(1));
+    ok('Hard shoves outward at the rival on the rim', m.aims.length === 1 && m.aims[0].dx > 0.9, JSON.stringify(m));
+  }
+
+  section('8. Hard > Medium > Easy, one of each at a 3-seat table');
+  {
+    const wins = { easy: 0, medium: 0, hard: 0 }, ms = [];
+    for (let k = 0; k < MATCHES; k++) {
+      const rot = k % 3;
+      const diffs = [0, 1, 2].map(j => DIFFS[(j + rot) % 3]);
+      const res = playMatch({ players: 3, diffs, seed: 1000 + k, fishToWin: 1 });
+      if (res.winner >= 0) wins[diffs[res.winner]]++;
+      ms.push(...res.hardMs);
+    }
+    console.log(`  note  wins over ${MATCHES}: easy ${wins.easy}, medium ${wins.medium}, hard ${wins.hard}`);
+    ok('Hard wins more than Medium', wins.hard > wins.medium, JSON.stringify(wins));
+    const mean = ms.reduce((a, b) => a + b, 0) / Math.max(1, ms.length);
+    console.log(`  note  Hard decide: mean ${mean.toFixed(1)} ms, max ${Math.max(0, ...ms)} ms per seat`);
+    if (mean > 250) console.log('  warn  Hard\'s mean decide is over 250 ms — fewer power steps first (spec § 8)');
+  }
+
+  // Medium > Easy is proved WITHOUT Hard at the table: with Hard taking ~80% of the
+  // 3-way wins, Medium and Easy split ~10 wins in 60 — too few to separate two
+  // bots that really are ordered (owner call, 29 Sep 2026: easy 6 / medium 4 at
+  // 60, easy 21 / medium 38 at 300). Seats alternate and rotate, so over an even
+  // number of matches each difficulty holds the same number of seats.
+  section('8b. Medium > Easy, head to head at a 3-seat table');
+  {
+    const wins = { easy: 0, medium: 0 };
+    for (let k = 0; k < MATCHES; k++) {
+      const diffs = [0, 1, 2].map(j => ['easy', 'medium'][(j + k) % 2]);
+      const res = playMatch({ players: 3, diffs, seed: 5000 + k, fishToWin: 1 });
+      if (res.winner >= 0) wins[diffs[res.winner]]++;
+    }
+    console.log(`  note  wins over ${MATCHES}: easy ${wins.easy}, medium ${wins.medium}`);
+    ok('Medium wins more than Easy', wins.medium > wins.easy, JSON.stringify(wins));
+  }
+
   // ── Task 8 adds sections here ──
 } catch (e) {
   failures++; total++;

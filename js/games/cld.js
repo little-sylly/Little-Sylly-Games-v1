@@ -1010,8 +1010,97 @@ function cldBotSimple(me, difficulty, rng) {
   return out;
 }
 
-// Task 8 replaces this with the look-ahead.
-function cldBotHard(view, me) { return cldBotSimple(me, 'medium', window.Physics.rng(CLD_BOT_SEED)); }
+const CLD_BOT_HARD_POWERS = [0.7, 0.85, 1.0];
+const CLD_BOT_HARD_MAX    = 24;     // candidates per penguin (spec § 5.3)
+const CLD_BOT_SELF_COST   = 1.5;    // its own plunge weighs 1.5 rival plunges — slightly cautious
+
+// One Slide of the REAL rules on a clone of the view: +1 per rival penguin newly
+// in the Drink, −SELF_COST per own, and a 0.1 tiebreak on rim margin (floe radii).
+function cldBotScore(view, me, commits) {
+  const was = {};
+  view.penguins.forEach(p => { was[p.id] = !!p.drowned; });
+  return cldRulesRun(cldClone(view), () => {
+    cldCommits = commits;
+    cldResolveSlide(CLD_BOT_SEED);
+    let s = 0, mine = 0, nMine = 0, theirs = 0, nTheirs = 0;
+    cldPenguins.forEach(p => {
+      const ownP = p.ownerIdx === me;
+      if (p.drowned && !was[p.id]) s += ownP ? -CLD_BOT_SELF_COST : 1;
+      if (!p.drowned) {
+        const g = cldBotRimGap(p) / Math.max(1, cldFloeRadius);
+        if (ownP) { mine += g; nMine++; } else { theirs += g; nTheirs++; }
+      }
+    });
+    return s + 0.1 * ((nMine ? mine / nMine : 0) - (nTheirs ? theirs / nTheirs : 0));
+  });
+}
+
+// A standing penguin's options: hold, a dodge, then straight + cut × power at
+// each rival — rivals nearest the rim first, so the cap keeps the best.
+function cldBotShoveOptions(p, me) {
+  const out = [null];
+  const rivals = cldBotRivals(me).sort((a, b) => cldBotRimGap(a) - cldBotRimGap(b));
+  const near = cldBotRivals(me).sort((a, b) =>
+    Math.hypot(a.x - p.x, a.y - p.y) - Math.hypot(b.x - p.x, b.y - p.y))[0];
+  if (near) {
+    const l = Math.hypot(p.x - near.x, p.y - near.y) || 1;
+    const nx = -(p.y - near.y) / l, ny = (p.x - near.x) / l;
+    const s = (nx * (CLD_W / 2 - p.x) + ny * (CLD_H / 2 - p.y)) >= 0 ? 1 : -1;   // sidestep toward the middle
+    out.push({ penguinId: p.id, dx: s * nx, dy: s * ny, power: 0.4 });
+  }
+  rivals.forEach(t => {
+    const straight = cldBotAimAt(p, t, false), cut = cldBotAimAt(p, t, true);
+    [straight, cut].forEach((dir, k) => {
+      if (!dir || (k === 1 && straight && Math.abs(dir.dx - straight.dx) < 1e-9 && Math.abs(dir.dy - straight.dy) < 1e-9)) return;
+      CLD_BOT_HARD_POWERS.forEach(pw => out.push({ penguinId: p.id, dx: dir.dx, dy: dir.dy, power: cldBotPower(pw) }));
+    });
+  });
+  return out.slice(0, CLD_BOT_HARD_MAX);
+}
+
+// The in-the-Drink options: nothing, a Dive into each distinct free gap (if
+// knocked back), a Snowball at each standing rival.
+function cldBotWetOptions(mine, me) {
+  const out = [{ dive: null, snowball: null }];
+  const back = mine.find(p => p.drowned && !p.plug);
+  if (back) {
+    const seen = new Set();
+    for (let k = 0; k < 12; k++) {
+      const d = cldBotDiveAt(back, (k / 12) * Math.PI * 2);
+      if (d && !seen.has(d.angle.toFixed(4))) { seen.add(d.angle.toFixed(4)); out.push({ dive: d, snowball: null }); }
+    }
+  }
+  cldBotRivals(me).forEach(t => out.push({ dive: null, snowball: { x: t.x, y: t.y } }));
+  return out.slice(0, CLD_BOT_HARD_MAX);
+}
+
+// Hard (spec § 5.3). Everyone else is assumed to play their Medium move, worked
+// out from the same public view, on a FIXED stream — so the assumption is part
+// of the view, never of the live game. One coordinate pass over own penguins.
+function cldBotHard(view, me) {
+  const fixed = () => window.Physics.rng(CLD_BOT_SEED);
+  const assumed = [];
+  for (let i = 0; i < cldPlayerCount; i++) assumed[i] = cldBotSimple(i, 'medium', fixed());
+  const withMine = c => { const cs = assumed.slice(); cs[me] = c; return cs; };
+  let best = assumed[me], bestScore = cldBotScore(view, me, withMine(best));
+  const mine = cldPenguins.filter(p => p.ownerIdx === me);
+  mine.filter(p => !p.drowned).forEach(p => {
+    cldBotShoveOptions(p, me).forEach(aim => {
+      const c = { aims: best.aims.filter(a => a.penguinId !== p.id).concat(aim ? [aim] : []),
+                  dive: best.dive, snowball: best.snowball };
+      const s = cldBotScore(view, me, withMine(c));
+      if (s > bestScore) { best = c; bestScore = s; }
+    });
+  });
+  if (mine.some(p => p.drowned)) {
+    cldBotWetOptions(mine, me).forEach(w => {
+      const c = { aims: best.aims, dive: w.dive, snowball: w.snowball };
+      const s = cldBotScore(view, me, withMine(c));
+      if (s > bestScore) { best = c; bestScore = s; }
+    });
+  }
+  return best;
+}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // ── STAGE 4 OF 6 — UI, canvas render seam, settings, overlays ──────────────
