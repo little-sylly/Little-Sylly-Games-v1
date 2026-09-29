@@ -279,7 +279,9 @@ The Throw · Dive pills show only to a player with a Drowned penguin; for a Peck
 has one Standing, *Throw* reads *Aim*. On a Washout the tally line reads *"Nobody made it. Into the
 Ice Bath with {names}."*, the floe floats **WASHOUT!**, then **ICE BATH!** as the bath starts.
 Every few Slides the floe floats **HUNGRY!** (with a 🐟❗ bubble over every Standing penguin, who keep
-angry brows while it lasts) — Hunger, SW v245.
+angry brows while it lasts) — Hunger, SW v245. The brows are a placeholder: Phase 2 (SW v246) turns
+them into a ladder that escalates with each Hunger level, from a frown to fire in the eyes
+(`2026-09-29-cld-fun-pass-design.md` § 4.2).
 
 ```copy
 # screen-cld-floe — controls

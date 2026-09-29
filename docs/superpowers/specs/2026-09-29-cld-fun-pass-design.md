@@ -219,6 +219,35 @@ As approved in the prototype:
   | win | jumping, flippers up |
 
 - **Six faces:** happy, focus, strain, shock, grumpy, dizzy.
+- **Hunger escalates the face (owner, 29 Sep 2026).** SW v245 ships a placeholder: angry brows on every
+  Standing penguin from the first HUNGRY! to the end of the Floe-Off. That reads as "angry for the rest
+  of the game" from Slide 5, which is wrong. Phase 2 replaces it with a ladder, one rung per Hunger level
+  (`cldHungerLevel`: a new level every 4 Slides). Each rung is a **mood over** whatever face the pose
+  wears, not a seventh face:
+
+  | Level | Slides | Mood |
+  |---|---|---|
+  | 0 | 1–4 | completely normal |
+  | 1 | 5–8 | frowns every now and then (an idle glance sometimes lands as a frown) |
+  | 2 | 9–12 | frowns all the time |
+  | 3 | 13–16 | annoyed / frustrated (a huff, a stamp) |
+  | 4 | 17–20 | angry |
+  | 5 | 21–24 | fire in its eyes |
+  | 6 | 25–28 | fire in its eyes + a glow in the player's colour |
+  | 7+ | 29+ | the glow grows with every level until the Floe-Off ends |
+
+  **Where games actually end** (×1.04, 120 runs, median / p90 Slides): Slush Thaw-off 11–17 / 21–27, so
+  a typical game ends *annoyed* to *angry* and only a stalemate reaches fire. Powder Thaw-off 22–25 / 34–40,
+  so the slow ice routinely reaches the glow. Black Ice 9–14 / 14–18. Any Thaw game 5–10 / 9–13, so it
+  mostly stays at frowning. That is the intent: fire is for the long Floe-Offs that Hunger exists to
+  end. **No filler rungs** are needed. Four Slides per rung spaces the ladder across the real game
+  lengths, and a rung shorter than a Hunger level could not be announced by its HUNGRY! beat.
+
+  Rules: a level up is shown at the HUNGRY! beat, never mid-Slide. It uses the same derived level on
+  every device (no packet), and it resets with the count (Resurface, Ice Bath). Drowned penguins keep
+  their own faces (grumpy / dizzy) with no mood. The glow is a static strength per level, so nothing
+  pulses. Under reduced motion the fire is a still flame. The model carries a per-penguin `hunger`
+  level (0 when Drowned) in place of v245's `hungry` bool.
 - **Facing:** a penguin "turns" toward its aim. The face slides across the body, and the back view fades in as it turns away.
 - **The model grows per-penguin fields,** all derived from the timeline or input, never sent: `pose`, `look`, `power`, `vel` (from the bracketing samples), `k` (plunge and squash progress), `splat` (a Snowball hit fades over ~3 s).
 
