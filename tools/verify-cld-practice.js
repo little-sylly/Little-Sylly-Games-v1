@@ -1345,6 +1345,50 @@ if (!TUNE) {
   ok('(the Arena view has a floe)', !!pv && !!pv.floe);
   RUN('cldResetState()');
   check('resetToLobby drops the Arena’s and the floe’s surfaces', [pv.floe, G('cldView').floe], [null, null]);
+  // § 4.7 — under reduced motion, two frames of the live floe paint identically:
+  // the camera cuts, waves and foam freeze, nothing travels, idle breathing stops.
+  (() => {
+    const rm = S.window.matchMedia;
+    S.window.matchMedia = () => ({ matches: true });
+    const A = S.window.CldArt, names = ['water', 'scenery', 'floe', 'berg', 'penguin', 'aim', 'reticle', 'seat', 'meMarker'];
+    const frame = now => {
+      const log = [], undo = names.map(n => {
+        const f = A[n];
+        A[n] = function () { log.push(n + JSON.stringify([].slice.call(arguments, 1), (k, x) => (x && x.canvas) ? '<surf>' : x)); return f.apply(this, arguments); };
+        return () => { A[n] = f; };
+      });
+      RUN('cldLoop')(now);
+      undo.forEach(u => u());
+      return log.join('\n');
+    };
+    SET('cldPenguins', [{ id: '0-0', ownerIdx: 0, x: 140, y: 180 }, { id: '1-0', ownerIdx: 1, x: 220, y: 180 }]);
+    SET('cldBergs', [{ id: 'b1', x: 180, y: 12, r: 16, hits: 2, angle: 0 }]);
+    SET('cldFloeRadius', 170); SET('cldPhase', 'aiming'); SET('cldDragging', false); SET('cldMyAims', []);
+    RUN('cldInitCanvas()');
+    // The sound overlay closed — the mock's display is undefined, which the loop reads as open,
+    // and a paused loop never moves its clock (that made this check vacuous).
+    S.document.getElementById('sound-overlay').style.display = 'none';
+    const t0 = 5e6; frame(t0);                             // the first frame only seeds the frame clock
+    const a = frame(t0 + 40), b = frame(t0 + 80);          // two real 40 ms steps
+    ok('reduced motion: consecutive frames paint identically', a === b && a.length > 0);
+    S.window.matchMedia = rm;
+  })();
+
+  // Informational: paint cost of a crowded frame (16 penguins, 30 chunks). The
+  // spec's 60 fps target on the owner's SE is a hardware judgement (§ 4.7) — this
+  // number is the baseline to compare against if the SE pass shows jank.
+  (() => {
+    const c = recCtx(), v = mkView(); v.ctx = c;
+    const pens = Array.from({ length: 16 }, (_, i) => ({ id: i + '-0', ownerIdx: i,
+      x: 180 + Math.cos(i) * 120, y: 180 + Math.sin(i) * 120 }));
+    const bergs = Array.from({ length: 30 }, (_, i) => ({ id: 'b' + i, x: 180 + Math.cos(i / 30 * 6.283) * 179,
+      y: 180 + Math.sin(i / 30 * 6.283) * 179, r: 16, hits: 2, angle: i }));
+    const m = RUN('cldBuildModel')({ penguins: pens, bergs, radius: 195, iceBreaker: 2, ice: 'slush', slideNo: 1 },
+                                   { meIdx: 0, phase: 'aiming', aims: [], clock: 1, floeKey: 'x', floeSeed: 1 });
+    RUN('cldViewStep')(v, 0.016, m);
+    c.n = 0; RUN('cldDraw')(v, m);
+    console.log('          (info) crowded frame: ' + c.n + ' fill/stroke calls');
+  })();
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

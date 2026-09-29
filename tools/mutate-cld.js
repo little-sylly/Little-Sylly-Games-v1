@@ -293,6 +293,8 @@ const M = [
 ['chrome-bypasses-seam', 'game', [[
   "  if (ctx) cldRenderPenguin(ctx, 'idle', ownerIdx, cssR, cssR, cssR, { head: true, look: Math.PI / 2 });",
   "  if (ctx && cldArt()) cldArt().penguin(ctx, { x: cssR, y: cssR, r: cssR, tint: cldTintOf(ownerIdx), pose: 'idle', head: true });"]], 'practice'],
+['reduced-motion-clock-runs', 'game', [[
+  '  if (!paused && !cldReducedMotion()) cldClock += dt;', '  if (!paused) cldClock += dt;']], 'practice'],
 ['seat-drawn-white', 'art', [[
   '    ctx.lineWidth = chosen ? 2.4 : 1.8; ctx.strokeStyle = tint; ctx.stroke();', "    ctx.lineWidth = chosen ? 2.4 : 1.8; ctx.strokeStyle = chosen ? tint : 'rgba(255,255,255,0.8)'; ctx.stroke();"]], 'practice'],
 ];
