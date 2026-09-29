@@ -167,6 +167,7 @@ let cldPhase       = 'aiming';  // 'aiming' | 'waiting' | 'resolving' | 'washout
 let cldIntroMode   = 'intro';   // 'intro' | 'standby'
 let cldView        = null;      // the floe's canvas view — cldMakeView(); the Arena owns its own
 let cldRafHandle   = null;      // TIMER — cancel in quit-confirm, resetToLobby(), every phase exit
+const CLD_RAF_RUNNING = -1;      // cldRafHandle while a frame runs — see cldLoop
 let cldIntroTimer  = null;      // TIMER
 let cldResultTimer = null;      // TIMER
 let cldSkinArt     = {};        // assetId -> HTMLImageElement | null — empty for the whole of v1
@@ -1515,8 +1516,13 @@ function cldFloeInsets() {
 // cldResetState(), and on EVERY early phase transition — a live loop repaints
 // against the next screen's state (logic-engine.md § Timer Lifecycle: a
 // requestAnimationFrame is a timer).
+// While a frame runs, cldRafHandle holds CLD_RAF_RUNNING. Anything in the frame that
+// stops the loop (cldStopLoop → null) or restarts it (cldStartLoop → a real handle)
+// overwrites it; only an untouched frame re-arms itself. Nulling it here instead
+// let a stop inside cldAdvancePlayback go unseen: the frame re-armed after
+// cldShowResult and replayed the result and the Fish every frame (owner report, SW v247).
 function cldLoop(now) {
-  cldRafHandle = null;
+  cldRafHandle = CLD_RAF_RUNNING;
   if (!cldLastFrameT) cldLastFrameT = now;
   // Clamp dt so a backgrounded tab cannot teleport a whole playback on the
   // first frame back.
@@ -1538,10 +1544,10 @@ function cldLoop(now) {
     cldDragging);
   cldDraw(cldView, m);
 
-  // A phase transition inside cldAdvancePlayback may have scheduled its own
-  // next frame; standing down here is what stops two loops running alongside
-  // each other at double speed.
-  if (!cldRafHandle) cldRafHandle = requestAnimationFrame(cldLoop);
+  // A phase transition inside cldAdvancePlayback may have stopped the loop, or
+  // scheduled its own next frame; either way, standing down here is what keeps a
+  // stopped loop stopped — and two loops from running alongside at double speed.
+  if (cldRafHandle === CLD_RAF_RUNNING) cldRafHandle = requestAnimationFrame(cldLoop);
 }
 
 function cldStartLoop() {
@@ -1551,7 +1557,8 @@ function cldStartLoop() {
 }
 
 function cldStopLoop() {
-  if (cldRafHandle) { cancelAnimationFrame(cldRafHandle); cldRafHandle = null; }
+  if (cldRafHandle && cldRafHandle !== CLD_RAF_RUNNING) cancelAnimationFrame(cldRafHandle);
+  cldRafHandle = null;
   cldLastFrameT = 0;
 }
 

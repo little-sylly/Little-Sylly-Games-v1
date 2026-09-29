@@ -1195,6 +1195,57 @@ section('18. Solo — a whole match on one device, a null wire, a real mock DOM 
   check('no errors on the Solo device', so.__errors, []);
 }
 
+section('19. The real frame loop stops on the Floe-Off result — one Fish, not one a frame (owner report, 29 Sep 2026)');
+{
+  // Every other section pumps playback by hand (requestAnimationFrame returns 0), so
+  // cldLoop itself never ran here — and it re-armed after cldShowResult had stopped it,
+  // replaying the result and the Fish sound every frame, forever.
+  const RSLOTS = [{ uid: 'local:host', nickname: 'You' },
+                  { uid: 'bot:0', nickname: 'Sylvia', bot: { difficulty: 'medium' } },
+                  { uid: 'bot:1', nickname: 'Sam', bot: { difficulty: 'medium' } }];
+  const rf = makeDevice('rafhost', 'host', 0, RSLOTS), R = rf.__cld;
+  const q = new Map(); let seq = 0, now = 0;
+  rf.requestAnimationFrame = fn => { q.set(++seq, fn); return seq; };
+  rf.cancelAnimationFrame  = h => { q.delete(h); };
+  // One clock for timers AND frames — so the intro's and the result's dwells fire
+  // when due while the loop runs in between, as in a browser.
+  const tq = []; let tseq = 0;
+  rf.setTimeout   = (fn, ms) => { tq.push({ fn, at: now + (ms || 0), id: ++tseq }); return tseq; };
+  rf.clearTimeout = id => { const i = tq.findIndex(x => x.id === id); if (i >= 0) tq.splice(i, 1); };
+  const frame = () => {
+    now += 16;
+    tq.sort((a, b) => a.at - b.at);
+    while (tq.length && tq[0].at <= now) {
+      const x = tq.shift();
+      try { x.fn(); } catch (e) { rf.__errors.push('timer: ' + e.message); }
+    }
+    const fns = [...q.values()]; q.clear();
+    fns.forEach(f => { try { f(now); } catch (e) { rf.__errors.push('frame: ' + e.message); } });
+    return fns.length;
+  };
+  const prompts = [];
+  rf.mpSendEnvelope = () => {}; rf.mpSendPrivate = () => {};
+  rf.mpBotsPrompt   = tag => prompts.push(tag);
+  rf.document.getElementById('sound-overlay').style.display = 'none';   // the loop freezes under it
+  vm.runInContext('var __results = 0; var __sr = cldShowResult; cldShowResult = function () { __results++; return __sr.apply(this, arguments); };', rf);
+  const move = i => vm.runInContext(
+    `cldBotSubmit(${i}, cldBotDecide(cldBotView(${i}), 'medium', window.Physics.rng(${i} + cldSlideNo * 7)), cldSlideNo)`, rf);
+  R.fishToWin = 1; R.touched = true; R.floeSize = 'standard';
+  R.startMatch(['You', 'Sylvia 🤖', 'Sam 🤖']);
+  let guard = 0;
+  while (guard++ < 60000 && lastScreen(rf) !== 'screen-cld-result') {
+    if (prompts.length) { prompts.shift(); move(1); move(2); move(0); continue; }
+    frame();
+  }
+  check('the Floe-Off reached its result through the real loop', lastScreen(rf), 'screen-cld-result');
+  let results = 0; const at = now;
+  while (now - at < 1000 && lastScreen(rf) === 'screen-cld-result') frame();   // a second on the result screen
+  results = vm.runInContext('__results', rf);
+  check('…and shows it once, not once a frame', results, 1);
+  check('…with no frame still scheduled', q.size, 0);
+  check('no errors on the device', rf.__errors, []);
+}
+
 console.log('\n' + '='.repeat(70));
 console.log(failures ? 'FAILED — ' + failures + ' check(s)' : 'ALL CHECKS PASSED');
 process.exit(failures ? 1 : 0);

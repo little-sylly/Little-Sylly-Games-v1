@@ -311,6 +311,10 @@ const M = [
   ['  rec.commits = new Array(rec.playerCount).fill(null);\n', '']], 'bots'],
 ['bots-never-prompted', 'game', [[
   "  if (window.syllyMultiplayerMode === 'host' && typeof mpBotsPrompt === 'function') mpBotsPrompt(cldSlideNo);", '']], 'loopback'],
+// ── SW v247: BUG-15 — a frame never re-arms a loop it stopped (verify-cld-loopback.js § 19) ──
+['raf-rearms-after-stop', 'game', [[
+  '  if (cldRafHandle === CLD_RAF_RUNNING) cldRafHandle = requestAnimationFrame(cldLoop);',
+  '  if (!cldRafHandle || cldRafHandle === CLD_RAF_RUNNING) cldRafHandle = requestAnimationFrame(cldLoop);']], 'loopback'],
 ];
 
 // Which harness a mutant is aimed at. The rules/sim mutants above run the loop

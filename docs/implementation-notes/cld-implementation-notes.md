@@ -813,6 +813,27 @@ pushed the header off. Root cause: a px-sized child of a flex-shrunk parent neve
 changed. Fix: `cldSyncFloeUI()` re-fits the canvas whenever the stage's height differs from the
 canvas's. No harness can see it — a mock element has no box.
 
+**BUG-15 — every Floe-Off ended in a loop: the result and the Fish replayed every frame (owner, the
+first Solo matches, 29 Sep 2026, fixed SW v247).** What happened: at "X is the last one dry" the game
+hung, flashing the result screen with a loud repeated Fish; seen at 8 seats (host lost) and 5 (host
+won). Root cause: `cldLoop` nulled `cldRafHandle` at the top of every frame and re-armed itself at the
+bottom whenever the handle was still null. Inside the frame, `cldAdvancePlayback` → `cldEndPlayback` →
+`cldShowResult` → `cldStopLoop()` found nothing to cancel, so the frame re-armed a loop that had just
+been stopped; `cldPhase` was still `'resolving'` and `cldStepPlayback` returns `'done'` on every call
+past the end, so every frame ended the playback again — the result, `cldSfx('fish')`, and a fresh
+2.5 s result timer that never got to fire. **Not a bot bug**: the shape dates from at least SW v243
+and hit every device at every Floe-Off end. Nothing saw it because no harness ran the real loop
+(every mock `requestAnimationFrame` returned 0 and the loopback pumps playback by hand) and the
+phase-40 live session was never played; Solo was the first way to play a whole match alone. Fix: while
+a frame runs the handle holds `CLD_RAF_RUNNING`; a stop (null) or restart (a real handle) overwrites
+it, and only an untouched frame re-arms. The Practice loop has the same shape but is only stopped
+from UI events, never inside a frame. Proof: `verify-cld-loopback.js` § 19 drives the REAL loop with
+one clock for timers and frames — red at 64 results in one second, green at 1 — and the real app in
+Chromium (8-seat Solo: one result, the podium 2.5 s later). *Lesson:* a harness that stubs the frame
+loop proves nothing about what the frame loop does at a phase change; drive the real one once, with a
+clock, through every phase exit. (Also: a mock `style.display` of `undefined` reads as "visible" to
+the sound-overlay pause check, so the loop never advances — set it to `'none'`.)
+
 ---
 
 ## Multiplayer Lessons
