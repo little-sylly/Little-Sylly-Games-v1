@@ -931,6 +931,89 @@ function cldArenaRun(fn) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+// Bots (SW v247) — spec docs/superpowers/specs/2026-09-29-bots-design.md § 5.
+// view → decide → submit, driven by the engine's mpBotsPrompt. decide is PURE
+// in effect: it reads only its view, and runs the rules on a clone of it through
+// cldRulesRun, which puts every live global back.
+// ═══════════════════════════════════════════════════════════════════════════
+const CLD_BOT_THINK     = { easy: [1000, 2500], medium: [1500, 3500], hard: [2000, 4500] };
+const CLD_BOT_NOISE     = { easy: 15 * Math.PI / 180, medium: 4 * Math.PI / 180, hard: 0 };
+const CLD_BOT_EASY_HOLD = 0.2;      // Easy holds still about 1 Slide in 5
+const CLD_BOT_SEED      = 0x0b075;  // every look-ahead Slide, and every assumed rival move
+
+function cldBotThinkMs(d, rng) {
+  const r = CLD_BOT_THINK[d] || CLD_BOT_THINK.medium;
+  return r[0] + rng() * (r[1] - r[0]);
+}
+
+// Plain objects and arrays only — the rules record holds nothing else.
+function cldClone(v) {
+  if (Array.isArray(v)) return v.map(cldClone);
+  if (v && typeof v === 'object') { const o = {}; for (const k in v) o[k] = cldClone(v[k]); return o; }
+  return v;
+}
+
+// The seat's view: the public floe, with every commit blanked — other seats'
+// commits are the only hidden state in this game (spec § 3.7).
+function cldBotView(i) {
+  const live = cldSwapOut();
+  live.commits  = null;          // other seats' commits are the only hidden state (spec § 3.7)
+  live.timeline = null;          // large, and nothing a decision reads
+  const rec = cldClone(live);
+  rec.commits = new Array(rec.playerCount).fill(null);
+  rec.me = i;
+  return rec;
+}
+
+function cldBotDecide(view, difficulty, rng) {
+  return cldRulesRun(cldClone(view), () =>
+    difficulty === 'hard' ? cldBotHard(view, view.me) : cldBotSimple(view.me, difficulty, rng));
+}
+
+// ── Helpers — call inside a swap ──────────────────────────────────────────
+function cldBotRivals(me)  { return cldStanding().filter(q => q.ownerIdx !== me); }
+function cldBotRimGap(p)   { return cldFloeRadius - cldDistFromCentre(p.x, p.y); }
+function cldBotPower(p)    { return Math.min(1, Math.max(CLD_MIN_POWER, p)); }
+function cldBotNoisy(dir, noise, rng) {
+  if (!noise) return dir;
+  const a = Math.atan2(dir.dy, dir.dx) + (rng() * 2 - 1) * noise;
+  return { dx: Math.cos(a), dy: Math.sin(a) };
+}
+function cldBotDiveAt(back, angle) {
+  const spot = cldSeatSpot(angle, back.id);
+  return spot ? { penguinId: back.id, angle: spot.angle } : null;
+}
+
+// Easy and Medium (spec § 5.3). No simulation: a target, a line, some noise.
+function cldBotSimple(me, difficulty, rng) {
+  const out = { aims: [], dive: null, snowball: null };
+  const easy = difficulty === 'easy';
+  const rivals = cldBotRivals(me);
+  if (!rivals.length) return out;
+  if (easy && rng() < CLD_BOT_EASY_HOLD) return out;
+  const pick = () => (easy ? rivals[Math.floor(rng() * rivals.length)]
+                           : rivals.slice().sort((a, b) => cldBotRimGap(a) - cldBotRimGap(b))[0]);
+  const mine = cldPenguins.filter(p => p.ownerIdx === me);
+  mine.filter(p => !p.drowned).forEach(p => {
+    const dir = cldBotAimAt(p, pick(), !easy);
+    if (!dir) return;
+    const d = cldBotNoisy(dir, CLD_BOT_NOISE[difficulty] || 0, rng);
+    const power = easy ? 0.5 + rng() * 0.5 : (0.85 + rng() * 0.15) / cldHungerMult(cldSlideNo);
+    out.aims.push({ penguinId: p.id, dx: d.dx, dy: d.dy, power: cldBotPower(power) });
+  });
+  const back = mine.find(p => p.drowned && !p.plug);
+  if (back) {
+    const dive = cldBotDiveAt(back, easy ? rng() * Math.PI * 2 : back.angle);
+    if (dive && (!easy || rng() < 0.5)) { out.dive = dive; return out; }
+  }
+  if (mine.some(p => p.drowned)) { const t = pick(); out.snowball = { x: t.x, y: t.y }; }
+  return out;
+}
+
+// Task 8 replaces this with the look-ahead.
+function cldBotHard(view, me) { return cldBotSimple(me, 'medium', window.Physics.rng(CLD_BOT_SEED)); }
+
+// ═══════════════════════════════════════════════════════════════════════════
 // ── STAGE 4 OF 6 — UI, canvas render seam, settings, overlays ──────────────
 //
 // Everything above this line is the headless rules layer and must stay that
@@ -3768,6 +3851,10 @@ function cldHostTakeCommit(idx, commit, slideNo) {
   if (cldPlayerCount > 0 && cldCommits.every(c => c !== null)) cldHostResolveSlide();
   return true;
 }
+
+// A bot's move (SW v247) — the engine calls this after the think time. The tag is
+// the Slide it was prompted for; a move for a Slide already resolved is refused.
+function cldBotSubmit(i, move, tag) { return cldHostTakeCommit(i, move, tag); }
 
 // A COUNT, never a name. The same rule holds on a single device so the two paths
 // cannot diverge — there is no name in this packet to print.
