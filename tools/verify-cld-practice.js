@@ -1420,6 +1420,57 @@ if (!TUNE) {
   ok('the cue stick is gone', RUN("typeof cldDrawCue === 'undefined' && typeof CLD_CUE_LEN === 'undefined'"));
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// Q. The floe screen's chrome (spec § 4.6)
+// ═══════════════════════════════════════════════════════════════════════════
+if (!TUNE) {
+  section('Q. The floe screen');
+  const $ = id => S.document.getElementById(id);
+  SET('cldPlayerCount', 5); SET('cldPhase', 'aiming'); SET('cldCommitted', false);
+  SET('cldCommits', [{ aims: [] }, { aims: [] }, null, null, null]);
+  SET('cldPenguins', [0, 1, 2, 3, 4].map(i => ({ id: i + '-0', ownerIdx: i, x: 100 + i * 30, y: 180, drowned: false })));
+  SET('cldMyAims', []); SET('cldDragging', false); SET('cldPowerLock', 0.6);
+  const spy = seamSpy();
+  RUN('cldSyncFloeUI()');
+  check('the power tube fills by transform, not width', [$('cld-power-fill').style.transform, $('cld-power-fill').style.width],
+        ['scaleX(0.6)', undefined]);
+  const heads = spy.opts.filter(o => o.head);
+  check('the tally draws one head per player', heads.length, 5);
+  const ink = G('CLD_TALLY_INK'), empty = G('CLD_TALLY_EMPTY');
+  check('…filled in order, counts only', heads.map(o => o.tint), [ink, ink, empty, empty, empty]);
+  const players = [0, 1, 2, 3, 4].map(i => RUN('cldTintOf')(i));
+  ok('…and never in a player’s colour (the tally must not say who)', heads.every(o => players.indexOf(o.tint) < 0));
+  spy.opts.length = 0;
+  RUN('cldSyncFloeUI()');
+  check('an unchanged count does not repaint the heads', spy.opts.filter(o => o.head).length, 0);
+  spy.restore();
+  SET('cldPowerLock', null);
+
+  RUN('cldShowFloe()');
+  check('the power tube fills in MY colour', $('screen-cld-floe').style['--cld-tint'], RUN('cldTintOf')(0));
+
+  // The [?] is re-classed every sync (greyed while a Slide plays) — it must keep its
+  // 44 px target and read white over the water in both states.
+  const helpCls = ph => { SET('cldPhase', ph); RUN('cldSyncFloeUI()'); return $('btn-cld-how-to').className; };
+  ok('the header [?] keeps min-h-11 min-w-11 and white ink, live and greyed',
+     ['aiming', 'resolving'].every(ph => { const c = helpCls(ph); return /min-h-11/.test(c) && /min-w-11/.test(c) && /text-white/.test(c); }),
+     JSON.stringify(['aiming', 'resolving'].map(helpCls)));
+  SET('cldPhase', 'aiming');
+  // Review Focus 5 — a touch on a header button never starts an aim.
+  const btn = { closest: sel => (sel === 'button' ? {} : null) };
+  SET('cldDragging', false);
+  RUN('cldPointerDown')({ target: btn, clientX: 10, clientY: 10, pointerId: 1, isPrimary: true, timeStamp: 0,
+                          preventDefault() {}, stopPropagation() {} });
+  check('a press on [?] / 🔊 / ✕ is the button’s, not an aim', G('cldDragging'), false);
+
+  // Static canvases are DPR-capped at 2.
+  S.window.devicePixelRatio = 3;
+  const cv = S.document.createElement('canvas');
+  RUN('cldStaticCanvas')(cv, 100, 40);
+  check('a static canvas caps DPR at 2', [cv.width, cv.height, cv.style.width], [200, 80, '100px']);
+  S.window.devicePixelRatio = 1;
+}
+
 // ── Report (keep LAST in the file) ─────────────────────────────────────────
 if (!TUNE) {
   console.log('\n' + '='.repeat(70));

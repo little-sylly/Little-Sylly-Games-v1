@@ -2764,33 +2764,60 @@ body.flash-red   { background-color: #fecaca; }
 }
 .cld-pr-ring { box-shadow: 0 0 0 3px rgba(142, 202, 230, 0.95); }
 
-/* Power bar — the bar IS the lock control (brief §14), so the two states have to
-   be unmistakable at a glance: live is soft and unoutlined, locked is outlined
-   and saturated. Height clears the 44px touch minimum via its wrapper's padding. */
+/* ── Cold Shoulder — the floe screen (SW v246, fun-pass spec § 4.6) ── */
+.cld-floe-screen { background: #0e2536; }        /* the Drink shows past the canvas edge */
+.cld-floe-hud { text-shadow: 0 1px 3px rgba(8, 36, 56, 0.6); }
+
+/* The ice shelf: frosted sea ice with a snow lip over the water. */
+.cld-shelf {
+  position: relative;
+  background: linear-gradient(to bottom, #f4fbfe, #dcf0f8 60%, #cfe7f2);
+  border-top: 3px solid #ffffff;
+  box-shadow: 0 -6px 14px rgba(8, 36, 56, 0.35), inset 0 2px 0 rgba(255, 255, 255, 0.9);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.cld-shelf::before {                               /* the snow lip, scalloped */
+  content: '';
+  position: absolute; left: 0; right: 0; top: -9px; height: 10px;
+  background: radial-gradient(circle at 10px 10px, #ffffff 9px, transparent 10px) 0 0 / 20px 10px repeat-x;
+  pointer-events: none;
+}
+
+/* Power — an inset ice tube that fills in YOUR colour (--cld-tint), with frost
+   ticks every quarter. The fill scales (transform only). The bar IS the lock
+   control (brief §14): locked is outlined in deep ink and shows a lock. */
 .cld-power-track {
   position: relative;
   height: 1.25rem;
   border-radius: 9999px;
-  background: #e7e5e4;                      /* stone-200 */
   overflow: hidden;
+  background: linear-gradient(to bottom, #b9dcec, #e3f3fa);
+  box-shadow: inset 0 2px 4px rgba(18, 59, 76, 0.35), inset 0 -1px 0 rgba(255, 255, 255, 0.8);
   border: 2px solid transparent;
   transition: border-color 0.15s ease;
 }
-.cld-power-track.cld-power-locked { border-color: #2a6b85; }
+.cld-power-track::after {                          /* frost ticks */
+  content: '';
+  position: absolute; inset: 0; pointer-events: none; z-index: 1;
+  background: repeating-linear-gradient(to right, transparent 0 calc(25% - 1px),
+              rgba(255, 255, 255, 0.75) calc(25% - 1px) 25%);
+}
+.cld-power-track.cld-power-locked { border-color: #123B4C; }
+.cld-power-track.cld-power-locked::before {        /* the lock */
+  content: '🔒';
+  position: absolute; right: 0.35rem; top: 50%; z-index: 2;
+  font-size: 0.7rem; line-height: 1; transform: translateY(-50%);
+}
 .cld-power-fill {
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: 0%;
+  position: absolute; inset: 0;
   border-radius: 9999px;
-  background: linear-gradient(to right, #cbe9f4, #8ECAE6);
-  transition: width 0.06s linear;           /* transform-only rule: width is the
-                                               fill's ONLY animatable dimension and
-                                               it repaints ~20x/s during a drag, well
-                                               inside the 100-160ms feedback band */
+  transform-origin: left center;
+  transform: scaleX(0);
+  background-color: var(--cld-tint, #8ECAE6);
+  background-image: linear-gradient(to bottom, rgba(255, 255, 255, 0.45), rgba(255, 255, 255, 0) 60%);
+  transition: transform 0.06s linear;
 }
-.cld-power-track.cld-power-locked .cld-power-fill {
-  background: linear-gradient(to right, #8ECAE6, #2a6b85);
-}
+.cld-tally-heads { display: block; flex-shrink: 0; }
 
 /* Dive controls — a direction with no free position renders unavailable rather
    than failing at resolution (brief §14). Dimmed + non-interactive, never hidden:

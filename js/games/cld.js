@@ -1017,6 +1017,8 @@ const CLD_SPLAT_FADE_S = 3;          // a Snowball's splat on a penguin fades ov
 const CLD_FLOE_Q       = 3;          // floe surface px per world unit…
 const CLD_FLOE_PX_MAX  = 1200;       // …capped so a Roomy floe stays ≤ 1,200 px square
 const CLD_FX_MIN_POWER = 0.12;       // a softer bump than this raises no puff
+const CLD_TALLY_INK    = '#8ECAE6';  // a locked-in head — ONE neutral ice colour, never a seat's
+const CLD_TALLY_EMPTY  = '#d6d3d1';  // still aiming
 const CLD_ASSIST_STEPS   = 90;    // aim-assist trace resolution (first bounce only)
 
 
@@ -1319,7 +1321,15 @@ function cldInitCanvas() {
   const cv = document.getElementById('cld-canvas');
   if (!cv || !cv.getContext) return;
   cldView = cldMakeView(cv);
+  cldFloeInsets();
   cldResize(cldView);
+}
+
+// The camera's box starts below the floating header, so the overview never
+// frames the floe under the [?] 🔊 ✕ row.
+function cldFloeInsets() {
+  const hud = document.getElementById('cld-floe-hud');
+  if (cldView) cldView.insetTop = hud && hud.offsetHeight ? hud.offsetHeight : 0;
 }
 
 // The RAF loop. Cancelled in the quit-confirm handler, in resetToLobby() via
@@ -1825,6 +1835,8 @@ function cldCancelDrag() {
 }
 
 function cldPointerDown(e) {
+  // The header floats over the stage: a press on its buttons is theirs, never an aim.
+  if (e.target && e.target.closest && e.target.closest('button')) return;
   if (cldCamPointer(cldView, e, 'down')) { cldCancelDrag(); return; }
   if (cldPhase !== 'aiming') return;
   if (cldPtrId !== null) return;                 // one pointer at a time
@@ -1915,8 +1927,11 @@ function cldShowFloe() {
   cldPtrId       = null;
   cldDragPenguin = null;
   cldDragDir     = null;
+  const scr = document.getElementById('screen-cld-floe');
+  if (scr && scr.style.setProperty) scr.style.setProperty('--cld-tint', cldTintOf(cldMyIdx()));
   showScreen('screen-cld-floe');
   cldInitCanvas();
+  cldFloeInsets();
   cldResize(cldView);
   // A fresh floe (slide 0 of a Floe-Off or an Ice Bath) is framed; every other
   // Slide opens on the overview, which also ends any pinch (spec § 3.3).
@@ -1961,7 +1976,7 @@ function cldSyncFloeUI() {
   const aim  = cldDragging ? cldCurrentDragAim() : cldArmedAimFor(cldFirstUnarmedOrLast());
   const shown = cldPowerLock !== null ? cldPowerLock : (aim ? aim.power : 0);
   const fill  = document.getElementById('cld-power-fill');
-  if (fill) fill.style.width = Math.round(shown * 100) + '%';
+  if (fill) fill.style.transform = 'scaleX(' + shown + ')';
   const track = document.getElementById('cld-power-track');
   if (track) track.classList.toggle('cld-power-locked', cldPowerLock !== null);
   const hint = document.getElementById('cld-power-hint');
@@ -1974,7 +1989,7 @@ function cldSyncFloeUI() {
     else if (aim && aim.power < CLD_MIN_POWER) hint.textContent = 'Too soft';
     else                                  hint.textContent = 'Tap to lock power';
     hint.className = (aim && aim.power < CLD_MIN_POWER && cldPowerLock === null)
-      ? 'text-amber-600 text-xs' : 'text-stone-400 text-xs';
+      ? 'text-amber-600 text-xs' : 'text-stone-500 text-xs';
   }
 
   // ── Tally. Counts only — it must NEVER say who (spec §11 privacy contract,
@@ -1989,7 +2004,14 @@ function cldSyncFloeUI() {
     } else
     tally.textContent = cldPhase === 'resolving' ? 'Sliding…'
                       : done + ' of ' + cldPlayerCount + ' locked in';
+  }  const heads = document.getElementById('cld-tally-heads');
+  if (heads) {
+    const washout = cldPhase === 'washout';
+    heads.style.display = washout ? 'none' : 'block';
+    if (!washout) cldPaintTallyHeads(heads, cldPlayerCount,
+      cldPhase === 'resolving' ? cldPlayerCount : cldCommits.filter(c => c !== null).length);
   }
+
 
   // ── Lock It In. Disabled until a valid aim is armed; after commit it becomes
   // a non-interactive waiting label and the canvas stops accepting drags.
@@ -2021,8 +2043,8 @@ function cldSyncFloeUI() {
   // Greyed rather than removed, so it doesn't appear to vanish.
   const help = document.getElementById('btn-cld-how-to');
   if (help) help.className = (cldPhase === 'aiming' || cldPhase === 'waiting')
-    ? 'text-stone-400 font-bold text-sm active:scale-90 transition-transform duration-100'
-    : 'text-stone-200 font-bold text-sm';
+    ? 'min-h-11 min-w-11 text-white/90 font-bold text-sm active:scale-90 transition-transform duration-100'
+    : 'min-h-11 min-w-11 text-white/35 font-bold text-sm';   // white over the water (SW v246), 44 px either way
 
   // The Throw · Dive row and its reason line come and go with the phase, and
   // the canvas is sized in px — so it is re-fitted whenever the stage it sits
@@ -2031,7 +2053,7 @@ function cldSyncFloeUI() {
   const cv = cldView && cldView.canvas;
   const stage = cv && cv.parentElement;
   if (stage && stage.clientHeight &&
-      Math.round(parseFloat(cv.style.height) || 0) !== stage.clientHeight) cldResize(cldView);
+      Math.round(parseFloat(cv.style.height) || 0) !== stage.clientHeight) { cldFloeInsets(); cldResize(cldView); }
 }
 
 // Which penguin's power the bar is showing when nothing is being dragged: the
@@ -2404,6 +2426,37 @@ function cldShowFloeOffIntro(mode) {
   if (cldIntroMode === 'intro') {
     cldIntroTimer = setTimeout(() => { cldIntroTimer = null; cldShowFloe(); }, CLD_INTERSTITIAL_MS);
   }
+}
+
+// A static chrome canvas: CSS size, DPR ≤ 2, cleared, transform in CSS px.
+function cldStaticCanvas(cv, cssW, cssH) {
+  const ctx = cv && cv.getContext ? cv.getContext('2d') : null;
+  if (!ctx) return null;
+  const dpr = Math.min((typeof window !== 'undefined' && window.devicePixelRatio) || 1, 2);
+  cv.style.width = cssW + 'px'; cv.style.height = cssH + 'px';
+  cv.width = Math.round(cssW * dpr); cv.height = Math.round(cssH * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, cssW, cssH);
+  return ctx;
+}
+
+// The tally as penguin heads (spec § 4.6). Counts only — never who: filled heads
+// are ONE neutral colour, filled left to right, so no head can be read as a seat.
+// Repaints only when the count changes.
+function cldPaintTallyHeads(cv, total, done) {
+  if (!cv) return;
+  const key = total + ':' + done;
+  if (cv.dataset && cv.dataset.key === key) return;
+  if (cv.dataset) cv.dataset.key = key;
+  const r = 7, gap = 4, w = Math.max(1, total * (2 * r + gap) - gap), h = 2 * r + 2;
+  const ctx = cldStaticCanvas(cv, w, h);
+  if (!ctx) return;
+  for (let i = 0; i < total; i++) {
+    ctx.globalAlpha = i < done ? 1 : 0.45;       // still aiming reads faded, not just a paler hue
+    cldRenderPenguin(ctx, 'idle', 0, r + i * (2 * r + gap), h / 2, r,
+                     { head: true, tint: i < done ? CLD_TALLY_INK : CLD_TALLY_EMPTY, look: Math.PI / 2 });
+  }
+  ctx.globalAlpha = 1;
 }
 
 function cldShowResult(tl) {
@@ -3167,7 +3220,7 @@ function cldPrSyncUI() {
   const dragAim = u.drag ? cldPrDragAim() : null;
   const shown = u.lock !== null ? u.lock : (dragAim ? dragAim.power : (u.aim ? u.aim.power : 0));
   const fill = $('cld-pr-power-fill');
-  if (fill) fill.style.width = Math.round(shown * 100) + '%';
+  if (fill) fill.style.transform = 'scaleX(' + shown + ')';
   const track = $('cld-pr-power-track');
   if (track) track.classList.toggle('cld-power-locked', u.lock !== null);
   const hint = $('cld-pr-power-hint');
@@ -3241,6 +3294,8 @@ function cldPrLoop(now) {
 }
 
 function cldPracticeStart() {
+  const ov = document.getElementById('cld-how-to-overlay');
+  if (ov && ov.style.setProperty) ov.style.setProperty('--cld-tint', cldTintOf(0));   // the power tube's fill
   const cv = document.getElementById('cld-pr-canvas');
   if (!cldPrView && cv && cv.getContext) cldPrView = cldMakeView(cv);
   cldResize(cldPrView);                           // sized on SHOW — a hidden canvas has no box
@@ -3912,6 +3967,9 @@ document.addEventListener('DOMContentLoaded', () => {
   if (stage) {
     // Captured, so a drag that strays off the stage keeps steering (SW v244 minor).
     stage.addEventListener('pointerdown', e => {
+      // A header button keeps its own pointer: captured to the stage, its click
+      // would land on the stage instead (SW v246 — the header floats over it).
+      if (e.target && e.target.closest && e.target.closest('button')) return;
       try { if (e.pointerId !== undefined) stage.setPointerCapture(e.pointerId); } catch (_) {}
       cldPointerDown(e);
     });
@@ -3954,7 +4012,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // the sandbox, which is exactly the property that makes it safe.
   window.addEventListener('resize', () => {
     const el = document.getElementById('screen-cld-floe');
-    if (el && el.style.display !== 'none') cldResize(cldView);
+    if (el && el.style.display !== 'none') { cldFloeInsets(); cldResize(cldView); }
     const pb = document.getElementById('cld-howto-body-practice');
     if (pb && pb.style.display !== 'none') cldResize(cldPrView);
   });

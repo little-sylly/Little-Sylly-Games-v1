@@ -46,58 +46,64 @@
        while the player is dragging on it, and the power bar / tally / CTA must stay
        put beneath a canvas being dragged. Three phases live on this ONE screen
        (aiming → waiting → resolving, plus the washout beat) via cldPhase — three
-       screens would re-initialise the canvas three times a Slide. -->
+       screens would re-initialise the canvas three times a Slide.
+       SW v246: full bleed — the header floats over the water, and the controls sit
+       on an ice shelf. -->
   <section id="screen-cld-floe" style="display:none"
-    class="h-screen w-full flex flex-col overflow-hidden px-4 pb-4">
+    class="cld-floe-screen h-screen w-full flex flex-col overflow-hidden">
 
-    <!-- HEADER -->
-    <div class="flex items-center justify-between flex-shrink-0 pt-4 pb-2">
-      <p id="cld-floe-header" class="text-stone-500 text-sm font-semibold uppercase tracking-widest"></p>
-      <div class="flex items-center gap-2">
-        <button id="btn-cld-how-to" class="text-stone-400 font-bold text-sm active:scale-90 transition-transform duration-100">[?]</button>
-        <button class="btn-open-sound text-xl active:scale-90 transition-transform duration-100">🔊</button>
-        <button class="btn-cld-quit-open text-stone-500 font-bold text-xl active:scale-90 transition-transform duration-100">✕</button>
-      </div>
-    </div>
-
-    <!-- STAGE — the canvas is sized in JS (cldResize) and letterboxed into this box.
-         The pointer surface is the stage, not the canvas, so a drag straying into the
-         letterbox margin keeps steering instead of dropping mid-aim. -->
+    <!-- STAGE — edge to edge. The canvas is sized in JS (cldResize); the header
+         floats over the water, and the camera's box starts below it (insetTop). -->
     <div id="cld-stage" class="flex-1 min-h-0 w-full relative">
       <canvas id="cld-canvas"></canvas>
-      <!-- Transient layer — floats over a relative parent, contributes zero height, so a
-           bark popping in can never re-centre the column beneath it (ui-style.md
-           § Transient animations must float). -->
-      <div id="cld-float-layer" class="absolute inset-0 pointer-events-none flex items-start justify-center pt-3"></div>
-    </div>
 
-    <!-- CONTROLS — frozen beneath the stage. The brief flags this as the exception it is. -->
-    <div class="flex-shrink-0 flex flex-col gap-2 pt-3 w-full max-w-sm mx-auto">
-
-      <!-- Drowned-only row: Throw or Dive (SW v243). Dive only while Knocked back. -->
-      <div id="cld-drowned-row" style="display:none" class="flex flex-col gap-1">
-        <div class="flex gap-2">
-          <button id="btn-cld-mode-throw" class="pill pill-active-cld flex-1" data-cld-mode="throw">Throw</button>
-          <button id="btn-cld-mode-dive"  class="pill flex-1" data-cld-mode="dive">Dive</button>
+      <!-- HEADER — white over the water. The row itself lets touches through to the
+           stage (a drag may start anywhere); only its buttons take them. -->
+      <div id="cld-floe-hud" class="cld-floe-hud absolute top-0 inset-x-0 flex items-center justify-between px-4 pt-4 pb-2 pointer-events-none">
+        <p id="cld-floe-header" class="text-white text-sm font-semibold uppercase tracking-widest"></p>
+        <div class="flex items-center gap-2 pointer-events-auto">
+          <button id="btn-cld-how-to" class="min-h-11 min-w-11 text-white/90 font-bold text-sm active:scale-90 transition-transform duration-100">[?]</button>
+          <button class="btn-open-sound min-h-11 min-w-11 text-xl active:scale-90 transition-transform duration-100">🔊</button>
+          <button class="btn-cld-quit-open min-h-11 min-w-11 text-white font-bold text-xl active:scale-90 transition-transform duration-100">✕</button>
         </div>
-        <p id="cld-dive-reason" style="display:none" class="text-amber-600 text-xs"></p>
       </div>
 
-      <!-- POWER — the bar IS the lock control (brief §14). Wrapper carries the padding
-           that clears the 44px touch minimum; the track itself is 1.25rem. -->
-      <button id="btn-cld-power" class="w-full flex flex-col gap-1 py-2 active:scale-[0.99] transition-transform duration-100">
-        <div class="flex items-center justify-between w-full">
-          <p id="cld-power-hint" class="text-stone-400 text-xs">Tap to lock power</p>
-          <p class="text-stone-400 text-xs font-semibold uppercase tracking-widest">Power</p>
-        </div>
-        <div id="cld-power-track" class="cld-power-track w-full">
-          <div id="cld-power-fill" class="cld-power-fill"></div>
-        </div>
-      </button>
+      <!-- Transient layer — floats, contributes zero height (ui-style.md). -->
+      <div id="cld-float-layer" class="absolute inset-0 pointer-events-none flex items-start justify-center pt-16"></div>
+    </div>
 
-      <p id="cld-tally" class="text-stone-500 text-sm text-center"></p>
+    <!-- CONTROLS — the ice shelf, frozen beneath the stage (the documented exception). -->
+    <div class="cld-shelf flex-shrink-0 w-full">
+      <div class="flex flex-col gap-2 w-full max-w-sm mx-auto px-4 pt-4 pb-4">
 
-      <button id="btn-cld-commit" class="btn-mp-action cld-cta min-h-14 w-full rounded-2xl text-xl font-semibold">Lock It In</button>
+        <!-- Drowned-only row: Throw or Dive (SW v243). Dive only while Knocked back. -->
+        <div id="cld-drowned-row" style="display:none" class="flex flex-col gap-1">
+          <div class="flex gap-2">
+            <button id="btn-cld-mode-throw" class="pill pill-active-cld flex-1" data-cld-mode="throw">Throw</button>
+            <button id="btn-cld-mode-dive"  class="pill flex-1" data-cld-mode="dive">Dive</button>
+          </div>
+          <p id="cld-dive-reason" style="display:none" class="text-amber-600 text-xs"></p>
+        </div>
+
+        <!-- POWER — the bar IS the lock control; an ice tube that fills in your colour. -->
+        <button id="btn-cld-power" class="w-full flex flex-col gap-1 py-2 active:scale-[0.99] transition-transform duration-100">
+          <div class="flex items-center justify-between w-full">
+            <p id="cld-power-hint" class="text-stone-500 text-xs">Tap to lock power</p>
+            <p class="text-stone-500 text-xs font-semibold uppercase tracking-widest">Power</p>
+          </div>
+          <div id="cld-power-track" class="cld-power-track w-full">
+            <div id="cld-power-fill" class="cld-power-fill"></div>
+          </div>
+        </button>
+
+        <!-- TALLY — penguin heads that fill as players lock in. Counts only, never who. -->
+        <div class="flex items-center justify-center gap-2">
+          <canvas id="cld-tally-heads" class="cld-tally-heads" aria-hidden="true"></canvas>
+          <p id="cld-tally" class="text-stone-600 text-sm text-center"></p>
+        </div>
+
+        <button id="btn-cld-commit" class="btn-mp-action cld-cta min-h-14 w-full rounded-2xl text-xl font-semibold">Lock It In</button>
+      </div>
     </div>
   </section>
 
