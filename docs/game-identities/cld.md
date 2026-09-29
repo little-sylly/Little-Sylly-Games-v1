@@ -478,11 +478,25 @@ Hungry! From here on every shove goes further — pull back a little less.
 ```copy
 # The Cast — pose tiles (built from CLD_HOWTO_CAST in js/games/cld.js)
 Idle
-Lean
+Wind-up
+Belly-slide
 Squash
 Plunge
-Bob
+Plug
+Knocked back
 Throw
+Win
+```
+
+```copy
+# The Cast — faces (built from CLD_HOWTO_FACES in js/games/cld.js)
+Faces
+Happy
+Focus
+Strain
+Shock
+Grumpy
+Dizzy
 ```
 
 #### Quit and play-again

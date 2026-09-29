@@ -2799,41 +2799,55 @@ function cldSetHowtoTab(tab) {
 // Arena at SW v244 — spec 2026-09-28-cld-cue-arena.)
 // ═══════════════════════════════════════════════════════════════════════════
 const CLD_HOWTO_CAST = [
-  { pose: 'idle',   name: 'Idle',   note: 'waiting to aim' },
-  { pose: 'lean',   name: 'Lean',   note: 'winding up' },
-  { pose: 'squash', name: 'Squash', note: 'impact frame' },
-  { pose: 'plunge', name: 'Plunge', note: 'into the Drink' },
-  { pose: 'bob',    name: 'Bob',    note: 'Drowned, on the rim' },
-  { pose: 'throw',  name: 'Throw',  note: 'a Snowball lob' },
+  { pose: 'idle',   name: 'Idle',         note: 'waiting to aim' },
+  { pose: 'aim',    name: 'Wind-up',      note: 'pulling back' },
+  { pose: 'slide',  name: 'Belly-slide',  note: 'shoved across the ice' },
+  { pose: 'squash', name: 'Squash',       note: 'a bump' },
+  { pose: 'plunge', name: 'Plunge',       note: 'over the lip' },
+  { pose: 'bob',    name: 'Plug',         note: 'in the Drink, blocking a gap' },
+  { pose: 'back',   name: 'Knocked back', note: 'bumped off its gap' },
+  { pose: 'throw',  name: 'Throw',        note: 'a Snowball lob' },
+  { pose: 'win',    name: 'Win',          note: 'last one dry' },
 ];
-const CLD_HOWTO_TILE_R = 72;   // cast-tile penguin radius, logical units (fills the tile)
+const CLD_HOWTO_FACES = [
+  { expr: 'happy',  name: 'Happy' },  { expr: 'focus',  name: 'Focus' },  { expr: 'strain', name: 'Strain' },
+  { expr: 'shock',  name: 'Shock' },  { expr: 'grumpy', name: 'Grumpy' }, { expr: 'dizzy',  name: 'Dizzy' },
+];
+const CLD_HOWTO_TILE_R = 60;   // cast-tile body radius, logical units — the upright body rises ~2.3r
 
 let cldHowtoRaf   = null;
 let cldHowtoLastT = 0;
 let cldHowtoClock = 0;      // wall seconds — drives idle sway + the plunge tile cycle
-let cldHowtoCast  = [];     // [{ el, ctx, pose, colour }] — the six cast-tile canvases
+let cldHowtoCast  = [];     // [{ el, ctx, pose, colour, expr }] — the pose tiles, then the face tiles
 
 function cldHowtoBuildCast() {
   const box = document.getElementById('cld-howto-cast');
   if (!box || box.childElementCount) return;   // built once
+  const faces = document.getElementById('cld-howto-faces');
   cldHowtoCast = [];
-  CLD_HOWTO_CAST.forEach((c, i) => {
-    const tile = document.createElement('div');
-    tile.className = 'flex flex-col items-center gap-1';
+  // Nine pose tiles, then six face tiles (a face tile: a name, no note).
+  const tile = (host, c, i, pose, expr) => {
+    const el = document.createElement('div');
+    el.className = 'flex flex-col items-center gap-1';
     const cv = document.createElement('canvas');
     cv.className = 'w-full rounded-lg';
     cv.style.cssText = 'aspect-ratio:1/1;background:#0e2536';
     const name = document.createElement('p');
     name.className = 'text-[11px] font-semibold text-stone-700';
     name.textContent = c.name;
-    const note = document.createElement('p');
-    note.className = 'text-[10px] text-stone-400 text-center leading-tight';
-    note.textContent = c.note;
-    tile.append(cv, name, note);
-    box.appendChild(tile);
+    el.append(cv, name);
+    if (c.note) {
+      const note = document.createElement('p');
+      note.className = 'text-[10px] text-stone-400 text-center leading-tight';
+      note.textContent = c.note;
+      el.append(note);
+    }
+    host.appendChild(el);
     const ctx = cv.getContext && cv.getContext('2d');
-    if (ctx) cldHowtoCast.push({ el: cv, ctx: ctx, pose: c.pose, colour: i });
-  });
+    if (ctx) cldHowtoCast.push({ el: cv, ctx: ctx, pose: pose, colour: i, expr: expr || null });
+  };
+  CLD_HOWTO_CAST.forEach((c, i) => tile(box, c, i, c.pose, null));
+  if (faces) CLD_HOWTO_FACES.forEach((c, i) => tile(faces, c, i, 'idle', c.expr));
 }
 
 // DPR-aware fit for a canvas that fills its CSS box, mapping the CLD_W logical
@@ -2842,7 +2856,7 @@ function cldHowtoBuildCast() {
 function cldHowtoFit(cv, ctx) {
   const box = cv.getBoundingClientRect();
   const w = Math.max(1, box.width), h = Math.max(1, box.height);
-  const dpr = window.devicePixelRatio || 1;
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
   const wantW = Math.round(w * dpr), wantH = Math.round(h * dpr);
   if (cv.width !== wantW || cv.height !== wantH) { cv.width = wantW; cv.height = wantH; }
   const scale = Math.min(w, h) / CLD_W;
@@ -2855,7 +2869,7 @@ function cldHowtoLoop(now) {
   if (!cldHowtoLastT) cldHowtoLastT = now;
   const dt = Math.min((now - cldHowtoLastT) / 1000, 0.05);
   cldHowtoLastT = now;
-  cldHowtoClock += dt;
+  if (!cldReducedMotion()) cldHowtoClock += dt;         // under reduced motion the Cast stands still
   cldHowtoDrawCast();
   if (!cldHowtoRaf) cldHowtoRaf = requestAnimationFrame(cldHowtoLoop);
 }
@@ -2870,11 +2884,19 @@ function cldHowtoDrawCast() {
   cldHowtoCast.forEach(tile => {
     cldHowtoFit(tile.el, tile.ctx);
     tile.ctx.clearRect(-CLD_W, -CLD_W, CLD_W * 3, CLD_W * 3);
-    // plunge's t is 0..1 across the fall and fades alpha with it — cap the cycle
-    // so a still frame is never caught mid-vanish.
-    const t = tile.pose === 'plunge' ? ((cldHowtoClock * 0.45) % 1) * 0.7 : cldHowtoClock;
-    cldRenderPenguin(tile.ctx, tile.pose, tile.colour, CLD_W / 2, CLD_H / 2, CLD_HOWTO_TILE_R,
-      { t: t, ring: true, look: Math.PI / 2, reduced: cldReducedMotion() });
+    // Every tile shows its moment: the wind-up breathes in and out of full power,
+    // the squash and the plunge loop through their k.
+    const t = cldHowtoClock, cyc = (t * 0.45) % 1;
+    const extra = {
+      aim:    { power: 0.55 + 0.4 * Math.abs(Math.sin(t * 0.9)), look: 0 },
+      slide:  { vel: { x: 0.6, y: 0.8 } },
+      squash: { k: cyc },
+      plunge: { k: cyc * 0.85, outward: 1 },
+      win:    { fish: true },
+    }[tile.pose] || {};
+    cldRenderPenguin(tile.ctx, tile.pose, tile.colour, CLD_W / 2, CLD_H * 0.68, CLD_HOWTO_TILE_R,
+      Object.assign({ t: t, ring: true, look: Math.PI / 2, seed: tile.colour, expr: tile.expr || null,
+                      reduced: cldReducedMotion() }, extra));
   });
 }
 

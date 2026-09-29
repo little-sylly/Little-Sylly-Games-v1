@@ -1523,6 +1523,27 @@ if (!TUNE) {
   check('…and nothing else is — the Decision Modals stay suite-standard', (html.match(/\bcld-ice-btn\b/g) || []).length, 3);
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// T. The Cast — nine poses, six faces (spec § 4.6 table)
+// ═══════════════════════════════════════════════════════════════════════════
+if (!TUNE) {
+  section('T. The Cast');
+  const A = S.window.CldArt;
+  check('the Cast shows every pose the art has, in its order', G('CLD_HOWTO_CAST').map(c => c.pose), A.POSES);
+  check('…and every face', G('CLD_HOWTO_FACES').map(c => c.expr), A.FACES);
+  const spy = seamSpy();
+  RUN('cldHowtoBuildCast(); cldHowtoDrawCast()');
+  check('fifteen tiles, all through the seam', [spy.inside, spy.outside], [15, 0]);
+  check('the face tiles wear their face', spy.opts.filter(o => o.expr).map(o => o.expr), A.FACES);
+  spy.restore();
+  const rm = S.window.matchMedia;
+  S.window.matchMedia = () => ({ matches: true });
+  const c0 = G('cldHowtoClock');
+  RUN('cldHowtoLoop')(1000); RUN('cldHowtoLoop')(1040);
+  check('reduced motion: the Cast stands still', G('cldHowtoClock'), c0);
+  S.window.matchMedia = rm;
+}
+
 // ── Report (keep LAST in the file) ─────────────────────────────────────────
 if (!TUNE) {
   console.log('\n' + '='.repeat(70));
