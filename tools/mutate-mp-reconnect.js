@@ -32,15 +32,25 @@ const MUTANTS = [
   ['a bad key is cleared', "if (!fresh) { mpClearRejoinKey(); return null; }", 'if (!fresh) { return null; }'],
   ['mpActiveGame stays null until ACCEPT', "  mpActiveGame       = null;\n  mpActiveGameConfig = null;\n  window.syllyMultiplayerMode = 'client';",
    "  window.syllyMultiplayerMode = 'client';"],
+  // ── Bots (SW v247), aimed at verify-bots.js ──
+  ['bots pause while a seat is Away',
+   '    mpBotsPause();                          // nobody can act, so neither do the bots (SW v247)\n', '',
+   'verify-bots.js'],
+  ['a bot waits its think time', 'if (!mpBotsPaused) t.handle = setTimeout(run, ms);',
+   'if (!mpBotsPaused) t.handle = setTimeout(run, 0);', 'verify-bots.js'],
+  ['a human outranks a bot', '    mpBotsMakeRoomFor(1);                 // a human outranks a bot for the last seat\n', '',
+   'verify-bots.js'],
+  ['the watcher keeps the bots', '                       ...mpPlayerSlots.filter(mpIsBotSlot)];', '];',
+   'verify-bots.js'],
 ];
 
 let survivors = 0;
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'mpmut-'));
-for (const [label, from, to] of MUTANTS) {
+for (const [label, from, to, harness] of MUTANTS) {
   if (!SRC.includes(from)) { console.log('  STALE  ' + label + ' — anchor not found; update this mutant'); survivors++; continue; }
   const file = path.join(tmp, 'engine-multiplayer.js');
   fs.writeFileSync(file, SRC.replace(from, to));
-  const r = spawnSync(process.execPath, [path.join(__dirname, 'verify-mp-reconnect.js')],
+  const r = spawnSync(process.execPath, [path.join(__dirname, harness || 'verify-mp-reconnect.js')],
     { env: Object.assign({}, process.env, { MP_SRC: file }), encoding: 'utf8' });
   const out = (r.stdout || '') + (r.stderr || '');
   const killed = r.status !== 0 && /CHECKS FAILED/.test(out);

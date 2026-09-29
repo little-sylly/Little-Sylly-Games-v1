@@ -269,6 +269,24 @@ for (const id of ADOPTERS) {
 ok('engine handles MP_REJOIN before per-game routing', /'MP_REJOIN'/.test(engineSrc));
 
 // ═════════════════════════════════════════════════════════════════════════════
+// ── 8. Bots — the optional hook is whole wherever it is present (SW v247) ─────
+section('8. Bots — adopters and hook shape');
+const BOT_GAMES = IDS.filter(id => CONFIGS[id].bots !== undefined);
+check('the bot adopters are exactly the reviewed list', BOT_GAMES, []);
+for (const id of BOT_GAMES) {
+  const b = CONFIGS[id].bots;
+  ok(id + ': bots has view, decide and submit', ['view', 'decide', 'submit'].every(k => typeof b[k] === 'function'));
+  ok(id + ': thinkMs, when present, is a function', b.thinkMs === undefined || typeof b.thinkMs === 'function');
+  ok(id + ': pillClass names an active-pill class', /^pill-active-/.test(b.pillClass || ''));
+  const max = bound(CONFIGS[id], 'getMaxPlayers', 'individual');
+  ok(id + ': enough names to fill the room with bots', Array.isArray(b.names) && b.names.length >= max - 1,
+     (b.names || []).length + ' names for max ' + max);
+  ok(id + ': bots only with automatic seating', CONFIGS[id].rosterConfig.type === 'none');
+}
+for (const id of IDS) {
+  if ((CONFIGS[id].supportedModes || []).includes('solo')) ok(id + ': Solo needs bots', !!CONFIGS[id].bots);
+}
+
 console.log('\n' + '='.repeat(70));
 console.log(failures ? 'FAILED — ' + failures + ' check(s)' : 'ALL CHECKS PASSED');
 process.exit(failures ? 1 : 0);
