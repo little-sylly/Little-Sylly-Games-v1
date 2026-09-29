@@ -1197,8 +1197,8 @@ function mpMarkAway(idx) {
 function mpMarkBack(idx) {
   if (!mpAwaySeats.delete(idx)) return;
   if (mpAwaySeats.size === 0) {
-    mpBotsResume();
     if (mpAwayTimer) { clearTimeout(mpAwayTimer); mpAwayTimer = null; }
+    mpBotsResume();
     mpAwayAsking = false;
     const rc = mpActiveGameConfig?.reconnect;
     if (rc) { try { rc.resume(); } catch (e) { console.warn('[MP] reconnect.resume', e); } }
@@ -1308,9 +1308,9 @@ function mpReconnectTeardown() {
   if (mpMatchLive && mpConnListener) {
     try { mpSendEnvelope({ type: 'ACTION', payload: { action: 'MP_SEAT_RELEASED' } }); } catch (_) {}
   }
+  mpBotsTeardown();                         // bots, Solo, the borrowed uid (SW v247)
   mpEndMatchLocal();
   mpClearRejoinKey();
-  mpBotsTeardown();                         // bots, Solo, the borrowed uid (SW v247)
   const h = document.getElementById('mp-host-disconnected-heading');
   const b = document.getElementById('mp-host-disconnected-body');
   if (h) h.textContent = 'Host Disconnected';
