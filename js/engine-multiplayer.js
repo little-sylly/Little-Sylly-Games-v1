@@ -2660,20 +2660,34 @@ function mpRenderHostPlayerList() {
   mpPlayerSlots.forEach((p, i) => {
     const chip = document.createElement('div');
     chip.className = 'flex items-center gap-2 bg-white rounded-xl px-3 py-2 shadow-sm border border-stone-100';
+    const isBot = mpIsBotSlot(p);
     const dupeWarning = nameCounts[p.nickname] > 1
       ? `<span class="text-xs text-red-500 font-semibold ml-1">⚠️ Duplicate name</span>`
       : '';
+    const tag = isBot ? 'BOT' : (i === 0 ? 'HOST' : `P${i + 1}`);
     chip.innerHTML =
-      `<span class="text-stone-400 text-xs font-bold w-10 flex-shrink-0">${i === 0 ? 'HOST' : `P${i + 1}`}</span>` +
-      `<span class="text-stone-800 font-semibold text-sm">${p.nickname}${dupeWarning}</span>`;
+      `<span class="text-stone-400 text-xs font-bold w-10 flex-shrink-0">${tag}</span>` +
+      `<span class="text-stone-800 font-semibold text-sm flex-1">${isBot ? mpSeatLabel(i) : p.nickname}${dupeWarning}</span>`;
+    if (isBot) {
+      // A real element, not markup: its own listener, and a 44 px target.
+      const x = document.createElement('button');
+      x.id = 'btn-mp-remove-' + p.uid.replace(':', '-');
+      x.className = 'text-stone-500 font-bold text-base leading-none min-h-11 min-w-11 flex items-center justify-center';
+      x.ariaLabel = 'Remove ' + p.nickname;
+      x.textContent = '✕';
+      x.addEventListener('click', () => { playDone(); mpRemoveBot(p.uid); mpRenderHostPlayerList(); });
+      chip.appendChild(x);
+    }
     list.appendChild(chip);
   });
 
-  waiting.style.display = mpPlayerSlots.length <= 1 ? 'block' : 'none';
+  const humans = mpPlayerSlots.filter(s => !mpIsBotSlot(s)).length;
+  waiting.textContent   = mpSolo ? 'Just you and the bots.' : 'Waiting for players to join…';
+  waiting.style.display = (mpSolo || humans <= 1) ? 'block' : 'none';
 
   const maxP = mpActiveGameConfig?.getMaxPlayers?.() ?? 99;
   const cap  = document.getElementById('mp-lobby-capacity-display');
-  if (cap) cap.textContent = `${mpPlayerSlots.length} / ${maxP} joined`;
+  if (cap) cap.textContent = `${mpPlayerSlots.length} / ${maxP}${mpSolo ? '' : ' joined'}`;
 
   const cta   = document.getElementById('btn-mp-lobby-host-cta');
   const minP  = mpActiveGameConfig?.getMinPlayers?.() ?? 2;
@@ -2688,7 +2702,8 @@ function mpRenderHostPlayerList() {
   if (hint) {
     if (!enough) {
       const need = minP - mpPlayerSlots.length;
-      hint.textContent = `Need ${need} more ${need === 1 ? 'player' : 'players'} to start (min ${minP})`;
+      hint.textContent = `Need ${need} more ${need === 1 ? 'player' : 'players'} to start (min ${minP})` +
+                         (mpActiveGameConfig?.bots ? ' — or add a bot' : '');
       hint.style.display = 'block';
     } else if (oddBlocked) {
       hint.textContent = 'Teams must be even — one more player, or one fewer.';
@@ -2704,6 +2719,27 @@ function mpRenderHostPlayerList() {
   // CTA label: "Assign Spots →" when roster screen is needed; game label otherwise
   const rosterType = mpGetRosterType();
   cta.textContent = (ready && rosterType !== 'none') ? 'Assign Spots →' : (mpActiveGameConfig?.lobbyCtaLabel || 'Start') + ' →';
+  mpRenderBotControls(maxP);
+}
+
+// The lobby's bot controls (SW v247): shown only for a game that has bots.
+function mpRenderBotControls(maxP) {
+  const box  = document.getElementById('mp-lobby-bots');
+  const bots = mpActiveGameConfig?.bots;
+  if (!box) return;
+  box.style.display = bots ? 'flex' : 'none';
+  if (!bots) return;
+  const add  = document.getElementById('btn-mp-lobby-add-bot');
+  const full = mpPlayerSlots.length >= maxP;
+  add.disabled = full;
+  add.classList.toggle('opacity-50', full);
+  add.classList.toggle('pointer-events-none', full);
+  document.getElementById('mp-lobby-bot-difficulty').style.display = mpBotCount() ? 'flex' : 'none';
+  // className, not classList: a previous game's pill-active-* must not survive a game switch.
+  MP_BOT_DIFFICULTIES.forEach(d => {
+    const pill = document.getElementById('btn-mp-bot-' + d);
+    if (pill) pill.className = 'pill' + (d === mpBotDifficulty ? ' ' + bots.pillClass : '');
+  });
 }
 
 // ── Roster helpers ────────────────────────────────────────────────────────────
@@ -3691,6 +3727,19 @@ document.addEventListener('DOMContentLoaded', () => {
     if (window.syllyMultiplayerMode !== 'host') return;
     playLaunch();
     mpShowRosterScreen();
+  });
+  // — Host lobby: bots (SW v247) —
+  document.getElementById('btn-mp-lobby-add-bot').addEventListener('click', () => {
+    if (!mpAddBot()) return;
+    playPillClick();
+    mpRenderHostPlayerList();
+  });
+  MP_BOT_DIFFICULTIES.forEach(d => {
+    document.getElementById('btn-mp-bot-' + d).addEventListener('click', () => {
+      playPillClick();
+      mpBotDifficulty = d;
+      mpRenderHostPlayerList();
+    });
   });
   document.getElementById('mp-lobby-host-room-code').addEventListener('click', () => {
     const code = document.getElementById('mp-lobby-host-room-code').textContent.replace(/\s|-/g, '');

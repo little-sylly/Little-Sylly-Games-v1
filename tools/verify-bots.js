@@ -210,6 +210,38 @@ const uids  = d => d.run('mpPlayerSlots.map(s => s.uid)');
       check('no errors', errorsOf([host, back]), []);
     }
 
+    section('7. The lobby: + Add bot, the chips, the difficulty pills, the hint');
+    {
+      fresh();
+      const host = await hostRoom('Ali');
+      host.S.document._l.DOMContentLoaded.forEach(f => f());     // wire the real buttons
+      host.run('mpRenderHostPlayerList()');
+      check('the bot controls show for a bot game', host.el('mp-lobby-bots').style.display, 'flex');
+      check('the hint offers a bot', host.el('mp-lobby-min-hint').textContent,
+            'Need 2 more players to start (min 3) — or add a bot');
+      check('no difficulty row before a bot', host.el('mp-lobby-bot-difficulty').style.display, 'none');
+      host.el('btn-mp-lobby-add-bot').click();
+      check('+ Add bot seats one', names(host), ['Ali', 'Sylvia']);
+      check('the difficulty row appears', host.el('mp-lobby-bot-difficulty').style.display, 'flex');
+      check('Medium is the default pill', host.el('btn-mp-bot-medium').className, 'pill pill-active-test');
+      host.el('btn-mp-bot-hard').click();
+      check('tap Hard', [host.run('mpBotDifficulty'), host.el('btn-mp-bot-hard').className, host.el('btn-mp-bot-medium').className],
+            ['hard', 'pill pill-active-test', 'pill']);
+      const chip = host.el('mp-lobby-players-list').children[1];
+      ok('the bot chip is tagged BOT and marked', /BOT/.test(chip.innerHTML) && /Sylvia 🤖/.test(chip.innerHTML));
+      chip.children[0].click();                                   // the chip's ✕
+      check('✕ removes that bot', names(host), ['Ali']);
+      check('the difficulty row hides again', host.el('mp-lobby-bot-difficulty').style.display, 'none');
+      host.run('mpAddBot(); mpAddBot(); mpAddBot(); mpRenderHostPlayerList();');
+      check('+ Add bot dims at the maximum', [host.el('btn-mp-lobby-add-bot').disabled,
+            host.el('btn-mp-lobby-add-bot').classList.contains('opacity-50')], [true, true]);
+      check('with enough seats the CTA is live', host.el('btn-mp-lobby-host-cta').disabled, false);
+      useGame(host, 'plain'); host.run('mpPlayerSlots = mpPlayerSlots.slice(0, 1); mpRenderHostPlayerList();');
+      check('a game without bots shows no bot controls', host.el('mp-lobby-bots').style.display, 'none');
+      check('…and its hint offers none', host.el('mp-lobby-min-hint').textContent, 'Need 1 more player to start (min 2)');
+      check('no errors', errorsOf([host]), []);
+    }
+
     // ── Later tasks add sections here, above this line ──
 
   } catch (e) {

@@ -85,6 +85,21 @@
       </p>
       <p id="mp-lobby-capacity-display" class="text-stone-400 text-xs text-center"></p>
       <p id="mp-lobby-min-hint" class="text-stone-500 text-xs font-semibold text-center" style="display:none"></p>
+      <!-- Bots (SW v247) — shown only for a game with MP_GAME_CONFIGS[abbr].bots -->
+      <div id="mp-lobby-bots" style="display:none" class="flex flex-col gap-3 mt-1">
+        <button id="btn-mp-lobby-add-bot"
+          class="min-h-11 w-full rounded-xl border-2 border-dashed border-stone-300 text-stone-600 font-semibold text-sm active:scale-95 transition-transform duration-100">
+          + Add bot
+        </button>
+        <div id="mp-lobby-bot-difficulty" style="display:none" class="flex flex-col gap-2">
+          <p class="text-stone-400 text-xs font-semibold uppercase tracking-widest">Bot difficulty</p>
+          <div class="flex gap-2">
+            <button id="btn-mp-bot-easy" class="pill">Easy</button>
+            <button id="btn-mp-bot-medium" class="pill">Medium</button>
+            <button id="btn-mp-bot-hard" class="pill">Hard</button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Footer: CTA -->
