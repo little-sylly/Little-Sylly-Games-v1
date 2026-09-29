@@ -871,6 +871,10 @@ scheme changes, the in-game buttons follow.
 - **Engine-shared screens** (`btn-who-first-*`, `screen-mp-*` CTAs) keep their stone static
   defaults — they are recoloured at runtime from each game's `brandBtnClass`.
 
+A game may give its **secondary** in-game buttons its own material (CLD's `.cld-ice-btn`, SW v246); CTAs,
+pills and Decision Modal buttons stay on the suite standard, and a secondary beside a primary still
+matches its size (DD-31).
+
 **Auditing rule — watch for JS-built buttons, not just static HTML.** A label set via `.textContent =`,
 `createElement('button')`, or a helper's config object (`showWhoFirst({ confirmLabel })`,
 `dsdShowPassGate({ ctaLabel })`) never appears in an `index.html`-only grep. And a button's label can be

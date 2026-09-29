@@ -4,6 +4,16 @@ Historical SW release notes, moved out of `CLAUDE.md` (1 Aug 2026) so they stop 
 The **current** version and its notes stay in `CLAUDE.md` § Current Focus — append the outgoing entry here on each bump.
 
 
+## v245 — Cold Shoulder, "plays fun" (29 Sep 2026).
+
+Plugs float in the Drink (touching the edge; gaps
+cap at 1.8 penguins so one plug still seals), the floe is ~1.3× bigger with a matching shove, and a camera
+frames the play (overview → aim cam → slide cam; pinch, pan, double-tap; a mini-map). Practice: each drill
+is a plan both bots follow, played as a real Floe-Off to a winner, in a full-height sheet with a reacting
+coach. **`MP_PROTOCOL_VERSION` → `'v245'`** (the geometry changed). **Hunger** (owner's lever): every 4
+Slides full power ×1.04, derived from the Slide count (no packet) — brings Floe-Off length back inside
+±15% of v244. Detail: `cld-implementation-notes.md` DD-19.
+
 ## v244 — Cold Shoulder: the pool-style cue + the Practice Arena (29 Sep 2026).
 
 Touch anywhere and pull back — the finger is the butt of the cue; a ghost + stub guide shows the first

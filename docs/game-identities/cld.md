@@ -570,32 +570,48 @@ Ships as-is for v1.
 
 ## T9 — Art & Assets · *derived*
 
-**Cold Shoulder ships with no art files at all.** The penguin — in play at ~24 px, and everywhere
-in the chrome (menu, How to Play, result, gameover) — is drawn entirely in procedural canvas code:
-a bézier-silhouette body with a clipped shading gradient, tinted per player with inline colour
-maths, posed from a `pose(state, t)` table. There are no PNGs, no core art pack, no skin pack in
-v1.
+**Cold Shoulder ships with no art files at all — zero bytes of art, no core art pack, no skin pack.**
+Everything is drawn at runtime by a game-owned, pure art module, `js/games/cld-art.js` (SW v246,
+`window.CldArt`, ~62 KB, precached, loaded before `cld.js`). Like DYB's dice (`dyb-dice.js`, SW v241)
+it draws what it is given and reads no game state; every drawing entry point is a no-op without a DOM,
+so the rules harnesses load it freely. CLD needs no core art pack, for the same reason DYB's dice don't.
 
-This was decided at spec review (2 September 2026) after a working proof was rendered and compared
-against the brief's own mockup *at true in-game scale*. At 24 px a painted sprite's shading and line
-work do not survive; the procedural draw reached ~85% of the mockup's quality in-engine for zero
-bytes, and the brief's planned nine-file core art pack (~360 KB) was dropped in favour of it. The
-owner confirmed the result is the permanent look, not a placeholder.
+**The look is the sticker's: inked watercolour.** Chubby upright penguins — a tinted wash pooled at the
+edges, paper grain, an ink outline, a cream belly, a pale face mask, blush, an orange beak and feet — in
+each player's colour, standing on their footprint (the collision circle) with a soft shadow and an owner
+ring. A snow-slab floe (lit mounds, wind drifts, carved cracks, a bevelled rim) that keeps the story of
+the Floe-Off — every belly-slide cuts a groove, every open-ice Snowball leaves a splat, and a Thaw
+repaints the surface with its marks kept. Ice-cube chunks that crack per hit. A moving Drink (wavelets,
+glints, a foam collar, far-off floes). Particles: snow spray, puffs and stars, splashes and rings, shards.
+
+| | |
+|---|---|
+| **Nine poses** | idle, aim (the wind-up), slide (a belly-slide, seen from behind), squash, plunge, bob (a plug), back (Knocked back), throw, win |
+| **Six faces** | happy, focus, strain, shock, grumpy, dizzy |
+| **The Hunger ladder** | a mood over the face, one rung per Hunger level: a frown now and then → all the time → a huff and a stamp → angry → fire in the eyes → a glow in the player's colour that grows. A Drowned penguin keeps its own face |
 
 | Render seam | What it draws |
 |---|---|
-| `cldRenderPenguin(ctx, state, colourIdx, x, y, r, opts)` | **The one primitive.** Draws to a canvas context and returns nothing — a canvas game has no DOM node to return. Every penguin pixel, in play and in chrome, goes through it. |
-| the floe, rim, Bergs, snowballs, aim line, Dive-mode free seats + ghost | Plain canvas primitives in `cld.js` — not a shared or skinnable seam. |
+| `cldRenderPenguin(ctx, pose, colourIdx, x, y, r, opts)` → `CldArt.penguin` | **The one penguin primitive.** Draws to a canvas context and returns nothing — a canvas game has no DOM node to return. Every penguin pixel, in play and in chrome (the tally heads, the scoreboard and result avatars, the podium, the menu and intro art, the Cast), goes through it. |
+| `cldDraw(view, m)` over `CldArt` | The scene, fed only by the render model: the Drink, the floe, the chunks, Snowballs in flight, particles, and every aim and target mark in its owner's colour. Not a skinnable seam. |
 
-**Skin readiness is stubbed but unused.** `cldSkinArt` exists in the seam so a future raster skin
-could be slotted in, but it is an empty object for the whole of v1 and there is no `cldPreloadArt()`
-call. `cld` is not in `data/art/registry.json` and never appears in the Terminal.
+**Budgets:** the floe surface is painted once per floe into an offscreen canvas ≤ 1,200 px square; the
+particle cap is 420 per view; every canvas caps DPR at 2. Reduced motion is honoured in JS: the camera
+cuts, the water and foam freeze, nothing travels, idle breathing stops.
+
+**Skin readiness is stubbed but unused.** `cldSkinArt` stays an empty object in the seam, so a future
+raster skin could still override a pose without a seam rewrite. `cld` is not in `data/art/registry.json`
+and never appears in the Terminal.
 
 **First canvas render seam in the suite.** The *rule* the seam serves — every pixel of the primitive
 produced in exactly one place — is unchanged and binding; only the "returns a DOM node" shape of the
 checklist's seam contract does not apply. Recorded as a deviation in the tech spec §17.
 
-**How to Play's The Cast** is the pose reference — all six `pose(state, t)` states drawn through `cldRenderPenguin`. **Practice** (SW v244) draws the Arena through the floe's own renderer (`cldDraw` fed `cldArenaModel()`), so nothing in it is a hand-built copy. Both are procedural, so neither is tap-to-enlarge nor an offline-install check. Tap-hold on a penguin in play is still deliberately idle — a penguin is not a card (the documented Tap-Hold Reference exception).
+**How to Play's The Cast** shows the nine poses and six faces drawn through `cldRenderPenguin`.
+**Practice** draws the Arena through the floe's own renderer (`cldDraw` fed `cldArenaModel()`), so nothing
+in it is a hand-built copy. Both are procedural, so neither is tap-to-enlarge nor an offline-install check.
+Tap-hold on a penguin in play is still deliberately idle — a penguin is not a card (the documented
+Tap-Hold Reference exception).
 
 ---
 

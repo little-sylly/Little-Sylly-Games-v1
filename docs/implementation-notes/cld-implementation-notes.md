@@ -511,6 +511,67 @@ don't gang up. The ring values stay [3,4] / 0.75 and are **no longer provisional
 *Lesson:* a lever that compounds with time does not behave like a constant. The whole curve is set by where the tail
 used to be, so tune the step from the gentle end — the first plausible value (×1.15) was nearly four times too strong.
 
+### DD-20 — procedural art as a game-owned pure module: Cold Shoulder looks fun (SW v246)
+
+Spec: `docs/superpowers/specs/2026-09-29-cld-fun-pass-design.md` § 4; plan: `docs/superpowers/plans/2026-09-29-cld-fun-pass-phase2.md`.
+
+**Why.** Owner items 4, 5 and 7 of the v244 review: the aim guide vanished white on white, the Practice
+buttons were ugly, and the whole game wanted the sticker's look — "a huge asset overhaul … the cue stick
+needs to go".
+
+**What changed (owner calls in bold).**
+- **The module.** `js/games/cld-art.js` (`window.CldArt`, ~62 KB, precached, loads before `cld.js`), ported
+  from the approved prototype. Pure like `dyb-dice.js`: it draws what it is given and reads no `cld*` state; its
+  only state lives in objects the caller owns (a floe surface, a particle system). Every drawing entry point is a
+  no-op without `document`/`Path2D`, and `cld.js` runs with it absent (`cldArt()` → `null` → draws nothing).
+- **The seam kept.** `cldRenderPenguin` is still the one door for every penguin pixel, in play and in chrome
+  (tally heads, avatars, podium, menu, intro, the Cast) — proven by a call-depth spy, not by trusting call sites.
+  `cldPose`/`cldPaintProcedural`/`cldPaintBody` are gone; `cldSkinArt` stays a stub.
+- **The Hunger ladder** replaces v245's placeholder brows: a mood OVER the pose's face, one rung per level (a
+  frown now and then → all the time → a huff and a stamp → angry → fire in the eyes → a glow that grows), static
+  per level, frozen under reduced motion, none for a Drowned penguin. The level aimed under is the level worn for
+  the whole replay.
+- **The model's derived fields** — `pose`, `look`, `power`, `vel`, `k`, `outward`, `seed`, `hunger`, `splat`, plus
+  `snowballs`, `phase`, `meMarker`, `winnerIdx`, `floeKey`, `floeSeed` — all from the timeline or input, never
+  sent. A penguin seated THIS Slide is drawn in the water from its seat beat, which the v245 model missed (it
+  read `drowned`, still false until the post-state lands).
+- **View-owned art state.** Each view has its own particles, floe surface, trails and splats, so the Arena can
+  never paint on the live floe. A `hooks.fx` beside `sfx`/`bark`, called BEFORE the sound throttle — the
+  throttle protects the ear, not the eye. A bounce off a plug barks **Boing!**.
+- **Aim marks in the owner's colour** — tether, power arrow, guide dots/ghost/stub, reticle, Dive rings; a
+  rival's shove at half strength and dashed. The cue stick is gone (the gesture is unchanged).
+- **The floe goes full bleed**: a header floating over the water, the controls on an ice shelf, a power tube in
+  your colour, a tally of heads (one neutral colour — counts only, never who).
+- **The ice block** (`.cld-ice-btn`) for secondary in-game buttons — Start over, Practice again, Waddle Off —
+  never a CTA, a pill or a Decision Modal button. **Waddle Off keeps DD-31 parity** with March On!
+  (`min-h-14`, not the spec's `min-h-11`).
+- **No packet change.** The `landing` event already carried `from`, `x`, `y`, `t`, so Snowball arcs are derived
+  on every device. `MP_PROTOCOL_VERSION` stays `'v245'`.
+
+**Found while building it.**
+- *A floe key can repeat* — `'f:1'` again after a first-to-1 match and Play Again, `'pr1:…'` again after
+  `resetToLobby` (both views persist) — and would have brought the last match's grooves back. `cldViewForget`
+  drops a view's art state on every Floe-Off intro and in `cldResetState`.
+- *A header inside the stage loses its clicks.* The stage `setPointerCapture`s on pointer-down, so a press on the
+  floating `[?]`/🔊/✕ would have had its click retargeted to the stage. The button guard runs in the listener
+  BEFORE capture (and again in `cldPointerDown`); proven with a real press in headless Chromium.
+- `cldSyncFloeUI` rewrites the `[?]`'s whole `className` every sync, which silently undid its new 44 px target
+  and white ink.
+- The prototype drew unchosen Dive seats white — invisible on the foam collar. Every mark is now in your colour.
+- `cldPaintPodium` measured a hidden column (0 px → a 320 px fallback) and overflowed at 320 wide; it paints
+  after `showScreen` now.
+- The tally's glacier and stone heads were indistinguishable at 7 px; empty heads draw faded.
+- Harness: the reduced-motion frame check was vacuous — the mock `#sound-overlay`'s `display` is `undefined`,
+  which `cldLoop` reads as open, so the loop was paused and its clock never moved. A mutant proved it.
+- Tuned by eye: `HEAD_CY` −1.38 / `HEAD_R` 0.68 (the face centred in an avatar), the result art 132 × 176.
+
+**Numbers.** `verify-cld-practice.js` 189 → 337 (sections M–T), `mutate-cld.js` 45 → 64 (an `art` source kind,
+`CLD_ART_SRC=`). Practice stage 291 / 265 / 169 px at the three SE sizes (DD-19: 291 / 269 / 173). A crowded
+frame (16 penguins, 30 chunks) is ~1,030 fill/stroke calls — the baseline for the SE's frame-rate pass.
+
+*Lesson:* a render check that can't fail is a harness, not a test — when a reduced-motion or layout assertion
+passes on its first run, plant the one-line mutant that should break it before believing it.
+
 ---
 
 ## Bug Index

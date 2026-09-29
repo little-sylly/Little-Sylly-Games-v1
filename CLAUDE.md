@@ -95,7 +95,7 @@ For where each game's screens/overlays live in `index.html`, see the **Per-Game 
 ---
 
 ## 📁 Load Order
-**Load order:** `music.js` → `engine.js` → `art.js` → `three.min.js` → `controller-body.js` → `controller-sticker-surface.js` → `physics.js` → `engine-multiplayer.js` → `canvas-draw.js` → `li5.js` → `great-minds.js` → `secret-signals.js` → `jec.js` → `ygi.js` → `lttp.js` → `nat.js` → `dsd.js` → `bld.js` → `gth.js` → `dyb-dice.js` → `dyb.js` → `cards.js` → `pass.js` → `nt.js` → `frt.js` → `shp.js` → `flw.js` → `pko.js` → `cjar.js` → `cld.js` → `comb.js` → `controller.js` → `lounge-lib.js` → `lounge-room.js` → `lounge-props.js` → `lounge-scene.js` → `lounge-sfx.js` → `lobby-games.js` → `lobby.js` → `tv.js` → `achievements.js` → `stickerbook.js` → `jukebox.js` → `lobby-router.js` → `lobby-doors.js` → `lobby-host.js` → `secret-mode.js` → `app.js`
+**Load order:** `music.js` → `engine.js` → `art.js` → `three.min.js` → `controller-body.js` → `controller-sticker-surface.js` → `physics.js` → `engine-multiplayer.js` → `canvas-draw.js` → `li5.js` → `great-minds.js` → `secret-signals.js` → `jec.js` → `ygi.js` → `lttp.js` → `nat.js` → `dsd.js` → `bld.js` → `gth.js` → `dyb-dice.js` → `dyb.js` → `cards.js` → `pass.js` → `nt.js` → `frt.js` → `shp.js` → `flw.js` → `pko.js` → `cjar.js` → `cld-art.js` → `cld.js` → `comb.js` → `controller.js` → `lounge-lib.js` → `lounge-room.js` → `lounge-props.js` → `lounge-scene.js` → `lounge-sfx.js` → `lobby-games.js` → `lobby.js` → `tv.js` → `achievements.js` → `stickerbook.js` → `jukebox.js` → `lobby-router.js` → `lobby-doors.js` → `lobby-host.js` → `secret-mode.js` → `app.js`
 (`tailwind-play.js` loads in `<head>` before everything else. `js/lib/music.js` loads *before* `engine.js` — the engine boot block calls `Music.init()` at parse time. `app.js`'s last line is `lobbyBoot()` — every lobby symbol exists by then.)
 All symbols are global (no ES modules). Forward references work at runtime.
 
@@ -293,15 +293,14 @@ On every bump the outgoing SW entry moves **verbatim** to `docs/sw-changelog.md`
 "keep the last three". **A second `**SW v…**` paragraph appearing here means that move didn't
 happen: do it before anything else.**
 
-**SW v245 — Cold Shoulder, "plays fun" (29 Sep 2026).** Plugs float in the Drink (touching the edge; gaps
-cap at 1.8 penguins so one plug still seals), the floe is ~1.3× bigger with a matching shove, and a camera
-frames the play (overview → aim cam → slide cam; pinch, pan, double-tap; a mini-map). Practice: each drill
-is a plan both bots follow, played as a real Floe-Off to a winner, in a full-height sheet with a reacting
-coach. **`MP_PROTOCOL_VERSION` → `'v245'`** (the geometry changed). **Hunger** (owner's lever): every 4
-Slides full power ×1.04, derived from the Slide count (no packet) — brings Floe-Off length back inside
-±15% of v244. Detail: `cld-implementation-notes.md` DD-19.
+**SW v246 — Cold Shoulder, "looks fun" (29 Sep 2026).** Every CLD pixel is redrawn in the sticker's look
+by a new pure module, `js/games/cld-art.js` (`window.CldArt`, precached): inked-watercolour penguins with
+nine poses and six faces, a Hunger mood ladder (a frown → fire in the eyes → a glow), a snow-slab floe
+that keeps its grooves and splats, ice-cube chunks, a moving Drink and particles. Aim marks are in your
+colour, and the cue stick is gone. The floe goes full bleed on an ice shelf. No packet change —
+`MP_PROTOCOL_VERSION` stays `'v245'`. Detail: `cld-implementation-notes.md` DD-20.
 
-**Previous versions: `docs/sw-changelog.md`** — continuous, v244 back to v167.
+**Previous versions: `docs/sw-changelog.md`** — continuous, v245 back to v167.
 
 **Where the suite stands.** **20 games shipped**, all gold-master, plus multiplayer. Newest three:
 **Honeycomb Hills** (`comb`, game 20, phase 41 — the suite's biggest game and the only one with
@@ -319,7 +318,7 @@ session and the offline install check (both `docs/deferred-work.md` § Cold Shou
 **Every game now has an identity doc** — `docs/game-identities/`, 20 of 20, all harness-green. The **Cartridge
 System** is COMPLETE, both halves (Phase A word packs, Phase B skin packs) —
 `docs/cartridge-system-plan.md`. **Core art** has rolled out to `pko`, `flw`, `frt`, `shp` and `comb` (nine packs); **PASS still runs
-CSS defaults; DYB's dice are procedural (SW v241)** and never need a core pack — rollout tracker, the
+CSS defaults; DYB's dice are procedural (SW v241), and so is Cold Shoulder's art (SW v246)** — neither ever needs a core pack — rollout tracker, the
 4-step conversion and the offline install check live in `docs/expansion-guide.md` § Core art packs.
 
 **Side project — Arcade Mode.** Secret Mode holds **arcade cabinets** under an `ARCADE` category
@@ -359,9 +358,9 @@ Re-run a game's full set after touching its appliers, deck/data, packets or rend
 | CJAR | `node tools/verify-cjar-loopback.js` — host↔client over a Firebase-shaped wire, incl. reconnect (pause, a rejoin mid-window with other seats' choices stripped, a held flip) | 213 |
 | CJAR | `node tools/simulate-cjar-dd.js` — balance instrument; asserts nothing, always exits 0 | — |
 | CLD | `node tools/verify-cld-physics.js && node tools/verify-cld-loop.js` — pure sim (determinism, no-tunnel, per-throw invariant, restitution asymmetry, 5 s cap, `seatOnPlunge` + one-hit anchors) then game rules (ring geometry — plugs float in the Drink, never behind a chunk — + the floating-plug **seal** on every floe size, instant plugs, knock-back, displacement, Throw-or-Dive closer-wins, Thaw with plugs, the Ice Bath roster/radius/Fish, Peck Off last-*player* win, Hunger's schedule + reach) | 133 · 156 |
-| CLD | `node tools/verify-cld-loopback.js` — host↔**2 clients** over a Firebase-shaped wire, real mock DOM: private commit path, duplicate-commit rejection, nameless tally, empty-`events[]` / all-zero-`fish[]` round trip, host/client timeline parity, `dive: null` erasure, plug/knock-back/Ice Bath agreement on 3 devices (SW v243), HUNGRY! raised by every device from its own count (SW v245), quit contract. Accepts `CLD_SRC=` / `CLD_SEED=` | 192 |
-| CLD | `node tools/verify-cld-practice.js` — the cue + guide maths, the render model, the live gesture, the replay split, the Arena's swap (every top-level `let` classified; 20 Arena Slides mid-live-replay leave it byte-identical), the camera (fit, resize keeps it, never moves under a finger, pinch/pan/double-tap, reduced-motion cuts), the drills' plans (both bots, every Slide; `--tune` re-derives their ring seeds), rounds to a natural end against four scripted players, the reacting coach, the full-height pane, a lost pointer-up, the end card, Hunger in the model + the Arena's HUNGRY! beat. Accepts `CLD_SRC=` | 189 |
-| CLD | `node tools/mutate-cld.js` — mutation harness over the rules/sim layer (+ the cue, the Arena's swap, the camera and the Practice plans, via `verify-cld-practice.js`); `node tools/simulate-cld-balance.js` — balance instrument, asserts nothing, exits 0 (`CLD_SEED=`) | 45/45 · — |
+| CLD | `node tools/verify-cld-loopback.js` — host↔**2 clients** over a Firebase-shaped wire, real mock DOM: private commit path, duplicate-commit rejection, nameless tally, empty-`events[]` / all-zero-`fish[]` round trip, host/client timeline parity, `dive: null` erasure, plug/knock-back/Ice Bath agreement on 3 devices (SW v243), HUNGRY! raised by every device from its own count (SW v245), quit contract; loads `cld-art.js` on every device (SW v246). Accepts `CLD_SRC=` / `CLD_ART_SRC=` / `CLD_SEED=` | 192 |
+| CLD | `node tools/verify-cld-practice.js` — the cue + guide maths, the render model, the live gesture, the replay split, the Arena's swap (every top-level `let` classified; 20 Arena Slides mid-live-replay leave it byte-identical), the camera (fit, resize keeps it, never moves under a finger, pinch/pan/double-tap, reduced-motion cuts), the drills' plans (both bots, every Slide; `--tune` re-derives their ring seeds), rounds to a natural end against four scripted players, the reacting coach, the full-height pane, a lost pointer-up, the end card, Hunger in the model + the Arena's HUNGRY! beat; SW v246: the art module (every entry point paints, no-DOM no-op, the mood ladder, marks survive a Thaw), the seam spy (every penguin, in play and chrome, through `cldRenderPenguin`), the per-penguin model (a seated penguin is in the water from its seat beat; the mood never changes mid-Slide), the world (grooves/splats, fresh floe per floe key, fx per view), aim marks in the owner's colour, the floe chrome, the other screens, the Cast, and a still frame under reduced motion. Accepts `CLD_SRC=` / `CLD_ART_SRC=` | 337 |
+| CLD | `node tools/mutate-cld.js` — mutation harness over the rules/sim layer (+ the Arena's swap, the camera, the Practice plans, and — SW v246 — an `art` source kind over `cld-art.js`, the seam, the world, the aim marks and reduced motion, via `verify-cld-practice.js`); `node tools/simulate-cld-balance.js` — balance instrument, asserts nothing, exits 0 (`CLD_SEED=`) | 64/64 · — |
 | COMB | `node tools/verify-comb-board.js && node tools/verify-comb-rules.js && node tools/verify-comb-loop.js` — topology/deal · rules (incl. the Season-preset trap, §12) · match+turn engine + the action layer's arithmetic + the Scout Flight beat's budget | 56 · 122 · 231 |
 | COMB | `node tools/verify-comb-loopback.js` — host↔**2 clients** over a Firebase-shaped wire, real mock DOM incl. a canvas; both offer shapes, re-validate-never-escrow, Full Dance's expiry, all five Instinct kinds. Accepts `COMB_SRC=` / `COMB_SEED=` | 250 |
 | COMB | `node tools/mutate-comb.js` — mutation harness; drives all four above, so its 19 packet mutants are claims about the loopback specifically. Run it 3–5×, not once | 71/71 |

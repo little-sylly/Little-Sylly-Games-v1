@@ -50,7 +50,8 @@
 a game-owned, **pure** layer — sets, the recipe, the HTML/CSS painter, the CSS-3D cube — that takes
 everything as arguments and reads no `dyb*` game state. It is the unit that moves to `js/lib/` when a
 second dice game or the dice selector arrives (YAGNI until then). Dice *rules* (`dybGenerateRoll`,
-`dybCountEvents`, `dybLegalRaise`) stay in `js/games/dyb.js`.
+`dybCountEvents`, `dybLegalRaise`) stay in `js/games/dyb.js`. Cold Shoulder's art (`js/games/cld-art.js`, SW v246)
+is the same shape: game-owned and pure, and it moves to `js/lib/` only when a second game draws penguins.
 
 ---
 

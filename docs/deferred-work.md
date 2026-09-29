@@ -327,17 +327,23 @@ loopback pass. **Not yet done:**
    winner, the camera (pinch, double-tap, the mini-map) and the cue's feel (96 px, the dead zone)
    (SW v245). The SE `visual-check` pass (`cld-impl-notes` DD-19) measured the Practice stage at
    291 / 269 / 173 px — judge the 320×452 one in the hand. And judge **Hunger** in the hand (SW v245 —
-   the HUNGRY! beat every 4 Slides, the 🐟❗ bubbles, the angry brows; is the step felt?). The
+   the HUNGRY! beat every 4 Slides, the 🐟❗ bubbles, and — SW v246 — the face ladder; is the step felt?). The
    provisional-balance note (Thaw-off ~30% long) is RESOLVED 29 Sep 2026 by Hunger — see
    `deferred-work-log.md`.
+   **SW v246 ("looks fun", DD-20):** every device on v246 (`MP_PROTOCOL_VERSION` still `'v245'`). Judge
+   the new art in the hand: the faces at play size, the Hunger ladder's rungs, the floe screen on the
+   shelf (at 320 px the header wraps to two lines), the ice-block buttons, **and the SE's frame rate**
+   (spec § 4.7's 60 fps target; a crowded frame is ~1,030 fill/stroke calls; mitigations ready: cache
+   chunk sprites, halve the wavelets, drop the grain). At 320×452 the Practice coach bubble covers most
+   of the 169 px stage — the spec § 8 "fold the drill pills below ~220 px" call is still open.
    **First attempt 28 Sep 2026 (3 players) stalled at the first non-host Lock In** — the live
    Firebase rules had no `private` block (`cld-impl-notes` BUG-12 → `shared` BUG-26). Re-run once
    the owner has pasted the §2.7 `private` rule into the console. The same session's feel notes
    (ring too sparse, drag clunky, art) are a design round of their own, not gate items: the ring
    was answered at SW v242 and the Drowned at SW v243 (DD-16 / DD-17); the pool-style drag + the
-   Practice Arena shipped at SW v244 (DD-18); the procedural art pass is the next spec.
+   Practice Arena shipped at SW v244 (DD-18); the procedural art pass shipped at SW v246 (DD-20).
 2. **Offline install check** — unregister the SW, go offline, cold-boot, confirm
-   `js/lib/physics.js` and `js/games/cld.js` precached. The Cast and Practice tabs (SW v244) are
+   `js/lib/physics.js`, `js/games/cld-art.js` (SW v246) and `js/games/cld.js` precached. The Cast and Practice tabs (SW v244) are
    *procedural*, not asset-backed, so neither doubles as a gallery check — run this directly.
 3. **TG-13 — The Thaw's shrink is visually inaudible in playback. DONE, SW v220 (4 Sep 2026).**
    `cldBeginPlayback` rewinds `cldFloeRadius` to the first `thaw` beat's `fromRadius`; the `thaw`
@@ -355,7 +361,8 @@ loopback pass. **Not yet done:**
      § 2.1's formula — owner call);
    - (five more resolved 29 Sep 2026, SW v245 — moved to `deferred-work-log.md`);
    - the loopback does not execute `cldDraw` (its `requestAnimationFrame` returns 0) — the renderer is
-     covered on one device by `verify-cld-practice.js`, not on three as spec § 7.2 hoped.
+     covered on one device by `verify-cld-practice.js`, not on three as spec § 7.2 hoped. The loopback
+     now loads `cld-art.js` (SW v246), so chrome art (the result, scoreboard and podium) runs on 3 devices.
 
 Snapshot: `docs/phase40-snapshot.md`.
 

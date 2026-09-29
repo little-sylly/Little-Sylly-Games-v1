@@ -19,6 +19,13 @@ Detail: pointer to the canonical doc (snapshot / impl note / spec / memory).
 ```
 
 
+## 2026-09-29 — Cold Shoulder: procedural art as a game-owned pure module (SW v246)
+Category: Architecture
+Decision: all of Cold Shoulder's art is drawn at runtime by `js/games/cld-art.js` — game-owned and pure like `dyb-dice.js`: it draws what it's given and reads no game state; the render seam (`cldRenderPenguin`) and the render model stay in the game.
+Why: the owner asked for the sticker's look on every screen with zero bytes of art; purity keeps the module a no-op under every Node harness and the seam the one door for every penguin pixel.
+Changed: new `js/games/cld-art.js` (precached), `js/games/cld.js`, `src/screens/cld.html`, `css/styles.css`; no packet change. Deferred: it moves to `js/lib/` only when a second game draws penguins.
+Detail: `cld-implementation-notes.md` DD-20; spec `2026-09-29-cld-fun-pass-design.md` § 4.
+
 ## 2026-09-29 — Cold Shoulder: Hunger — full power grows as a Floe-Off drags on (SW v245)
 Category: Strategy
 Decision: every 4 Slides of a Floe-Off (or Ice Bath) full power grows by a small compounding step (a HUNGRY! beat), derived from the Slide count on every device — no packet field; the Snowball is unaffected.
