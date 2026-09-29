@@ -471,6 +471,46 @@ aim at each other, so a real table runs shorter (the DD-16/DD-17 caveat). Shippe
 [3,4] / 0.75, the closest overall. Levers outside the spec's two, for the owner: a longer full pull
 (`CLD_ICE_MULT`), a smaller floe scale than ×1.3, or accepting longer Thaw-off Floe-Offs.
 
+**Hunger — the owner's lever (29 Sep 2026).** The owner chose a new lever: the penguins get **Hungry**.
+Every `CLD_HUNGER_EVERY` Slides of a Floe-Off (or Ice Bath), full power grows ×`CLD_HUNGER_STEP`, compounding.
+Decel stays derived from the base `CLD_V_MAX`, so reach grows as the square. It is derived from `cldSlideNo`
+on every device, so it needs no packet field. The loopback proves all three devices raise the beat from
+their own count. The Snowball stays a fraction of the base v_max (the per-throw invariant). The beat:
+**HUNGRY!** floats, a 🐟❗ bubble shows over every Standing penguin, angry brows stay while it lasts, and
+`playHullThud` plays. Practice gets the same beat plus a coach line.
+
+The approved starting point, every 4 Slides at **×1.15, overshot by half**: Thaw-off Floe-Offs fell to
+~10 Slides. With fixed bots, Hunger does not trim the long tail — it removes it. Sweep (`simulate-cld-balance.js 60`,
+default seed, mean Slides/Floe-Off, cell = every N / step; **bold** = all four rows in band):
+
+| config | band | none | 4/1.15 | 4/1.10 | 4/1.06 | 4/1.05 | **4/1.04** | 3/1.04 | 5/1.05 | 6/1.05 | 8/1.05 | 8/1.10 | 10/1.15 | 12/1.15 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 3p Slush | 14.5–19.6 | 22.0 | 10.1 | 10.5 | 13.4 | 14.9 | **15.1** | 14.6 | 14.5 | 15.9 | 18.6 | 14.7 | 15.8 | 15.9 |
+| 3p Slush + Thaw | 5.3–7.1 | 7.0 | 6.6 | 6.5 | 6.9 | 6.5 | **6.6** | 7.0 | 6.9 | 7.1 | 6.9 | 7.1 | 7.1 | 6.7 |
+| 5p Slush | 13.1–17.7 | 20.1 | 10.4 | 12.0 | 13.3 | 14.4 | **14.4** | 14.4 | 14.8 | 16.4 | 15.6 | 15.7 | 15.5 | 16.6 |
+| 5p Slush + Thaw | 6.0–8.1 | 8.3 | 7.5 | 7.6 | 8.0 | 7.6 | **8.1** | 8.1 | 8.6 | 8.3 | 8.4 | 8.2 | 8.2 | 8.3 |
+
+60 runs was too noisy to pick from. At 120 runs the no-Hunger baseline itself moved (5p Thaw-off
+20.1 → 22.8), so the finalists were re-run at 120:
+
+| config (120 runs) | band | none | 4/1.05 | **4/1.04** | 4/1.035 | 4/1.03 |
+|---|---|---|---|---|---|---|
+| 3p Slush | 14.5–19.6 | 21.3 | 13.8 | **15.9** | 15.4 | 16.4 |
+| 3p Slush + Thaw | 5.3–7.1 | 7.1 | 6.5 | **6.7** | 7.1 | 6.7 |
+| 5p Slush | 13.1–17.7 | 22.8 | 14.0 | **15.2** | 16.0 | 16.1 |
+| 5p Slush + Thaw | 6.0–8.1 | 8.4 | 7.3 | **7.9** | 8.2 | 8.1 |
+
+**Shipped: every 4 Slides, ×1.04.** It is the only step in band on all four rows at both run counts.
+×1.05 looked best at 60 runs but drops 3p below its floor at 120. Later, stronger Hunger
+(10/1.15, 8/1.10) also fixes Thaw-off, but it leaves 5p Thaw at 8.2+. Early Hunger is what shortens the
+short Thaw Floe-Offs, and every-4 keeps the owner's rhythm, so the beat comes often. Treat ±1 Slide as noise.
+The bots do not know about Hunger (they aim with the fed reach). A player reading the guide can pull back
+less, so the real effect is a little weaker than measured. The DD-16/17 caveat still applies: neutral bots
+don't gang up. The ring values stay [3,4] / 0.75 and are **no longer provisional**.
+
+*Lesson:* a lever that compounds with time does not behave like a constant. The whole curve is set by where the tail
+used to be, so tune the step from the gentle end — the first plausible value (×1.15) was nearly four times too strong.
+
 ---
 
 ## Bug Index

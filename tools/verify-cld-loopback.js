@@ -871,6 +871,26 @@ section('11b. Plugs, knock-backs and the Ice Bath agree on every device (SW v243
     [room.c1.__cld.floeOffNo, room.c2.__cld.floeOffNo, room.host.__cld.floeOffNo], [noBefore, noBefore, noBefore]);
   check('…on an identical rim', [post(room.c1), post(room.c2)], [post(room.host), post(room.host)]);
   check('nothing threw in this room', roomErrs(), []);
+
+  // ── Hunger (SW v245) rides NO packet field: each device reads its own Slide
+  // count. Four quiet Slides on a fresh floe; the fourth must put HUNGRY! up on
+  // all three devices, and the guide's reach must agree everywhere after it.
+  freshFloeOff(6);
+  const floatText = d => ((d.document.getElementById('cld-float-layer').children[0]) || {}).textContent || '';
+  const beatUp = d => vm.runInContext('Date.now() < cldHungerBeatUntil', d);
+  const quiet = [];
+  for (let k = 0; k < 4; k++) {
+    slideWith((i, p) => nudgeIn(p));
+    quiet.push(room.all.map(beatUp));
+  }
+  check('three quiet Slides raise no beat anywhere', quiet.slice(0, 3), [[false, false, false], [false, false, false], [false, false, false]]);
+  check('the fourth puts the beat up on host AND both clients', quiet[3], [true, true, true]);
+  check('…with HUNGRY! in every device’s float layer', room.all.map(floatText), ['HUNGRY!', 'HUNGRY!', 'HUNGRY!']);
+  const reachOf = d => vm.runInContext('cldFloeModel().reach', d);
+  check('…and the aim guide’s reach is the same hungry reach on every device',
+    room.all.map(d => Math.round(reachOf(d) * 1000)), room.all.map(() => Math.round(reachOf(room.host) * 1000)));
+  ok('…longer than a fed Floe-Off’s', reachOf(room.c1) > vm.runInContext("cldFullSlideDist() * 1.0001", room.c1));
+  check('nothing threw on the way', roomErrs(), []);
 }
 
 section('12. Floe-Off end, the scoreboard, and the next Resurface');

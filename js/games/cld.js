@@ -83,6 +83,15 @@ const CLD_TAU         = Math.PI * 2;
 // 12/16/24 take it to 15%/17%/23% of Floe-Offs voided, and a Washout is a joke
 // beat (§8) that stops being funny at one in five. 4 and 6 never bite.
 const CLD_THAW_STEP   = 10;     // logical units shed per Slide under The Thaw (SW v245: ×1.3, was 8)
+// ── Hunger (SW v245, owner 29 Sep 2026) ─────────────────────────────────────
+// Every CLD_HUNGER_EVERY Slides of a Floe-Off the penguins get hungrier and
+// full power grows by CLD_HUNGER_STEP, compounding. Decel stays derived from
+// the BASE v_max, so reach grows as the SQUARE — a stalemate cannot last. The
+// count is cldSlideNo, which every device already holds, so Hunger rides no
+// packet field; a Resurface and an Ice Bath reset it by zeroing that count.
+// Tuned against v244's Floe-Off length — cld-implementation-notes DD-19.
+const CLD_HUNGER_EVERY = 4;
+const CLD_HUNGER_STEP  = 1.04;
 // ── The Berg ring (SW v242 — owner playtest, 28 Sep 2026) ────────────────────
 // Three Bergs (~10% of the rim) made a 3-player Floe-Off last a median 3 Slides
 // on Slush with the Thaw, 2 on Black Ice. The ring is now sized by COVERAGE of
@@ -164,6 +173,7 @@ let cldIntroTimer  = null;      // TIMER
 let cldResultTimer = null;      // TIMER
 let cldSkinArt     = {};        // assetId -> HTMLImageElement | null — empty for the whole of v1
 let cldLastSfxT    = 0;         // collision sound throttle
+let cldHungerBeatUntil = 0;     // Date.now() deadline for the HUNGRY! bubbles — a deadline, not a timer
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Derived values — computed on every read, NEVER stored (§4)
@@ -193,6 +203,12 @@ function cldSnowballForce(dist, maxRange) {
   return (0.40 + (0.20 - 0.40) * Math.min(1, dist / maxRange)) * CLD_V_MAX;
 }
 function cldSnowballArrivalMs(dist) { return (dist / CLD_SNOWBALL_SPEED) * 1000; }
+
+// Hunger. `played` = Slides already resolved this Floe-Off (or Ice Bath) — the
+// aiming-phase cldSlideNo — so these answer "how hungry is the Slide being aimed".
+function cldHungerLevel(played) { return Math.floor(Math.max(0, played || 0) / CLD_HUNGER_EVERY); }
+function cldHungerMult(played)  { return Math.pow(CLD_HUNGER_STEP, cldHungerLevel(played)); }
+function cldHungerRises(played) { return played > 0 && played % CLD_HUNGER_EVERY === 0; }
 
 function cldSimParams() {
   return { decel:     cldDecel(),
@@ -519,8 +535,11 @@ function cldStartFloeOff(seed) {
 //               dive: null | { penguinId, angle }, snowball: { x, y } | null }.
 // dive and snowball are mutually exclusive — Throw OR Dive (spec §3.4).
 // ═══════════════════════════════════════════════════════════════════════════
-function cldBuildSlideInputs() {
+// `played` defaults to the live count; cldResolveSlide passes the one from
+// BEFORE its own increment, so the Slide being resolved is fed or hungry as aimed.
+function cldBuildSlideInputs(played) {
   const bodies = [], impulses = [], events = [];
+  const hunger = cldHungerMult(played === undefined ? cldSlideNo : played);
 
   // Body order IS the wire contract — samples[] are positional (§4A), and the
   // order travels as tl.bodyIds because Knocked-back penguins are NOT bodies.
@@ -546,7 +565,7 @@ function cldBuildSlideInputs() {
       // A zero-length or zero-power aim is a Peck Off HOLD (§7) — a deliberate
       // park, not a too-soft drag. It contributes no impulse and is never an error.
       if (len < 1e-9 || pow <= 0) return;
-      const v = pow * CLD_V_MAX;
+      const v = pow * CLD_V_MAX * hunger;     // Hunger scales the shove, never a Snowball
       impulses.push({ bodyId: p.id, vx: (a.dx / len) * v, vy: (a.dy / len) * v });
     });
 
@@ -596,6 +615,7 @@ function cldResolveDives() {
 
 function cldResolveSlide(seed) {
   const rand = window.Physics.rng(seed);
+  const played = cldSlideNo;
   cldSlideNo += 1;
 
   // Ice Bath roster (§4): who was Standing going into this Slide.
@@ -605,7 +625,7 @@ function cldResolveSlide(seed) {
   const dives = cldResolveDives();
 
   // ── 2. The Slide itself — a plunge through a gap is SEATED mid-sim ───────
-  const input = cldBuildSlideInputs();
+  const input = cldBuildSlideInputs(played);
   const res = window.Physics.simulate({
     world:    { cx: CLD_W / 2, cy: CLD_H / 2, radius: cldFloeRadius },
     bodies:   input.bodies,
@@ -831,7 +851,7 @@ const CLD_SWAP_EXEMPT = [
   'cldMyAims', 'cldMyDive', 'cldMyMode', 'cldMySnowball', 'cldCommitted', 'cldIntroMode',
   'cldView', 'cldRafHandle', 'cldIntroTimer', 'cldResultTimer', 'cldSkinArt', 'cldLastFrameT',
   'cldDragging', 'cldDragPenguin', 'cldDragFrom', 'cldDragTo', 'cldDragDir', 'cldPtrId',
-  'cldIntroIdx', 'cldFloatTimer', 'cldClock',
+  'cldIntroIdx', 'cldFloatTimer', 'cldClock', 'cldHungerBeatUntil',   // the Arena's beat is cldPrUi.hungerUntil
   // How to Play's The Cast loop.
   'cldHowtoRaf', 'cldHowtoLastT', 'cldHowtoClock', 'cldHowtoCast',
   // The Arena's own state.
@@ -957,6 +977,7 @@ const CLD_SOUND = {
   fish:      'playSuccess',     // Floe-Off won
   thaw:      'playAbyssThud',   // the floe cracks and shrinks
   washout:   'playBoing',       // under the WASHOUT! flash
+  hungry:    'playHullThud',    // HUNGRY! — a tummy rumble
   matchEnd:  'playClashWin',    // The Final Floe
 };
 
@@ -1181,7 +1202,7 @@ function cldPaintProcedural(ctx, state, colourIdx, x, y, r, o) {
     ctx.rect(-r * 2, pass.from, r * 4, pass.to - pass.from);
     ctx.clip();
     ctx.globalAlpha *= pass.alpha;
-    cldPaintBody(ctx, r, tint, p);
+    cldPaintBody(ctx, r, tint, p, !!o.hungry);
     ctx.restore();
   });
 
@@ -1189,7 +1210,7 @@ function cldPaintProcedural(ctx, state, colourIdx, x, y, r, o) {
 }
 
 // One body, drawn at the origin, facing +x. Called once per waterline pass.
-function cldPaintBody(ctx, r, tint, p) {
+function cldPaintBody(ctx, r, tint, p, hungry) {
   // ── Flippers — behind the body, swept by the pose's `flip`. Drawn first so
   // the body silhouette overlaps them cleanly with no seam.
   ctx.fillStyle = cldDarken(tint, 0.34);
@@ -1274,6 +1295,19 @@ function cldPaintBody(ctx, r, tint, p) {
     ctx.arc(r * 0.48, side * r * 0.27, Math.max(0.75, r * 0.098), 0, CLD_TAU);
     ctx.fill();
   });
+
+  // ── Hungry: angry brows, sloping in toward the beak. Kept while it lasts.
+  if (hungry) {
+    ctx.strokeStyle = '#1C1917';
+    ctx.lineWidth = Math.max(0.8, r * 0.11);
+    ctx.lineCap = 'round';
+    [1, -1].forEach(side => {
+      ctx.beginPath();
+      ctx.moveTo(r * 0.30, side * r * 0.47);
+      ctx.lineTo(r * 0.62, side * r * 0.33);
+      ctx.stroke();
+    });
+  }
 
   // ── Outline last, so nothing above bleeds over the silhouette edge.
   ctx.strokeStyle = cldDarken(tint, 0.55);
@@ -1601,9 +1635,12 @@ function cldDraw(view, m) {
       ctx.restore();
     }
     cldRenderPenguin(ctx, p.state, p.ownerIdx, p.x, p.y, CLD_PENGUIN_R, {
-      t: m.clock, facing: p.facing, ring: true, me: p.me, ringDark: p.ringDark, dim: p.dim,
+      t: m.clock, facing: p.facing, ring: true, me: p.me, ringDark: p.ringDark, dim: p.dim, hungry: p.hungry,
     });
   });
+
+  // ── HUNGRY! — a 🐟❗ bubble over every hungry penguin while the beat is up.
+  if (m.hungerBeat) m.penguins.forEach(p => { if (p.hungry) cldDrawHungerBubble(ctx, p.x, p.y); });
 
   // ── Dive mode: the free seats round the ring, and the ghost at the chosen one.
   if (m.dive) {
@@ -1644,6 +1681,23 @@ function cldDraw(view, m) {
   }
 
   if (view.cam && view.box && view.box.w && (view.cam.manual || view.cam.z > CLD_CAM_MAP_Z)) cldDrawMiniMap(view, m);
+}
+
+// A thought bubble up and to the right of a penguin, its tail pointing at it.
+// World space, so it rides the camera with the penguin. Static — nothing travels.
+function cldDrawHungerBubble(ctx, x, y) {
+  const r = CLD_PENGUIN_R, bx = x + r * 1.1, by = y - r * 2.3;
+  ctx.save();
+  ctx.fillStyle = 'rgba(255,255,255,0.94)';
+  ctx.strokeStyle = 'rgba(18,59,76,0.55)';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.ellipse(bx, by, r * 1.45, r * 0.95, 0, 0, CLD_TAU); ctx.fill(); ctx.stroke();
+  ctx.beginPath(); ctx.arc(x + r * 0.45, y - r * 1.15, r * 0.22, 0, CLD_TAU); ctx.fill(); ctx.stroke();
+  ctx.font = (r * 1.05) + 'px sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#1C1917';
+  ctx.fillText('🐟❗', bx, by + r * 0.05);
+  ctx.restore();
 }
 
 // Screen space, top-left of the box: the floe, a dot per penguin (yours ringed
@@ -1809,13 +1863,16 @@ function cldPickPenguin(standing, pt, aims) {
 // record while cldArenaRun has it swapped in.
 function cldCurrentSrc() {
   return { penguins: cldPenguins, bergs: cldBergs, radius: cldFloeRadius,
-           iceBreaker: cldIceBreaker, ice: cldIceConditions };
+           iceBreaker: cldIceBreaker, ice: cldIceConditions, slideNo: cldSlideNo };
 }
 
 // PURE over its arguments. Every pose and facing decision the old cldDraw
 // made inline is made here, so the renderer has nothing left to decide.
 function cldBuildModel(src, ui) {
   const aims = ui.aims || [];
+  // Hunger. While a Slide plays out the count has already moved on, so the
+  // Slide on screen is the one before it.
+  const hunger = cldHungerLevel(ui.phase === 'resolving' ? (src.slideNo || 0) - 1 : src.slideNo);
   const aimFor = id => aims.find(a => a.penguinId === id) || null;
   const penguins = src.penguins.map(p => {
     const mine = p.ownerIdx === ui.meIdx;
@@ -1835,10 +1892,12 @@ function cldBuildModel(src, ui) {
              drowned: !!p.drowned, plug: !!p.plug, state: state, facing: facing,
              me: mine, ringDark: cldIsSecondPenguin(p),
              dim: !!(p.drowned && !p.plug),              // Plugged reads solid, Knocked back reads faded
-             selected: ui.selectedId === p.id };
+             selected: ui.selectedId === p.id, hungry: hunger > 0 && !p.drowned };
   });
   return { radius: src.radius, bergs: src.bergs, iceBreaker: src.iceBreaker,
-           reach: cldFullSlideDist(src.ice), penguins: penguins, aims: aims,
+           // Reach goes as v² — decel is the base one — so the guide scales by mult².
+           reach: cldFullSlideDist(src.ice) * Math.pow(CLD_HUNGER_STEP, 2 * hunger), penguins: penguins, aims: aims,
+           hunger: hunger, hungerBeat: !!ui.hungerBeat,
            assist: !!ui.assist, dive: ui.dive || null, snowball: ui.snowball || null, rivalThrows: ui.rivalThrows || [],
            clock: ui.clock || 0 };
 }
@@ -1870,7 +1929,7 @@ function cldFloeModel() {
   return cldBuildModel(cldCurrentSrc(), {
     meIdx: cldMyIdx(), phase: cldPhase, playbackT: cldPlaybackT, aims: aims, live: live,
     snowball: cldMySnowball, dive: back ? cldDiveModel(back, cldMyDive) : null,
-    assist: cldAimAssist, clock: cldClock,
+    assist: cldAimAssist, clock: cldClock, hungerBeat: Date.now() < cldHungerBeatUntil,
     // The ring only means something when there is a choice to make (Peck Off).
     selectedId: (standing.length > 1 && cldPhase === 'aiming' && !cldCommitted) ? cldDefaultPenguin(standing, cldMyAims).id : null,
   });
@@ -2401,6 +2460,7 @@ function cldEndPlayback() {
   // More Slides to come — back to aiming on the same floe.
   cldPhase = 'aiming';
   cldShowFloe();
+  if (cldHungerRises(cldSlideNo)) cldHungerBeat();
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -2433,6 +2493,13 @@ function cldStartIceBathLocal(bathIds) {
   }
   cldShowFloe();
   cldFloatText('ICE BATH!');
+}
+
+// HUNGRY! — every device derives it from the Slide count, so it needs no packet.
+function cldHungerBeat() {
+  cldHungerBeatUntil = Date.now() + CLD_BARK_MS;
+  cldSfx('hungry');
+  cldFloatText('HUNGRY!');
 }
 
 function cldStartMatchLocal(names) {
@@ -2905,6 +2972,7 @@ const CLD_PR_COACH = {
   meIn:              'You’re in the Drink, plugging the gap you went through. The next penguin to hit you bounces off harder. Tap the ice to aim a Snowball.',
   meKnocked:         'Knocked back — now it’s Throw or Dive. Dive into a free gap to plug it again.',
   botIn:             '{Name}’s in the Drink — a plug now. Hit it and you bounce back harder.',
+  hungry:            'Hungry! From here on every shove goes further — pull back a little less.',
   bath:              'Everyone went in at once — into the Ice Bath. Last one dry still wins.',
   win:               'Last one dry — that’s a Fish.',
   lose:              '{Name}’s the last one dry. Practice again, or try another drill.',
@@ -2932,6 +3000,7 @@ function cldPrCoach(s, ev) {
       if (ev.meKnocked) { n.key = 'meKnocked'; return n; }
       if (ev.meIn)      { n.key = 'meIn'; return n; }
       if (ev.botIn)     { n.key = 'botIn'; n.name = ev.botIn; return n; }
+      if (ev.hungry)    { n.key = 'hungry'; return n; }
       if (s.slide === 1) { n.key = 'again'; return n; }
       return n;
   }
@@ -3027,13 +3096,17 @@ function cldPrSlideDone() {
     if (tl && tl.washout) { cldStartIceBath(tl.bathIds || [], d.ringSeed * 7919 + u.slides); out.bath = true; }
     else if (tl && tl.floeOffOver && tl.winnerIdx >= 0) out.winner = tl.winnerIdx;
     out.radius = cldFloeRadius;
+    out.rises  = cldHungerRises(cldSlideNo);
     return out;
   });
   u.playing = false; u.snowball = null; u.dive = null;
   if (res.winner === null && !res.bath && u.slides >= (d.cap || CLD_PR_SLIDE_CAP)) res.draw = true;
   if (res.winner !== null || res.draw) u.end = { winner: res.winner === null ? -1 : res.winner, draw: !!res.draw };
+  // HUNGRY! — the same beat as the floe's, in the Arena's own float layer.
+  const hungry = !u.end && !res.bath && res.rises;
+  if (hungry) { u.hungerUntil = Date.now() + CLD_BARK_MS; cldSfx('hungry'); cldPrFloat('HUNGRY!'); }
   cldPrCoachDispatch({ type: 'slideDone', meIn: res.meIn, meKnocked: res.meKnocked, botIn: res.botIn,
-                       bath: res.bath, winner: res.winner, draw: res.draw,
+                       bath: res.bath, winner: res.winner, draw: res.draw, hungry: hungry,
                        winnerName: res.winner !== null ? CLD_PR_CAST[res.winner] : null });
   if (!u.end) cldPrRefreshPlans();
   if (cldPrView) { if (res.bath) cldCamFrame(cldPrView, res.radius); else cldCamOverview(cldPrView, false); }
@@ -3100,7 +3173,7 @@ function cldArenaModel() {
       meIdx: 0, phase: u.playing ? 'resolving' : 'aiming', playbackT: cldPlaybackT,
       aims: aims, live: live, snowball: u.mode === 'throw' ? u.snowball : null,
       dive: back ? cldDiveModel(back, u.dive) : null,
-      assist: cldAimAssist, clock: cldPrClock, selectedId: null,
+      assist: cldAimAssist, clock: cldPrClock, selectedId: null, hungerBeat: Date.now() < (u.hungerUntil || 0),
       rivalThrows: u.playing ? [] : u.plans.map((c, i) => c && c.snowball ? { x: c.snowball.x, y: c.snowball.y, ownerIdx: i } : null).filter(Boolean),
     });
   });

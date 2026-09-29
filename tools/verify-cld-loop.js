@@ -63,6 +63,7 @@ globalThis.__cld = {
     CLD_RING_COVER, CLD_SLIP_GAPS, CLD_SLIP_GAP_WIDTH, CLD_START_RING, CLD_MIN_POWER, CLD_V_MAX, CLD_R_STD,
     CLD_MIN_RADIUS_MULT, CLD_SIM_CAP_MS, CLD_FLOE_SIZE, CLD_ICE_MULT,
     CLD_SNOWBALL_R, CLD_SNOWBALL_SPEED, CLD_PLUG_OUT, CLD_BACK_OFFSET,
+    CLD_HUNGER_EVERY, CLD_HUNGER_STEP,
   },
   fn: {
     cldFullSlideDist, cldDecel, cldMinRadius, cldSnowballForce, cldSnowballArrivalMs,
@@ -73,6 +74,7 @@ globalThis.__cld = {
     cldStartMatch, cldStartFloeOff, cldBuildSlideInputs, cldResolveSlide,
     cldThawStep, cldCheckWashout, cldResolveFloeOff, cldMatchWinner, cldSimParams,
     cldChunkR, cldSeatR, cldAngleOf, cldArcDist, cldSeatSpotFrom, cldRingAnchors, cldSeatSpot,
+    cldHungerLevel, cldHungerMult, cldHungerRises,
   },
   rng(s) { return window.Physics.rng(s); },
   get penguins()    { return cldPenguins; },    set penguins(v)    { cldPenguins = v; },
@@ -82,7 +84,8 @@ globalThis.__cld = {
   get playerCount() { return cldPlayerCount; }, set playerCount(v) { cldPlayerCount = v; },
   get fish()        { return cldFish; },        set fish(v)        { cldFish = v; },
   get stats()       { return cldMatchStats; },  set stats(v)       { cldMatchStats = v; },
-  get slideNo()     { return cldSlideNo; },     get floeOffNo()    { return cldFloeOffNo; },
+  get slideNo()     { return cldSlideNo; },     set slideNo(v)     { cldSlideNo = v; },
+  get floeOffNo()    { return cldFloeOffNo; },
   get timeline()    { return cldTimeline; },
   get ice()         { return cldIceConditions; }, set ice(v)        { cldIceConditions = v; },
   get floe()        { return cldFloeSize; },      set floe(v)       { cldFloeSize = v; },
@@ -956,6 +959,61 @@ function rimLegal() {
     }
     ok('every bath roster is ≥ 2 owners and never larger than the last', sane);
     ok('…and every bath starts ringless, whatever Ice Breaker the match uses', ringless);
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  section('Hunger — full power grows every few Slides (owner, 29 Sep 2026)');
+  {
+    // `played` = Slides already resolved this Floe-Off (the aiming-phase cldSlideNo).
+    check('the constants: every 4 Slides, ×1.04 a step (tuned, DD-19)', [C.CLD_HUNGER_EVERY, C.CLD_HUNGER_STEP], [4, 1.04]);
+    const K = C.CLD_HUNGER_STEP;
+    check('levels by Slides played — 0 through 3 fed, then a step every 4',
+      [0, 1, 3, 4, 7, 8, 11, 12].map(F.cldHungerLevel), [0, 0, 0, 1, 1, 2, 2, 3]);
+    close('…the multiplier compounds (level 2 = step²)', F.cldHungerMult(8), K * K, 1e-12);
+    check('…and is exactly 1 before the first step', F.cldHungerMult(3), 1);
+    check('it RISES at the first Slide of each new level, never at the start',
+      [0, 1, 4, 5, 8, 12].map(F.cldHungerRises), [false, false, true, false, true, true]);
+
+    setup({ players: 3, seed: 21 });
+    const aim = () => { const cs = allHold(); cs[2].aims.push({ penguinId: G.penguins[2].id, dx: 1, dy: 0, power: 0.5 }); return cs; };
+    G.commits = aim();
+    const speed = inp => Math.hypot(inp.impulses[0].vx, inp.impulses[0].vy);
+    close('build defaults to the live count — a fresh Floe-Off launches at power × v_max',
+      speed(F.cldBuildSlideInputs()), 0.5 * C.CLD_V_MAX, 1e-9);
+    close('…after 4 Slides it launches one step faster', speed(F.cldBuildSlideInputs(4)), 0.5 * C.CLD_V_MAX * K, 1e-9);
+    close('…after 8, two steps', speed(F.cldBuildSlideInputs(8)), 0.5 * C.CLD_V_MAX * K * K, 1e-9);
+
+    const cs = allHold();
+    cs[0].snowball = { x: G.penguins[0].x + 40, y: G.penguins[0].y };
+    G.commits = cs;
+    G.slideNo = 12;                                  // the live count too, however a build reads it
+    close('a Snowball does NOT get hungry — its force stays a fraction of the base v_max',
+      F.cldBuildSlideInputs(12).events[0].force, (0.40 + (0.20 - 0.40) * 40 / (2 * G.radius)) * C.CLD_V_MAX, 1e-9);
+    G.slideNo = 0;
+
+    // The real resolve path: a lone penguin slid toward the centre on an empty
+    // ring. Decel is the base one, so reach grows as the square of the launch.
+    const travel = played => {
+      setup({ players: 2, seed: 5 });
+      G.slideNo = played;
+      const p = G.penguins[0], x0 = p.x, y0 = p.y;
+      const cs2 = allHold();
+      cs2[0].aims.push({ penguinId: p.id, dx: CX - x0, dy: CY - y0, power: 0.5 });
+      G.commits = cs2;
+      F.cldResolveSlide(77);
+      return Math.hypot(p.x - x0, p.y - y0);
+    };
+    close('resolving the 5th Slide slides step² as far as the 1st (reach ∝ v²)',
+      travel(4) / travel(0), K * K, 0.01);
+    close('…and the 4th Slide is still fed', travel(3) / travel(0), 1, 1e-9);
+
+    setup({ players: 3, seed: 21 });
+    G.slideNo = 9;
+    F.cldStartFloeOff(22);
+    check('a Resurface resets Hunger (the count starts again)', F.cldHungerLevel(G.slideNo), 0);
+    G.slideNo = 9;
+    F.cldStartIceBath(['0-0', '1-0'], 23);
+    check('…and so does an Ice Bath', F.cldHungerLevel(G.slideNo), 0);
   }
 
   // ═══════════════════════════════════════════════════════════════════════

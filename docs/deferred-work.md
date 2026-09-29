@@ -326,8 +326,10 @@ loopback pass. **Not yet done:**
    check **How to Play → Practice** on a real device: all three drills' plans, a round played to a
    winner, the camera (pinch, double-tap, the mini-map) and the cue's feel (96 px, the dead zone)
    (SW v245). The SE `visual-check` pass (`cld-impl-notes` DD-19) measured the Practice stage at
-   291 / 269 / 173 px — judge the 320×452 one in the hand. And **the balance is provisional**: Floe-Offs
-   with the Thaw off run ~30% longer than v244 (DD-19's table) — the owner picks the lever.
+   291 / 269 / 173 px — judge the 320×452 one in the hand. And judge **Hunger** in the hand (SW v245 —
+   the HUNGRY! beat every 4 Slides, the 🐟❗ bubbles, the angry brows; is the step felt?). The
+   provisional-balance note (Thaw-off ~30% long) is RESOLVED 29 Sep 2026 by Hunger — see
+   `deferred-work-log.md`.
    **First attempt 28 Sep 2026 (3 players) stalled at the first non-host Lock In** — the live
    Firebase rules had no `private` block (`cld-impl-notes` BUG-12 → `shared` BUG-26). Re-run once
    the owner has pasted the §2.7 `private` rule into the console. The same session's feel notes

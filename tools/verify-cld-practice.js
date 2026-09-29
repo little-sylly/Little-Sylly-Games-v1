@@ -309,6 +309,21 @@ if (!TUNE) {
   check('one Standing penguin of mine → no selection ring', m.penguins.filter(p => p.selected).length, 0);
   ok('the model carries no live-state references (a copy)', m.penguins[0] !== G('cldPenguins')[0]);
 
+  // Hunger (SW v245): the model reads the count every device already holds.
+  SET('cldSlideNo', 4);
+  let hm = RUN('cldFloeModel()');
+  ok('hungry: the guide’s reach grows by the SQUARE of the multiplier', near(hm.reach, RUN("cldFullSlideDist('slush')") * G('CLD_HUNGER_STEP') ** 2, 1e-9));
+  check('…every Standing penguin is hungry, a plug is not', hm.penguins.map(p => p.hungry), [true, true, false]);
+  check('…and the beat is off until something starts it', hm.hungerBeat, false);
+  SET('cldPhase', 'resolving');
+  hm = RUN('cldFloeModel()');
+  check('while the 4th Slide plays out (count already 4) nobody is hungry yet', hm.penguins.map(p => p.hungry), [false, false, false]);
+  SET('cldPhase', 'aiming');
+  SET('cldHungerBeatUntil', Date.now() + 60000);
+  hm = RUN('cldFloeModel()');
+  check('a started beat reaches the model', hm.hungerBeat, true);
+  SET('cldHungerBeatUntil', 0); SET('cldSlideNo', 0);
+
   // Rendering executes end to end on a mock view, rival aim + guide included.
   const box = S.document.createElement('div'); box.clientWidth = 320; box.clientHeight = 320;
   const cv = S.document.createElement('canvas'); box.appendChild(cv);
@@ -318,6 +333,10 @@ if (!TUNE) {
   let threw = null;
   try { RUN('cldDraw')(v, m); } catch (e) { threw = e; }
   ok('cldDraw(view, m) renders without throwing', threw === null, threw && threw.stack);
+  ok('a hungry model with the beat up draws too (brows + 🐟❗ bubbles)', (() => {
+    const h = Object.assign({}, m, { hungerBeat: true, penguins: m.penguins.map(p => Object.assign({}, p, { hungry: !p.drowned })) });
+    try { RUN('cldDraw')(v, h); return true; } catch (e) { return false; }
+  })());
   ok('cldDraw reads no live globals: an empty live floe still draws the model', (() => {
     SET('cldPenguins', []); SET('cldFloeRadius', 0);
     try { RUN('cldDraw')(v, m); return true; } catch (e) { return false; }
@@ -710,6 +729,20 @@ if (!TUNE) {
   ok('a Washout starts the real Ice Bath in the Arena', arena('cldInBath') === true && G('cldPrUi').end === null);
   check('…and the coach says so', G('cldPrUi').coach.key, 'bath');
 
+  // Hunger in the Arena: the Slide that brings the count to 4 starts the beat.
+  const quietDone = n => {
+    load('headon');
+    arena(`(() => { cldSlideNo = ${n}; cldTimeline = { washout: false, bathIds: [], floeOffOver: false, winnerIdx: -1 }; })()`);
+    RUN('cldPrUi.before = cldArenaRun(() => cldPenguins.map(p => ({ id: p.id, drowned: false, plug: false })))');
+    RUN('cldPrUi.playing = true'); RUN('cldPrSlideDone()');
+    return G('cldPrUi');
+  };
+  let hu = quietDone(4);
+  ok('Practice: the 4th Slide done → HUNGRY! beat up', hu.hungerUntil > Date.now());
+  check('…and the coach says why', hu.coach.key, 'hungry');
+  hu = quietDone(5);
+  ok('…the 5th Slide does not start it again', !(hu.hungerUntil > Date.now()) && hu.coach.key !== 'hungry');
+
   // The cap: a drill with cap 1 is decided after one quiet Slide.
   load('crossfire');
   RUN('CLD_PR_DRILLS.crossfire.cap = 1');
@@ -743,6 +776,8 @@ if (!TUNE) {
   check('knocked back outranks going in, ring on Dive',
     [view(step(s, D({ meIn: true, meKnocked: true }))).line, view(step(s, D({ meKnocked: true }))).ring], [C.meKnocked, 'dive']);
   check('a bot going in is named', view(step(s, D({ botIn: 'Sylvia' }))).line, C.botIn.replace('{Name}', 'Sylvia'));
+  check('Hunger rising → the hungry line', view(step(s, D({ hungry: true }))).line, C.hungry);
+  check('…a bot going in still outranks it', view(step(s, D({ hungry: true, botIn: 'Sam' }))).line, C.botIn.replace('{Name}', 'Sam'));
   check('a Washout → the Ice Bath line', view(step(s, D({ bath: true, meIn: true }))).line, C.bath);
   check('you win', view(step(s, D({ winner: 0 }))).line, C.win);
   check('a bot wins, by name', view(step(s, D({ winner: 2, winnerName: 'Sam' }))).line, C.lose.replace('{Name}', 'Sam'));
@@ -755,8 +790,8 @@ if (!TUNE) {
   check('the reducer never mutates its input', frozen.armedOnce, false);
   ok('every coach line is set and emoji-free', Object.values(C)
      .every(l => typeof l === 'string' && l.length > 10 && !/\p{Extended_Pictographic}/u.test(l)));
-  check('exactly the spec’s thirteen lines', Object.keys(C).sort(),
-    ['again', 'aim', 'armed', 'bath', 'botIn', 'draw', 'intro.crossfire', 'intro.edge', 'intro.headon', 'lose', 'meIn', 'meKnocked', 'win']);
+  check('exactly the spec’s thirteen lines + Hunger’s', Object.keys(C).sort(),
+    ['again', 'aim', 'armed', 'bath', 'botIn', 'draw', 'hungry', 'intro.crossfire', 'intro.edge', 'intro.headon', 'lose', 'meIn', 'meKnocked', 'win']);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

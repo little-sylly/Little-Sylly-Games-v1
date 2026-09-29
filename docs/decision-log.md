@@ -19,11 +19,18 @@ Detail: pointer to the canonical doc (snapshot / impl note / spec / memory).
 ```
 
 
+## 2026-09-29 — Cold Shoulder: Hunger — full power grows as a Floe-Off drags on (SW v245)
+Category: Strategy
+Decision: every 4 Slides of a Floe-Off (or Ice Bath) full power grows by a small compounding step (a HUNGRY! beat), derived from the Slide count on every device — no packet field; the Snowball is unaffected.
+Why: the fun pass left Thaw-off Floe-Offs ~30% long and neither allowed ring lever fixed it; the owner picked a time-based lever, which removes stalemates without shrinking the bigger floe.
+Changed: `js/games/cld.js`, `src/screens/cld.html`, CLD harnesses + 5 mutants, `cld.md` T3/T5/T7b. Tuned to every 4 / ×1.04 from the approved ×1.15 (nearly 4× too strong) — tables in DD-19.
+Detail: `cld-implementation-notes.md` DD-19 § Hunger; plan `2026-09-29-cld-fun-pass-phase1.md` Task 9.
+
 ## 2026-09-29 — Cold Shoulder: plugs float in the Drink; the view gets a camera (SW v245)
 Category: Architecture
 Decision: a Drowned plug floats wholly in the water at its gap (gaps capped at 1.8 penguins so one plug still seals); the floe grows ×1.3 with a matching shove, and a camera (overview → aim cam → slide cam, pinch/pan, mini-map) replaces the fixed fit; Practice drills become plans both bots follow, played as a real Floe-Off to a winner.
 Why: the owner's v244 review — plugs "in the water, not on the inner rim", a board with "enough room to be having fun", and bots that both act for a whole round.
-Changed: `js/games/cld.js`, `src/screens/cld.html`, `css/styles.css`, CLD harnesses + mutants; `MP_PROTOCOL_VERSION` → `'v245'`. Deferred: balance is provisional (Thaw-off Floe-Offs ~30% long — owner call); Phase 2, the procedural art pass (SW v246).
+Changed: `js/games/cld.js`, `src/screens/cld.html`, `css/styles.css`, CLD harnesses + mutants; `MP_PROTOCOL_VERSION` → `'v245'`. Deferred: balance is provisional (Thaw-off Floe-Offs ~30% long — owner call; resolved by Hunger, above); Phase 2, the procedural art pass (SW v246).
 Detail: `docs/superpowers/specs/2026-09-29-cld-fun-pass-design.md`; `cld-implementation-notes.md` DD-19.
 
 ## 2026-09-29 — Cold Shoulder: pool-style cue + a Practice Arena on the real rules (SW v244)

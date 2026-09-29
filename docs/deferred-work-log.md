@@ -23,6 +23,11 @@ Item 6, SW v244 final-review minors — five **RESOLVED 29 Sep 2026 (SW v245, th
 - The Arena's idle sway + swell rings moved under reduced motion — `cldPrClock` (and the live `cldClock`)
   stand still under `prefers-reduced-motion`.
 
+Item 1, the balance note — **RESOLVED 29 Sep 2026 (SW v245, Hunger; `cld-impl-notes` DD-19 § Hunger)**:
+- *"The balance is provisional: Floe-Offs with the Thaw off run ~30% longer than v244 (DD-19's table) — the
+  owner picks the lever."* The owner picked Hunger: full power grows every 4 Slides. With it, Thaw-off
+  Floe-Offs are back near v244's length. The ring values ([3,4] / 0.75) are no longer provisional.
+
 ## RAF animations and `prefers-reduced-motion` — NT and CLD unswept (10 Sep 2026)
 
 **RESOLVED 29 Sep 2026 (SW v244) — the CLD How-to practice-sim part only.** The open entry noted

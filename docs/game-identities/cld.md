@@ -62,6 +62,9 @@ worth one Fish. A Floe-Off is a series of **Slides**.
 - **The Slide.** Once every player has locked in, all penguins slide at once and the ice resolves
   every collision together. You will strike penguins you did not aim at.
 - **Repeat** until one player is the last with a penguin **Standing**.
+- **Hunger.** The longer a Floe-Off drags on, the **Hungrier** everyone gets: every few Slides, full
+  power shoves further (reach grows fast — a stalemate cannot last). It starts fresh on every new
+  floe, an Ice Bath included.
 
 **Going in the Drink.** A penguin can only go in through a **gap** in the ice ring, and a penguin
 whose centre crosses the edge is **Drowned** for the rest of that Floe-Off. It **plugs** the gap it
@@ -137,6 +140,7 @@ the funniest thing that can happen to you, not the worst.
 | **The Final Floe** | The gameover screen — the Match is decided. |
 | **Berg** | A chunk of the ice ring round the edge (Ice Breaker setting) that rebounds a would-be plunge instead of letting it through, until it takes enough hits and **shatters**. |
 | **Peck Off** | The two-player duel setting: two penguins each, and the room is forced to exactly two players. |
+| **Hungry** | Every few Slides of a Floe-Off the penguins get hungrier and full power shoves further; the floe floats **HUNGRY!** as it bites. Starts fresh on every new floe. |
 | **The Thaw** | Sylly Mode — the floe shrinks a little after every Slide. See T8. |
 | **The Huddle** | The settings overlay's title, not an in-play term. |
 
@@ -274,6 +278,8 @@ Header is built at runtime as *"Floe-Off N · Slide M"* (*"Floe-Off N · Ice Bat
 The Throw · Dive pills show only to a player with a Drowned penguin; for a Peck Off player who still
 has one Standing, *Throw* reads *Aim*. On a Washout the tally line reads *"Nobody made it. Into the
 Ice Bath with {names}."*, the floe floats **WASHOUT!**, then **ICE BATH!** as the bath starts.
+Every few Slides the floe floats **HUNGRY!** (with a 🐟❗ bubble over every Standing penguin, who keep
+angry brows while it lasts) — Hunger, SW v245.
 
 ```copy
 # screen-cld-floe — controls
@@ -455,6 +461,7 @@ Everyone went in at once — into the Ice Bath. Last one dry still wins.
 Last one dry — that’s a Fish.
 {Name}’s the last one dry. Practice again, or try another drill.
 Nobody’s budging. Call it a draw.
+Hungry! From here on every shove goes further — pull back a little less.
 ```
 
 ```copy

@@ -233,6 +233,20 @@ const M = [
 ['crossfire-targets-you', 'game', [[
   "  if (plan === 'crossfire') return cldPenguins.find(q => q.ownerIdx === (i === 1 ? 2 : 1)) || null;",
   "  if (plan === 'nope') return null;"]], 'practice'],
+
+// ── SW v245: Hunger (verify-cld-loop.js, then verify-cld-practice.js) ────────
+['hunger-never-bites', 'game', [[
+  '      const v = pow * CLD_V_MAX * hunger;', '      const v = pow * CLD_V_MAX;']]],
+['hunger-counts-the-slide-being-resolved', 'game', [[
+  '  const input = cldBuildSlideInputs(played);', '  const input = cldBuildSlideInputs();']]],
+['hunger-feeds-the-snowball', 'game', [[
+  '  return (0.40 + (0.20 - 0.40) * Math.min(1, dist / maxRange)) * CLD_V_MAX;',
+  '  return (0.40 + (0.20 - 0.40) * Math.min(1, dist / maxRange)) * CLD_V_MAX * cldHungerMult(cldSlideNo);']]],
+['hunger-guide-reads-linear-reach', 'game', [[
+  'reach: cldFullSlideDist(src.ice) * Math.pow(CLD_HUNGER_STEP, 2 * hunger),',
+  'reach: cldFullSlideDist(src.ice) * Math.pow(CLD_HUNGER_STEP, hunger),']], 'practice'],
+['hunger-beat-never-in-practice', 'game', [[
+  '  const hungry = !u.end && !res.bath && res.rises;', '  const hungry = false;']], 'practice'],
 ];
 
 // Which harness a mutant is aimed at. The rules/sim mutants above run the loop

@@ -1939,6 +1939,41 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 
 ---
 
+### Task 9: Hunger — full power grows as a Floe-Off drags on (owner, 29 Sep 2026)
+
+**Why.** Task 3 left Thaw-off Floe-Offs ~30% long (DD-19, an owner call). The owner picked a
+fourth lever: the penguins get **Hungry**. Every `CLD_HUNGER_EVERY` (4) Slides, full power grows by
+`CLD_HUNGER_STEP` (approved ×1.15; tuned to ×1.04, compounding). Decel stays derived from the BASE `CLD_V_MAX`, so reach
+grows as the square (×1.32 per step) and a stalemate cannot last.
+
+**Rules (vm-loadable, above STAGE 4).** `cldHungerLevel(played)` = `floor(played / 4)` — `played`
+is the Slides already resolved this Floe-Off (the aiming-phase `cldSlideNo`); `cldHungerMult(played)`
+= `1.15 ^ level`; `cldHungerRises(played)` = `played > 0 && played % 4 === 0`.
+`cldBuildSlideInputs(played = cldSlideNo)` multiplies the launch velocity; `cldResolveSlide` passes the
+count from BEFORE its own increment. Resets for free: a Resurface and an Ice Bath both zero
+`cldSlideNo`. **No packet field** — every device derives it from the `slideNo` it already has. The
+Snowball's force stays a fraction of the base `CLD_V_MAX` (the per-throw invariant).
+
+**Render.** `cldCurrentSrc` carries `slideNo`; `cldBuildModel` derives the level (during `resolving`
+from `slideNo − 1`, the Slide being played), scales `reach` by `mult²` (the aim guide tells the truth)
+and flags Standing penguins `hungry` → angry brows in `cldPaintBody`. The beat — `HUNGRY!` in the float
+layer, a 🐟❗ bubble over every Standing penguin, `CLD_SOUND.hungry` (`playHullThud`, a tummy rumble) —
+fires from `cldEndPlayback`'s "more Slides" branch (never on an Ice Bath start or a rejoin), and from
+`cldPrSlideDone` in Practice with a coach line `hungry`. The bubble reads a `Date.now()` deadline, not
+`cldClock` (reduced motion stops that clock).
+
+**Copy (paired, `cld.md` T7b):** `HUNGRY!`, the coach line, one How to Play sentence; T5 gains **Hungry**.
+
+**Tests first:** loop — level/mult/rises table; build scales impulses at played 4 and 8; the
+Snowball force does not; resolve at `cldSlideNo` 4 launches ×1.15; Resurface/Ice Bath reset.
+Practice — model reach ×mult², `hungry` flag, the coach reducer's `hungry` line, the Arena beat.
+
+**Balance:** `simulate-cld-balance.js 60` on patched copies, cells (every, step) in parallel; target
+the Thaw-off rows back inside ±15% of v244 without pushing the Thaw rows out. Record the table in DD-19.
+Re-run `--tune` for the drill seeds if a drill stops ending naturally.
+
+---
+
 ## After Phase 1
 
 Phase 2 ("looks fun", spec § 4 → SW v246) gets its own plan once this ships. The owner playtests v245 first, since the camera numbers and the balance feel are theirs to call. The approved prototype is committed at `docs/superpowers/prototypes/2026-09-29-cld-style/` (`cld-art.js` + its `index.html` harness page, which loads `physics.js` from beside it; published at https://claude.ai/artifact/SXiWaCTCfMSMXyXCC5aVae). Its `cld-art.js` is Phase 2's starting draft.
