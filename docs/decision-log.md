@@ -19,6 +19,13 @@ Detail: pointer to the canonical doc (snapshot / impl note / spec / memory).
 ```
 
 
+## 2026-09-30 — Drop the Superpowers plan/execute pipeline; keep brainstorm → spec (Process)
+Category: Process
+Decision: Tier 2 work is now brainstorm → spec → implement → review; no separate plan document, no per-task subagents, no TDD ritual. The Superpowers plugin is disabled and its brainstorming skill lives on as the project skill `/brainstorm`.
+Why: frontier models do the "how" well and follow a spec better than a step-by-step plan; the plan layer cost ~9:1 prose to code on small rounds, and the plugin's SessionStart hook fought the Triage Gate every session. The harness set, not a plan file, is the safety net.
+Changed: `.claude/skills/brainstorm/SKILL.md` (new), `CLAUDE.md` § Triage Gate Tier 2 row. Superpowers plugin disabled by the owner. Existing `docs/superpowers/{specs,plans}/` kept as history. Revisit if a Tier 2 build regresses for want of a plan.
+Detail: `CLAUDE.md` § Task Triage Gate.
+
 ## 2026-09-29 — Cold Shoulder: no Dive back into the gap you were knocked out of (SW v247)
 Category: Strategy
 Decision: a Knocked-back penguin may Dive into any free gap except the seat it was knocked out of.
