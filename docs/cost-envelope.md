@@ -263,3 +263,24 @@ now due rather than pending.
    *defaults*, with this document as the escape procedure.
 2. `docs/decision-log.md` gains one entry.
 3. The lobby redesign brief quotes §§ 2a, 4 and 5 directly as Fable's working envelope.
+
+---
+
+## 9. Caching contract by folder (moved from `logic-engine.md` § PWA Guardian, 30 Sep 2026)
+
+The *rule* (code precached · core art precached · content runtime-cached) stays in
+`.claude/rules/logic-engine.md`; the per-folder history lives here. Mechanism: § 5.
+
+| Folder | Contract | Notes |
+|---|---|---|
+| `data/art/` (core art) | **Precached** — manifest + every image in `PRECACHE_URLS`, `CACHE_NAME` bump | Default art is part of the app version. Never in `registry.json`, never in the Terminal. Three-tier resolution in `js/lib/art.js` (skin → core → emoji), so `assetFace`/`assetBack` call sites never changed; `assetExtra(kind, key)` covers non-card art. Converter: `tools/convert-core-art.ps1`. DYB (SW v241) needs none — procedural dice, skins are `diceSet` blocks via `assetDiceSet(kind)`. |
+| `data/packs/` (cartridges, Phase A, June 2026) | Runtime — `.json` network-first, images cache-first | A new pack is discovered on the next online Terminal open. The legacy `data/secret*_words.json` were migrated into `pack.json` manifests and deleted. See `docs/expansion-guide.md`. |
+| `data/music/` (28 Aug 2026) | Runtime — manifest network-first, audio cache-first | An mp3 is an order of magnitude heavier than a skin image; precaching would put every track in the install and make each a version bump. `js/lib/music.js` itself is precached. Ceiling ~1.5 MB/track. |
+| `data/music/jukebox/` (SW v233) | Runtime, rides the `/data/music/` branch | `manifest.json`, 26 mp3s, `covers/`, ~68 MB. Code (`js/lobby/jukebox.js`, `css/jukebox.css`) and `css/workshop.css` (SW v234) are precached. |
+| `data/stickers/` (SW v229) | Runtime — the `data/packs/` split | Manifest + one PNG per design. `js/lib/controller-sticker-surface.js` is precached: code is app version, content is not. |
+| `data/lamp/` (SW v231) | Runtime — the `data/stickers/` branch | Manifest + JPEGs, ~317 KB. A phone never sees the Lounge, so never pays. The lobby's code (`js/lounge/*`, `js/lobby/*`, `css/lobby.css`, ~770 KB) is precached. |
+
+**Three.js (SW v228–v229):** `three.min.js` r128 (~603 KB), `controller-body.js` (~34 KB) and
+`controller-sticker-surface.js` (~41 KB) are precached and load in normal `<script>` order (nothing
+about Three is lazy). Install delta ~658 KB at v228, +~41 KB for the sticker surface; sticker images
+are not in that number.

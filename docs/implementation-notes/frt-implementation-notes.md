@@ -152,3 +152,25 @@ The sound overlay volume slider rendered in the browser's default black/grey ins
 **Dimensions — no upscale needed, same call as FLW:** the masters were 337×450 PNGs, already close to card aspect and already small (a 1× card render is ~72px wide), so the converter held `$cardWidth` at the source width (337) rather than PKO's 360px default. All 9 files landed well under the 40 KB/card ceiling: 1.0 MB PNG → **220 KB JPEG** total. 8 of 9 landed at q88 (the quality walk's top step); only `back.jpg` (busier repeating leaf pattern) needed a step down to q72 to fit, same pattern as PKO's bee.jpg bottoming out on busy art.
 
 **Skipped deliberately:** an `await artReady` guard at FRT's entry point, same reasoning as the FLW run — `frtRenderCard`'s first live call is several screens past app boot (menu → settings → lobby → deal), far longer than the two local fetches (`registry.json` + `pack.json`) `artLoadCore()` needs. Revisit only if a fruit card is ever observed rendering the old CSS/emoji token instead of art.
+
+
+### DD — Menu-title colour: the FRT_LEAF / yellow-700 trap [8 Sep 2026; moved from ui-style.md 30 Sep 2026]
+
+**FRT is the sanctioned exception: its heading half (and `FRT_ACCENT` generally) is the literal
+brand fill `#FFE500`, at owner insistence, contrast cost accepted.** The road there is worth
+knowing because it's a real trap: FRT had a pre-existing `FRT_LEAF` constant (`#047857`, a green)
+reused for on-white text in three unrelated places — a How-to step label, the "Call TRUE" button,
+the selected-card outline — picked once, long before this pass, purely because it read fine, then
+copied forward by habit into a brand-new use (the menu heading) without anyone checking it was
+still FRT's colour. It wasn't. The first fix chased a *readable, same-hue* replacement instead
+(`text-yellow-700`, hue 35.5°) — passed its own contrast check, still read as brown to the eye,
+because darkening pure yellow for legibility pushes it toward brown/olive faster than it does most
+hues; hue angle and contrast ratio both said "fine" while the actual swatch didn't look yellow at
+all. The owner's call, once shown that trade-off, was to skip legibility-tuning entirely and use
+the real hex. **Read this as "don't reach for an existing accent constant without checking it's
+actually the game's colour" (the `FRT_LEAF` mistake) AND "checking hue-angle-and-contrast is not the
+same as looking at the swatch" (the `yellow-700` mistake) — not as "the fill hex is always right":
+the default for every other game is still the darkened label colour above.** Renamed to
+`FRT_ACCENT = FRT_FILL` and applied everywhere `FRT_LEAF` used to be (How-to label, "Call TRUE",
+selection outline, heading) — one constant, one value, no per-site special-casing.
+Detail: `frt-implementation-notes.md`.

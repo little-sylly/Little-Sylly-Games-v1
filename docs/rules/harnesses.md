@@ -9,6 +9,7 @@ Re-run a game's full set after touching its appliers, deck/data, packets or rend
 | Game | Command | Checks |
 |------|---------|--------|
 | Build | `node tools/verify-build-fresh.js` — is the committed `index.html` a faithful assembly of `src/screens/`? **Re-run after any markup change** | 1 |
+| Baseline | `node tools/verify-baseline-size.js` — size of CLAUDE.md + `.claude/rules/*.md` (paid every session) vs a 195 KB budget. **Warn-only, always exits 0**; run by the pre-commit hook when those files are staged | — |
 | CJAR | `node tools/verify-cjar-deck.js && node tools/verify-cjar-loop.js && node tools/verify-cjar-dd.js` | 76 · 102 · 47 |
 | CJAR | `node tools/verify-cjar-loopback.js` — host↔client over a Firebase-shaped wire, incl. reconnect (pause, a rejoin mid-window with other seats' choices stripped, a held flip) | 213 |
 | CJAR | `node tools/simulate-cjar-dd.js` — balance instrument; asserts nothing, always exits 0 | — |

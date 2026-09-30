@@ -376,14 +376,14 @@ if (window.syllyMultiplayerMode !== 'single') {
 
 **A readiness gate that reads a per-seat array must be checked in the mode where that array is EMPTY.** `[].every()` is `true`. A gate written for a game with departed-seat tracking (`arr.every((a,i) => !a || readyCheck[i])`) is vacuously open in a mode with no such array — the host resolves on the first tap while later seats never chose. Both forms are wrong in the other mode, so branch: the mode with no departures uses plain `readyCheck.every(Boolean)`. Assert **per mode**, not once. Detail: `cjar-impl-notes` BUG-05.
 
-**Prove the packet contract with a two-device loopback before the real multi-device session — and give it a WIRE and a real DOM.** Every headless harness in this project runs in `'single'` mode: that is what lets one process drive all N seats, and exactly what blinds it to the packets. Standing up a **second `vm` as a client** and routing the host's `mpSendEnvelope` into its `[abbr]HandleEnvelope` costs ~40 lines and catches absent payload fields, host/client divergence, stale-tag rejection, private-channel delivery and the mid-game-quit contract — this class of loopback has found defects that passed 200+ single-mode checks. **Two things it must have, or it will pass while the game is broken:**
+**Prove the packet contract with a two-device loopback before the real multi-device session — with a WIRE and a real DOM.** Every headless harness runs in `'single'` mode, which blinds it to packets. A second `vm` as a client, with the host's `mpSendEnvelope` routed into its `[abbr]HandleEnvelope`, catches absent payload fields, host/client divergence, stale-tag rejection, private-channel delivery and the quit contract (it has found defects that passed 200+ single-mode checks). It must have both, or it passes while the game is broken:
 
-- **A wire.** Piping `mpSendEnvelope` *directly* into the handler passes live JS references, so every empty collection survives a trip Firebase would not have let it make. Put a `fbWrite`/`fbRead` pair in between and assert the wire's own behaviour first.
-- **A DOM of real mock elements.** `getElementById: () => null` — what the three `'single'`-mode harnesses use — short-circuits every `if (!el) return` guard, so **no render code executes at all**. A render throw inside a SYNC applier is invisible to every one of them, and it escapes through `mpHandleEnvelope` and strands the device.
+- **A wire.** Piping `mpSendEnvelope` directly into the handler passes live JS references, so empty collections survive a trip Firebase would not allow. Put a `fbWrite`/`fbRead` pair between and assert the wire's own behaviour first.
+- **A DOM of real mock elements.** `getElementById: () => null` short-circuits every `if (!el) return` guard, so no render code runs; a render throw in a SYNC applier then strands the device unseen.
 
-Reference: `tools/verify-cjar-loopback.js` (87 checks; takes `CJAR_SRC=` so a broken copy can be driven through the same wire, proving the test fails before the fix makes it pass). Still **not** a substitute for the three-device session — no clock skew, no Firebase ordering, no dropped packets, nothing visual — but run it first. Detail: `cjar-impl-notes` ML-01/ML-03.
+Reference: `tools/verify-cjar-loopback.js` (takes `CJAR_SRC=` so a broken copy proves the test fails first). Not a substitute for the three-device session (clock skew, Firebase ordering, dropped packets, visuals) — run it first. Detail: `cjar-impl-notes` ML-01/ML-03.
 
-**Host readyCheck — process the host's own submission directly:** For any phase with a `[abbr]ReadyCheck[]` matrix where all players submit simultaneously, the host must mark its own slot in its local submit function — NOT by sending its own ACTION envelope. `engine-multiplayer.js` drops every envelope where `originId === syllyDeviceUid` (the dedup guard), so a host that submits via `mpSendEnvelope` never has its slot set and `.every(Boolean)` never fires (the round hangs). Pattern: when `syllyMultiplayerMode === 'host'`, set `[abbr]ReadyCheck[mpMyPlayerIdx] = true`, check `.every(Boolean)`, and broadcast the resolving SYNC directly. *[Elevated from jec-impl-notes J1, ygi-impl-notes Y1/Y2.]*
+**Host readyCheck — process the host's own submission directly:** For any phase with a `[abbr]ReadyCheck[]` matrix where all players submit simultaneously, the host must mark its own slot in its local submit function — NOT by sending its own ACTION envelope. `engine-multiplayer.js` drops every envelope where `originId === syllyDeviceUid` (the dedup guard), so a host that submits via `mpSendEnvelope` never has its slot set and `.every(Boolean)` never fires (the round hangs). Pattern: when `syllyMultiplayerMode === 'host'`, set `[abbr]ReadyCheck[mpMyPlayerIdx] = true`, check `.every(Boolean)`, and broadcast the resolving SYNC directly. Detail: `jec-impl-notes` J1, `ygi-impl-notes` Y1/Y2.
 
 **Generalisation — the dedup guard drops ALL self-sent ACTIONs, not just readyCheck submissions:** the same `originId === syllyDeviceUid` guard means **any** phase where the host is also an active *submitting* participant must use the direct-update-then-broadcast pattern, never a self-sent ACTION. This extends beyond readyCheck matrices to live-adjustment phases (e.g. a host sending a live allocation update to itself). Rule: if the host can submit an ACTION in a phase, branch on `syllyMultiplayerMode === 'host'` and mutate host state + broadcast the resulting SYNC directly; reserve `mpSendEnvelope({type:'ACTION'})` for clients only. Detail: `nt-impl-notes` BUG-05 / TG-05.
 
@@ -391,15 +391,15 @@ Reference: `tools/verify-cjar-loopback.js` (87 checks; takes `CJAR_SRC=` so a br
 
 **Accumulator arrays must be reset *in the SYNC payload*, not just locally:** any state that resets between rounds/sessions — log arrays, tally arrays, history lists, per-round matrices — must be included in the round-start SYNC payload **even when its value is `[]` or all-`false`**. The host resets it locally when it builds the new round; clients never do, so they carry the previous round's values forward until a payload field overwrites them. The symptom is a client showing a stale log or a readyCheck that fires instantly. Rule: when writing a round-start SYNC, list every accumulator the round touches and include each one at its reset value. Detail: `flw-impl-notes` BUG-01.
 
-**A packet is a snapshot of state AFTER the move, not during it — so settle the whole transition, then send once.** A broadcast placed between two halves of a state change ships a position that never existed on the sender. COMB's opening draft broadcast `COMB_DRAFT_STATE` *before* advancing `combTurn`, so every packet named the seat that had just played; the next placer's device failed its own `playerIdx !== combTurn` guard, armed nothing, and the draft froze on step 2. **The host cannot see it** — it advances its own turn a line later and plays on. Rule: finish every mutation the action implies (advance the turn, decide whether the phase ended, reset the accumulators), *then* build the payload. Detail: `comb-impl-notes` BUG-07.
+**A packet is a snapshot of state AFTER the move — settle the whole transition, then send once.** A broadcast between two halves of a state change ships a position that never existed on the sender, and the host cannot see it (it advances a line later and plays on). Finish every mutation (advance the turn, decide if the phase ended, reset accumulators), *then* build the payload. Detail: `comb-impl-notes` BUG-07.
 
-**A send site written without a receiver is a draft, not a feature.** It is legitimate to place every `[abbr]Broadcast()` call in one chunk and add `[abbr]HandleEnvelope` in the next — but nothing verifies the first half until the second exists, because **a send site cannot be wrong in a way one device can detect**: the sender's own state is correct whatever it puts in the packet. Neither a `'single'`-mode harness nor a `visual-check` walk can tell a good payload from a bad one. The chunk that adds the receive half should re-read every send site through the loopback and **expect to find at least one wrong**. Detail: `comb-impl-notes` ML-01.
+**A send site written without a receiver is a draft, not a feature.** A send site cannot be wrong in a way one device can detect, so nothing verifies it until `[abbr]HandleEnvelope` exists. The chunk that adds the receive half re-reads every send site through the loopback and **expects to find at least one wrong**. Detail: `comb-impl-notes` ML-01.
 
-**A seeded deal is a privacy decision, not only a bandwidth one.** "Send the seed, not the deal" is right and this suite uses it — but whatever the seed reconstructs, the receiver now *knows*. COMB shipped `boardSeed` so every device could deal the identical 19-hex board, and the same call rebuilt the **Instinct deck**: every client held the exact draw order, and with the public `deckLeft` that is every unplayed card in every hand, including the hidden Golden Nectar the endgame turns on. **Enumerate everything the seed reconstructs and mask every part the receiver is not entitled to see.** COMB's fix is the reference shape — the client keeps the deck's *length* (public: the stack is on the table) and loses its *order*, one line in the `MATCH_START` applier, because a client never draws. Detail: `comb-impl-notes` BUG-06.
+**A seeded deal is a privacy decision, not only a bandwidth one.** Whatever the seed reconstructs, the receiver now *knows* (COMB's `boardSeed` also rebuilt the whole Instinct deck order on every client). **Enumerate everything the seed reconstructs and mask what the receiver may not see** — COMB keeps the deck's public *length* and drops its *order*, one line in the `MATCH_START` applier. Detail: `comb-impl-notes` BUG-06.
 
-**The host should take a submitter's seat from the envelope's `originId`, not the payload.** An ACTION payload naming its own `playerIdx` is the suite's habit and is fine where a seat can only act for itself anyway. It stops being fine the moment a seat holds something worth stealing: a device that puts another seat in that field places their pieces and spends their hand, and nothing notices. Resolving `originId` against `mpPlayerSlots` is a three-line helper (`combSeatOf`), and a uid absent from the roster is dropped. Keep `playerIdx` in the payload — it reads well in a log — just don't trust it. Detail: `comb-impl-notes` DD-09.
+**The host takes a submitter's seat from the envelope's `originId`, not the payload.** A payload naming its own `playerIdx` is fine where a seat can only act for itself, but not once a seat holds something worth stealing. Resolve `originId` against `mpPlayerSlots` (`combSeatOf`); drop a uid absent from the roster. Keep `playerIdx` in the payload for the log — just don't trust it. Detail: `comb-impl-notes` DD-09.
 
-**A `catch (_) {}` on a path a harness watches needs an observable side effect.** Every per-game envelope router swallows throws, and must: a throw escaping into a Firebase callback strands the sender AND kills the SYNC that would have advanced everyone else (§ Firebase callback crash safety). The cost is that a loopback's "no exception on any device" check can never fire — nothing escapes. Make the swallow `console.warn`, and give each mock device a console whose `warn` lands in that device's error list; a dead applier then reads as loudly as one that never ran. Detail: `comb-impl-notes` ML-05.
+**A `catch (_) {}` on a path a harness watches needs an observable side effect.** Every per-game envelope router must swallow throws (§ Firebase callback crash safety), which means a loopback's "no exception" check can never fire. Make the swallow `console.warn` and give each mock device a console whose `warn` lands in its error list. Detail: `comb-impl-notes` ML-05.
 
 **Single-source card/board arithmetic:** when a game has any rule-mutating mode (a Sylly Mode that inverts scoring, reverses a chain, or changes what beats what), route **resolution, legality checking, and any simulation/preview** through one shared function rather than duplicating the comparison at each call site — a shared `[abbr]Beats(a, b)`-style predicate makes a mode's inversion a one-line change instead of an edit at every call site. Duplicated comparisons are where mode-mutations silently miss a path. Detail: `shp-impl-notes` Template Gaps.
 
@@ -670,39 +670,14 @@ lifecycle requirement — cancel it in the quit-confirm handler, in `resetToLobb
 and on any early phase transition (build-phase exit, summary-screen entry). Only the
 type differs: cancel with `cancelAnimationFrame(handle)`, not `clearInterval`. A live
 RAF loop left running repaints/advances against the next screen's state. Reference:
-`nt.js` `ntStopPlayback()` clears `ntRafHandle`. *[Elevated from nt-impl-notes TG-01.]*
+`nt.js` `ntStopPlayback()` clears `ntRafHandle`.
 
-**Not game-specific, same rule — `ctlRaf` and `smTypewriterTimers` (SW v228).** `ctlRaf`
-(`js/controller.js`) is the 3D controller's on-demand render loop, cancelled by `ctlStop()`/
-`ctlTeardown()`; its three clear sites are `resetToLobby()`, `ctlCloseWorkshop()` (the Workshop's
-✕/Save), and `smOpenGateway()` (an early exit from the Workshop into the gateway — the Konami
-success path). `smTypewriterTimers` (`js/secret-mode.js`) is a `setTimeout` array reused by both
-the Terminal's boot sequence and the Sylly Gateway's streaming log (`smGatewayStream()`); its clear
-sites are the gateway's own ✕, its TAP TO CONTINUE, and the Terminal's ← BACK.
-
-**The lobby's timers (SW v231).** TV's drift RAF + clock timer (a self-rescheduling timeout aimed at each minute boundary — `clearInterval` clears it) live on its instance and are
-cleared by `tvDrop()` — which `lobby-host.js` calls whenever another layout is presented **and**
-in `lobbyLaunch()` and on a Workshop open (both keep `view === 'tv'`, so presenting alone would miss them). The
-Lounge's RAF is `lobbyScene.stop()` whenever anything else has the screen (kept, never disposed —
-except a phone's lean room, disposed after the arrival handoff). `lobbySayTimer` clears the HUD
-status line. The Lounge controller's idle beats (SW v232) add **no** timer: they schedule off the
-scene's frame time inside the prop's `tick`, so `stop()` stops them too — the pattern to copy for any
-future prop that idles. The **jukebox screen** (SW v233) runs two RAFs — its own cat stage and the
-equaliser (`js/lobby/jukebox.js`) — both stopped by `jbxClose()` (every router close, `home` included)
-and by `jbxStop()` in `resetToLobby()`; its stage is kept, like the room, never disposed.
-
-**Reconnect's handles (SW v236).** The Away debounce map (`mpAwayPending`), the non-adopter's grace
-(`mpAwayTimer`), the overlay's countdown (`mpAwayTick`), the unanswered-rejoin timeout
-(`mpRejoinTimer`) and the two listeners (`mpPresenceListener`, `mpConnListener`) are all cleared in
-**one** place, `mpEndMatchLocal()` — reached from `resetToLobby()` (via `mpReconnectTeardown()`), from
-`LOBBY_RESET` on both sides, and from an abandoned rejoin. `mpStopListeners()` also drops both listeners.
-
-**The Bluff's choreography bags (SW v241).** Every shake/reveal timeout goes through `dybLater(bag, …)`
-into one of two named bags: `dybAnimTimers` (the live game — cleared by `dybStopChoreography()` on
-quit-confirm, in `resetToLobby()`, at `dybInitShake`, on `DYB_SHAKE_ACTIVE` and before a reveal) and
-`dybPrTimers` (Practice — cleared by `dybPracticeStop()` on tab-away, close and in `resetToLobby()`).
-Stopping one never touches the other, which is what lets Practice open mid-game without disturbing a
-live Shake.
+**Non-game timers follow the same rule** — the 3D controller's `ctlRaf`, Secret Mode's
+`smTypewriterTimers`, the lobby layouts' RAFs/timers (`tvDrop()`, `lobbyScene.stop()`, `jbxStop()`),
+reconnect's handles (all cleared in `mpEndMatchLocal()`) and the Bluff's two choreography bags
+(`dybAnimTimers` / `dybPrTimers` — stopping one never touches the other). Per-handle clear sites:
+`shared-implementation-notes.md` DD-54. A prop that idles schedules off the scene's frame time inside its
+`tick`, not off a new timer.
 
 ---
 
@@ -713,83 +688,33 @@ Before implementing, answer:
 1. Will this work offline? If not, how do we cache it?
 2. Does `sw.js` need updating to pre-cache new files?
 3. Are we using any APIs that require network (and gracefully fail if unavailable)?
-4. **What does this add to the install?** Any precached binary asset (art, audio) needs a
-   per-file ceiling agreed *before* it is generated, not after. PKO's card art arrived as 17
-   PNGs totalling **26 MB** — a precache that size makes the app effectively uninstallable on
-   mobile data. Converted to 360 px JPEGs at a 40 KB/card ceiling it is 682 KB. Set the ceiling
-   at spec time and state it in the tech spec. Detail: `pko-impl-notes` TG-02.
+4. **What does this add to the install?** Any precached binary asset (art, audio) needs a per-file
+   ceiling agreed *before* it is generated and stated in the tech spec (PKO's 26 MB of PNGs is why —
+   `pko-impl-notes` TG-02). A ceiling is only meaningful next to the element's **render size and
+   aspect** — measure the quality it forces rather than inheriting another game's number
+   (`cjar-impl-notes` TG-02b).
 
-**SW versioning:** `CACHE_NAME = 'sylly-games-vN'` — bump N on **every deploy**. The install
-precaches with `new Request(u, { cache: 'reload' })` — never plain `addAll(PRECACHE_URLS)`, which
-reads the browser's HTTP cache and can fill a new version with the previous one's scripts
-(`shared-implementation-notes.md` BUG-25). When testing over LAN `http://` (no SW possible), serve
-with `http-server -c-1` or reloads mix a new page with old scripts.
+**SW versioning:** `CACHE_NAME = 'sylly-games-vN'` — bump N on **every deploy**. The install precaches
+with `new Request(u, { cache: 'reload' })` — never plain `addAll(PRECACHE_URLS)`
+(`shared-implementation-notes.md` BUG-25). Over LAN `http://` (no SW possible) serve with
+`http-server -c-1`. **Current version: `CLAUDE.md` § Current Focus — the only place it is written.**
 
-**Current SW version:** see `CLAUDE.md` § Current Focus — **the live pointer, and the only place it is written.** This line used to carry a copy (it read v205 while the app shipped v209 for four bumps); a number duplicated in an auto-loaded rule file drifts silently, so it is deliberately not repeated here.
+**Precached assets:** the authoritative list is `PRECACHE_URLS[]` in `sw.js` — read it there, never from
+a copy. Adding a file to the app = add it to that array AND bump `CACHE_NAME`. The Firebase lib files
+are precached but lazy-loaded (§ Firebase Lazy-Load).
 
-**A per-file art ceiling is only meaningful next to the element's RENDER size.** The suite's 40 KB/card figure was set for small cards — PKO's renders at `4.25rem`, so 360 px art is 5.3× its CSS width. CJAR's hero is `15rem` (240 CSS px) and its masters are **square** against a portrait card, so `cover` discards ~27% horizontally and the same 360 px is only ~1.1× effective. Measure the quality the cap forces at several widths rather than inheriting an earlier game's number, and check master **aspect** against card aspect — square masters waste a fixed fraction of every byte. Detail: `cjar-impl-notes` TG-02b.
+**Which caching contract does an asset take? — the rule:**
+- **Code is always precached** (every `js/`, `css/` file, vendored libs incl. Three.js).
+- **Core art (`data/art/`) is precached**: manifest + every image in `PRECACHE_URLS` + a `CACHE_NAME`
+  bump. A conversion is not done until `sw.js` carries all three — missing it means the art is absent
+  on a cold offline install. Resolution is skin → core art → emoji (`js/lib/art.js`); no JS edit
+  needed. Steps: `docs/expansion-guide.md` § Core art packs. DYB never needs one (procedural dice).
+- **Content is runtime-cached, NOT precached**: `data/packs/`, `data/music/` (incl. `jukebox/`),
+  `data/stickers/`, `data/lamp/`. JSON network-first, images/audio cache-first; adding one is a folder
+  drop + a manifest line — no `sw.js` edit, no version bump. Every failure path is silent (no music /
+  sticker / lamp photo, never an error on a game screen). Music ceiling ~1.5 MB per track.
 
-**Precached assets:** the authoritative list is `PRECACHE_URLS[]` in `sw.js` — read it there, never from a copy.
-Adding a file to the app means adding it to that array AND bumping `CACHE_NAME`.
-
-Note: the four Firebase lib files ARE precached (so Lobby Mode works offline-first once installed) but are still lazy-loaded at runtime — they are not in the `index.html` `<script>` load order. See Firebase Lazy-Load below.
-
-**Three.js (SW v228-v229):** `js/lib/three.min.js` (r128, vendored, ~603 KB),
-`js/lib/controller-body.js` (~34 KB) and — SW v229 — `js/lib/controller-sticker-surface.js`
-(~41 KB) are all precached and load in the normal `<script>` order (unlike Firebase, nothing about
-Three is lazy) — see § Shared Library Modules above. The vendored-Three + geometry-module +
-`controller.js` install delta was ~658 KB at v228; the sticker surface adds ~41 KB on top. The
-sticker **images** are not in that number — they are runtime-cached, see below.
-
-**Core art — precached (`data/art/`):** A game's *default* artwork lives in
-`data/art/<kind>/` using the **same manifest format** as a skin pack, but with the opposite caching
-contract: it **is** listed in `PRECACHE_URLS` (manifest + every image) and changing it **does** need
-an SW version bump, because default art is part of the app version. It is never listed in
-`data/packs/registry.json` and never appears in the Terminal. Resolution is three-tier in
-`js/lib/art.js` — active skin → core art → emoji fallback — so `assetFace`/`assetBack` call sites
-did not change. `assetExtra(kind, key)` covers non-card game art (reference diagrams). Games adopt
-it one at a time — current rollout status, the 4 conversion steps and per-game gotchas are in
-`docs/expansion-guide.md` § Core art packs (also see `CLAUDE.md` § Current Focus for the live
-list), and `tools/convert-core-art.ps1` is the converter. Converting a game needs **no JS
-edit** — its seam already calls `assetFace`/`assetBack`. **A conversion is not done until `sw.js`
-carries the manifest AND every image in `PRECACHE_URLS` and `CACHE_NAME` is bumped** — that step is
-the whole difference from a skin pack, and missing it means the art is simply absent on a cold
-offline install. **DYB never needs a core art pack** (SW v241): its default dice (Rocky) are
-procedural, defined in code, and its skins are `diceSet` parameter blocks resolved by
-`assetDiceSet(kind)` — see `docs/expansion-guide.md` § DYB dice sets.
-
-**Music — runtime-cached, NOT precached (28 Aug 2026):** `data/music/` follows the same split as
-`data/packs/` and for a sharper version of the same reason: **manifest network-first** (a new track
-is discovered without a version bump), **audio cache-first** (fetched once, then free). An mp3 is an
-order of magnitude heavier than a skin image, so precaching would put every track in the install and
-make each new one a version bump. `js/lib/music.js` itself **is** precached — the code is part of the
-app version; the tracks are not. Ceiling ~1.5 MB per track.
-
-**Cartridge packs — runtime-cached, NOT precached (Phase A, June 2026):** Everything under
-`data/packs/` (the `registry.json`, each `<id>/pack.json`, and any asset images) is deliberately
-absent from `PRECACHE_URLS`. The `sw.js` fetch handler serves it with a split strategy:
-**`.json` config is network-first** (so a newly-added pack is discovered on the next online terminal
-open with no version bump), **images are cache-first** (instant + lean). This is what lets a word/
-asset pack be added or removed by dropping a folder + editing `data/packs/registry.json` — no `sw.js`
-edit, no SW version bump. The legacy `data/secret*_words.json` files were migrated into
-`data/packs/<id>/pack.json` manifests (inline `words`) and deleted. See `docs/expansion-guide.md`.
-
-**Jukebox songs — runtime-cached, NOT precached (SW v233):** `data/music/jukebox/` (`manifest.json`,
-26 mp3s, `covers/`, ~68 MB) rides the existing `/data/music/` branch — no `sw.js` fetch change. The
-code (`js/lobby/jukebox.js`, `css/jukebox.css`) IS precached. So is the Workshop room's
-`css/workshop.css` (SW v234); its stickers stay runtime-cached (below).
-
-**Lounge lamp photos — runtime-cached, NOT precached (SW v231):** `data/lamp/` (manifest + JPEGs,
-~317 KB) takes the `data/stickers/` branch exactly — a phone never sees the Lounge, so it never pays
-for them. The lobby's CODE (`js/lounge/*`, `js/lobby/*`, `css/lobby.css`, ~770 KB) IS precached.
-
-**Controller stickers — runtime-cached, NOT precached (SW v229):** `data/stickers/` (the
-`manifest.json` and one PNG per design) follows the `data/packs/` split exactly — **manifest
-network-first**, **images cache-first** — so a new sticker is a folder drop plus one manifest line:
-no `sw.js` edit, no `CACHE_NAME` bump. The **module** `js/lib/controller-sticker-surface.js` **is**
-precached, the same split `data/music/` draws: the code is part of the app version, the content is
-not. Every failure path is silent by design — no manifest, or a design never fetched while online,
-means that sticker simply does not appear in the book, never an error on a game screen.
+Per-folder detail, sizes and the reasoning behind each split: `docs/cost-envelope.md` § 9.
 
 ---
 

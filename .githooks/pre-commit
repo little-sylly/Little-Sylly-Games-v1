@@ -17,4 +17,9 @@ if git diff --cached --name-only | grep -qE '^src/'; then
   git add index.html
 fi
 
+# Warn-only: the always-loaded baseline is paid in tokens every session.
+if git diff --cached --name-only | grep -qE '^(CLAUDE.md|.claude/rules/)'; then
+  node tools/verify-baseline-size.js || true
+fi
+
 exit 0

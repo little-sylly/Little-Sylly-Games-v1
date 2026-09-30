@@ -4803,3 +4803,41 @@ first frame (as it did the old print). Harness: `verify-lounge-props.js` "painti
 ceilings, JPEG aspect vs the frame), door-count and effect-door expectations updated. Layout proved in
 real Chromium (click → overlay → next → Esc → backdrop). Lesson: an optional door with no prop
 behaviour to fall back on is legitimate when it is an effect — the "never silent" harness rule now names that.
+
+
+### DD-54 — Timer/handle inventory, moved out of `logic-engine.md` § Timer Lifecycle [30 Sep 2026]
+The rule stays in `logic-engine.md`; the per-module clear sites live here. Elevated originally from
+`nt-impl-notes` TG-01 (RAF is a timer too).
+
+**Not game-specific, same rule — `ctlRaf` and `smTypewriterTimers` (SW v228).** `ctlRaf`
+(`js/controller.js`) is the 3D controller's on-demand render loop, cancelled by `ctlStop()`/
+`ctlTeardown()`; its three clear sites are `resetToLobby()`, `ctlCloseWorkshop()` (the Workshop's
+✕/Save), and `smOpenGateway()` (an early exit from the Workshop into the gateway — the Konami
+success path). `smTypewriterTimers` (`js/secret-mode.js`) is a `setTimeout` array reused by both
+the Terminal's boot sequence and the Sylly Gateway's streaming log (`smGatewayStream()`); its clear
+sites are the gateway's own ✕, its TAP TO CONTINUE, and the Terminal's ← BACK.
+
+**The lobby's timers (SW v231).** TV's drift RAF + clock timer (a self-rescheduling timeout aimed at each minute boundary — `clearInterval` clears it) live on its instance and are
+cleared by `tvDrop()` — which `lobby-host.js` calls whenever another layout is presented **and**
+in `lobbyLaunch()` and on a Workshop open (both keep `view === 'tv'`, so presenting alone would miss them). The
+Lounge's RAF is `lobbyScene.stop()` whenever anything else has the screen (kept, never disposed —
+except a phone's lean room, disposed after the arrival handoff). `lobbySayTimer` clears the HUD
+status line. The Lounge controller's idle beats (SW v232) add **no** timer: they schedule off the
+scene's frame time inside the prop's `tick`, so `stop()` stops them too — the pattern to copy for any
+future prop that idles. The **jukebox screen** (SW v233) runs two RAFs — its own cat stage and the
+equaliser (`js/lobby/jukebox.js`) — both stopped by `jbxClose()` (every router close, `home` included)
+and by `jbxStop()` in `resetToLobby()`; its stage is kept, like the room, never disposed.
+
+**Reconnect's handles (SW v236).** The Away debounce map (`mpAwayPending`), the non-adopter's grace
+(`mpAwayTimer`), the overlay's countdown (`mpAwayTick`), the unanswered-rejoin timeout
+(`mpRejoinTimer`) and the two listeners (`mpPresenceListener`, `mpConnListener`) are all cleared in
+**one** place, `mpEndMatchLocal()` — reached from `resetToLobby()` (via `mpReconnectTeardown()`), from
+`LOBBY_RESET` on both sides, and from an abandoned rejoin. `mpStopListeners()` also drops both listeners.
+
+**The Bluff's choreography bags (SW v241).** Every shake/reveal timeout goes through `dybLater(bag, …)`
+into one of two named bags: `dybAnimTimers` (the live game — cleared by `dybStopChoreography()` on
+quit-confirm, in `resetToLobby()`, at `dybInitShake`, on `DYB_SHAKE_ACTIVE` and before a reveal) and
+`dybPrTimers` (Practice — cleared by `dybPracticeStop()` on tab-away, close and in `resetToLobby()`).
+Stopping one never touches the other, which is what lets Practice open mid-game without disturbing a
+live Shake.
+

@@ -19,6 +19,13 @@ Detail: pointer to the canonical doc (snapshot / impl note / spec / memory).
 ```
 
 
+## 2026-09-30 — Always-loaded baseline trimmed again (~201 → ~190 KB); warn-only size check (Process)
+Category: Process
+Decision: history leaves the auto-loaded rule files (rules stay, one-line pointer left); `tools/verify-baseline-size.js` warns in pre-commit when CLAUDE.md + `.claude/rules/` exceed 195 KB.
+Why: the baseline had crept back up from ~148 KB (19 Aug trim) and is paid on every turn of every session.
+Changed: `logic-engine.md` (PWA Guardian folder list → `cost-envelope.md` § 9; Timer Lifecycle inventory → `shared-implementation-notes.md` DD-54; MDLM war stories condensed), `ui-style.md` (FRT yellow story → `frt-implementation-notes.md`; rollout paragraphs condensed), new tool + hook line. Deferred: a deeper cut (~30 KB more) needs judgement calls on the biggest ui-style/logic-engine sections.
+Detail: `docs/rules/harnesses.md`.
+
 ## 2026-09-30 — Drop the Superpowers plan/execute pipeline; keep brainstorm → spec (Process)
 Category: Process
 Decision: Tier 2 work is now brainstorm → spec → implement → review; no separate plan document, no per-task subagents, no TDD ritual. The Superpowers plugin is disabled and its brainstorming skill lives on as the project skill `/brainstorm`.
