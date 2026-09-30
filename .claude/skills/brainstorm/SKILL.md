@@ -7,7 +7,7 @@ description: Tier 2 (architectural) work only — a new game, a new engine/MP pa
 
 Adapted from superpowers:brainstorming (6.4.1), trimmed on 30 Sep 2026: the plan-writing, TDD-ritual and
 subagent-execution stages that followed it are dropped. A spec says **what** and **why**; the model already
-knows **how**. The safety net is the harness set (`CLAUDE.md` § Verification harnesses), not a plan file.
+knows **how**. The safety net is the harness set (`docs/rules/harnesses.md`), not a plan file.
 
 **Size it first.** State the tier per the Triage Gate. If it is Tier 0/1, stop using this skill and work inline.
 
@@ -23,7 +23,9 @@ knows **how**. The safety net is the harness set (`CLAUDE.md` § Verification ha
    game's soul (`CLAUDE.md` § How to Work).
 5. **Present the design in sections** — architecture, data flow, MP packets and the missing-handler audit,
    error handling. Get a yes after each.
-6. **Write the spec** — `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md`. It must **name the
+6. **Write the spec** — `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md`. **New game: the spec is
+   `docs/new-game-tech-[name].md`, filled in from `docs/rules/new-game-technical-template.md` (its §15 is the
+   stage breakdown) — do not write a second design doc.** It must **name the
    verification up front**: which existing harnesses re-run, which new checks a rule/packet/state change
    earns (not presentation — Harness rule), and whether a loopback or `visual-check` is needed. Self-review
    for placeholders, contradictions, ambiguity, scope. Commit it.

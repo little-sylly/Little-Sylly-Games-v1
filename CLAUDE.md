@@ -9,14 +9,15 @@
 - `@definitions.md` — naming conventions, comment style, data schema, project-wide terms
 
 **On-demand — READ with the Read tool only when the trigger applies (NOT auto-loaded; do not read these during routine bug/polish work):**
-> ⚠️ These live in `docs/rules/`, NOT `.claude/rules/`, **on purpose** — the harness auto-loads every file in `.claude/rules/` into baseline context every turn. Only the three always-loaded files above belong there; do NOT move these back.
-- `docs/game-identities/[abbr].md` — the game's **identity doc**: pitch, premise, how to play, theme + flavour, terminology, settings, the player's journey (beat map + every UI string), Sylly Mode, art, table shape. **15–25 KB — read it WHOLE**, it is written to be read end to end. **Read when:** any non-technical work on one game — review, copy, an art brief, a game review, or just learning what the game is. Each section is tagged **free** / **paired** / **derived** — see the change contract in `docs/superpowers/specs/2026-08-22-game-identity-docs-design.md` § 5 before editing one. Copy blocks are machine-verified by `tools/verify-identity-docs.js`. **All 18 games now have one** — the `docs/rules/game-identities.md` migration completed 23 Aug 2026; that file is deleted.
+> ⚠️ These live in `docs/rules/`, NOT `.claude/rules/`, **on purpose** — that folder is auto-loaded wholesale. Never move them back.
+- `docs/game-identities/[abbr].md` — the game's **identity doc**: pitch, premise, how to play, theme + flavour, terminology, settings, the player's journey (beat map + every UI string), Sylly Mode, art, table shape. **15–25 KB — read it WHOLE**, it is written to be read end to end. **Read when:** any non-technical work on one game — review, copy, an art brief, a game review, or just learning what the game is. Each section is tagged **free** / **paired** / **derived** — see the change contract in `docs/superpowers/specs/2026-08-22-game-identity-docs-design.md` § 5 before editing one. Copy blocks are machine-verified by `tools/verify-identity-docs.js`.
 - `docs/rules/per-game-classes.md` — the per-game class strings: brand colour, range/toggle/pill classes, Play CTA + how-to emoji + Sylly Mode name, `accentBtnClass`, step label, Settings tint. **Read when:** building or editing any game's UI and you need its exact class strings.
 - `docs/art-authoring-guide.md` — the standalone (no-Claude-Code) artwork guide: skin pack vs core art, exact dimensions/aspect per game, the inventory for all seven render seams, `tools/make-skin-pack.ps1`, the offline install check. **Read when:** authoring/converting art, or answering "what art does game X need". Written for the owner to use alone — point them at it rather than re-deriving dimensions from CSS.
 - `docs/rules/word-expansion.md` — `data/words.json` content rules: difficulty tiers, Great Minds categories, the animals Broad Shield protocol, the `nono_list` Dual-Use Contract. **Read when:** editing words in `data/words.json` or a pack manifest's inline `words`.
 - `docs/rules/new-game-process.md` — three-stage protocol (brief → tech spec → implementation). **Read when:** starting a new game.
 - `docs/rules/new-game-brief-template.md` / `new-game-technical-template.md` — the Phase 1 and Phase 2 templates. **Read when:** new-game Stage 1 / Stage 2.
 - `docs/rules/new-game-checklist.md` — the ~40-item build checklist (engine registration, settings/overlay standards, MP handler audit, render seam, harness, closure). **Read when:** implementing a new game — before its first line of code. Binding.
+- `docs/rules/harnesses.md` — every verification harness: command, what it checks, check count, plus loopback-vs-`visual-check` guidance. **Read when:** running, extending or adding a harness.
 - `docs/rules/phase-audit.md` — Protocols A/B/C (drift check, skeleton-first, studio sweep). **Read when:** a phase boundary, or before a new game's first line of code.
 - `docs/sw-changelog.md` — every SW release note, continuous v238→v167. **Read when:** you need the history behind a past version.
 - `docs/deferred-work.md` — the parked-work list, **open items only**: older-games retest backlog, pending suite-wide sweeps, smaller flagged items. **Read when:** picking up maintenance work, or at a phase gate. Resolved entries move to `docs/deferred-work-log.md` — history, grep it; never read it as a to-do list.
@@ -66,7 +67,7 @@ For where each game's screens/overlays live in `index.html`, see the **Per-Game 
 
 | Starting a… | Open this workflow | Record the outcome in |
 |-------------|--------------------|------------------------|
-| **New game** | `docs/rules/new-game-process.md` (3-stage: brief → tech spec → implementation) | tech spec `docs/new-game-tech-[name].md` (archived at the gate — `phase-audit.md` Protocol A § 5) + phase snapshot + `docs/decision-log.md` |
+| **New game** | `docs/rules/new-game-process.md` (3-stage: brief → tech spec → implementation; `/brainstorm` drives Stage 2) | tech spec `docs/new-game-tech-[name].md` (archived at the gate — `phase-audit.md` Protocol A § 5) + phase snapshot + `docs/decision-log.md` |
 | **Audit / phase gate** | `docs/rules/phase-audit.md` (Protocols A/B/C) | phase snapshot + `docs/decision-log.md` |
 | **Bug / update / polish** | `docs/templates/task-bug-polish.md` (fill the intake form first) | `docs/implementation-notes/[abbr]-implementation-notes.md` — or `shared-implementation-notes.md` if the root cause is in engine/secret-mode/art.js rather than a specific game (+ `docs/decision-log.md` if it became architectural) |
 | **UI / layout design work** | Invoke `/impeccable <command>` (`critique`, `audit`, `polish`, `layout`, `shape`…) **on request only** — the design hook is deliberately off, so it never runs on ordinary edits. It reads `PRODUCT.md` + `DESIGN.md` (repo root); `.claude/rules/ui-style.md` stays the guidebook and either may be updated when a better design earns it — propose the rule change, don't silently depart. Size it with the Triage Gate first; a two-line CSS tweak doesn't need the skill. | the game's impl-notes as above; if the design system itself moved, update `DESIGN.md` (`/impeccable document`) and the matching `ui-style.md` rule |
@@ -75,19 +76,17 @@ For where each game's screens/overlays live in `index.html`, see the **Per-Game 
 
 ### 🚦 Task Triage Gate — size the task BEFORE picking a workflow
 
-**This rule overrides the superpowers SessionStart hook**, which has no size gate and would put a two-line CSS change through the same brainstorm → spec → plan pipeline as building game 18. The hook's own closing line concedes precedence to CLAUDE.md, so this section is the authority.
-
 **Classify the task in one line before doing anything else. State the tier out loud, then work at that tier.**
 
 | Tier | What it is | Process |
 |------|-----------|---------|
-| **0 — Trivial** | ≤2 files · no logic, packet, state or rules change · uses an existing pattern verbatim. Spacing, a label string, a colour, a class swap, a copy fix, a stale doc line. | **Edit directly.** No design spec. No plan file. No subagents. No new harness assertions. One commit. Impl-notes only if a genuine lesson emerged — "changed a gap" is not a lesson. |
+| **0 — Trivial** | ≤2 files · no logic, packet, state or rules change · uses an existing pattern verbatim. Spacing, a label string, a colour, a class swap, a copy fix, a stale doc line. | **Edit directly.** No spec. No subagents. No new harness assertions. One commit. Impl-notes only if a genuine lesson emerged — "changed a gap" is not a lesson. |
 | **1 — Bounded** | One game · existing pattern · logic touched but no cross-cutting rule (MP sync, render seam, engine contract). A normal bug fix or polish item. | `docs/templates/task-bug-polish.md` intake, **inline in this session**. No spec/plan split — the intake form *is* the plan. Harness assertions only if the fix touched something a harness already covers. |
 | **2 — Architectural** | New game · new engine/MP pattern · a change touching 3+ files under cross-cutting rules · a phase gate. | **Brainstorm → spec → implement → review.** Invoke the project skill `/brainstorm`; the spec names its verification up front and is the only hard gate. **No separate plan document** (30 Sep 2026 — see `docs/decision-log.md`); implement inline from the spec. A big build gets its stage breakdown *inside the spec*. |
 
-**Batching rule.** A round of several Tier-0/1 items (an owner playtest list, a polish sweep) is **one** unit of work: one plan section if any, one implementation pass, **one** documentation-closure pass at the end — never one full cycle per item. (The DD-25…DD-31 round ran nine cycles for seven cosmetic tweaks: ~9:1 planning prose to shipped code.)
+**Batching rule.** A round of several Tier-0/1 items (an owner playtest list, a polish sweep) is **one** unit of work: one implementation pass and **one** documentation-closure pass at the end — never one full cycle per item.
 
-**Subagent rule.** Default to working **inline**. Every dispatched subagent starts cold and re-pays this project's **~33k baseline** (CLAUDE.md + the three always-loaded rule files) before doing any work — nine sequential subagents is ~300k tokens of pure baseline, larger than the round's real content and invisible while it happens. Dispatch only when tasks are genuinely **parallel and independent**, or when a search would otherwise flood this context (the Explore agent, per the model picker's "large exploratory search" row).
+**Subagent rule.** Default to working **inline**. Every dispatched subagent starts cold and re-pays this project's **baseline** (CLAUDE.md + the three always-loaded rule files) before doing any work — nine sequential subagents is ~300k tokens of pure baseline, larger than the round's real content and invisible while it happens. Dispatch only when tasks are genuinely **parallel and independent**, or when a search would otherwise flood this context (the Explore agent, per the model picker's "large exploratory search" row).
 
 **Harness rule.** Verification harnesses cover **rules, packets, state, decks and appliers** — not presentation. A cosmetic change does not earn new assertions. (Asserting label strings and pixel slots produced `560c7c2`, a commit fixing the same round's just-written podium assertions.)
 
@@ -199,7 +198,7 @@ Default when unsure: **Sonnet, medium** — escalate to Opus/Fable + high only w
 
 **Session picker (same session / compact / fresh):**
 
-One trade: a fresh session re-pays the **~33k baseline** but starts clean; continuing pays the **entire transcript every turn** whether or not it still matters. The test is not "how long have we been going" — it is **how much of what's loaded is still relevant to the next task**.
+One trade: a fresh session re-pays the **baseline** but starts clean; continuing pays the **entire transcript every turn** whether or not it still matters. The test is not "how long have we been going" — it is **how much of what's loaded is still relevant to the next task**.
 
 | Signal | Call | Why |
 |--------|------|-----|
@@ -301,117 +300,27 @@ museum plaque, "See the other one"). New optional host effect `openPainting(id)`
 copy live in `LOU_PAINTINGS`. `data/paintings/` is runtime-cached (~0.5 MB), not precached. No packet
 change. Detail: `shared-implementation-notes.md` DD-53.
 
-**Previous versions: `docs/sw-changelog.md`** — continuous, v246 back to v167.
+**Previous versions: `docs/sw-changelog.md`** — continuous, v247 back to v167.
 
-**Where the suite stands.** **20 games shipped**, all gold-master, plus multiplayer. Newest three:
-**Honeycomb Hills** (`comb`, game 20, phase 41 — the suite's biggest game and the only one with
-**no Sylly Mode**), **Cold Shoulder** (`cld`, game 19, phase 40 — first physics game,
-`js/lib/physics.js`) and **Cookie Jar** (`cjar`, game 18, phase 39). **Honeycomb Hills shipped at
-SW v225**, when `js/games/comb.js` joined `PRECACHE_URLS` at the phase-41 gate — until that line
-landed, an offline install had all nine core art packs (v223) and no game. It is MDLM-only, 3–4
-players, four screens and **fifteen overlays** (the board never goes away, so everything else is a
-layer over it), five render seams, and 25–50 minutes a match. Its two-step build picker is
-**inline**, not a sixteenth overlay (`comb-impl-notes` DD-12).
-**Phase gates: 37, 38, 39 and 41 are CLOSED; phase 40 (Cold Shoulder) is still OPEN** —
-`docs/phase41-snapshot.md`, `docs/phase39-snapshot.md`, `docs/phase37-snapshot.md`,
-`docs/phase38-snapshot.md`. `docs/phase40-snapshot.md` names what's left: a live multi-device
-session and the offline install check (both `docs/deferred-work.md` § Cold Shoulder).
-**Every game now has an identity doc** — `docs/game-identities/`, 20 of 20, all harness-green. The **Cartridge
-System** is COMPLETE, both halves (Phase A word packs, Phase B skin packs) —
-`docs/cartridge-system-plan.md`. **Core art** has rolled out to `pko`, `flw`, `frt`, `shp` and `comb` (nine packs); **PASS still runs
-CSS defaults; DYB's dice are procedural (SW v241), and so is Cold Shoulder's art (SW v246)** — neither ever needs a core pack — rollout tracker, the
-4-step conversion and the offline install check live in `docs/expansion-guide.md` § Core art packs.
+**Where the suite stands.** **20 games shipped**, all gold-master, plus multiplayer; newest are Honeycomb Hills (`comb`, MDLM-only, no Sylly Mode), Cold Shoulder (`cld`, first physics game) and Cookie Jar (`cjar`). Every game has an identity doc (`docs/game-identities/`). The Cartridge System (word packs + skin packs, `docs/cartridge-system-plan.md`) is complete; core art has rolled out to `pko`, `flw`, `frt`, `shp`, `comb` — PASS runs CSS defaults, DYB and CLD art are procedural and never need a pack (`docs/expansion-guide.md` § Core art packs). **Phase gates 37–39 and 41 are closed; phase 40 (Cold Shoulder) is open** — `docs/phase40-snapshot.md` names what is left (a live multi-device session and the offline install check).
 
-**Side project — Arcade Mode.** Secret Mode holds **arcade cabinets** under an `ARCADE` category
-alongside word packs and skins. **Cabinets are NOT Sylly Games and NOT packs** — no MP config, no
-identity doc, no Sylly Mode, no verification harness, and explicitly **not**
-`docs/rules/new-game-checklist.md`. They use the terminal's CRT green-on-black language, not the
-Stack or the brand palette. First cabinet: **Asherplane** (`js/arcade/asherplane.js`), a top-down
-shmup. Adding cabinet #2 = one `SM_ARCADE` entry + one file. Spec + plan:
-`docs/superpowers/{specs,plans}/2026-08-03-arcade-asherplane*.md`.
+**Side project — Arcade Mode.** Secret Mode holds **arcade cabinets** (`ARCADE` category) alongside word packs and skins. **Cabinets are NOT Sylly Games and NOT packs** — no MP config, identity doc, Sylly Mode or harness, and not `docs/rules/new-game-checklist.md`; they use the terminal's CRT green-on-black language. First cabinet: Asherplane (`js/arcade/asherplane.js`). A new cabinet = one `SM_ARCADE` entry + one file. Spec: `docs/superpowers/{specs,plans}/2026-08-03-arcade-asherplane*.md`.
 
-**The lobby redesign shipped at v231; the controller animation round and the "Classic" label at
-v232; the jukebox at v233; the Workshop as a room at v234.** What is left of it — stickerbook
-earning and its storage key, the stickerbook, the jukebox and the Workshop's real phone design, the
-jukebox's owner calls (the stand-in artist and covers, the soft-lock flag, song sizes), the owner's
-real-device pass — is in `docs/deferred-work.md` § Lobby redesign. **`wip/` is git-ignored** (28 Sep
-2026): a local sandbox only, never deployed; its shipped labs are in the owner's external archive (`D:\Coding Projects\Documents archive\`).
-
-**Open threads — all deliberately deferred, none blocking: `docs/deferred-work.md`.** The
-**controller stickers' on-device pass (spec § 9.3) is outstanding** — no harness reaches touch, a
-real GPU, or a judgement about how warped is too warped, and it is the only step that could still
-move a shipped value (`maxDistort`). Bailed's badge landed 27 Sep 2026 (`bld.png`; `LB_NO_STICKER` is now empty). Beyond those: older-games
-retest backlog, four pending suite-wide sweeps (BUG-06 Firebase-erasure re-sweep by payload shape,
-DD-13 settings value line, DD-31 button parity, a How-to gallery for PASS), NT's open Minors and
-`mpConfirmRoster` late-join race (BUG-07), PKO's unplayed **Stragglers** mode, and CJAR's **DD-06**
-balance flag. The identity-doc pass's 22 findings are still listed there too — **its two recurring MP
-bugs are now CLOSED (SW v210)**; what remains from that pass is per-game polish plus one design call
-(NAT's Pass-the-Phone floor). Read it when picking up maintenance work, or at a phase gate.
+**Open threads — all deliberately deferred, none blocking: `docs/deferred-work.md`** (read it when picking up maintenance work or at a phase gate). Headline items: the lobby redesign's remainder (§ Lobby redesign), the controller stickers' on-device pass, the older-games retest backlog and the pending suite-wide sweeps. `wip/` is git-ignored — a local sandbox, never deployed.
 
 ### 🧪 Verification harnesses
 
-Re-run a game's full set after touching its appliers, deck/data, packets or render seam.
+Every game and shared module has a harness set (`tools/verify-*.js`, loopbacks, mutation runners). **Re-run a game's full set after touching its appliers, deck/data, packets or render seam.** The per-game commands, check counts, and the "loopback vs `visual-check`" guidance are in `docs/rules/harnesses.md` (on-demand — read it before running or adding a harness). Always:
+- `node tools/verify-build-fresh.js` — after any markup change (`src/screens/`).
+- `node tools/verify-mp-configs.js` — after touching `MP_GAME_CONFIGS`, a quit-confirm handler or the roster screen.
+- `node tools/verify-mp-reconnect.js` — after touching seats, presence, rejoin, `mpConfirmRoster` or `MP_END_SCREENS`.
 
-| Game | Command | Checks |
-|------|---------|--------|
-| Build | `node tools/verify-build-fresh.js` — is the committed `index.html` a faithful assembly of `src/screens/`? **Re-run after any markup change** | 1 |
-| CJAR | `node tools/verify-cjar-deck.js && node tools/verify-cjar-loop.js && node tools/verify-cjar-dd.js` | 76 · 102 · 47 |
-| CJAR | `node tools/verify-cjar-loopback.js` — host↔client over a Firebase-shaped wire, incl. reconnect (pause, a rejoin mid-window with other seats' choices stripped, a held flip) | 213 |
-| CJAR | `node tools/simulate-cjar-dd.js` — balance instrument; asserts nothing, always exits 0 | — |
-| CLD | `node tools/verify-cld-physics.js && node tools/verify-cld-loop.js` — pure sim (determinism, no-tunnel, per-throw invariant, restitution asymmetry, 5 s cap, `seatOnPlunge` + one-hit anchors) then game rules (ring geometry — plugs float in the Drink, never behind a chunk — + the floating-plug **seal** on every floe size, instant plugs, knock-back, displacement, Throw-or-Dive closer-wins (and never back into the gap it was knocked out of), Thaw with plugs, the Ice Bath roster/radius/Fish, Peck Off last-*player* win, Hunger's schedule + reach) | 133 · 162 |
-| CLD | `node tools/verify-cld-loopback.js` — host↔**2 clients** over a Firebase-shaped wire, real mock DOM: private commit path, duplicate-commit rejection, nameless tally, empty-`events[]` / all-zero-`fish[]` round trip, host/client timeline parity, `dive: null` erasure, plug/knock-back/Ice Bath agreement on 3 devices (SW v243), HUNGRY! raised by every device from its own count (SW v245), quit contract; loads `cld-art.js` on every device (SW v246). Accepts `CLD_SRC=` / `CLD_ART_SRC=` / `CLD_SEED=` + two bot seats beside a client (§ 17), a Solo match on a null wire (§ 18), the REAL frame loop stopping on the Floe-Off result (§ 19) | 213 |
-| CLD | `node tools/verify-cld-practice.js` — the cue + guide maths, the render model, the live gesture, the replay split, the Arena's swap (every top-level `let` classified; 20 Arena Slides mid-live-replay leave it byte-identical), the camera (fit, resize keeps it, never moves under a finger, pinch/pan/double-tap, reduced-motion cuts), the drills' plans (both bots, every Slide; `--tune` re-derives their ring seeds), rounds to a natural end against four scripted players, the reacting coach, the full-height pane, a lost pointer-up, the end card, Hunger in the model + the Arena's HUNGRY! beat; SW v246: the art module (every entry point paints, no-DOM no-op, the mood ladder, marks survive a Thaw), the seam spy (every penguin, in play and chrome, through `cldRenderPenguin`), the per-penguin model (a seated penguin is in the water from its seat beat; the mood never changes mid-Slide), the world (grooves/splats, fresh floe per floe key, fx per view), aim marks in the owner's colour, the floe chrome, the other screens, the Cast, and a still frame under reduced motion. Accepts `CLD_SRC=` / `CLD_ART_SRC=` | 348 |
-| CLD | `node tools/mutate-cld.js` — mutation harness over the rules/sim layer (+ the Arena's swap, the camera, the Practice plans, and — SW v246 — an `art` source kind over `cld-art.js`, the seam, the world, the aim marks and reduced motion, via `verify-cld-practice.js`); `node tools/simulate-cld-balance.js` — balance instrument, asserts nothing, exits 0 (`CLD_SEED=`) | 72/72 · — |
-| CLD | `node tools/verify-cld-bots.js` — the bot brain: think times, the view (blanked commits, deep clone), **fairness** (junk in every other seat → byte-identical view and decision, Standing / Knocked back / Drowned / Peck Off × every difficulty), legality, whole bot-only matches, a stale move refused, swap safety (50 Hard decisions leave the live game byte-identical), Hard > Medium at a 3-seat table and Medium > Easy head to head. `CLD_BOTS_MATCHES=`; `node tools/simulate-cld-bots.js` — balance instrument, asserts nothing | 97 · — |
-| COMB | `node tools/verify-comb-board.js && node tools/verify-comb-rules.js && node tools/verify-comb-loop.js` — topology/deal · rules (incl. the Season-preset trap, §12) · match+turn engine + the action layer's arithmetic + the Scout Flight beat's budget | 56 · 122 · 231 |
-| COMB | `node tools/verify-comb-loopback.js` — host↔**2 clients** over a Firebase-shaped wire, real mock DOM incl. a canvas; both offer shapes, re-validate-never-escrow, Full Dance's expiry, all five Instinct kinds. Accepts `COMB_SRC=` / `COMB_SEED=` | 250 |
-| COMB | `node tools/mutate-comb.js` — mutation harness; drives all four above, so its 19 packet mutants are claims about the loopback specifically. Run it 3–5×, not once | 71/71 |
-| PKO | `node tools/verify-pko-chain.js && node tools/verify-pko-loop.js && node tools/verify-pko-events.js` | 68 · 147 · 148 |
-| PKO | `node tools/verify-pko-loopback.js` — host↔client over a Firebase-shaped wire, real mock DOM (SW v237, PKO's first): private Hoards, and reconnect — a device rebuilt from nothing on the deal screen, at the table on its own turn, mid-Carrion, on the Clash result. Accepts `PKO_SRC=` | 47 |
-| DYB | `node tools/verify-dyb-rules.js && node tools/verify-dyb-dice.js && node tools/verify-dyb-practice.js` — rules, single-sourced counting, "You hold", the bid draft, stage fit, the table model + render · recipes, sets, packs, the Phantom leak guard, the cube · the Practice script, both branches, isolation | 105 · 93 · 34 |
-| DYB | `node tools/verify-dyb-loopback.js` — host↔**2 clients** over a Firebase-shaped wire, real mock DOM, a whole match with the Tempest on: agreement on claim/count/verdict, a Slick picked after submitting, an elimination to The Depths, escaped names. Accepts `DYB_SRC=` / `DYB_SEED=` — run several seeds | 41–45 |
-| SHP | `node tools/verify-shp-loop.js` — random matches, all player counts/modes/settings; `SHP_SEED=` for reproducibility | 60 matches |
-| SHP | `node tools/verify-shp-loopback.js` — host↔client over a Firebase-shaped wire; accepts `SHP_SRC=` | 6 scenarios |
-| NT | `node tools/verify-nt-loopback.js` — host↔**2 clients** over a Firebase-shaped wire, Standard + DNP + Debug Mode (incl. rectangular grids that survive Randomise Topology, two-unit ports, two-unit ports + the corner cycle, the attempt log + PTP log switcher); accepts `NT_SRC=` and `NT_SEED=` | 417 |
-| NT | `node tools/nt-path-probe.js <board.json> --target <ms>` — movement-model instrument: path length, turn angle, latency, and the fit against a maze.game score. Asserts nothing, exits 0 | — |
-| NT | `node tools/nt-maze-transcribe.js <shot.png> --auto` — reads a maze.game screenshot into a probe board.json (zero-dependency PNG decode; ice blocks and corner mouths too) | — |
-| NT | `node tools/nt-slow-fit.js` — slow-model fitter: substitutes the `NT_HONEYPOT_*` constants into nt.js's OWN timeline, so a fit can never drift from the shipped model. `--sweep`, `--grid`, `--contact`. Asserts nothing, exits 0 | — |
-| JEC | `node tools/verify-jec-loop.js` — the four tiers, the Golden-only Signature double, Crutch resolution + the never-in-pool invariant, the Instructions deck, the Fusion name vote | 77 |
-| JEC | `node tools/verify-jec-loopback.js` — host↔client over a Firebase-shaped wire with a real mock DOM; accepts `JEC_SRC=` | 164 |
-| **All 20 / MP** | `node tools/verify-mp-configs.js` — `MP_GAME_CONFIGS` entry schema, player-count bounds (sanity, **purity** — a bound may read nothing but `window.mpLobbyStyle` or a pre-lobby setting in `ALLOWED_SETTINGS` (`frtPearOff`, `cldPeckOff`), and agreement with each game's own PTP count pills), the balanced-teams invariant, and the Mid-Game Quit Contract. Runs no game logic; accepts `MP_SRC=`. **Re-run after touching `MP_GAME_CONFIGS`, any quit-confirm handler, or the roster screen** | 20 games |
-| **MP reconnect** | `node tools/verify-mp-reconnect.js` — the REAL `engine-multiplayer.js` on N devices over a fake Firebase with **sockets** (drop / heal / kill, on-time or LATE `onDisconnect`): frozen seats, per-connection presence + the stale-socket race, the 3 s Away debounce, pause/resume once each, the non-adopter's 60 s grace → the host's Keep waiting / End session (never an automatic end), reload → rejoin into the same seat, refusals (stranger, version, non-adopter, unanswered), `sylly_rejoin` + the boot prompt, a deliberate exit and an end screen never read as a drop, per-device clock skew on a rejoin, the rejoiner back on `/players`. Accepts `MP_SRC=`. **Re-run after touching seats, presence, rejoin, `mpConfirmRoster` or `MP_END_SCREENS`** | 152 |
-| **MP reconnect** | `node tools/mutate-mp-reconnect.js` — reverts each load-bearing reconnect line in a temp copy and drives the harness above; a survivor means a line nothing watches | 17/17 |
-| **Bots** | `node tools/verify-bots.js` — the REAL engine on the fake Firebase world (`tools/lib/mp-world.js`): bot slots and names, humans outrank bots, the watcher keeps bots, seats/stamping/never Away, `mpBotsPrompt` (view now, move after the think time, the tag), the timer bag (Away pause/resume, every exit clears it), the lobby's controls, and **Solo** (offline default, the borrowed uid, a match on a null wire, Play Again, Cancel, an abandoned Firebase load that lands late). Its four mutants run from `mutate-mp-reconnect.js` | 91 |
-| Identity docs | `node tools/verify-identity-docs.js` — every `copy` block in `docs/game-identities/` against the shipped `index.html` + plugin file | per-doc |
-| Identity docs | `node tools/verify-identity-docs.js --self-test` — proves the checker still detects planted drift | 1 |
-| FLW | `node tools/verify-flw-loopback.js` — host↔client over a Firebase-shaped wire, incl. the private-channel hand packets and reconnect (clock pause, a rejoin mid-turn and mid-Deep-Vault) | 113 |
-| Controller | `node tools/verify-controller-body.js && node tools/verify-controller-state.js` — the vendored Three revision + the geometry contract, then persistence, the factory design, palette derivation and the Konami mapping. **Not a game** — no MP config, no identity doc | 28 · 63 |
-| Controller | `node tools/verify-controller-stickers.js` — the caller-side `CTL_STICKER_OPT` contract (a surface built with `{}` accepts all four keep-out centres), both charts + the wrap seam, manifest and placement validation, the load path's bit-stability, the placement state machine, undo, and `data/stickers/` manifest-vs-folder **both ways**. **Re-run after any `js/lib/controller-sticker-surface.js` or `ctlSticker*` change** | 157 |
-| Controller | `node tools/visual-controller-stickers.js` — real headless Chromium: a placement actually painting texels, the lobby ornament repainting with them, and the Workshop room — the sheet shown without building the surface, the first pick-up paying for it, Tool Belt's sideways sheet-scroll and Undo relocation at 390 px (SW v235), the three columns at 1440, the phone↔wide DOM revert, and the owner's own iPhone SE at three sizes (375×667, 375×548, 320×452). The layout/render tier no pure harness reaches | 59 |
-| Lobby | `node tools/verify-lobby-router.js` — the router's pure tier: `LOBBY_LAYOUTS`, every action incl. `home`/`closeSwitcher`/`jukebox*`, close-to-where-you-opened, the one-way rule on every close, the door map + the `controllerParts` passthrough, the places row closing back to its opener (SW v238) | 261 |
-| Lobby | `node tools/verify-lounge-props.js` — the Lounge's room and props under Node (vendored Three, stub canvas): every builder, the host contract, the painted-controller path, an empty world, the controller's idle beats (every beat home exactly, the Konami's order, slow frames, reduced motion). `node tools/visual-lounge.js` — real Chromium over `tools/fixtures/lounge.html`: composition shots + reduced motion | 1371 · 29 |
-| Lobby | `node tools/verify-tv.js` — TV's pure half (rail wrap, nearest-copy pick, ink/label split, order vs `GAMES`, the shelf fans) · `node tools/verify-achievements.js` — the stickerbook's rules incl. `achAllPlaced` | 940 · 81 |
-| Lobby | `node tools/visual-lobby.js` — real Chromium over the REAL `index.html`: boot tiering (widescreen / phone beat / no WebGL), every layout → game → quit returns there, Workshop returns to its opener, gateway + Terminal returns, idle nudge (bounded — it comes home), the Lounge Konami never unlocks, stickerbook, each runtime-cached source offline, stale ornament mount, the fade, resize below a floor, the jukebox (the door, one scene at a time, a held song through ✕/Shelves/a game, `resetToLobby` with it up), the reconnect prompt over the Lounge (SW v236), the places row from Shelves, Classic and TV (SW v238). **The seam's mutation pass runs against it — re-run after touching `lobbyShow`, `resetToLobby` or any lobby return** | 113 |
-
-**Reach for a loopback on anything MP- or render-shaped.** Every harness *except* the eight
-loopbacks (`cjar`/`shp`/`flw`/`nt`/`jec`/`comb`/`pko`/`dyb`) runs `'single'` mode with `getElementById: () => null`, which
-is what lets one process drive all N seats — and exactly what blinds it to both the packet layer
-and every line of render code. CJAR's **BUG-06** survived 222 green checks in that gap; NT's
-**BUG-15/16** survived a clean host-side playtest. How to build one, and the wire/mock-DOM
-requirements: `logic-engine.md` § MDLM Patterns. The two omissions that cost NT a false green
-(seeded RNG run across several `*_SEED=` values; a time window on the timer pump):
-`nt-implementation-notes.md` D21.
-
-**Layout is a fourth tier none of them reach** — a mock element has no box, so no harness sees
-spacing, alignment or overflow. For that invoke the **`visual-check`** skill (real headless
-Chromium, `getBoundingClientRect`, one browser context per seat). **None of it substitutes for a
-real multi-device session:** no clock skew, no Firebase ordering, no dropped packets, and no
-judgement about how anything *feels*.
+Headless harnesses cannot see packets-over-a-wire, render code or layout: reach for a loopback on anything MP- or render-shaped (`logic-engine.md` § MDLM Patterns) and the `visual-check` skill for layout. None of it substitutes for a real multi-device session.
 
 **Standing pointers.** Phase snapshots are written **in-repo** to `docs/phase[N]-snapshot.md`
 (current template: `docs/phase37-snapshot.md`). Snapshots up to and including phase36, the
 fable-audit campaign, and phase22 live in the owner's external archive (`D:\Coding Projects\Documents archive\`).
-A shipped game's tech spec and its superpowers **plan** move there at its phase gate too — a
+A shipped game's tech spec moves there at its phase gate too — a
 `docs/new-game-tech-*.md` or `docs/superpowers/plans/…` path in a comment or an old log is history,
 not a broken link. What the game *is* now: its identity doc; its bug log and design decisions are
 `docs/implementation-notes/[abbr]-implementation-notes.md`. Non-game-specific bug logs and design

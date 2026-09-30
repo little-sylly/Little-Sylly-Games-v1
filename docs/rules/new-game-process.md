@@ -217,11 +217,9 @@ Phase 1 brief §10 asks for multiplayer intent in plain English. This guide show
 
 ## Archived Documents
 
-When the final technical spec is confirmed and implementation begins, the following can be archived to `docs/archive/`:
-- `docs/new-game-brief-[name].md` (Phase 1 brief — superseded by confirmed technical spec)
+The Stage 1 brief and the technical spec (`docs/new-game-tech-[name].md`) stay in the repo while the game is being built. At the phase gate both move to the owner's external archive — `phase-audit.md` Protocol A § 5 is the procedure. After that, the game's record is its identity doc and implementation notes; the phase snapshot (`docs/phase[N]-snapshot.md`) is the implementation record.
 
-The technical spec (`docs/new-game-tech-[name].md`) is retained permanently as the game's design record.
-The phase snapshot (`docs/phase[N]-snapshot.md`) is the implementation record.
+**Stage 2 runs through `/brainstorm`.** The spec it writes *is* the filled-in technical spec — no second design doc under `docs/superpowers/specs/`. §15 is the stage breakdown.
 
 ---
 
