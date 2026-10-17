@@ -4841,3 +4841,53 @@ quit-confirm, in `resetToLobby()`, at `dybInitShake`, on `DYB_SHAKE_ACTIVE` and 
 Stopping one never touches the other, which is what lets Practice open mid-game without disturbing a
 live Shake.
 
+
+### DD-55 — The arcade becomes a registry: seven cabinets, one source of truth [18 Oct 2026, SW v249]
+
+**What happened.** Six new cabinets (DEEP-SEA SWEEP, OTHER SIDE, CHOP SALAD, COOKIE JAR, STACKING
+ORDER, BEYOND THE BLUFF) plus a revamped ASHERPLANE were built offline against a standalone bench and
+dropped into `js/arcade/` for integration. The cabinet *code* needed no changes at all — a
+declaration-level sweep found **zero** global collisions, arcade↔production and arcade↔arcade, and the
+only engine surface any of them touches is `showScreen` / `resetToLobby` / `playSecretBeep` / `isMuted` /
+`masterVolume`. What needed changing was everything *around* them.
+
+**Root cause — a one-item list hides its own shape.** Every arcade seam had been written for exactly
+one cabinet, and each was wrong in a way that could not show up until there were two:
+
+- `resetToLobby()` called `resetArcade()` — asherplane's teardown, by name. Six RAF loops would have
+  kept updating and painting under every later screen.
+- The keyboard-Konami guard tested `screen-arcade-asherplane` alone, so arrow keys inside any other
+  cabinet would have fed the Konami buffer *while steering the game*.
+
+**Lesson.** Both have the same fix and it is the one the spec already promised: **`SM_ARCADE` is the
+registration, so everything that acts on "a cabinet" iterates it.** Each entry now carries a `stop`
+beside its `start` (both lazy arrows — a cabinet's file loads *after* `secret-mode.js`), `resetToLobby()`
+does `SM_ARCADE.forEach(cab => cab.stop())`, and the Konami guard does `SM_ARCADE.some(…)`. "One
+`SM_ARCADE` entry + one file" is only true while nothing else names a cabinet individually.
+
+**Generalise it:** when a registry exists and a consumer hardcodes one member instead of iterating,
+that is a latent bug with a dormancy period exactly as long as the registry stays at one entry. Worth
+grepping for whenever a collection grows from one to many — the lobby-router seam (DD-42) is the same
+shape and is kept honest the same way, by a mutation pass.
+
+**The sibling failure: a scroll container that was never a scroll container.** `#screen-secret-terminal`
+was `min-h-screen` with no `overflow-y-auto`, yet `smSelectGame()` and `smRenderArcade()` both end with
+`terminal.scrollTop = terminal.scrollHeight` and the header is `sticky top-0`. Assigning `scrollTop` to a
+non-scrollable element is a silent no-op and `sticky` needs a scrolling ancestor, so **both had been dead
+since they were written** — invisible because no list was ever long enough to need them. At seven
+cabinets the last row landed ~5 px below an iPhone SE's fold. Fixed to `h-screen overflow-y-auto`;
+measured after, the terminal scrolls by exactly those 5 px and row 7 is on screen and hit-testable.
+**Lesson:** a `scrollTop` assignment is an *assertion* that the element scrolls — when you add one, check
+the element's overflow, because nothing will ever tell you it did nothing.
+
+**Verification.** `tools/verify-arcade.js` (141 checks) asserts all seven seams per cabinet — file,
+entry, teardown, `allScreens[]`, markup + `touch-action:none`, exit wiring, `<script src>`, precache,
+RAF cancellation (body taken by brace matching, not a lazy regex that can fail open) — plus both
+collision scans. `tools/mutate-arcade.js` breaks each seam in turn; all 12 turn it red. A headless
+Playwright pass then launched every cabinet through the real `smLaunchArcade()` path, confirmed each
+paints, round-trips to the lobby and leaves its RAF handle null.
+
+**Two headless traps worth remembering**, both of which produced convincing false failures first:
+Chromium throttles `requestAnimationFrame`, so a canvas sampled after a fixed sleep is sized but
+unpainted — drive frames from inside `page.evaluate`; and `lobbyPresent()` applies the home layout
+*late*, so a test that opens the terminal before the lobby settles gets navigated away mid-measurement.

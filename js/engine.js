@@ -100,7 +100,11 @@ const allScreens = [
   'screen-comb-menu', 'screen-comb-standby', 'screen-comb-meadow',
   'screen-comb-gameover',
   // Arcade cabinets (Secret Mode) — not Sylly Games, but still real screens.
-  'screen-arcade-asherplane',
+  // One entry per SM_ARCADE cabinet; an unregistered one is a ghost screen that
+  // never hides (its canvas paints under every later screen).
+  'screen-arcade-asherplane', 'screen-arcade-minesweeper', 'screen-arcade-chicken',
+  'screen-arcade-slice', 'screen-arcade-cookiejar', 'screen-arcade-stacking',
+  'screen-arcade-bluff',
 ];
 
 // ── Web Audio API ─────────────────────────────────────────────────────────────
@@ -728,9 +732,16 @@ function resetToLobby() {
   resetSyllySignals();
   // Secret Mode hard-reset (forward ref — safe at runtime)
   if (typeof resetSecretMode === 'function') resetSecretMode();
-  // Arcade cabinet teardown (forward ref) — cancels the RAF loop. Deliberately
-  // does NOT clear the session leaderboard; see asherplane.js.
-  if (typeof resetArcade === 'function') resetArcade();
+  // Arcade cabinet teardown — driven off the SM_ARCADE registry (forward ref:
+  // secret-mode.js loads after this file, but this runs at call time). Each
+  // stop() cancels that cabinet's RAF loop and clears its pointer state, and
+  // deliberately does NOT clear its session leaderboard; see asherplane.js.
+  // Iterating the registry is what keeps "a new cabinet = one SM_ARCADE entry
+  // + one file" true — a hardcoded call here tears down one cabinet and leaves
+  // every other loop painting under the next screen.
+  if (typeof SM_ARCADE !== 'undefined') {
+    SM_ARCADE.forEach(cab => { try { cab.stop(); } catch (_) {} });
+  }
   // JEC teardown
   document.getElementById('jec-quit-overlay').style.display        = 'none';
   document.getElementById('jec-settings-overlay').style.display    = 'none';

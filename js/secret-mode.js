@@ -32,9 +32,24 @@ const SM_GAMES = [
 // ── Arcade cabinets — standalone canvas games, NOT packs and NOT Sylly Games.
 // Adding a cabinet = one entry here + one file in js/arcade/. No pack manifest,
 // no MP config, no game-identities entry. See the spec § 2 for the exemption.
+// Each entry is the WHOLE registration: the terminal list renders from it, and
+// engine.js's resetToLobby() tears every cabinet down through stop(). Both are
+// lazily-called arrows, so a cabinet's file may load after this one.
 const SM_ARCADE = [
-  { id: 'asherplane', label: 'ASHERPLANE', screen: 'screen-arcade-asherplane',
-    start: () => apStart() },
+  { id: 'asherplane',  label: 'ASHERPLANE',       screen: 'screen-arcade-asherplane',
+    start: () => apStart(),  stop: () => resetArcade() },
+  { id: 'minesweeper', label: 'DEEP-SEA SWEEP',   screen: 'screen-arcade-minesweeper',
+    start: () => msStart(),  stop: () => resetArcadeMinesweeper() },
+  { id: 'chicken',     label: 'OTHER SIDE',       screen: 'screen-arcade-chicken',
+    start: () => ckStart(),  stop: () => resetArcadeChicken() },
+  { id: 'slice',       label: 'CHOP SALAD',       screen: 'screen-arcade-slice',
+    start: () => slStart(),  stop: () => resetArcadeSlice() },
+  { id: 'cookiejar',   label: 'COOKIE JAR',       screen: 'screen-arcade-cookiejar',
+    start: () => hjStart(),  stop: () => resetArcadeCookieJar() },
+  { id: 'stacking',    label: 'STACKING ORDER',   screen: 'screen-arcade-stacking',
+    start: () => stoStart(), stop: () => resetArcadeStacking() },
+  { id: 'bluff',       label: 'BEYOND THE BLUFF', screen: 'screen-arcade-bluff',
+    start: () => bbStart(),  stop: () => resetArcadeBluff() },
 ];
 
 // Last cabinet played this session — survives resetSecretMode() (see below).
@@ -1146,10 +1161,14 @@ document.addEventListener('keydown', e => {
   const code = SM_KEY_MAP[e.key];
   if (!code) return;
   if (document.getElementById('screen-secret-gateway').style.display !== 'none') return;
-  // Asherplane's RAF loop reschedules unconditionally, so navigating away from
-  // the cabinet without tearing it down leaves it updating and painting under
-  // every later screen. The arrow keys are also its steering — see Small 3.
-  if (document.getElementById('screen-arcade-asherplane').style.display !== 'none') return;
+  // A cabinet's RAF loop reschedules unconditionally, so navigating away from
+  // one without tearing it down leaves it updating and painting under every
+  // later screen. The arrow keys are also several cabinets' steering — see
+  // Small 3. Checked across the whole registry, not just cabinet 01.
+  if (SM_ARCADE.some(cab => {
+    const el = document.getElementById(cab.screen);
+    return el && el.style.display !== 'none';
+  })) return;
   smKonamiBuffer.push(code);
   if (smKonamiBuffer.length > SM_KONAMI.length) smKonamiBuffer.shift();
   if (smKonamiBuffer.join('') === SM_KONAMI.join('')) {

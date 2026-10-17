@@ -293,18 +293,20 @@ On every bump the outgoing SW entry moves **verbatim** to `docs/sw-changelog.md`
 "keep the last three". **A second `**SW v…**` paragraph appearing here means that move didn't
 happen: do it before anything else.**
 
-**SW v248 — Little Sylly's paintings (30 Sep 2026).** The two prints over the Lounge jukebox are now the
-owner's daughter's paintings (*Rainbow Birches*, *Big Beak Toucan*, age 5): real pick targets
-(`painting-a`/`painting-b`) that open a gallery overlay (`#painting-overlay` — birch frame, cream mount,
-museum plaque, "See the other one"). New optional host effect `openPainting(id)`; pictures and plaque
-copy live in `LOU_PAINTINGS`. `data/paintings/` is runtime-cached (~0.5 MB), not precached. No packet
-change. Detail: `shared-implementation-notes.md` DD-53.
+**SW v249 — the arcade fills up: seven cabinets (18 Oct 2026).** Six new Secret Mode cabinets
+join a revamped ASHERPLANE — DEEP-SEA SWEEP (Minesweeper in DSD's world), OTHER SIDE, CHOP SALAD,
+COOKIE JAR, STACKING ORDER, BEYOND THE BLUFF. **`SM_ARCADE` is now the registration**: each entry
+carries `stop` beside `start`, and `resetToLobby()` + the Konami guard iterate it instead of naming
+asherplane (six loops would otherwise have painted under every later screen). `#screen-secret-terminal`
+became `h-screen overflow-y-auto` — it is the scroll container its sticky header and `scrollTop`
+assignments always assumed. +516 KB of precached JS. Harness: `tools/verify-arcade.js`. No packet
+change. Detail: `shared-implementation-notes.md` DD-55.
 
-**Previous versions: `docs/sw-changelog.md`** — continuous, v247 back to v167.
+**Previous versions: `docs/sw-changelog.md`** — continuous, v248 back to v167.
 
 **Where the suite stands.** **20 games shipped**, all gold-master, plus multiplayer; newest are Honeycomb Hills (`comb`, MDLM-only, no Sylly Mode), Cold Shoulder (`cld`, first physics game) and Cookie Jar (`cjar`). Every game has an identity doc (`docs/game-identities/`). The Cartridge System (word packs + skin packs, `docs/cartridge-system-plan.md`) is complete; core art has rolled out to `pko`, `flw`, `frt`, `shp`, `comb` — PASS runs CSS defaults, DYB and CLD art are procedural and never need a pack (`docs/expansion-guide.md` § Core art packs). **Phase gates 37–39 and 41 are closed; phase 40 (Cold Shoulder) is open** — `docs/phase40-snapshot.md` names what is left (a live multi-device session and the offline install check).
 
-**Side project — Arcade Mode.** Secret Mode holds **arcade cabinets** (`ARCADE` category) alongside word packs and skins. **Cabinets are NOT Sylly Games and NOT packs** — no MP config, identity doc, Sylly Mode or harness, and not `docs/rules/new-game-checklist.md`; they use the terminal's CRT green-on-black language. First cabinet: Asherplane (`js/arcade/asherplane.js`). A new cabinet = one `SM_ARCADE` entry + one file. Spec: `docs/superpowers/{specs,plans}/2026-08-03-arcade-asherplane*.md`.
+**Side project — Arcade Mode.** Secret Mode holds **arcade cabinets** (`ARCADE` category) alongside word packs and skins. **Cabinets are NOT Sylly Games and NOT packs** — no MP config, identity doc, Sylly Mode or harness, and not `docs/rules/new-game-checklist.md`; they use the terminal's CRT green-on-black language. **Seven cabinets shipped (SW v249):** ASHERPLANE, DEEP-SEA SWEEP, OTHER SIDE, CHOP SALAD, COOKIE JAR, STACKING ORDER, BEYOND THE BLUFF — all built in a standalone bench, all awaiting a phone play-test. A new cabinet = one `SM_ARCADE` entry (`start` **and** `stop`) + one file; **`SM_ARCADE` is the registration, so anything acting on "a cabinet" iterates it** — `resetToLobby()`, the Konami guard. Inventory: `docs/code-map.md` § Arcade Cabinets. Harness: `node tools/verify-arcade.js` (+ `mutate-arcade.js`). Bench + workshop notes: `js/arcade/_archive/`. **Building a cabinet offline** (no repo attached): paste `js/arcade/arcade-cabinet-prompt.md` whole — self-contained, carries the skeleton + the integration contract; destined for `docs/content-prompts/`. Spec: `docs/superpowers/{specs,plans}/2026-08-03-arcade-asherplane*.md`.
 
 **Open threads — all deliberately deferred, none blocking: `docs/deferred-work.md`** (read it when picking up maintenance work or at a phase gate). Headline items: the lobby redesign's remainder (§ Lobby redesign), the controller stickers' on-device pass, the older-games retest backlog and the pending suite-wide sweeps. `wip/` is git-ignored — a local sandbox, never deployed.
 

@@ -867,7 +867,7 @@ Workshop/stickerbook/jukebox close to the layout they were opened from; **one-wa
 | ID | Purpose |
 |----|---------|
 | `#screen-secret-gateway` | The Sylly Gateway (SW v228) — the loadout screen after the Konami is entered on the real 3D controller (see `js/controller.js`'s Konami adapter, `ctlKonamiCode`/`ctlKonamiPress`, live only on `screen-workshop`). Replaced `#screen-secret-controller`'s 2D NES-style d-pad/buttons — those are gone, the sequence is entered on the controller model itself. |
-| `#screen-secret-terminal` | Sylly-OS Terminal — expansion + game selector |
+| `#screen-secret-terminal` | Sylly-OS Terminal — expansion + game selector. **`h-screen overflow-y-auto`: the section itself is the scroll container** (SW v249, was `min-h-screen`). Its `sticky top-0` header and `smSelectGame()`/`smRenderArcade()`'s `terminal.scrollTop = terminal.scrollHeight` both need that; under `min-h-screen` the section grew instead of scrolling and both were silently dead. Surfaced when the ARCADE list reached 7 cabinets and the last row fell ~5 px below an iPhone SE's fold. |
 
 ### Overlays
 | ID | Pattern | Opened by |
@@ -978,6 +978,61 @@ Helpers: `smLogLine`/`smLogSpacer`/`smShowList`/`smAppendBackButton`, consts `SM
 | `data/packs/<id>/pack.json` | Self-contained manifest: `{ id, label, locked, games, subCategories?, settings, words \| wordFile, assets }` |
 | `data/packs/<id>/img/*` | Asset-pack images (skins). SVG or PNG. |
 | — | Runtime-cached (not precached): network-first for `.json`, cache-first for images. No SW version bump to add a pack. See `docs/expansion-guide.md` + `docs/cartridge-system-plan.md` |
+
+---
+
+## Arcade Cabinets (Secret Mode)
+
+**Files:** `js/arcade/<id>.js` — one per cabinet. **Markup:** `src/screens/_secret.html`.
+**Not Sylly Games:** no MP config, no identity doc, no Sylly Mode, no pack manifest, and
+`docs/rules/new-game-checklist.md` does not apply. Seven cabinets shipped SW v249.
+
+**`SM_ARCADE` (`js/secret-mode.js`) is the whole registration.** Both consumers read it, so a
+cabinet is added with one entry + one file and nothing else:
+- `smRenderArcade()` builds the terminal list from it (`[N] LABEL`, tap launches immediately).
+- `engine.js`'s `resetToLobby()` calls **every** entry's `stop()`. A hardcoded teardown here tears
+  down one cabinet and leaves the other six repainting under the next screen — that was the
+  pre-v249 state, invisible while only one cabinet existed.
+
+| Field | Purpose |
+|-------|---------|
+| `id` | Matches the file (`js/arcade/<id>.js`) and the screen (`screen-arcade-<id>`) |
+| `label` | The terminal row's text |
+| `screen` | Screen id — must also be in `allScreens[]` or it is a ghost screen |
+| `start` | `() => <px>Start()` — lazy arrow; the cabinet's file loads after `secret-mode.js` |
+| `stop` | `() => resetArcade<Name>()` — cancels the RAF loop, clears pointer state, **keeps** the session leaderboard |
+
+| # | Cabinet | `id` | Prefix | Screen | Entry | Teardown |
+|---|---------|------|--------|--------|-------|----------|
+| 01 | ASHERPLANE | `asherplane` | `ap` | `#screen-arcade-asherplane` | `apStart()` | `resetArcade()` |
+| 02 | DEEP-SEA SWEEP | `minesweeper` | `ms` | `#screen-arcade-minesweeper` | `msStart()` | `resetArcadeMinesweeper()` |
+| 03 | OTHER SIDE | `chicken` | `ck` | `#screen-arcade-chicken` | `ckStart()` | `resetArcadeChicken()` |
+| 04 | CHOP SALAD | `slice` | `sl` | `#screen-arcade-slice` | `slStart()` | `resetArcadeSlice()` |
+| 05 | COOKIE JAR | `cookiejar` | `hj` | `#screen-arcade-cookiejar` | `hjStart()` | `resetArcadeCookieJar()` |
+| 06 | STACKING ORDER | `stacking` | `sto` | `#screen-arcade-stacking` | `stoStart()` | `resetArcadeStacking()` |
+| 07 | BEYOND THE BLUFF | `bluff` | `bb` | `#screen-arcade-bluff` | `bbStart()` | `resetArcadeBluff()` |
+
+`resetArcade()` keeps its un-suffixed name because it predates the others and is what engine.js
+called before the registry existed. Every cabinet global is otherwise prefixed; sub-namespaces
+under a prefix are fine (`slice.js`'s `SLC_*`/`slc*` hold the Fruity Personalities art).
+
+**Per-cabinet DOM** — identical shape, `<px>` = the prefix: `#screen-arcade-<id>` (black,
+`font-mono`, green terminal chrome) › a header row (label · `.btn-open-sound` · `#btn-<px>-exit`)
+› `#<px>-stage` (`flex-1`, **`touch-action:none`** — without it the browser eats the drag) ›
+`#<px>-canvas` (fixed 360×640 logical, letterboxed by `<px>Resize()`).
+
+**Other seams a cabinet touches:** a `<script src>` in `src/screens/_scripts-3.html` (after
+`secret-mode.js`), an entry in `sw.js` `PRECACHE_URLS` + a `CACHE_NAME` bump (code is always
+precached), and `allScreens[]` in `engine.js`. The keyboard-Konami guard in `secret-mode.js`
+also skips the buffer while **any** cabinet screen is up — the arrow keys are several cabinets'
+steering.
+
+**Engine surface used:** `showScreen`, `resetToLobby`, `playSecretBeep`, `isMuted`,
+`masterVolume`. Nothing else — all art is drawn in code, all sound is `playSecretBeep`.
+
+**Harness:** `node tools/verify-arcade.js` (141 checks — every seam above, plus
+arcade↔production and arcade↔arcade global-collision scans) and `tools/mutate-arcade.js`
+(12 mutations, each must turn it red). Workshop/bench history: `js/arcade/_archive/`.
 
 ---
 

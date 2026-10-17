@@ -4,6 +4,15 @@ Historical SW release notes, moved out of `CLAUDE.md` (1 Aug 2026) so they stop 
 The **current** version and its notes stay in `CLAUDE.md` § Current Focus — append the outgoing entry here on each bump.
 
 
+
+## v248 — Little Sylly's paintings (30 Sep 2026).
+ The two prints over the Lounge jukebox are now the
+owner's daughter's paintings (*Rainbow Birches*, *Big Beak Toucan*, age 5): real pick targets
+(`painting-a`/`painting-b`) that open a gallery overlay (`#painting-overlay` — birch frame, cream mount,
+museum plaque, "See the other one"). New optional host effect `openPainting(id)`; pictures and plaque
+copy live in `LOU_PAINTINGS`. `data/paintings/` is runtime-cached (~0.5 MB), not precached. No packet
+change. Detail: `shared-implementation-notes.md` DD-53.
+
 ## v247 — Bots (29 Sep 2026).
  Host-side bot seats in the engine, opt-in per game via
 `MP_GAME_CONFIGS[abbr].bots`; the host adds them by hand in the lobby (+ Add bot, one Easy/Medium/Hard

@@ -13,7 +13,7 @@
 
 | Field | Your answer |
 |-------|-------------|
-| **Full game name** | **ETA?** |
+| **Full game name** | **ETA** |
 | **Short nickname / abbreviation** | `eta` (confirmed not in taken list: li5, gm, ss, jec, ygi, lttp, nat, dsd, gth, dyb, bld, pass, nt, frt) |
 | **One-sentence tagline** | "Skateboard to the Moon? Show your working." |
 | **Thematic universe** | A chaotic **delivery dispatch office**. Every player is a courier assigned a wildly inappropriate vehicle, radioing in an estimated time of arrival over some famous distance. The depot (the whole table) decides whose ETA they actually believe. Rideshare-rating energy — your reputation is measured in Stars. |

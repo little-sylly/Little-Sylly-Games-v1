@@ -12,6 +12,30 @@ the discovery record is kept there, not deleted. A section with nothing left ope
 
 ---
 
+## Arcade cabinets — six new ones integrated, none phone-tested (18 Oct 2026, SW v249)
+
+Integration and registration are done and verified (`tools/verify-arcade.js`, 141 checks;
+`mutate-arcade.js`, 12/12 red; a headless pass launching all seven through the real
+`smLaunchArcade()` path). What is left is the half no harness covers.
+
+1. **The owner's phone play-test — all seven cabinets** (the workshop notes flag six of them as
+   "built, awaiting a phone play-test"; ASHERPLANE's revamp and DEEP-SEA SWEEP's reskin too).
+   Per cabinet: every state (start, play, lose, score, high-score entry, exit), one-handed reach,
+   and the drag feel on the ones steered by dragging (ASHERPLANE, BEYOND THE BLUFF).
+2. **Remove ASHERPLANE's play-test warp before it is called done** — tapping the title on the start
+   screen picks a starting sky. `apWarp` / `AP_TITLE_HIT` in `js/arcade/asherplane.js`; the workshop
+   notes say to drop it once testing is finished.
+3. **The offline install check** — SW v249 precaches ~516 KB of new cabinet JS. Confirm a cold
+   offline install still boots and every cabinet launches (code is always precached, so this should
+   hold; it has not been checked on a device).
+4. **Cabinet count vs the terminal list.** Seven rows now need a 5 px scroll on an iPhone SE
+   (`#screen-secret-terminal` is the scroller since v249 — `shared-implementation-notes.md` DD-55).
+   An eighth cabinet pushes further; at that point consider paging the list rather than growing it.
+5. **`fruity-personalities/`** — the workshop notes describe a standalone copy of Chop Salad's
+   code-drawn fruit art kept for a possible swap of Fruit Salad's PNG card faces. It was **not** in
+   the folder handed over, so it exists only in the owner's offline workspace if at all. Decide
+   whether to bring it in (it would pair with § Asset-pack direction) or drop the idea.
+
 ## Bots — shipped for Cold Shoulder, what is left (29 Sep 2026, SW v247)
 
 Spec: `docs/superpowers/specs/2026-09-29-bots-design.md`. Engine: `shared-implementation-notes.md` DD-52;

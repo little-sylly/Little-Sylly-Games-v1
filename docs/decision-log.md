@@ -19,6 +19,13 @@ Detail: pointer to the canonical doc (snapshot / impl note / spec / memory).
 ```
 
 
+## 2026-10-18 — `SM_ARCADE` is the arcade's registration, not just its menu (Architecture)
+Category: Architecture
+Decision: every consumer that acts on "a cabinet" iterates `SM_ARCADE`; each entry carries `stop` beside `start`, and no engine code names a cabinet individually.
+Why: six new cabinets exposed that `resetToLobby()` and the Konami guard each hardcoded asherplane — latent bugs whose dormancy lasted exactly as long as the registry had one entry.
+Changed: `js/secret-mode.js` (registry + guard), `js/engine.js` (`allScreens[]`, teardown), `src/screens/_secret.html` (6 screens; terminal → `h-screen overflow-y-auto`, the scroll container its sticky header and `scrollTop` calls always assumed), `_scripts-3.html`, `sw.js` v249. New: `tools/verify-arcade.js` + `mutate-arcade.js`. Deferred: the phone play-test of all seven (`deferred-work.md` § Arcade cabinets).
+Detail: `shared-implementation-notes.md` DD-55; inventory `docs/code-map.md` § Arcade Cabinets.
+
 ## 2026-09-30 — Always-loaded baseline trimmed again (~201 → ~190 KB); warn-only size check (Process)
 Category: Process
 Decision: history leaves the auto-loaded rule files (rules stay, one-line pointer left); `tools/verify-baseline-size.js` warns in pre-commit when CLAUDE.md + `.claude/rules/` exceed 195 KB.
