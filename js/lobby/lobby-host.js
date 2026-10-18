@@ -171,7 +171,7 @@ function lobbyApply(prev, next) {
 
   // A lounge that no longer fits (a phone, or a window shrunk) plays the beat and hands on.
   // Not from behind the jukebox: the beat would hand the room on while its screen is up.
-  if (next.view === 'lounge' && !next.workshop && !next.jukebox && !lobbyEligible()) lobbyRunArrival();
+  if (next.view === 'lounge' && !next.workshop && !next.jukebox && !lobbyEligible() && !lobbyVeil) lobbyRunArrival();   // behind the boot screen it would play unseen — lobbyVeilFinish starts it
 
   /* The beat has handed this device to the Board for good, so its lean room is
      dead weight — a WebGL context and the room's GPU memory on exactly the
@@ -511,6 +511,8 @@ async function lobbyVeilFinish(picturesIn) {
   clearInterval(lobbyVeilBarTimer); clearInterval(lobbyVeilLineTimer);
   el.classList.add('is-out');
   setTimeout(lobbyVeilDrop, 520);
+  // the phone's arrival beat waited for this (lobbyApply); the room is on screen from here
+  if (lobbyState.view === 'lounge' && !lobbyState.workshop && !lobbyState.jukebox && !lobbyEligible()) lobbyRunArrival();
 }
 /* Two animation frames, or 120 ms if the tab is hidden and none ever comes. */
 function lobbyNextPaint() {
