@@ -4867,7 +4867,7 @@ survives the freeze. "Little Sylly's Lounge" (heading and telly title) is remove
 
 **Lessons.** (1) A harness that waits on `lobbyReady` would screenshot the veil, so `?lobbydebug` and
 `navigator.webdriver` remove it at start. (2) To screenshot it, delay `data/stickers/manifest.json` with a route —
-a software-GL build blocks the page past the veil's whole life. (3) Both veil timers end in `lobbyVeilDrop()`.
+a software-GL build blocks the page past the veil's whole life. (3) Both veil timers end in `lobbyVeilDrop()`. (4) SW v253: the veil ends on a "Come on in" tap (`lobbyVeilWelcome`), because audio cannot start before a gesture and the Lounge would otherwise be silent until the first tap; skipped when `navigator.userActivation.hasBeenActive`. A `display:none` button would shift the lockup, so it is laid out hidden (visibility).
 
 ### DD-56 — Shelves becomes the Board: stickers, a held card, a dock [18 Oct 2026, SW v250]
 

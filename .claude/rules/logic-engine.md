@@ -137,6 +137,8 @@ navigating and `resetToLobby()` clears it before its own `showScreen`, so both d
 covered. Resolving to the track already playing is a no-op, so moving between screens inside one
 game never restarts it.
 
+**Lobby places (SW v253):** with no game active, `showScreen()` passes `lobbyMusicKey()` (`lobby-host.js`) — `'lobby:lounge'` while the router's `view` is the Lounge, else null → the `lobby` fallback. `playFor` treats any key starting `lobby` as the lobby for the held-song rule.
+
 **Two-tier fallback:** `tracks[activeGameId]`, else `tracks[fallback]` (`'lobby'`). A game with no
 track of its own plays the lobby theme rather than falling silent, and **a new game needs no music
 work at all** — it inherits the fallback until someone writes it one.

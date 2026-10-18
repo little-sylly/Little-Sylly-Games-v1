@@ -5,6 +5,13 @@ The **current** version and its notes stay in `CLAUDE.md` § Current Focus — a
 
 
 
+## v252 — the boot screen, and the Lounge loses its heading (18 Oct 2026). First launch now opens on a
+plum **boot screen** (`#lobby-veil`; `lobbyVeil*` in `js/lobby/lobby-host.js`): the live-text lockup, a bar
+driven by real stages, and a rotating flavour line (`LOBBY_FLAVOUR` per game + `LOBBY_ROOM_LINES`, in
+`lobby-games.js`). Minimum 2 s; lifts when content, room and pictures are in (`scene.loaded()`, 4 s cap). "Little
+Sylly's Lounge" is gone, and the Lounge's telly now **channel-surfs** the 20 games (1024 px, repaints only on a cut).
+Skipped under `?lobbydebug` / webdriver. No packet. Detail: `shared-implementation-notes.md` DD-57.
+
 ## v251 — the Board: the phone's lobby becomes a sticker sheet (18 Oct 2026; v250 + dock and ghost-outline polish). Shelves is
 replaced by **the Board** (`js/lobby/board.js`, prefix `bd`; `css/board.css`): the 20 games as stickers
 on one sheet, washi-tape shelf tabs, a peel-off held card on a swipe rail (its back is `lbSheetBodyInner`),

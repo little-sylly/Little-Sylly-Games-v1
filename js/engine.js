@@ -503,7 +503,9 @@ function showScreen(id) {
   // overlays toggle by style.display, not showScreen(), so flipping the switch
   // mid-settings doesn't retheme the track instantly; it updates at the next
   // real screen transition (starting the match), the natural moment for it.
-  if (typeof Music !== 'undefined') Music.playFor(activeGameId, isGameSyllyOn(activeGameId));
+  // In the lobby (no game) the place picks the track: the Lounge has its own, every
+  // other layout takes the plain 'lobby' fallback. lobbyMusicKey() is lobby-host.js's.
+  if (typeof Music !== 'undefined') Music.playFor(activeGameId || (typeof lobbyMusicKey === 'function' ? lobbyMusicKey() : null), isGameSyllyOn(activeGameId));
 }
 
 function toggleMute() {

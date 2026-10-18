@@ -463,6 +463,11 @@ function lobbyBoot() {
   });
 }
 
+/* Which lobby track the current place wants (engine.js showScreen's music seam): the
+   Lounge, and the rooms behind its doors (jukebox, Workshop, stickerbook — `view` stays
+   'lounge' for them), play 'lobby:lounge'; null means the plain 'lobby' fallback. */
+function lobbyMusicKey() { return lobbyState && lobbyState.view === 'lounge' ? 'lobby:lounge' : null; }
+
 // ── The boot screen (SW v252) ──────────────────────────────────────────────
 /* A veil over the first launch only — coming back from a game never rebuilds the
    room, so it never shows again. The bar is driven by real stages (content in,
@@ -509,10 +514,23 @@ async function lobbyVeilFinish(picturesIn) {
   lobbyVeilStageAt = 1; el.querySelector('.lbv-fill').style.transform = 'scaleX(1)';
   await new Promise(r => setTimeout(r, 260));
   clearInterval(lobbyVeilBarTimer); clearInterval(lobbyVeilLineTimer);
+  /* Welcome: the browser will not start audio until a tap, so the veil asks for one in the
+     room's own voice — and the tap's pointerdown is what Music's unlock listens for.
+     Skipped when the person has already tapped during the load (audio is already unlocked). */
+  if (!(navigator.userActivation && navigator.userActivation.hasBeenActive)) await lobbyVeilWelcome(el);
   el.classList.add('is-out');
   setTimeout(lobbyVeilDrop, 520);
   // the phone's arrival beat waited for this (lobbyApply); the room is on screen from here
   if (lobbyState.view === 'lounge' && !lobbyState.workshop && !lobbyState.jukebox && !lobbyEligible()) lobbyRunArrival();
+}
+function lobbyVeilWelcome(el) {
+  return new Promise(res => {
+    const go = el.querySelector('.lbv-go'), line = el.querySelector('.lbv-line');
+    line.textContent = 'Kick your shoes off.'; line.classList.remove('is-in'); void line.offsetWidth; line.classList.add('is-in');
+    go.classList.add('is-on');
+    try { go.focus({ preventScroll: true }); } catch (_) {}
+    el.addEventListener('click', () => res(), { once: true });   // the whole screen answers, not just the button
+  });
 }
 /* Two animation frames, or 120 ms if the tab is hidden and none ever comes. */
 function lobbyNextPaint() {

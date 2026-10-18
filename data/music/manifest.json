@@ -8,6 +8,12 @@
       "artist": "Sylly House Band",
       "gain": 1.0
     },
+    "lobby:lounge": {
+      "file": "jukebox/around-the-table.mp3",
+      "title": "Around the Table",
+      "artist": "Sylly House Band",
+      "gain": 1.0
+    },
     "li5": {
       "file": "jukebox/teacher-s-out.mp3",
       "title": "Teacher's Out",

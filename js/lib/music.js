@@ -274,7 +274,7 @@ const Music = (() => {
       document.addEventListener('pointerdown', unlock);
       document.addEventListener('keydown', unlock);
       // Queue the lobby theme so the very first gesture starts it.
-      pendingKey = resolveKey(null);
+      pendingKey = resolveKey(typeof lobbyMusicKey === 'function' ? lobbyMusicKey() : null);
     },
 
     // The single entry point every screen change funnels through. Resolving
@@ -284,9 +284,9 @@ const Music = (() => {
     // any other caller gets the game's base track, which is always correct for
     // a game with no Sylly variant.
     playFor(gameId, isSylly) {
-      // A held song owns the lobby (gameId null); a game takes the room back.
+      // A held song owns the lobby (gameId null, or a lobby place such as 'lobby:lounge'); a game takes the room back.
       if (held) {
-        if (!gameId) return;
+        if (!gameId || gameId.indexOf('lobby') === 0) return;
         letGo();
       }
       if (!manifest) return;

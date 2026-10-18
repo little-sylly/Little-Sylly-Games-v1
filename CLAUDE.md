@@ -19,7 +19,7 @@
 - `docs/rules/new-game-checklist.md` — the ~40-item build checklist (engine registration, settings/overlay standards, MP handler audit, render seam, harness, closure). **Read when:** implementing a new game — before its first line of code. Binding.
 - `docs/rules/harnesses.md` — every verification harness: command, what it checks, check count, plus loopback-vs-`visual-check` guidance. **Read when:** running, extending or adding a harness.
 - `docs/rules/phase-audit.md` — Protocols A/B/C (drift check, skeleton-first, studio sweep). **Read when:** a phase boundary, or before a new game's first line of code.
-- `docs/sw-changelog.md` — every SW release note, continuous v249→v167. **Read when:** you need the history behind a past version.
+- `docs/sw-changelog.md` — every SW release note, continuous v252→v167. **Read when:** you need the history behind a past version.
 - `docs/deferred-work.md` — the parked-work list, **open items only**: older-games retest backlog, pending suite-wide sweeps, smaller flagged items. **Read when:** picking up maintenance work, or at a phase gate. Resolved entries move to `docs/deferred-work-log.md` — history, grep it; never read it as a to-do list.
 - `docs/practice-rollout.md` — the **Practice tab (tutorial) rollout tracker**: priority + effort for all 20 games, the 12-item definition of done, one card per game. **Read when:** starting or resuming a game's Practice pass.
 - `docs/cost-envelope.md` — **what the project may spend, and on what.** Three tiers (already-paid-for / costs-something-propose-the-number / changes-what-this-is), the split between permanent *craft* constraints and reviewable *business* ones, the measured install breakdown, the precache-vs-runtime-cache lever, and the owner's recorded strategic direction. **Read when:** any change adds an asset, a dependency, a font, or artwork — or when § Anti-Patterns below looks like it's saying "no" to something worth doing. It is the escape procedure for that list, not a replacement.
@@ -293,14 +293,14 @@ On every bump the outgoing SW entry moves **verbatim** to `docs/sw-changelog.md`
 "keep the last three". **A second `**SW v…**` paragraph appearing here means that move didn't
 happen: do it before anything else.**
 
-**SW v252 — the boot screen, and the Lounge loses its heading (18 Oct 2026).** First launch now opens on a
-plum **boot screen** (`#lobby-veil`; `lobbyVeil*` in `js/lobby/lobby-host.js`): the live-text lockup, a bar
-driven by real stages, and a rotating flavour line (`LOBBY_FLAVOUR` per game + `LOBBY_ROOM_LINES`, in
-`lobby-games.js`). Minimum 2 s; lifts when content, room and pictures are in (`scene.loaded()`, 4 s cap). "Little
-Sylly's Lounge" is gone, and the Lounge's telly now **channel-surfs** the 20 games (1024 px, repaints only on a cut).
-Skipped under `?lobbydebug` / webdriver. No packet. Detail: `shared-implementation-notes.md` DD-57.
+**SW v253 — the Lounge gets its own music (18 Oct 2026; v252 boot screen + telly).** The lobby is no longer one
+track: the Lounge (and the jukebox / Workshop / stickerbook rooms behind its doors) plays **Around the Table**
+(`lobby:lounge` in `data/music/manifest.json`); Classic, TV and the Board keep **Old Toy Box** (`lobby`, the
+fallback). `lobbyMusicKey()` in `lobby-host.js` names the place; `showScreen()` passes it when no game is active,
+and moving between layouts crossfades. A held jukebox song still wins. The boot screen now ends on a
+"Come on in" tap (browsers refuse audio before one), which starts the Lounge's music. No packet, no new file.
 
-**Previous versions: `docs/sw-changelog.md`** — continuous, v249 back to v167.
+**Previous versions: `docs/sw-changelog.md`** — continuous, v252 back to v167.
 
 **Where the suite stands.** **20 games shipped**, all gold-master, plus multiplayer; newest are Honeycomb Hills (`comb`, MDLM-only, no Sylly Mode), Cold Shoulder (`cld`, first physics game) and Cookie Jar (`cjar`). Every game has an identity doc (`docs/game-identities/`). The Cartridge System (word packs + skin packs, `docs/cartridge-system-plan.md`) is complete; core art has rolled out to `pko`, `flw`, `frt`, `shp`, `comb` — PASS runs CSS defaults, DYB and CLD art are procedural and never need a pack (`docs/expansion-guide.md` § Core art packs). **Phase gates 37–39 and 41 are closed; phase 40 (Cold Shoulder) is open** — `docs/phase40-snapshot.md` names what is left (a live multi-device session and the offline install check).
 
