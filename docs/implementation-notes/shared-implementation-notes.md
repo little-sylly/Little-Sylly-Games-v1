@@ -4827,6 +4827,14 @@ scene's frame time inside the prop's `tick`, so `stop()` stops them too — the 
 future prop that idles. The **jukebox screen** (SW v233) runs two RAFs — its own cat stage and the
 equaliser (`js/lobby/jukebox.js`) — both stopped by `jbxClose()` (every router close, `home` included)
 and by `jbxStop()` in `resetToLobby()`; its stage is kept, like the room, never disposed.
+**The Board** (SW v250, `js/lobby/board.js`) keeps three handles — `bdTimers` (every timeout, through
+`bdLater`), `bdRaf` (the rail's scroll follow, or Random's riffle) and `bdFlights` (running WAAPI
+animations, through `bdAnimate`) — all cleared by `bdDrop()`, which also bumps `bdSeq` so any callback
+already queued becomes a no-op. Clear sites: `lobbyPresent()` for any other view, `lobbyLeaveForGame()`
+(a game launch — and the reconnect rejoin, which shares it), a Workshop open (the ornament, possibly
+mid-Random), the dock's room doors and the arcade key. That covers every way off the Board, so
+`resetToLobby()` needs no site of its own: the way back (`lobbyShow` → `lobbyPresent` → `bdMount`) finds
+the tree already stopped and only repaints it.
 
 **Reconnect's handles (SW v236).** The Away debounce map (`mpAwayPending`), the non-adopter's grace
 (`mpAwayTimer`), the overlay's countdown (`mpAwayTick`), the unanswered-rejoin timeout
@@ -4841,6 +4849,50 @@ quit-confirm, in `resetToLobby()`, at `dybInitShake`, on `DYB_SHAKE_ACTIVE` and 
 Stopping one never touches the other, which is what lets Practice open mid-game without disturbing a
 live Shake.
 
+
+### DD-56 — Shelves becomes the Board: stickers, a held card, a dock [18 Oct 2026, SW v250]
+
+**What happened.** The phone's lobby layout was rebuilt from the spec
+(`docs/superpowers/specs/2026-10-18-shelves-board-design.md`, owner decisions D1–D7, assumptions A1–A4
+approved as written): the 20 games as die-cut stickers on one sheet with washi-tape shelf tabs, a sticker
+peeling into a **held card** on a swipe rail whose back is `lbSheetBodyInner` (so it can never drift from
+TV's pane), and a glass **dock** — 🎵 · 📒 · Random · 🔊 · Layout. New `js/lobby/board.js` (prefix `bd`) is
+a patch-in-place renderer like `tv.js`; `lobby.js` lost the whole Shelves render path (`lbRender` and
+eight helpers, `lbState.folder/.sheet`) and `lbSet` now only assigns and repaints. Display label "Board",
+icon 🏷️; the id `shelves`, its screens and `enterShelves` are unchanged. ~16 KB of dead Shelves CSS left
+`css/lobby.css`; `css/board.css` + `board.js` add ~65 KB precached (net ≈ +49 KB, against the spec's
++25 KB estimate — the card, flight and Random choreography cost more than guessed). No packet, no asset.
+
+**Root causes of what the round found:**
+- **One noun, two jobs.** `.bd-back` named both the card's back *face* (`transform: rotateY(180deg)`)
+  and the "← Board" *button*, so the button rendered mirrored — "bɿɒoB →". Inside one prefix, a part
+  name and a control name collide easily because both read naturally; the button is now `.bd-home`.
+  A screenshot caught it in seconds; no assertion would have (and none was added — presentation).
+- **A tap can arrive before the frame that would have explained it.** The rail decides "which card is
+  centred" in a rAF (`bdFollow`). On a busy device a tap can land before that rAF runs, so a guard
+  reading the cached `bdCur` judges the wrong card. The peek guard now calls `bdFollow()` itself at
+  click time — **state written in a rAF is a cache, not the truth; a click handler re-derives it.**
+- **Software WebGL starves headless frames ~2 s at a time** whenever the ornament is on screen
+  (measured: the old Shelves with its sheet open stalls identically — not a Board regression). Playwright's
+  "stable" check needs two equal frames, so a click on anything still animating can wait past its
+  timeout. `visual-lobby` now waits for the card to land (`!bdFlying && !bdFlights.length`) before
+  pressing Play, which is also what a person does. Without WebGL the same page runs at 17 ms frames.
+- **Pruning CSS: a selector needing ANY unused class can never match.** The first pass kept
+  `.lb-phone.sheet-open .lb-scrim` because `.lb-phone` is live; the test is "some class unused", not
+  "every class unused". The script (rule-by-rule, comment-above goes with its rule) is reusable.
+
+**Kept deliberately.** `lbBadgeInner` (spec § 3.2's keep list) has no caller after this round; it is
+one function and the next per-game badge surface will want it. Ghosts stay on the sheet (A1) and are
+never on the rail (D6, `verify-board`'s sweep over every count × one-phone × tab). The dock is full at
+four doors + the die (`deferred-work.md`).
+
+**Verification.** `tools/verify-board.js` (pure tier, 3881; `BOARD_SRC=` — the spec's D6 mutation and two
+more go red). `tools/visual-lobby.js` gains § 18 and its § 4 / § 2 / § 15 Shelves paths now drive the
+Board (hold → Play, the dock's Layout → the shared switcher). `visual-check`-style throwaway renders at
+390×844, 375×667, 375×548 and 320×452: Play clears the dock at all four; six named stickers on the first
+screen at 375×667 and up, one named row at 320×452 (the header and filters take the rest — six cannot fit
+452 px). **Not covered by any of it:** swipe-down feel, rail feel, the peel's timing and scroll-follow
+smoothness on a real SE — the owner's phone pass.
 
 ### DD-55 — The arcade becomes a registry: seven cabinets, one source of truth [18 Oct 2026, SW v249]
 

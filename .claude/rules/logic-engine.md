@@ -37,7 +37,7 @@
 | `js/lib/controller-body.js` | `ControllerBody` | `{ buildBody, buildControls, buildEars, buildShoulder, smoothNormals }`. Pure geometry — takes `THREE` as an argument, touches no DOM. Ported once from the frozen prototype (`docs/controller-prototype/`, now in the owner's external archive); the prototype carried it duplicated inline and every fix had to be applied twice by hand. | the lobby's 3D controller / Workshop |
 | `js/lib/controller-sticker-surface.js` | `StickerSurface` | `StickerSurface(U, ATLAS, opt)` → `{ plan, stamp, padPairs, toAtlas, fromAtlas, boxes, sheets, … }`. Surface-space sticker placement and rasterisation for the 3D controller. **Pure: takes `geo.userData` + the atlas size + an options object, touches no DOM and no THREE** — same contract as `physics.js`, and what lets it be verified under Node. Ported unchanged from the frozen prototype. **Its tuned numbers are NOT in it** — the keep-out discs and `maxDistort` live in `CTL_STICKER_OPT` at the call site, and a surface built with `{}` runs happily while painting inside the stick wells (see the caller-side-config lesson in `shared-implementation-notes.md`). | the Workshop's Stickers tab |
 | `js/controller.js` | prefix `ctl` (not `window`-namespaced) | The lobby ornament, the Workshop customiser, and the Konami input surface. Colour state (`ctlReadDesign`/`ctlWriteDesign`, `sylly_controller`), palette (`ctlPalette()`, read live from `GAME_BRAND_HEX`), the renderer (`ctlEnsureBuilt`/`ctlMount`/`ctlApplyDesign`), the Konami adapter (`ctlKonamiCode`/`ctlKonamiPress`), and — SW v229 — the stickers (a tab until SW v234, now the always-visible sheet): the manifest load, the pure placement state machine (`ctlStickerReduce`, Idle/Armed/Selected + undo) and the two rasterisers (`ctlStampShell` for the shell, a flat one for the ears). SW v228–v229. Full inventory: `docs/code-map.md` § 3D Controller / Workshop. | the lobby, `screen-workshop` |
-| `js/lounge/*` + `js/lobby/*` | `LouScene`, `LobbyRouter`, `lobby*` … | The lobby's four layouts (SW v231): the Lounge's 3D room (`lou` prefix), TV (`tv`), Shelves + shared helpers (`lb`), the pure router + door map, and `lobby-host.js` — every effect. **Not a game and not a library a game may call** — a plugin reaches the lobby only through `resetToLobby()`. Inventory: `docs/code-map.md` § Lobby layouts. | the lobby |
+| `js/lounge/*` + `js/lobby/*` | `LouScene`, `LobbyRouter`, `lobby*` … | The lobby's four layouts (SW v231): the Lounge's 3D room (`lou` prefix), TV (`tv`), the Board (`bd`, SW v250), the shared helpers (`lb`), the pure router + door map, and `lobby-host.js` — every effect. **Not a game and not a library a game may call** — a plugin reaches the lobby only through `resetToLobby()`. Inventory: `docs/code-map.md` § Lobby layouts. | the lobby |
 
 **Not `js/lib/` but the same shared-not-reinvented rule — `engine.js` globals used by 3+ games:**
 
@@ -62,7 +62,7 @@ is the same shape: game-owned and pure, and it moves to `js/lib/` only when a se
 
 ## Lobby Router Seam (SW v231)
 **`lobbyShow()` is the ONLY way back into the lobby.** The lobby has four layouts (the Lounge, TV,
-Shelves, Original = `screen-lobby`) and the router remembers which one the player left from, so a
+the Board = `screen-shelves`, Original = `screen-lobby`) and the router remembers which one the player left from, so a
 game returns there. **Nothing outside `js/lobby/` may `showScreen()` a layout's screen** — not
 `'screen-lobby'`, not the new three. The four sites: `resetToLobby()` (all 20 games' exits), both
 `secret-mode.js` returns (`sm-terminal-back`, `sm-btn-exit`), and the controller's idle nudge
@@ -673,7 +673,8 @@ RAF loop left running repaints/advances against the next screen's state. Referen
 `nt.js` `ntStopPlayback()` clears `ntRafHandle`.
 
 **Non-game timers follow the same rule** — the 3D controller's `ctlRaf`, Secret Mode's
-`smTypewriterTimers`, the lobby layouts' RAFs/timers (`tvDrop()`, `lobbyScene.stop()`, `jbxStop()`),
+`smTypewriterTimers`, the lobby layouts' RAFs/timers (`tvDrop()`, `bdDrop()` — the Board's `bdTimers`/`bdRaf`/`bdFlights`, SW v250 —
+`lobbyScene.stop()`, `jbxStop()`),
 reconnect's handles (all cleared in `mpEndMatchLocal()`) and the Bluff's two choreography bags
 (`dybAnimTimers` / `dybPrTimers` — stopping one never touches the other). Per-handle clear sites:
 `shared-implementation-notes.md` DD-54. A prop that idles schedules off the scene's frame time inside its

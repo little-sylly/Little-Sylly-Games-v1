@@ -88,8 +88,10 @@ Spec § 10's deliberate outs — each is its own later piece of work, none block
   `js/lib/` (it already reads no `dyb*` state). Design notes from the DYB build, so the brainstorm
   doesn't start cold:
   - **The Lounge is not the only door needed.** Most players never see it (wide-screen only; a phone
-    gets Shelves/Classic/TV). Give the selector a places-row entry too, the same way the jukebox and
+    gets the Board/Classic/TV). Give the selector a places-row entry too, the same way the jukebox and
     stickerbook got phone doors at SW v238 — plus probably a "Dice" entry in DYB's own menu/settings.
+    **On the Board that door has no free slot:** its dock is full at four doors + the die (SW v250) —
+    decide then between a "More" sheet and a swap; don't squeeze in a sixth.
   - **A second dice game already exists.** COMB (Honeycomb Hills) rolls 2d6 (`combRollDice`,
     `js/games/comb.js`) — but only as arithmetic; it shows the summed number as text, no physical die
     tiles. `dyb-dice.js` is still the only *visual* dice render seam, and the YAGNI note in
@@ -193,6 +195,13 @@ Premium greybox and two re-blocks, Scene B's redefinition to a one-way phone han
 quality rounds, the production-wiring plan and its bug fixes (BUG-19, DD-14/16/18/19/42/43/44/46) —
 lives in the specs/plans under `docs/superpowers/{specs,plans}/2026-09-*-premium-*` and
 `shared-implementation-notes.md`; not repeated here. What remains open:
+
+- **The Board (SW v250) — the owner's phone pass.** Nothing headless can judge swipe-down feel, the
+  rail's feel, the peel's timing or the scroll follow's smoothness on the SE. Also confirm the SE's iOS
+  is 16.2+ (`color-mix()` on the scrim and card back — each has a plain fallback declared first, so an
+  older Safari gets a flat tint, not a broken page). Detail: `shared-implementation-notes.md` DD-56.
+- **The Board's dock is full** — four doors + the die. A fifth (the dice selector, above) needs a "More"
+  sheet or a swap, decided when it arrives. **A dock for Classic** is an open idea, not scoped.
 
 - **Stickerbook earning** — the earn loop, the toast, placement, and the **localStorage key** it
   will need (a new permitted key — `CLAUDE.md` § Anti-Patterns; an owner decision). The pure reducer

@@ -1,7 +1,7 @@
 // Little Sylly Games — Service Worker v236
 // All assets are local — no external CDN URLs, no opaque response issues.
 
-const CACHE_NAME = 'sylly-games-v249';
+const CACHE_NAME = 'sylly-games-v250';
 
 const PRECACHE_URLS = [
   './',
@@ -48,6 +48,7 @@ const PRECACHE_URLS = [
   // The lobby's four layouts (SW v231). Code is part of the app version; the
   // lamp photos (data/lamp/) are NOT precached — see the fetch handler.
   'css/lobby.css',
+  'css/board.css',
   // The jukebox screen (SW v233). Its CODE is precached; its songs and covers
   // (data/music/jukebox/, ~68 MB) are runtime-cached by the data/music/ branch
   // below — a phone that never opens the jukebox never downloads a byte of it.
@@ -63,6 +64,7 @@ const PRECACHE_URLS = [
   'js/lobby/lobby-games.js',
   'js/lobby/lobby.js',
   'js/lobby/tv.js',
+  'js/lobby/board.js',
   'js/lobby/achievements.js',
   'js/lobby/stickerbook.js',
   'js/lobby/lobby-router.js',

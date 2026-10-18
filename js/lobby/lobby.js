@@ -1,9 +1,10 @@
 // ═══════════════════════════════════════════════════════════════════════════
-// lobby.js — the Shelves layout, the TV layout's size gate + hand-off card, and
-// the lb* helpers both layouts share (SW v231). Global symbols, no fetch. Reads
-// GAMES / SHELVES (lobby-games.js). State is lbState; every render is a pure
-// function of it. Routing is NOT here: every layout change goes through
-// lobbyGo(), every game launch through lobbyLaunch() (js/lobby/lobby-host.js).
+// lobby.js — the lb* helpers the Board (board.js) and TV (tv.js) share, the
+// filter state they both read (lbState), and TV's size gate + hand-off card
+// (SW v231; the Shelves render path that lived here went with the Board, SW v250).
+// Global symbols, no fetch. Reads GAMES (lobby-games.js). Routing is NOT here:
+// every layout change goes through lobbyGo(), every game launch through
+// lobbyLaunch() (js/lobby/lobby-host.js).
 // ═══════════════════════════════════════════════════════════════════════════
 
 // ── Shelves: the five verb shelves + a sixth for the two strategy games ──
@@ -23,9 +24,9 @@ const LB_SHELVES = [
   { id: 'board',      label: 'Strategy',  emoji: '♟️', blurb: 'Plan your moves, outlast the table' },
 ];
 
+// The filters are ONE state for both layouts: a player moving between the Board
+// and TV keeps their answer. Memory only.
 const lbState = {
-  folder: null,        // shelf id or null
-  sheet: null,         // game id or null
   count: null,         // null = any, else 2..10
   onePhone: false,
   profileOpen: false,  // the "You" popover under the controller — see § Profile popover
@@ -137,76 +138,6 @@ function lbBadgeInner(g) {
   const emojiStyle = hasArt ? ' style="display:none"' : '';
   return `${art}<span class="lb-badge-emoji"${emojiStyle}>${emoji}</span>`;
 }
-function lbBadge(g) { return `<span class="lb-badge" aria-hidden="true">${lbBadgeInner(g)}</span>`; }
-
-// ── Root render ──────────────────────────────────────────────────────────────
-function lbRender() {
-  const root = document.getElementById('shelves-canvas');
-  if (!root) return;
-  root.innerHTML = '';
-  const phone = lbEl('div', 'lb-phone');
-  phone.classList.toggle('sheet-open', !!lbState.sheet);
-
-  const scroll = lbEl('div', 'lb-scroll');
-  scroll.appendChild(lbRenderBrand());
-  scroll.appendChild(lbRenderPlaces());
-  scroll.appendChild(lbRenderDock());
-  scroll.appendChild(lbRenderBody());
-  phone.appendChild(scroll);
-
-  const scrim = lbEl('div', 'lb-scrim');
-  scrim.addEventListener('click', () => lbSet({ sheet: null }));
-  phone.appendChild(scrim);
-  phone.appendChild(lbRenderSheet());
-
-  root.appendChild(phone);
-}
-
-// The controller is the ornament slot (its own tap opens the Workshop). "You"
-// is its own button under it that opens a small profile popover — the
-// nickname — rather than the controller itself doubling as that door.
-// OWNER-REVIEW.md item 5 follow-up, 15 Sep 2026.
-// The title is live text (.sylly-wordmark), not the PNG lockup: it scales with
-// the column on every phone, and the lockup lives in the stickerbook now
-// (owner, 27 Sep 2026). The places row follows it (lbRenderPlaces).
-function lbRenderBrand() {
-  const row = lbEl('div', 'lb-brand');
-  row.innerHTML = `
-    <div class="lb-brand-main">
-      <h1 class="sylly-wordmark lb-wordmark"><span class="sylly-wordmark-a">Little Sylly</span><span class="sylly-wordmark-b">Games</span></h1>
-    </div>
-    <div class="lb-you-wrap">
-      <div class="lb-you-controller">
-        <span class="lb-you-mount ctl-ornament" id="shelves-controller" role="button" tabindex="0"
-          aria-label="Your controller — tap to customise"></span>
-      </div>
-      <button class="lb-you-label lb-press" id="lb-you-label" aria-haspopup="dialog" aria-expanded="${lbState.profileOpen}">
-        <span id="lb-you-label-text">${lbEsc(lbGetNickname()) || 'You'}</span><span class="lb-you-chev" aria-hidden="true">${lbState.profileOpen ? '▴' : '▾'}</span>
-      </button>
-      ${lbState.profileOpen ? lbRenderProfilePop() : ''}
-    </div>`;
-  row.querySelector('#lb-you-label').addEventListener('click', () => lbSet({ profileOpen: !lbState.profileOpen }));
-  if (lbState.profileOpen) lbWireProfilePop(row);
-  return row;
-}
-
-// The two rooms a phone can't reach through the Lounge — the same pair Classic
-// carries. A place this device can't open yet (the sticker manifest not loaded)
-// is absent, not dimmed — the switchers' rule. lobby-host.js re-renders once it can.
-function lbRenderPlaces() {
-  const offered = (id) => typeof lobbyPlaceOffered !== 'function' || lobbyPlaceOffered(id);
-  const places = [
-    { id: 'jukebox',  ico: '🎵', label: 'Jukebox' },
-    { id: 'stickers', ico: '📒', label: 'Stickers' },
-  ].filter(p => offered(p.id));
-  const row = lbEl('div', 'lobby-places lb-places', places.map(p =>
-    `<button class="lobby-place" data-lobby-place="${p.id}"><span aria-hidden="true">${p.ico}</span>${p.label}</button>`).join(''));
-  row.setAttribute('role', 'group');
-  row.setAttribute('aria-label', 'Around the house');
-  row.querySelectorAll('[data-lobby-place]').forEach(b =>
-    b.addEventListener('click', () => lobbyOpenPlace(b.dataset.lobbyPlace)));
-  return row;
-}
 
 function lbRenderProfilePop() {
   return `
@@ -220,12 +151,10 @@ function lbRenderProfilePop() {
       <p class="lb-you-pop-hint">Carries into every lobby you host or join.</p>
     </div>`;
 }
-// Saves on blur/change, never on every keystroke — an input re-render mid-type
-// (lbRender() replaces the whole subtree via innerHTML) would drop focus and
-// cursor position on the next keystroke. The "You" button's own label is
-// patched directly (not via lbSet/lbRender) so the switch from "You" to the
-// real name is visible immediately, without closing the popover or costing
-// the input its focus.
+// Saves on blur/change, never on every keystroke. The "You" button's own label
+// is patched directly (not via lbSet) so the switch from "You" to the real name
+// is visible immediately, without closing the popover or costing the input its
+// focus.
 function lbWireProfilePop(row) {
   const nick = row.querySelector('#lb-you-nick');
   if (!nick) return;
@@ -239,58 +168,7 @@ function lbWireProfilePop(row) {
   nick.addEventListener('click', e => e.stopPropagation());
 }
 
-function lbRenderDock() {
-  const dock = lbEl('div', 'lb-dock');
-  const icons = lbEl('div', 'lb-icons');
-  /* Production icons (spec § 6.1). Skins / Word Packs are gone: the pack/skin
-     terminal costs a fresh Konami (secret-mode.js), so a lobby icon for it would
-     lie. The stickerbook and the jukebox are the brand row's places, not icons
-     here. The arcade follows Original's header tile: shown once smArcadeUnlocked. */
-  const arcade = typeof smArcadeUnlocked !== 'undefined' && smArcadeUnlocked;
-  const list = [
-    { ico: '🔊', label: 'Sound', cls: 'lb-icon-sound', on: () => openSoundOverlay() },
-  ];
-  if (arcade) list.push({ ico: '🕹️', label: 'Arcade', on: () => smOpenArcadeMenu() });
-  for (const it of list) {
-    const b = lbEl('button', 'lb-icon lb-press ' + (it.cls || ''), it.ico);
-    b.setAttribute('aria-label', it.label);
-    b.title = it.label;
-    b.addEventListener('click', it.on);
-    icons.appendChild(b);
-  }
-  dock.appendChild(icons);
-
-  const sw = lbEl('div', 'lb-switch');
-  sw.setAttribute('role', 'tablist');
-  sw.setAttribute('aria-label', 'Lobby layout');
-  for (const v of LobbyRouter.LOBBY_LAYOUTS) {
-    if (typeof lobbyOffered === 'function' && !lobbyOffered(v.id)) continue;   // absent, not dimmed
-    const b = lbEl('button', 'lb-seg', `<span class="lb-seg-ico" aria-hidden="true">${v.ico}</span><span class="lb-seg-lbl">${v.label}</span>`);
-    b.setAttribute('role', 'tab');
-    b.setAttribute('aria-selected', String(v.id === 'shelves'));
-    b.setAttribute('aria-label', v.label);
-    b.addEventListener('click', () => lobbyGo(v.id));
-    sw.appendChild(b);
-  }
-  dock.appendChild(sw);
-  return dock;
-}
-
-function lbRenderBody() {
-  const body = lbEl('div', 'lb-body');
-  body.dataset.view = 'shelves';
-  if (lbState.folder) body.appendChild(lbRenderFolder());
-  else {
-    body.appendChild(lbEl('p', 'lb-tagline', 'What are we playing today?'));
-    body.appendChild(lbRenderWho());
-    body.appendChild(lbRenderShelves());
-  }
-  body.style.display = 'flex'; body.style.flexDirection = 'column'; body.style.gap = '14px';
-  return body;
-}
-
-// The one count sentence, shared by the phone's Who's here and the Lounge's
-// panel (lounge.js). Duplicating it is how the two layouts start disagreeing
+// The one count sentence, shared by the Board's Who's playing and TV's panel. Duplicating it is how the two layouts start disagreeing
 // about how many games fit — the same reason lbSheetBodyInner exists.
 function lbFitLine() {
   const fit = GAMES.filter(g => !lbWhyOut(g)).length;
@@ -301,89 +179,9 @@ function lbFitLine() {
   return `${fit} of 20 fit ${bits.join(', ')}.`;
 }
 
-// ── Who's here? ──────────────────────────────────────────────────────────────
-function lbRenderWho() {
-  const wrap = lbEl('div');
-  wrap.style.display = 'flex'; wrap.style.flexDirection = 'column'; wrap.style.gap = '8px';
-  const row = lbEl('div', 'lb-who');
-  const c = lbState.count;
-  row.innerHTML = `
-    <div class="lb-step" role="group" aria-label="How many of us">
-      <button class="lb-step-btn" id="lb-minus" aria-label="Fewer" ${c == null ? 'disabled' : ''}>−</button>
-      <span class="lb-step-val"><span aria-hidden="true">👥</span><span>${c == null ? 'Any' : c === 10 ? '10+' : c}</span></span>
-      <button class="lb-step-btn" id="lb-plus" aria-label="More" ${c === 10 ? 'disabled' : ''}>+</button>
-    </div>
-    <button class="lb-toggle" id="lb-onephone" aria-pressed="${lbState.onePhone}"><span aria-hidden="true">📱</span>One phone only</button>`;
-  row.querySelector('#lb-minus').addEventListener('click', () => lbSet({ count: c <= 2 ? null : c - 1 }));
-  row.querySelector('#lb-plus').addEventListener('click', () => lbSet({ count: c == null ? 2 : Math.min(10, c + 1) }));
-  row.querySelector('#lb-onephone').addEventListener('click', () => lbSet({ onePhone: !lbState.onePhone }));
-  wrap.appendChild(row);
-
-  wrap.appendChild(lbEl('p', 'lb-who-note', lbFitLine()));
-  return wrap;
-}
-
-// ── Shelf rows ───────────────────────────────────────────────────────────────
-function lbRenderShelves() {
-  const list = lbEl('div', 'lb-shelves');
-  for (const s of LB_SHELVES) {
-    const games = lbShelfGames(s.id);
-    const fit = games.filter(g => !lbWhyOut(g)).length;
-    const row = lbEl('button', 'lb-row');
-    row.classList.toggle('is-empty', fit === 0);
-    row.setAttribute('aria-label', `${s.label} — ${games.length} games`);
-    const count = fit === games.length ? `${games.length} games` : `${fit} of ${games.length} fit`;
-    row.innerHTML = `
-      <span class="lb-row-head">
-        <span class="lb-row-name"><span class="lb-row-emoji" aria-hidden="true">${s.emoji}</span>${s.label}</span>
-        <span class="lb-row-count">${count}</span>
-      </span>
-      <span class="lb-row-stack" aria-hidden="true" data-n="${games.length}">${lbSortByFit(games).map(g =>
-        `<span class="lb-mini ${lbWhyOut(g) ? 'is-out' : ''}" style="background-color:${g.brandHex}">${lbBadge(g)}</span>`).join('')}</span>
-      <span class="lb-row-chev" aria-hidden="true">›</span>`;
-    row.addEventListener('click', () => lbSet({ folder: s.id }));
-    list.appendChild(row);
-  }
-  return list;
-}
-
-// ── Folder ───────────────────────────────────────────────────────────────────
-function lbRenderFolder() {
-  const s = LB_SHELVES.find(x => x.id === lbState.folder);
-  const wrap = lbEl('div');
-  wrap.style.display = 'flex'; wrap.style.flexDirection = 'column'; wrap.style.gap = '14px';
-  const head = lbEl('div', 'lb-folder-head');
-  head.innerHTML = `
-    <button class="lb-back lb-press" aria-label="Back to the shelves">‹</button>
-    <div class="lb-folder-title">
-      <div class="lb-folder-name"><span class="lb-row-emoji" aria-hidden="true">${s.emoji}</span>${s.label}</div>
-      <div class="lb-folder-blurb">${s.blurb}</div>
-    </div>`;
-  head.querySelector('.lb-back').addEventListener('click', () => lbSet({ folder: null }));
-  wrap.appendChild(head);
-  wrap.appendChild(lbRenderWho());
-
-  const grid = lbEl('div', 'lb-grid is-fresh');
-  for (const g of lbSortByFit(lbShelfGames(s.id))) {
-    const why = lbWhyOut(g);
-    const t = lbEl('button', 'lb-tile');
-    t.classList.toggle('is-out', !!why);
-    t.setAttribute('aria-label', `${g.gameName}, ${lbPlayersText(g)} players, ${lbPhoneText(g)}`);
-    t.innerHTML = `
-      <span class="lb-face gel-btn" style="background-color:${g.brandHex}">${lbBadge(g)}</span>
-      <span class="lb-tile-name">${g.gameName}</span>
-      <span class="lb-tile-meta ${why ? 'is-why' : ''}">${why ? why : `${lbPlayersText(g)} · ${lbPhoneText(g)}`}</span>`;
-    t.addEventListener('click', () => lbSet({ sheet: g.id }));
-    grid.appendChild(t);
-  }
-  wrap.appendChild(grid);
-  return wrap;
-}
-
-// ── Info sheet ───────────────────────────────────────────────────────────────
-// The sheet's body — chips, How it goes, Sylly Mode — is ONE function shared
-// by Shelves' drawer and TV mode's detail pane (tv.js), so the two
-// can never drift; same reason lbBadgeInner exists.
+// ── A game's details ─────────────────────────────────────────────────────────
+// Chips, How it goes, Sylly Mode — ONE function shared by the Board's card back
+// (board.js) and TV's detail pane (tv.js), so the two can never drift.
 function lbSheetBodyInner(g) {
   const chips = [
     { ico: '👥', text: lbPlayersLong(g) },
@@ -407,34 +205,6 @@ function lbSheetBodyInner(g) {
       ${sylly}`;
 }
 
-function lbRenderSheet() {
-  const sheet = lbEl('div', 'lb-sheet');
-  sheet.setAttribute('role', 'dialog');
-  sheet.setAttribute('aria-modal', 'true');
-  const g = lbState.sheet ? lbGame(lbState.sheet) : null;
-  if (!g) return sheet;
-
-  sheet.innerHTML = `
-    <div class="lb-sheet-grab" aria-hidden="true"></div>
-    <div class="lb-sheet-head">
-      <span class="lb-sheet-face gel-btn" style="background-color:${g.brandHex}">${lbBadge(g)}</span>
-      <div class="lb-sheet-title">
-        <div class="lb-sheet-name">${g.gameName}</div>
-        <div class="lb-sheet-pitch">${g.pitch}</div>
-      </div>
-      <button class="lb-sheet-close lb-press" id="lb-sheet-close" aria-label="Close">✕</button>
-    </div>
-    <div class="lb-sheet-body">${lbSheetBodyInner(g)}</div>
-    <div class="lb-sheet-foot">
-      <button class="lb-cta" id="lb-play" style="background-color:${g.brandHex}">Play</button>
-      <button class="lb-cta lb-cta-2" id="lb-sheet-back">Back to the Box</button>
-    </div>`;
-  sheet.querySelector('#lb-sheet-close').addEventListener('click', () => lbSet({ sheet: null }));
-  sheet.querySelector('#lb-sheet-back').addEventListener('click', () => lbSet({ sheet: null }));
-  sheet.querySelector('#lb-play').addEventListener('click', () => lobbyLaunch(g.id));
-  return sheet;
-}
-
 // ── TV mode's size gate and hand-off card ───────────────────────────────────
 // TV mode itself (the rail, the panel, the detail pane) is tv.js, which owns a
 // patch-in-place renderer: the rail carries a live scrollLeft, a rAF and an
@@ -455,15 +225,15 @@ function lbRenderTVHandoff() {
   card.innerHTML = `
     <span class="lb-tv-handoff-ico" aria-hidden="true">🖥️</span>
     <strong>TV mode wants a wider screen</strong>
-    <p>Cast the game, or open it on a tablet or laptop, and this same lobby lays out as a shelf rail with a detail pane. On a phone it stays on the Shelves.</p>
-    <button class="lb-cta lb-cta-2 lb-tv-handoff-back" id="lb-tv-handoff-back">Back to the Shelves</button>`;
+    <p>Cast the game, or open it on a tablet or laptop, and this same lobby lays out as a shelf rail with a detail pane. On a phone it stays on the Board.</p>
+    <button class="lb-cta lb-cta-2 lb-tv-handoff-back" id="lb-tv-handoff-back">Back to the Board</button>`;
   card.querySelector('#lb-tv-handoff-back').addEventListener('click', () => lobbyGo('shelves'));
   return card;
 }
 
 /* TV fills #tv-app. Below its floor (a window shrunk while TV is up — every
    switcher already hides TV below it) the hand-off card stands in, and its
-   button goes to Shelves. */
+   button goes to the Board. */
 function lbMountTVFull() {
   const root = document.getElementById('tv-app');
   if (!root) return;
@@ -483,31 +253,19 @@ function lbMountTVFull() {
 }
 
 // ── State ────────────────────────────────────────────────────────────────────
-// The sheet closes by class removal so its exit transition plays; everything
-// else is a plain re-render (instant swap + the body's 180 ms rise). lbRender
-// replaces Shelves' markup, ornament slot included, so every render is followed
-// by lobbyAfterLayoutRender() — the host puts the ornament back into whichever
-// layout is up.
+// Neither layout rebuilds on a change: the Board (bdPaint) and TV (tvApply, via
+// lbMountTVFull's idempotent mount) both patch in place, so a stepper tap never
+// costs the rail its scroll or a sticker its flight. lobbyAfterLayoutRender()
+// keeps the ornament in whichever layout is up.
 function lbAfterRender() {
   if (typeof lobbyIsUp === 'function' && lobbyIsUp('tv')) lbMountTVFull();
   if (typeof lobbyAfterLayoutRender === 'function') lobbyAfterLayoutRender();
 }
 function lbSet(patch) {
-  const closingSheet = 'sheet' in patch && patch.sheet == null && lbState.sheet;
   // Any action that isn't the popover toggle itself dismisses it — the
-  // stand-in for "click outside to close" (folder/shelf taps, opening a game
-  // sheet all count).
+  // stand-in for "click outside to close".
   if (!('profileOpen' in patch) && lbState.profileOpen) patch.profileOpen = false;
   Object.assign(lbState, patch);
-  const phone = document.querySelector('#shelves-canvas .lb-phone');
-  if (closingSheet && Object.keys(patch).length === 1 && phone) {
-    phone.classList.remove('sheet-open');
-    setTimeout(() => { lbRender(); lbAfterRender(); }, 220);
-    return;
-  }
-  lbRender();
+  if (typeof bdPaint === 'function') bdPaint();
   lbAfterRender();
-  if (patch.folder !== undefined) {
-    const sc = document.querySelector('#shelves-canvas .lb-scroll'); if (sc) sc.scrollTop = 0;
-  }
 }

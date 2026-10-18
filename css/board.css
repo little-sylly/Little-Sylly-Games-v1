@@ -1,0 +1,375 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   css/board.css — the Board, the phone's lobby layout (SW v250; was the Shelves).
+   js/lobby/board.js builds it. Everything is scoped under #screen-shelves (the
+   css/lobby.css rule: never html, body or a bare element). The palette, the
+   button reset, .lb-press and the "You" popover come from css/lobby.css's .lb-phone.
+
+   Motion: transform and opacity only. The CSS keyframes here are collapsed by
+   the global reduced-motion block in styles.css; every WAAPI flight, FLIP, rail
+   follow and riffle is gated in JS (bdReduced), which that block cannot reach.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+#screen-shelves .bd {
+  --bd-dock-h: 76px;
+  --bd-dock-gap: calc(12px + env(safe-area-inset-bottom, 0px));
+  --bd-paper-line: rgba(124, 77, 214, 0.07);
+}
+
+/* The one scroller. The paper's grid rides the content (background-attachment:
+   local), the screen's pink/violet wash shows through the transparent cells. */
+#screen-shelves .bd-scroll {
+  height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+  padding: calc(10px + env(safe-area-inset-top, 0px)) max(16px, calc((100% - var(--lb-col)) / 2))
+           calc(var(--bd-dock-h) + var(--bd-dock-gap) + 34px);
+  background-image:
+    linear-gradient(var(--bd-paper-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--bd-paper-line) 1px, transparent 1px);
+  background-size: 22px 22px;
+  background-attachment: local;
+}
+#screen-shelves .bd-scroll::-webkit-scrollbar { display: none; }
+#screen-shelves .bd.is-held .bd-scroll { overflow-y: hidden; }
+
+/* ── Header: one-line wordmark, the ornament + "You" ─────────────────────── */
+#screen-shelves .bd-head {
+  position: relative; z-index: 5;
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+}
+#screen-shelves .sylly-wordmark.bd-mark {
+  flex-direction: row; align-items: baseline; gap: 0.26em; flex-wrap: nowrap;
+  font-size: 23px; font-size: clamp(19px, 6.2vw, 26px);
+  min-width: 0;
+}
+#screen-shelves .bd-head-right { display: flex; align-items: center; gap: 4px; flex: none; }
+#screen-shelves .bd-arcade {
+  width: 44px; height: 44px; border-radius: 14px; display: grid; place-items: center; font-size: 20px;
+  background: rgba(255, 255, 255, 0.85); box-shadow: 0 0 0 1px rgba(43, 27, 69, 0.08);
+}
+#screen-shelves .bd-arcade[hidden] { display: none; }
+#screen-shelves .bd-you { width: 96px; padding: 0; gap: 0; }
+#screen-shelves .bd-you .lb-you-mount { width: 88px; height: 64px; }
+#screen-shelves .bd-you .lb-you-label { min-height: 24px; padding: 0 8px; }
+
+/* ── What are we playing / who's playing ─────────────────────────────────── */
+#screen-shelves .bd-intro { display: flex; flex-direction: column; gap: 12px; padding: 6px 0 4px; }
+#screen-shelves .bd-ask { margin: 0; font: 700 26px/1.05 'Fredoka', system-ui, sans-serif; letter-spacing: -0.01em; text-wrap: balance; }
+#screen-shelves .bd-ask em { font-style: normal; color: var(--lb-accent); }
+#screen-shelves .bd-who { display: flex; gap: 8px; align-items: center; }
+#screen-shelves .bd-step { display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0; }
+#screen-shelves .bd-step-val { flex: 1; min-width: 0; text-align: center; display: flex; flex-direction: column; gap: 2px; }
+#screen-shelves .bd-step-val small { font: 600 9.5px/1 'Fredoka', system-ui, sans-serif; letter-spacing: 0.12em; text-transform: uppercase; color: var(--lb-ink-3); }
+#screen-shelves .bd-step-val b { font: 700 18px/1 'Fredoka', system-ui, sans-serif; font-variant-numeric: tabular-nums; }
+
+/* The keycap — TV's .lb-lg-key moulding, at the phone's 44 px. Colour-agnostic
+   shadows, so the selected plum and the resting white take the same rules. */
+#screen-shelves .bd-key {
+  position: relative; isolation: isolate;
+  min-height: 44px; border-radius: 14px; padding: 0 12px;
+  background-color: var(--lb-surface); color: var(--lb-ink);
+  font: 600 15px/1 'Fredoka', system-ui, sans-serif;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  background-image: linear-gradient(to bottom, rgba(255,255,255,.45) 0%, rgba(255,255,255,0) 45%, rgba(0,0,0,.04) 100%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.4), inset 0 -12px 16px -11px rgba(0,0,0,.18), 0 0 0 1.5px rgba(0,0,0,.10), 0 4px 0 rgba(0,0,0,.10);
+  transition: transform 100ms var(--lb-ease-out), background-color 160ms ease, color 160ms ease;
+}
+#screen-shelves .bd-key:active { transform: translateY(3px); }
+#screen-shelves .bd-key.is-on {
+  background-color: var(--lb-ink); color: #fff;
+  background-image: linear-gradient(to bottom, rgba(255,255,255,.10) 0%, rgba(255,255,255,0) 42%, rgba(0,0,0,.05) 62%, rgba(0,0,0,.28) 100%);
+}
+#screen-shelves .bd-key:disabled { opacity: 0.4; pointer-events: none; }
+#screen-shelves .bd-key-sq { width: 44px; padding: 0; font-size: 20px; flex: none; }
+#screen-shelves .bd-fit { margin: 0; font: 400 13px/1.3 'Fredoka', system-ui, sans-serif; color: var(--lb-ink-2); display: flex; justify-content: space-between; align-items: center; gap: 8px; min-height: 24px; }
+#screen-shelves .bd-clear { color: var(--lb-accent); font-weight: 600; min-height: 44px; margin: -10px 0; padding: 0 2px; }
+#screen-shelves .bd-clear[hidden] { display: none; }
+
+/* ── Washi-tape tabs ─────────────────────────────────────────────────────── */
+#screen-shelves .bd-tapes {
+  display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none;
+  margin: 4px calc(-1 * max(16px, calc((100vw - var(--lb-col)) / 2))) 0;
+  padding: 12px max(16px, calc((100vw - var(--lb-col)) / 2)) 14px;
+}
+#screen-shelves .bd-tapes::-webkit-scrollbar { display: none; }
+#screen-shelves .bd-tape {
+  flex: none; position: relative; min-height: 44px; padding: 0 16px 0 12px;
+  display: flex; align-items: center; gap: 6px;
+  background: var(--t); color: var(--lb-ink);
+  font: 600 15px/1 'Fredoka', system-ui, sans-serif;
+  transform: rotate(var(--r));
+  clip-path: polygon(0 6%, 3% 0, 6% 8%, 10% 1%, 14% 6%, 100% 0, 97% 9%, 100% 18%, 97% 30%, 100% 44%, 97% 58%, 100% 72%, 97% 86%, 100% 100%, 92% 94%, 85% 100%, 0 100%, 3% 88%, 0 74%, 3% 60%, 0 46%, 3% 32%, 0 18%);
+  opacity: 0.9;
+  transition: transform 160ms var(--lb-ease-out), opacity 160ms ease;
+}
+#screen-shelves .bd-tape::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: repeating-linear-gradient(-45deg, rgba(255,255,255,.22) 0 6px, transparent 6px 12px); }
+#screen-shelves .bd-tape small { font: 500 11.5px/1 'Fredoka', system-ui, sans-serif; opacity: 0.65; font-variant-numeric: tabular-nums; }
+#screen-shelves .bd-tape small:empty { display: none; }
+/* The tape you are on lies flat and gets a pencil line round it — the clip-path
+   would cut an outline off, so the line is an inset shadow inside the tape. */
+#screen-shelves .bd-tape.is-on { opacity: 1; transform: rotate(0deg) scale(1.06); box-shadow: inset 0 0 0 2.5px var(--lb-ink); }
+
+/* ── The sheet ───────────────────────────────────────────────────────────── */
+#screen-shelves .bd-sheet { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px 8px; padding: 8px 0 16px; }
+#screen-shelves .bd-st {
+  position: relative; display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 4px 0 6px; min-height: 44px; min-width: 0;
+}
+#screen-shelves .bd-st[hidden] { display: none; }
+#screen-shelves .bd-st-art { position: relative; width: min(100%, 100px); aspect-ratio: 1; display: block; }
+#screen-shelves .bd-st-tilt {
+  position: absolute; inset: 0; display: grid; place-items: center;
+  transform: rotate(var(--tilt));
+  filter: drop-shadow(0 1px 0 rgba(43,27,69,.14)) drop-shadow(0 4px 4px rgba(43,27,69,.22));
+  transition: transform 260ms cubic-bezier(.2, 1.4, .4, 1), opacity 220ms ease;
+}
+#screen-shelves .bd-art { width: 100%; height: 100%; object-fit: contain; display: block; -webkit-user-drag: none; user-select: none; }
+/* The fallback: the emoji on a brand disc, the size a sticker would sit. */
+#screen-shelves .bd-disc {
+  width: 78%; height: 78%; border-radius: 50%; display: grid; place-items: center;
+  background: var(--g); color: #fff; font-size: 34px; line-height: 1;
+  box-shadow: inset 0 2px 0 rgba(255,255,255,.3), inset 0 -6px 10px -6px rgba(0,0,0,.3), 0 0 0 3px #fff;
+}
+#screen-shelves .bd-st-name {
+  position: relative; z-index: 1; margin-top: -10px; padding: 5px 9px 6px; max-width: 100%;
+  background: var(--g); color: #fff; border-radius: 3px;
+  font: 600 12.5px/1.05 'Fredoka', system-ui, sans-serif; text-align: center; text-wrap: balance;
+  transform: rotate(calc(var(--tilt) * -0.4));
+  box-shadow: 0 2px 3px rgba(43,27,69,.18);
+}
+#screen-shelves .bd-st:active .bd-st-tilt { transform: rotate(0deg) scale(1.08); }
+#screen-shelves .bd-st-why {
+  position: absolute; top: 34%; left: 50%; transform: translateX(-50%); white-space: nowrap;
+  font: 500 11px/1 'Fredoka', system-ui, sans-serif; color: var(--lb-ink-2); display: none;
+}
+/* A ghost: the kiss-cut outline left on the backing paper, and why it is out. */
+#screen-shelves .bd-st.is-out .bd-st-tilt { opacity: 0.16; filter: grayscale(1) brightness(1.6); }
+#screen-shelves .bd-st.is-out .bd-st-art::before,
+#screen-shelves .bd-st.is-lifted .bd-st-art::before {
+  content: ''; position: absolute; inset: 8%; border-radius: 30%;
+  border: 1.5px dashed rgba(43,27,69,.24); transform: rotate(var(--tilt));
+}
+#screen-shelves .bd-st.is-out .bd-st-name { background: transparent; color: var(--lb-ink-3); box-shadow: none; }
+#screen-shelves .bd-st.is-out .bd-st-why { display: block; }
+#screen-shelves .bd-st.is-out:active .bd-st-tilt { transform: rotate(var(--tilt)); }
+#screen-shelves .bd-st-art.is-wobble { animation: bd-wobble 380ms ease-in-out; }
+@keyframes bd-wobble { 20% { transform: rotate(-6deg); } 45% { transform: rotate(5deg); } 70% { transform: rotate(-3deg); } }
+/* The slot a held sticker came from: only its outline is left. */
+#screen-shelves .bd-st.is-lifted .bd-st-tilt { opacity: 0; }
+
+/* First mount: each sticker slaps down once, staggered. From its resting state
+   (the keyframe ends where it already is), so nothing ever waits invisible. */
+#screen-shelves .bd-sheet.is-fresh .bd-st-art { animation: bd-slap-in 380ms cubic-bezier(.2, 1.6, .4, 1) both; animation-delay: calc(var(--i) * 30ms); }
+@keyframes bd-slap-in { 0% { transform: scale(1.14) translateY(-6px); } 100% { transform: none; } }
+
+/* Random: the fitting stickers jiggle and a pink ring hops between them. */
+#screen-shelves .bd-sheet.is-rolling .bd-st:not(.is-out) .bd-st-tilt { animation: bd-jig 220ms ease-in-out infinite alternate; }
+@keyframes bd-jig { from { transform: rotate(calc(var(--tilt) - 3deg)); } to { transform: rotate(calc(var(--tilt) + 3deg)); } }
+#screen-shelves .bd-st.is-hot .bd-st-art::after {
+  content: ''; position: absolute; inset: -4px; border-radius: 50%;
+  border: 3px solid var(--lb-accent); box-shadow: 0 0 0 6px rgba(233, 64, 142, .18);
+}
+
+/* The empty tab: a taped note. */
+#screen-shelves .bd-note {
+  position: relative; margin: 8px auto 0; max-width: 300px; padding: 22px 20px 16px; text-align: center;
+  background: #FFFDF5; color: var(--lb-ink-2); font-size: 15px; transform: rotate(-1.2deg);
+  box-shadow: 0 1px 0 rgba(43,27,69,.06), 0 10px 18px -12px rgba(43,27,69,.4);
+}
+#screen-shelves .bd-note[hidden] { display: none; }
+#screen-shelves .bd-note::before { content: ''; position: absolute; left: 50%; top: -10px; width: 86px; height: 22px; margin-left: -43px; background: #FFE1EE; opacity: .9; transform: rotate(2deg); }
+#screen-shelves .bd-note p { margin: 0 0 6px; }
+#screen-shelves .bd-note .bd-clear { margin: 0; }
+
+/* The flying copy of a sticker (peel / put-back / Random). Fixed to the viewport;
+   transform-origin top-left so translate + scale lands it box on box. */
+#screen-shelves .bd-fly {
+  position: fixed; z-index: 48; pointer-events: none; transform-origin: 0 0;
+  filter: drop-shadow(0 18px 14px rgba(43,27,69,.32));
+}
+#screen-shelves .bd-fly > * { position: absolute; inset: 0; display: grid; place-items: center; transform: rotate(var(--tilt)); }
+#screen-shelves .bd-fly .bd-disc { margin: auto; }
+
+/* ── The held layer: the card rail over the board ────────────────────────── */
+#screen-shelves .bd-held {
+  position: absolute; inset: 0; z-index: 35; display: flex; flex-direction: column;
+  padding: calc(10px + env(safe-area-inset-top, 0px)) 0 calc(var(--bd-dock-h) + var(--bd-dock-gap) + 12px);
+}
+#screen-shelves .bd-held[hidden] { display: none; }
+/* The board stays visible behind a scrim in the held game's colour. No
+   backdrop-filter — it costs too much on the low-end phones this layout is for.
+   The plain rgba first is the fallback a browser without color-mix() keeps. */
+#screen-shelves .bd-scrim {
+  position: absolute; inset: 0;
+  background: rgba(247, 242, 251, 0.9);
+  background: color-mix(in oklab, var(--cur, #E9408E) 16%, rgba(247, 242, 251, 0.9));
+  opacity: 0; transition: opacity 260ms ease, background-color 360ms ease;
+}
+#screen-shelves .bd-held.is-on .bd-scrim { opacity: 1; }
+#screen-shelves .bd-top {
+  position: relative; display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 0 max(16px, env(safe-area-inset-right, 0px)) 0 max(16px, env(safe-area-inset-left, 0px));
+  opacity: 0; transition: opacity 220ms ease;
+}
+#screen-shelves .bd-held.is-on .bd-top, #screen-shelves .bd-held.is-on .bd-dots { opacity: 1; }
+#screen-shelves .bd-home {
+  min-height: 44px; padding: 0 16px 0 12px; border-radius: 999px; background: #fff;
+  font: 600 15px/1 'Fredoka', system-ui, sans-serif; display: inline-flex; align-items: center; gap: 6px;
+  box-shadow: 0 0 0 1px rgba(43,27,69,.08), 0 6px 14px -8px rgba(43,27,69,.4);
+}
+#screen-shelves .bd-count { font: 500 13.5px/1 'Fredoka', system-ui, sans-serif; color: var(--lb-ink-2); font-variant-numeric: tabular-nums; }
+#screen-shelves .bd-hint { font: 400 12px/1 'Fredoka', system-ui, sans-serif; color: var(--lb-ink-3); }
+
+#screen-shelves .bd-rail {
+  --cw: min(80vw, 320px);
+  position: relative; flex: 1; min-height: 0; display: flex; align-items: center; gap: 14px;
+  overflow-x: auto; overflow-y: hidden; scroll-snap-type: x mandatory; scrollbar-width: none;
+  touch-action: pan-x; padding: 0 calc(50% - var(--cw) / 2);
+}
+#screen-shelves .bd-rail::-webkit-scrollbar { display: none; }
+#screen-shelves .bd-rail.is-settle { transition: transform 260ms var(--lb-ease-out), opacity 260ms ease; }
+#screen-shelves .bd-held.is-leaving .bd-card { opacity: 0; transition: opacity 160ms ease; }
+
+#screen-shelves .bd-card {
+  flex: 0 0 var(--cw); scroll-snap-align: center; position: relative;
+  height: min(clamp(318px, 52vh, 420px), calc(100% - 66px)); margin-top: 62px;
+  perspective: 1100px;
+}
+#screen-shelves .bd-flipper { position: absolute; inset: 0; transform-style: preserve-3d; transition: transform 460ms cubic-bezier(.3, .7, .3, 1); }
+#screen-shelves .bd-card.is-flip .bd-flipper { transform: rotateY(180deg); }
+#screen-shelves .bd-face { position: absolute; inset: 0; border-radius: 26px; backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+
+/* Card front: the brand fill, white ink (the locked scheme), the sticker
+   breaking out of the top. */
+#screen-shelves .bd-front {
+  background-color: var(--g); color: #fff;
+  display: flex; flex-direction: column; justify-content: flex-end; gap: 9px; padding: 0 18px 16px;
+  background-image: radial-gradient(120% 70% at 50% 0%, rgba(255,255,255,.26), rgba(255,255,255,0) 60%), linear-gradient(to bottom, rgba(0,0,0,0) 50%, rgba(0,0,0,.2));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.45), inset 0 -3px 0 rgba(0,0,0,.18), 0 20px 34px -18px rgba(43,27,69,.55), 0 0 0 1.5px rgba(0,0,0,.1);
+}
+#screen-shelves .bd-c-stk {
+  position: absolute; left: 0; right: 0; top: -62px; margin: 0 auto;
+  width: clamp(148px, 24vh, 196px); aspect-ratio: 1; pointer-events: none;
+}
+#screen-shelves .bd-c-tilt {
+  position: absolute; inset: 0; display: grid; place-items: center;
+  transform: rotate(var(--tilt)); filter: drop-shadow(0 12px 12px rgba(0,0,0,.3));
+}
+#screen-shelves .bd-c-tilt .bd-disc { font-size: 64px; }
+#screen-shelves .bd-card.is-cur .bd-c-tilt { animation: bd-sway 5s ease-in-out infinite; }
+@keyframes bd-sway { 50% { transform: rotate(calc(var(--tilt) * -1)) translateY(-4px); } }
+#screen-shelves .bd-card.is-waiting .bd-c-stk { visibility: hidden; }
+#screen-shelves .bd-c-eyebrow { margin: 0; font: 600 10.5px/1 'Fredoka', system-ui, sans-serif; letter-spacing: .14em; text-transform: uppercase; opacity: .85; }
+#screen-shelves .bd-c-name { margin: 0; font: 700 clamp(26px, 8vw, 32px)/1 'Fredoka', system-ui, sans-serif; text-shadow: 0 2px 0 rgba(0,0,0,.16); text-wrap: balance; }
+#screen-shelves .bd-c-pitch { margin: 0; font: 400 15px/1.25 'Fredoka', system-ui, sans-serif; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+#screen-shelves .bd-c-meta { display: flex; gap: 6px; flex-wrap: wrap; }
+#screen-shelves .bd-c-meta span { min-height: 26px; padding: 0 10px; border-radius: 999px; display: inline-flex; align-items: center; gap: 5px; background: rgba(0,0,0,.18); font: 500 12.5px/1 'Fredoka', system-ui, sans-serif; }
+#screen-shelves .bd-c-row { display: flex; gap: 8px; margin-top: 2px; }
+#screen-shelves .bd-c-play {
+  flex: 1; min-height: 50px; border-radius: 16px; color: #fff; font: 600 18px/1.1 'Fredoka', system-ui, sans-serif; padding: 0 8px;
+  background: rgba(255,255,255,.22); box-shadow: inset 0 0 0 1.5px rgba(255,255,255,.6), inset 0 -8px 12px -8px rgba(0,0,0,.2);
+  transition: transform 100ms var(--lb-ease-out);
+}
+#screen-shelves .bd-c-flip {
+  min-height: 50px; padding: 0 12px; border-radius: 16px; background: rgba(0,0,0,.16); color: #fff;
+  font: 600 13px/1.1 'Fredoka', system-ui, sans-serif; transition: transform 100ms var(--lb-ease-out);
+}
+#screen-shelves .bd-c-play:active, #screen-shelves .bd-c-flip:active { transform: scale(.96); }
+#screen-shelves .bd-front button:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+
+/* Card back: the sticker's backing paper in its own colour, and the shared
+   lbSheetBodyInner (TV's pane renders the same function) restyled for it. */
+#screen-shelves .bd-back {
+  transform: rotateY(180deg); color: var(--lb-ink); overflow-y: auto; scrollbar-width: none; cursor: pointer;
+  background-color: #fff;
+  background-color: color-mix(in oklab, var(--g) 10%, #fff);
+  background-image: linear-gradient(rgba(43,27,69,.05) 1px, transparent 1px), linear-gradient(90deg, rgba(43,27,69,.05) 1px, transparent 1px);
+  background-size: 18px 18px;
+  box-shadow: 0 0 0 1.5px rgba(43,27,69,.12), 0 20px 34px -18px rgba(43,27,69,.4);
+  padding: 16px 16px 14px; display: flex; flex-direction: column; gap: 10px;
+}
+#screen-shelves .bd-back::-webkit-scrollbar { display: none; }
+#screen-shelves .bd-b-head { display: flex; align-items: center; gap: 10px; }
+#screen-shelves .bd-b-ghost { width: 44px; height: 44px; flex: none; border-radius: 30%; border: 1.5px dashed var(--g-label); transform: rotate(var(--tilt)); opacity: .6; }
+#screen-shelves .bd-b-name { margin: 0; font: 700 21px/1.05 'Fredoka', system-ui, sans-serif; min-width: 0; }
+#screen-shelves .bd-b-turn { margin-left: auto; min-height: 44px; font: 500 11.5px/1 'Fredoka', system-ui, sans-serif; color: var(--lb-ink-3); white-space: nowrap; }
+#screen-shelves .bd-b-body { display: flex; flex-direction: column; gap: 12px; }
+#screen-shelves .bd-b-body .lb-chips { order: 2; gap: 4px 6px; }
+#screen-shelves .bd-b-body .lb-chip { height: auto; min-height: 26px; padding: 4px 9px; border: 0; background: #fff; box-shadow: 0 0 0 1px rgba(43,27,69,.07); font-size: 12px; font-weight: 500; white-space: normal; }
+#screen-shelves .bd-b-body .lb-sec-label { color: var(--g-label) !important; font-size: 10.5px; font-weight: 600; letter-spacing: .12em; margin-bottom: 6px; }
+#screen-shelves .bd-b-body .lb-steps { gap: 7px; }
+#screen-shelves .bd-b-body .lb-step-card { background: none; border: 0; padding: 0; gap: 9px; font-size: 13.5px; line-height: 1.28; color: var(--lb-ink-2); border-radius: 0; }
+#screen-shelves .bd-b-body .lb-step-num { width: 21px; height: 21px; font-size: 11.5px; font-weight: 600; margin-top: 0; }
+#screen-shelves .bd-b-body .lb-sylly { order: 3; border: 0; border-radius: 14px; padding: 10px 12px; box-shadow: 0 0 0 1px rgba(43,27,69,.07); }
+
+#screen-shelves .bd-dots { position: relative; display: flex; justify-content: center; flex-wrap: wrap; padding: 6px 16px 0; opacity: 0; transition: opacity 220ms ease; }
+#screen-shelves .bd-dots button { width: min(15px, calc((100vw - 32px) / 20)); height: 30px; display: grid; place-items: center; }
+#screen-shelves .bd-dots i { width: 7px; height: 7px; border-radius: 50%; background: var(--g); opacity: .45; transition: transform 200ms var(--lb-ease-out), opacity 200ms ease; }
+#screen-shelves .bd-dots .is-cur i { opacity: 1; transform: scale(1.7); box-shadow: 0 0 0 2px #fff; }
+
+/* Random's landing burst — CSS keyframes, so reduced motion collapses them too
+   (and bdLand never builds one when motion is reduced). */
+#screen-shelves .bd-burst { position: absolute; left: 50%; top: 10px; width: 0; height: 0; pointer-events: none; z-index: 5; }
+#screen-shelves .bd-burst i { position: absolute; width: 9px; height: 9px; border-radius: 3px; background: var(--c); animation: bd-confetti 680ms cubic-bezier(.2, .8, .3, 1) forwards; }
+@keyframes bd-confetti { to { transform: translate(var(--x), var(--y)) rotate(200deg); opacity: 0; } }
+
+/* Short phones (the SE with Display Zoom is 452 tall): the card takes the
+   height the rail has, the sticker shrinks and overlaps less, the dots, the hint
+   and the minutes chip give way — Play is never under the dock. */
+@media (max-height: 600px) {
+  /* ...and the board itself tightens, so the first row of stickers clears the dock. */
+  #screen-shelves .bd-you .lb-you-mount { width: 72px; height: 50px; }
+  #screen-shelves .bd-intro { gap: 8px; padding-top: 2px; }
+  #screen-shelves .bd-ask { font-size: 21px; }
+  #screen-shelves .bd-tapes { padding-top: 8px; padding-bottom: 8px; }
+  #screen-shelves .bd-sheet { padding-top: 2px; }
+  #screen-shelves .bd-dots, #screen-shelves .bd-hint { display: none; }
+  #screen-shelves .bd-card { margin-top: 40px; height: calc(100% - 42px); }
+  #screen-shelves .bd-c-stk { top: -40px; width: clamp(100px, calc(24vh - 4px), 150px); }
+  #screen-shelves .bd-front { gap: 6px; padding-bottom: 14px; }
+  #screen-shelves .bd-c-name { font-size: 24px; }
+  #screen-shelves .bd-c-pitch { -webkit-line-clamp: 2; font-size: 14px; }
+  #screen-shelves .bd-c-min { display: none !important; }
+  #screen-shelves .bd-c-play, #screen-shelves .bd-c-flip { min-height: 46px; }
+  #screen-shelves .bd-b-ghost { display: none; }
+}
+@media (max-width: 359px) { #screen-shelves .bd-hint { display: none; } }
+
+/* ── The dock: thumb-zone glass, Random as the centre die ────────────────── */
+#screen-shelves .bd-dock {
+  position: absolute; z-index: 40; left: 50%; transform: translateX(-50%);
+  bottom: var(--bd-dock-gap); width: min(408px, calc(100% - 24px));
+  display: flex; align-items: center; justify-content: space-around; gap: 2px; padding: 6px 8px;
+  border-radius: 26px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 0 0 1px rgba(43,27,69,.07), 0 14px 30px -12px rgba(43,27,69,.35);
+}
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  #screen-shelves .bd-dock { background: rgba(255, 255, 255, 0.82); -webkit-backdrop-filter: blur(14px) saturate(1.4); backdrop-filter: blur(14px) saturate(1.4); }
+}
+#screen-shelves .bd-dock-btn {
+  width: 56px; min-height: 52px; border-radius: 16px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  font: 500 10.5px/1 'Fredoka', system-ui, sans-serif; color: var(--lb-ink-2);
+  transition: transform 100ms var(--lb-ease-out), background-color 160ms ease;
+}
+#screen-shelves .bd-dock-btn[hidden] { display: none; }
+#screen-shelves .bd-dock-btn:active { transform: scale(.94); background-color: #F3EEF9; }
+#screen-shelves .bd-ico { font-size: 21px; line-height: 1; }
+#screen-shelves .bd-die {
+  position: relative; width: 66px; height: 66px; margin-top: -26px; border-radius: 22px; flex: none;
+  background: var(--lb-accent); color: #fff; display: grid; place-items: center;
+  box-shadow: inset 0 2px 0 rgba(255,255,255,.35), inset 0 -10px 14px -8px rgba(0,0,0,.3), 0 5px 0 #A3205E, 0 14px 20px -8px rgba(233,64,142,.6);
+  transition: transform 100ms var(--lb-ease-out), box-shadow 100ms var(--lb-ease-out), opacity 160ms ease;
+}
+#screen-shelves .bd-die:active { transform: translateY(4px); box-shadow: inset 0 2px 0 rgba(255,255,255,.35), inset 0 -10px 14px -8px rgba(0,0,0,.3), 0 1px 0 #A3205E, 0 6px 10px -6px rgba(233,64,142,.6); }
+#screen-shelves .bd-die svg { width: 34px; height: 34px; }
+#screen-shelves .bd-die.is-rolling svg { animation: bd-die-roll .5s linear infinite; }
+@keyframes bd-die-roll { to { transform: rotate(360deg); } }
+#screen-shelves .bd-die-lbl { position: absolute; bottom: -15px; left: 50%; transform: translateX(-50%); white-space: nowrap; font: 600 10.5px/1 'Fredoka', system-ui, sans-serif; color: var(--lb-accent); }
+/* Nothing to roll: dimmed, inert but still there (aria-disabled, not removed). */
+#screen-shelves .bd-die.is-off { opacity: .4; }
+#screen-shelves .bd-die.is-off:active { transform: none; }
+#screen-shelves .bd-dock button:focus-visible { outline: 3px solid var(--lb-accent); outline-offset: 2px; }

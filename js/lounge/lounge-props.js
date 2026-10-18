@@ -1719,7 +1719,7 @@
      ───────────────────────────────────────────────────────────────────────── */
   const LOU_PHONE_OPEN_DEG = 140;   // a real clamshell opens further; this faces the screen up the camera's line
   const LOU_PHONE_FLIP_MS = 480;    // the flip plus the backlight coming up; the scene passes its own
-  const LOU_PHONE_MENU = ['Shelves', 'Messages', 'Camera', 'Settings'];
+  const LOU_PHONE_MENU = ['Board', 'Messages', 'Camera', 'Settings'];
   const LOU_PHONE_KEYS = [['1', 'oo'], ['2', 'abc'], ['3', 'def'], ['4', 'ghi'], ['5', 'jkl'], ['6', 'mno'],
                           ['7', 'pqrs'], ['8', 'tuv'], ['9', 'wxyz'], ['*', '+'], ['0', '_'], ['#', '']];
 

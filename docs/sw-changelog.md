@@ -5,6 +5,16 @@ The **current** version and its notes stay in `CLAUDE.md` § Current Focus — a
 
 
 
+## v249 — the arcade fills up: seven cabinets (18 Oct 2026).
+ Six new Secret Mode cabinets
+join a revamped ASHERPLANE — DEEP-SEA SWEEP (Minesweeper in DSD's world), OTHER SIDE, CHOP SALAD,
+COOKIE JAR, STACKING ORDER, BEYOND THE BLUFF. **`SM_ARCADE` is now the registration**: each entry
+carries `stop` beside `start`, and `resetToLobby()` + the Konami guard iterate it instead of naming
+asherplane (six loops would otherwise have painted under every later screen). `#screen-secret-terminal`
+became `h-screen overflow-y-auto` — it is the scroll container its sticky header and `scrollTop`
+assignments always assumed. +516 KB of precached JS. Harness: `tools/verify-arcade.js`. No packet
+change. Detail: `shared-implementation-notes.md` DD-55.
+
 ## v248 — Little Sylly's paintings (30 Sep 2026).
  The two prints over the Lounge jukebox are now the
 owner's daughter's paintings (*Rainbow Birches*, *Big Beak Toucan*, age 5): real pick targets

@@ -20,7 +20,7 @@ Spec: `docs/superpowers/specs/2026-09-15-index-decomposition-design.md`.
 
 | Section | Partial |
 |---------|---------|
-| Lobby layouts — the Lounge, TV, Shelves (Original is `_shell.html`) | `src/screens/lobby.html` |
+| Lobby layouts — the Lounge, TV, the Board (Original is `_shell.html`) | `src/screens/lobby.html` |
 | Like I'm Five (LI5) | `src/screens/li5.html` |
 | Great Minds (GM) | `src/screens/gm.html` + `src/screens/gm-overlays.html` |
 | Secret Signals (SS) | `src/screens/ss.html` |
@@ -679,7 +679,7 @@ cache-first). Adding a sticker is a folder drop + one manifest line: no `sw.js` 
 | `ctlMount(el, { floor, home, pose })` / `ctlUnmount()` | Re-parents the single WebGL renderer between the lobby and Workshop mounts — one context, never two, since phones cap live WebGL contexts. `floor` (default `true`) toggles the contact-shadow plane; the lobby mount passes `false`. `home` (default `false`; the ornament passes `true`) sets `ctlSpringHome` — see below. `pose` (`{ yaw, pitch }`, radians; ornaments only) is the slot's resting angle, `ctlHomeYaw`/`ctlHomePitch` — face-on when absent; TV passes `TV_CTL_POSE`. A pose change carries the view relative to home, so the Workshop opens face-on. `beats` (ornaments only; TV) opts into the idle beats — `ctlBeatStart`/`ctlBeatFrame`/`ctlBeatEnd`, `flick`/`press`/`pair`, on the idle nudge's timer. `ctlGlance(yaw, pitch)` adds a temporary offset to the home pose (TV's look-at-the-hovered-box); cleared on every mount (SW v238, DD-50) |
 | `ctlSpringHome` / `ctlHomeActive()` / `ctlYawOffHome()` (SW v232) | The ornament's pull back to its showcase pose: `ctlTick` adds `-off × CTL_HOME_SPRING` (0.006) to `ctlVelY` and decays `ctlRotX` by `CTL_HOME_TILT`, the short way round. Ornament mounts only (the Workshop keeps the player's turn), off mid-drag, off under reduced motion. Makes the idle nudge an out-and-back wiggle (9–18°, ~2 s) |
 | `ctlMountLobby()` | Defers the build past first paint (`requestIdleCallback`), then mounts + binds pointer + starts the idle nudge |
-| `ctlScheduleIdleNudge()` | A small randomly-signed wiggle every 3-5s (first at 1s) — reuses the drag-release coast physics (`ctlVelY`) rather than a second animation system; declines under reduced motion, mid-drag, off-lobby, or once the Workshop takes the mount. Runs in all three ornament layouts (Classic, Shelves, TV); since SW v232 the home spring brings each nudge back |
+| `ctlScheduleIdleNudge()` | A small randomly-signed wiggle every 3-5s (first at 1s) — reuses the drag-release coast physics (`ctlVelY`) rather than a second animation system; declines under reduced motion, mid-drag, off-lobby, or once the Workshop takes the mount. Runs in all three ornament layouts (Classic, the Board, TV); since SW v232 the home spring brings each nudge back |
 | `ctlOpenWorkshop(opts)` / `ctlCloseWorkshop()` | Enter/exit the Workshop; close discards unsaved changes (`ctlDesign = ctlReadDesign()`). `opts` is `{ returnScreen, onReturn }`, both optional and both defaulting to the lobby — the **opener** names its way back, so the Workshop can be reached from a second surface (the Premium lounge) without monkey-patching the close. `onReturn(design)` is handed the design that survived the close (saved on the Save path, restored on the ✕ path — one hook, no branch) and owns its own remount; with none given, `ctlMountLobby()` runs as before. Close reads the pair **before** calling `ctlTeardown()`, which clears it |
 | `ctlRenderPanel()` / `ctlSelectColour(group, hex)` | `ctlRenderPanel` repaints the whole room from `ctlDraft` + `ctlStickerState` (parts, palette, dice dots, sheet, card) — every region is static markup it fills. `ctlActiveGroup` (default `'shell'`) is which part the palette paints. `ctlSelectColour` sets one part and repaints. **SW v235:** also writes `data-st` (`ctlStickerMode()`) and `data-undo` onto `#screen-workshop` — what Tool Belt's `[data-st]` CSS rules read to show Paint or the card |
 | `ctlLayoutPhone()` / `ctlLayoutWide()` / `ctlSyncPhoneLayout()` (SW v235) | CSS alone restyles a box in place; it can't move an element into a **different** flex parent than its own DOM parent. These move four shipped elements house whenever the viewport crosses 859 px: Randomise All + the palette into `.wks-strip`; Paint + the sticker card into `.wks-tray` (one visible at a time via `data-st`); the sticker sheet's kicker + running line + Undo into `.wks-belt-head` (Undo stays reachable even with the card hidden); Reset/Save into a `.wks-foot` footer. `ctlLayoutWide()` is the exact reverse, run in the opposite order. `CTL_PHONE_MQ` (a `matchMedia('(max-width: 859px)')`) plus one `change` listener is the **only** mechanism — `ctlSyncPhoneLayout()` runs once at boot and again on every crossing, so `ctlOpenWorkshop()` needs no breakpoint check of its own. Each function is idempotent-guarded by `ws.dataset.phoneLayout` |
@@ -743,18 +743,20 @@ assertions rewritten, 48 -> 50 checks) rather than left uncovered. All harnesses
 
 ## Lobby layouts (SW v231)
 
-The lobby has **four layouts** — the Lounge (the 3D room), TV, Shelves and Original — and the
+The lobby has **four layouts** — the Lounge (the 3D room), TV, the Board and Original — and the
 Lounge is the first view on launch. A phone (or any WebGL device below 900×500) plays the Lounge's
-arrival beat and is handed to Shelves for the session; a device with no WebGL (or
-`prefers-reduced-data`) boots straight into Shelves. **Every "back to the lobby" goes through
+arrival beat and is handed to the Board for the session; a device with no WebGL (or
+`prefers-reduced-data`) boots straight into the Board. **The Board is the layout id `shelves`**
+(SW v250 — it replaced the Shelves layout; the id, `#screen-shelves`, `#shelves-canvas`,
+`#shelves-controller` and the router's `enterShelves` keep their names, only the label changed). **Every "back to the lobby" goes through
 `lobbyShow()`** (`logic-engine.md` § Lobby Router Seam). Spec:
 `docs/superpowers/specs/2026-09-25-lobby-production-wiring-design.md`.
 
 **Markup:** `src/screens/lobby.html` (the three new screens + two overlays); Original is the existing
 `#screen-lobby` in `src/screens/_shell.html`, now `style="display:none"` in markup (the boot shows
 the first layout — nothing else may paint first) with one new header button, `#btn-lobby-layout`.
-**CSS:** `css/lobby.css` (layouts `lb-*`/`lb-lg-*`, stickerbook `sb-*`, Lounge HUD `#lou-*`, screen
-+ ornament-slot rules). **Data:** `data/lamp/` (manifest + 9 JPEGs, ~317 KB) — **runtime-cached,
+**CSS:** `css/lobby.css` (shared `lb-*`, TV `lb-lg-*`, stickerbook `sb-*`, Lounge HUD `#lou-*`, screen
++ ornament-slot rules); `css/board.css` (the Board, `bd-*`, all under `#screen-shelves`, SW v250). **Data:** `data/lamp/` (manifest + 9 JPEGs, ~317 KB) — **runtime-cached,
 not precached**, the `data/stickers/` contract.
 
 ### Files (load order: after `controller.js`, before `secret-mode.js`)
@@ -766,7 +768,8 @@ not precached**, the `data/stickers/` contract.
 | `js/lounge/lounge-scene.js` | `LouScene` | `louMount(canvas, host, opts)` → the scene api (incl. `syncMusic()`, SW v233 — re-read `host.music` into the jukebox prop); `louValidateHost`, `louEligible`, `louCanArrive`, `LOU_PROVIDER_FUNCS` |
 | `js/lounge/lounge-sfx.js` | `LouSfx` | `louCreateSfx()` — the room's synthesised voices (gated on `isMuted \|\| !sfxEnabled` by the host): `dialPress`, `phoneOpen`, `binderOpen`, `controllerRumble` (SW v232) |
 | `js/lobby/lobby-games.js` | `GAMES`, `SHELVES` | The verified 20-game data table (regenerate with `tools/build-games.js`) |
-| `js/lobby/lobby.js` | `lb*` | Shelves layout, TV's size gate + hand-off card, the helpers both share (`lbState`, `lbSet`, `lbRender`, `lbMountTVFull`, `lbTvEligible`) |
+| `js/lobby/lobby.js` | `lb*` | The helpers the Board and TV share — `lbState` (the ONE filter state: `count`, `onePhone`, `profileOpen`), `lbSet` (assign → `bdPaint()` → TV/ornament; rebuilds nothing), `lbWhyOut`, `lbFitLine`, `lbSheetBodyInner` (the Board's card back AND TV's pane), `lbPlayersText/Long`, `lbPhoneText/Long`, `LB_SHELVES`, `LB_NO_STICKER`, the "You" popover (`lbRenderProfilePop`/`lbWireProfilePop`) — plus TV's size gate + hand-off card (`lbMountTVFull`, `lbTvEligible`). The Shelves render path (`lbRender` and friends) went with the Board, SW v250 |
+| `js/lobby/board.js` | `bd*`, `BD_STATE` | **The Board** (SW v250) — patch-in-place like `tv.js`; full API in § The Board below |
 | `js/lobby/tv.js` | `tv*`, `TV_STATE` | The TV layout (was the sandbox's `lounge.js`): patch-in-place renderer, `tvMount`/`tvDrop`. The rail's centre swell (`tvSwell`) and "pick me" hop (`tvAsk`) ride the drift rAF — no timer of their own. `TV_PILE` = the empty pane's stickers; `tvShelfFans()` = which stickers each shelf tile fans (pure, de-duplicated, `verify-tv`); `TV_CTL_POSE` = the controller's turn toward the bubble. Also: the flip clock (`tvFlipTile`/`tvFlipTo`), the rail wave (`tvWave`), Random's dot + the rolled box's ring (`tvDotLand`; `tvSelect(id, fromRoll)` records a roll), the game of the hour (`tvHourGame`/`tvPaintHour`, `inst.paintClock(date)`), the glance (`tvGlance`). The picker lays out off the panel's own width (`@container tvpanel`), not the window's (SW v238, DD-50) |
 | `js/lobby/achievements.js` | `Achievements` | Stickerbook rules, pure; `achAllPlaced(book)` is v1's whole book |
 | `js/lobby/stickerbook.js` | `Stickerbook` | `sbMount(root, opts)` → the book's DOM |
@@ -779,10 +782,10 @@ not precached**, the `data/stickers/` contract.
 | ID | Layout / purpose |
 |----|------------------|
 | `#screen-lounge` | The Lounge — `#lou-stage` › `#lou-canvas`, `#lou-vignette`, `#lou-hud` (`#lou-heading`, `#lou-status`, `#lou-focus`), `#lou-fade`. Fixed stage |
-| `#screen-tv` | TV — `#tv-app`. Fixed stage; below 900×500 it shows the hand-off card (`#lb-tv-handoff-back` → Shelves) |
-| `#screen-shelves` | Shelves — `#shelves-canvas` › `.lb-phone` › `.lb-scroll`, the ONE scroller (full window, bar hidden, the 440 px column centred by padding — `--lb-col`; SW v238, was a fixed 390×844 box). Brand row `.lb-brand` (`.lb-wordmark` + `#shelves-controller`), then `.lb-places` |
+| `#screen-tv` | TV — `#tv-app`. Fixed stage; below 900×500 it shows the hand-off card (`#lb-tv-handoff-back` → the Board) |
+| `#screen-shelves` | **The Board** (SW v250) — `#shelves-canvas` › `.lb-phone.bd` › `.bd-scroll` (the ONE scroller, the 440 px column centred by padding) holding `.bd-head` (one-line `.sylly-wordmark.bd-mark`, `.bd-arcade` 🕹️ once unlocked, `.bd-you` › `#shelves-controller` + `#lb-you-label`), `.bd-intro` (`.bd-ask`, the stepper `.bd-minus`/`.bd-step-val`/`.bd-plus`, `.bd-onephone`, `.bd-fit` + `.bd-clear`), `.bd-tapes` (`.bd-tape[data-tab]`), `.bd-sheet` (20 `.bd-st[data-id]`), `.bd-note`; then the held layer `.bd-held` (`role=dialog`: `.bd-scrim`, `.bd-top` › `.bd-home` "← Board" / `.bd-hint` / `.bd-count`, `.bd-rail` › `.bd-card[data-id]` › `.bd-flipper` › `.bd-front` (`.bd-c-play`, `.bd-c-flip`) + `.bd-back` (`.bd-b-turn`, `.bd-b-body` = `lbSheetBodyInner`), `.bd-dots`); then the dock `.bd-dock` (`[data-lobby-place]` 🎵/📒, `.bd-die`, `.bd-sound` › `.btn-open-sound`, `.bd-layout`). Not an `h-screen` exception — the column scrolls |
 | `#screen-lobby` | Original — `#btn-lobby-layout` (opens the switcher), the wordmark and the places row (SW v238); full detail in § Engine / Global |
-| `#lobby-switcher-overlay` | The dock (z-[90], Decision-Modal geometry): `#lobby-switcher-list`, `#btn-lobby-switcher-close`. Summoned only — Original's button and the Lounge's channel dial |
+| `#lobby-switcher-overlay` | The layout switcher (z-[90], Decision-Modal geometry): `#lobby-switcher-list`, `#btn-lobby-switcher-close`. Summoned only — Original's button, the Board's dock Layout button (SW v250) and the Lounge's channel dial |
 | `#screen-jukebox` | The jukebox (the cat's door; not a layout) — `.jbx-head` (`.btn-open-sound`, `#jbx-close`), `.jbx-stage` › `#jbx-canvas` / `#jbx-nogl`, the deck (`#jbx-np-art`, `#jbx-np-title`, `#jbx-np-meta`, `#jbx-wave` seek+equaliser, `#jbx-t0`/`#jbx-t1`, five `.jbx-key[data-kind]`, `#jbx-vol`), `#jbx-pick` (built: `#jbx-tab-records`, `#jbx-tab-list`, `#jbx-find`, `#jbx-search`, `#jbx-crate-play`, `.dB-row[data-id]`), `#jbx-toast`. Fixed stage. Styles `css/jukebox.css`. **Data:** `data/music/jukebox/` (`manifest.json` + 25 mp3 + `covers/`, ~68 MB) — runtime-cached by `sw.js`'s `/data/music/` branch |
 | `#stickerbook-overlay` | The stickerbook (binder door). Toggles its own `hidden` (guarded `!important`); **never** in `resetToLobby()`'s display list — the router's `home` closes it |
 
@@ -790,33 +793,59 @@ not precached**, the `data/stickers/` contract.
 | Layout | Slot id |
 |--------|---------|
 | Original | `#lobby-controller` |
-| Shelves | `#shelves-controller` (`.lb-you-mount.ctl-ornament`) |
+| The Board (`shelves`) | `#shelves-controller` (`.lb-you-mount.ctl-ornament`, 88×64; 72×50 below 600 px tall) |
 | TV | `#tv-controller` (`.lb-lg-ctl.ctl-ornament`) |
 | Lounge | none — the room's own controller prop wears the Workshop's painted atlas (`ctlModelParts`) |
 
 "Original" is the layout id; it **displays as "Classic"** (SW v232 — `LOBBY_LAYOUTS` label only).
 
 ### The places row — the rooms' doors outside the Lounge (SW v238)
-A phone never keeps the Lounge, so Shelves and Classic each carry 🎵 Jukebox / 📒 Stickers
-(`.lobby-places` › `.lobby-place[data-lobby-place]`, styles in `css/lobby.css` beside the shared
-`.sylly-wordmark`). Shelves renders it (`lbRenderPlaces()`, `js/lobby/lobby.js`); Classic's is static
-markup wired in `lobbyBuildSwitcher()`. **TV carries the same two doors as a compact icon pair**
+A phone never keeps the Lounge, so the Board and Classic each carry 🎵 Jukebox / 📒 Stickers. Classic's
+is the labelled row (`.lobby-places` › `.lobby-place[data-lobby-place]`, static markup wired in
+`lobbyBuildSwitcher()`); **the Board's are two buttons in its dock** (`.bd-dock-btn[data-lobby-place]`,
+`bdMount`, shown by `bdPaint` — absent, not dimmed; SW v250). **TV carries the same two doors as a compact icon pair**
 (`.lb-lg-tool.is-jukebox` / `.is-stickers` in its tools pill, `tvBuildHeader()`/`tvApply()` in
-`js/lobby/tv.js`) rather than Shelves/Classic's labelled row — its own header idiom, same
+`js/lobby/tv.js`) rather than Classic's labelled row — its own header idiom, same
 `data-lobby-place` + `lobbyOpenPlace()` wiring underneath.
 | Function (`lobby-host.js`) | Role |
 |---|---|
 | `lobbyPlaceOffered(id)` | `'jukebox'` always; `'stickers'` only once the sticker manifest built `lobbyBook` — absent, not dimmed |
 | `lobbyOpenPlace(id)` | Dispatches `jukeboxOpen` / `stickerbookOpen` (both now also in `LOBBY_PAGE_ACTIONS`); refused before `lobbyReady` |
-| `lobbyPaintPlaces()` | After content loads: un-hides Classic's Stickers, re-renders Shelves, and repaints TV's own `.is-stickers` button (`tvApplyAll()`) — TV patches in place and sits outside `#screen-lobby`, so the query above never reaches it |
+| `lobbyPaintPlaces()` | After content loads: un-hides Classic's Stickers, repaints the Board's dock (`bdPaint()`), and repaints TV's own `.is-stickers` button (`tvApplyAll()`) — TV patches in place and sits outside `#screen-lobby`, so the query above never reaches it |
 Close goes back to the opener through the router's existing `jukeboxClose` / `stickerbookClose`
 (the view never changes under them). Harness: `verify-lobby-router.js` § the places row,
 `visual-lobby.js` § 17 (all three layouts).
 
+### The Board (`js/lobby/board.js`, SW v250)
+The phone's layout: the 20 games as die-cut stickers on one sheet (`data/stickers/<id>.png`, the emoji
+on a brand disc when one fails — `bdArt`/`bdArtFail`), washi-tape shelf tabs, a peel-off **held card**
+on a swipe rail (its back = `lbSheetBodyInner`), and a glass dock. Spec:
+`docs/superpowers/specs/2026-10-18-shelves-board-design.md`. Built ONCE per mount; only `bdPaint()`
+touches it after (the `tv.js` reason: a rebuild would cost the FLIP, the rail's scroll and any flight).
+| Symbol | Kind | Purpose |
+|--------|------|---------|
+| `bdOrder(games, tab, whyOut)` | pure | `{ fit, out }` — the tab's games in `GAMES` order, fitters first, the rest as ghosts |
+| `bdRail(games, tab, whyOut)` | pure | `bdOrder(...).fit` — the swipe never holds a game that doesn't fit (D6) |
+| `bdPick(pool, rand)` | pure | Random's pick (`null` on an empty pool), made before the show |
+| `bdTabCount(games, tab, whyOut, filtered)` | pure | A tape's small count: shelf size, or `fit/total`; All: '' or `N fit` |
+| `BD_STATE` | state | `{ tab, held, rolling }` — memory only; `held` = the centred card's id while the layer is up |
+| `bdMount(root)` | DOM | Builds header, filters, tapes, sheet, held layer, dock; an existing tree is just repainted |
+| `bdPaint()` | DOM | Filters/tab/places changed: stepper, fit line, tape counts, ghosts + reasons, the FLIP reorder (280 ms), empty note, die state, the popover; a held card that left the rail goes home |
+| `bdTapSticker(id)` → `bdHold(id, { fromRandom })` | DOM | The peel (480 ms flight) into the rail; a ghost only wobbles |
+| `bdPutBack({ instant })` | DOM | The card held NOW flies home (420 ms); four ways in: `.bd-home`, a downward swipe > 100 px, a tap on the rail's empty space, Escape |
+| `bdFollow()` / `bdSetCur(i)` / `bdGoTo(i, smooth)` | DOM | The rail's flat follow (cards within ±2 of centre), the centred card, a jump (dots, arrows) |
+| `bdFlip(card, on, quiet)` | DOM | Turn a card (460 ms CSS); swiping away turns it back quietly |
+| `bdRandom()` / `bdRiffle(id)` | DOM | Random from the board (9 ring hops, then the peel + burst) / while holding (the rail riffles, 1.3 s) |
+| `bdDrop()` | DOM | **Timer Lifecycle:** clears `bdTimers`, cancels `bdRaf` and every `bdFlights` animation, closes the held layer instantly. Called by `lobbyPresent` (any other view), `lobbyLeaveForGame`, a Workshop open (`lobbyApply`), the dock's room doors and the arcade key |
+| `bdTimers` / `bdRaf` / `bdFlights` / `bdSeq` | handles | The timer bag (`bdLater`), the one rAF (scroll follow or riffle), running WAAPI animations (`bdAnimate`), and the drop counter that makes a stale callback a no-op |
+| `BD_SOUND` | map | `peel` → `playWhoosh`, `putBack`/`flip`/`tab` → `playPillClick`, `hop` → `playTick`, `land` → `playSuccess` |
+| `bdBindSound(btn)` | DOM | The dock's Sound: tap → `openSoundOverlay`, 500 ms hold → `toggleMute` (engine.js binds `.btn-open-sound` only at boot) |
+Harnesses: `tools/verify-board.js` (pure tier, takes `BOARD_SRC=`), `tools/visual-lobby.js` § 4 / § 2 / § 18.
+
 ### The controller's idle motion (SW v232)
 | Where | What |
 |-------|------|
-| Ornament (Classic / Shelves / TV) | `ctlScheduleIdleNudge()` + the home spring (§ 3D Controller above) |
+| Ornament (Classic / the Board / TV) | `ctlScheduleIdleNudge()` + the home spring (§ 3D Controller above) |
 | Lounge prop — `louControllerIdle(THREE, inner, group, rand, sfx)` in `lounge-props.js` | The prop's `api.tick` runs a scheduler off the scene's frame time — **no timers** (the attract loop wakes the scene at 10 fps). First beat 3–5 s, then every 8–14 s (`LOU_CTL_FIRST_MS`/`LOU_CTL_GAP_MS`); beats `LOU_CTL_BEATS`: `rumble` 35%, `sticks` 30%, `pair` 25%, `konami` 10%; no ordinary beat twice running. A frame gap > `LOU_CTL_STOPPED_MS` (1.5 s = the scene was stopped) drops the beat at rest. `api.idle(kind, now)` / `api.idleState()` are the debug + harness hooks. Reduced motion: nothing moves, the Konami's sound still plays |
 | Konami data | `LOU_CTL_KONAMI` — `[button, dir]` pairs using `controller-body.js` mesh names. Each press names `controllerPress:<name>` + `konamiBeep`, then `controllerRelease`; the key lights with its press (`LOU_CTL_PRESS_GLOW`) because 2 mm of travel is invisible from the couch camera |
 | Sound routing — `lobbyPlaySfx(name)` in `lobby-host.js` | `controllerPress:*` → `ctlVoiceFor`, `controllerRelease` → `ctlVoiceRelease`, `konamiBeep` → `playSecretBeep`, anything else → `LouSfx` (`controllerRumble` is a room voice). **Never** `smHandleButton` — the room's Konami is a hint, not an unlock (`visual-lobby` § 14) |
@@ -828,9 +857,10 @@ Close goes back to the opener through the router's existing `jukeboxClose` / `st
 | `lobbyShow()` | **The seam.** Dispatches `home`, presents the home layout. `resetToLobby()` and both `secret-mode.js` returns call it |
 | `lobbyGo(id)` | A switcher picked a layout; refused unless `lobbyOffered(id)` |
 | `lobbyLaunch(gameId)` | Clicks the game's own lobby button (`LOBBY_BTN_IDS`: `li5`→`btn-dstw`, `gm`→`btn-great-minds`, `ss`→`btn-sylly-signals`, else `btn-[id]`); calls `lobbyLeaveForGame()` first |
-| `lobbyLeaveForGame()` | Everything that stops when a game takes the screen while `view` stays put: TV's timers (`tvDrop`) and the Lounge's room (`lobbyScene.stop()`; `lobbyApply` resumes it on the way back). Shared by `lobbyLaunch()` and the reconnect rejoin (`mpApplyRejoinAccept`), which enters a game with no lobby button (SW v236) |
+| `lobbyLeaveForGame()` | Everything that stops when a game takes the screen while `view` stays put: TV's timers (`tvDrop`), the Board's (`bdDrop`, SW v250 — a held card closes, so the game returns to a closed Board) and the Lounge's room (`lobbyScene.stop()`; `lobbyApply` resumes it on the way back). Shared by `lobbyLaunch()` and the reconnect rejoin (`mpApplyRejoinAccept`), which enters a game with no lobby button (SW v236) |
 | `lobbyOffered(id)` / `lobbyIsUp(view)` | What a switcher may show this device / is that layout on screen |
-| `lobbyAfterLayoutRender()` | Called by `lbSet` after every Shelves re-render — puts the ornament back |
+| `lobbyAfterLayoutRender()` | Called by `lbSet` after a filter change — makes sure the ornament is in the current layout's slot |
+| `lobbyPresent(view)` | Shows a layout; `'shelves'` → `bdMount(#shelves-canvas)` (idempotent: an existing tree is only repainted); any other view → `bdDrop()` and `tvDrop()` |
 | `lobbyDispatch(action)` | The one write path: `lobbyReduce` then `lobbyApply` |
 | `lobbyState` / `lobbyScene` / `lobbyBook` | Router state · the Lounge's scene api (null until mounted, and again after a phone's handoff) · the stickerbook's book (null when the sticker manifest never arrived) |
 | `?lobbydebug` | Exposes the scene's `window.louDebug` — for `tools/visual-lobby.js` only |
@@ -855,7 +885,7 @@ Workshop/stickerbook/jukebox close to the layout they were opened from; **one-wa
 
 **Harnesses:** `tools/verify-lobby-router.js` (210), `tools/verify-lounge-props.js` (1338),
 `tools/verify-tv.js` (919), `tools/verify-achievements.js` (81), `tools/visual-lounge.js` (29, over
-`tools/fixtures/lounge.html`), `tools/visual-lobby.js` (69, over the real `index.html`).
+`tools/fixtures/lounge.html`), `tools/visual-lobby.js` (138, over the real `index.html`), `tools/verify-board.js` (3881).
 
 ---
 

@@ -19,7 +19,7 @@
 - `docs/rules/new-game-checklist.md` — the ~40-item build checklist (engine registration, settings/overlay standards, MP handler audit, render seam, harness, closure). **Read when:** implementing a new game — before its first line of code. Binding.
 - `docs/rules/harnesses.md` — every verification harness: command, what it checks, check count, plus loopback-vs-`visual-check` guidance. **Read when:** running, extending or adding a harness.
 - `docs/rules/phase-audit.md` — Protocols A/B/C (drift check, skeleton-first, studio sweep). **Read when:** a phase boundary, or before a new game's first line of code.
-- `docs/sw-changelog.md` — every SW release note, continuous v238→v167. **Read when:** you need the history behind a past version.
+- `docs/sw-changelog.md` — every SW release note, continuous v249→v167. **Read when:** you need the history behind a past version.
 - `docs/deferred-work.md` — the parked-work list, **open items only**: older-games retest backlog, pending suite-wide sweeps, smaller flagged items. **Read when:** picking up maintenance work, or at a phase gate. Resolved entries move to `docs/deferred-work-log.md` — history, grep it; never read it as a to-do list.
 - `docs/practice-rollout.md` — the **Practice tab (tutorial) rollout tracker**: priority + effort for all 20 games, the 12-item definition of done, one card per game. **Read when:** starting or resuming a game's Practice pass.
 - `docs/cost-envelope.md` — **what the project may spend, and on what.** Three tiers (already-paid-for / costs-something-propose-the-number / changes-what-this-is), the split between permanent *craft* constraints and reviewable *business* ones, the measured install breakdown, the precache-vs-runtime-cache lever, and the owner's recorded strategic direction. **Read when:** any change adds an asset, a dependency, a font, or artwork — or when § Anti-Patterns below looks like it's saying "no" to something worth doing. It is the escape procedure for that list, not a replacement.
@@ -95,7 +95,7 @@ For where each game's screens/overlays live in `index.html`, see the **Per-Game 
 ---
 
 ## 📁 Load Order
-**Load order:** `music.js` → `engine.js` → `art.js` → `three.min.js` → `controller-body.js` → `controller-sticker-surface.js` → `physics.js` → `engine-multiplayer.js` → `canvas-draw.js` → `li5.js` → `great-minds.js` → `secret-signals.js` → `jec.js` → `ygi.js` → `lttp.js` → `nat.js` → `dsd.js` → `bld.js` → `gth.js` → `dyb-dice.js` → `dyb.js` → `cards.js` → `pass.js` → `nt.js` → `frt.js` → `shp.js` → `flw.js` → `pko.js` → `cjar.js` → `cld-art.js` → `cld.js` → `comb.js` → `controller.js` → `lounge-lib.js` → `lounge-room.js` → `lounge-props.js` → `lounge-scene.js` → `lounge-sfx.js` → `lobby-games.js` → `lobby.js` → `tv.js` → `achievements.js` → `stickerbook.js` → `jukebox.js` → `lobby-router.js` → `lobby-doors.js` → `lobby-host.js` → `secret-mode.js` → `app.js`
+**Load order:** `music.js` → `engine.js` → `art.js` → `three.min.js` → `controller-body.js` → `controller-sticker-surface.js` → `physics.js` → `engine-multiplayer.js` → `canvas-draw.js` → `li5.js` → `great-minds.js` → `secret-signals.js` → `jec.js` → `ygi.js` → `lttp.js` → `nat.js` → `dsd.js` → `bld.js` → `gth.js` → `dyb-dice.js` → `dyb.js` → `cards.js` → `pass.js` → `nt.js` → `frt.js` → `shp.js` → `flw.js` → `pko.js` → `cjar.js` → `cld-art.js` → `cld.js` → `comb.js` → `controller.js` → `lounge-lib.js` → `lounge-room.js` → `lounge-props.js` → `lounge-scene.js` → `lounge-sfx.js` → `lobby-games.js` → `lobby.js` → `tv.js` → `board.js` → `achievements.js` → `stickerbook.js` → `jukebox.js` → `lobby-router.js` → `lobby-doors.js` → `lobby-host.js` → `secret-mode.js` → `app.js`
 (`tailwind-play.js` loads in `<head>` before everything else. `js/lib/music.js` loads *before* `engine.js` — the engine boot block calls `Music.init()` at parse time. `app.js`'s last line is `lobbyBoot()` — every lobby symbol exists by then.)
 All symbols are global (no ES modules). Forward references work at runtime.
 
@@ -293,16 +293,14 @@ On every bump the outgoing SW entry moves **verbatim** to `docs/sw-changelog.md`
 "keep the last three". **A second `**SW v…**` paragraph appearing here means that move didn't
 happen: do it before anything else.**
 
-**SW v249 — the arcade fills up: seven cabinets (18 Oct 2026).** Six new Secret Mode cabinets
-join a revamped ASHERPLANE — DEEP-SEA SWEEP (Minesweeper in DSD's world), OTHER SIDE, CHOP SALAD,
-COOKIE JAR, STACKING ORDER, BEYOND THE BLUFF. **`SM_ARCADE` is now the registration**: each entry
-carries `stop` beside `start`, and `resetToLobby()` + the Konami guard iterate it instead of naming
-asherplane (six loops would otherwise have painted under every later screen). `#screen-secret-terminal`
-became `h-screen overflow-y-auto` — it is the scroll container its sticky header and `scrollTop`
-assignments always assumed. +516 KB of precached JS. Harness: `tools/verify-arcade.js`. No packet
-change. Detail: `shared-implementation-notes.md` DD-55.
+**SW v250 — the Board: the phone's lobby becomes a sticker sheet (18 Oct 2026).** Shelves is
+replaced by **the Board** (`js/lobby/board.js`, prefix `bd`; `css/board.css`): the 20 games as stickers
+on one sheet, washi-tape shelf tabs, a peel-off held card on a swipe rail (its back is `lbSheetBodyInner`),
+and a glass dock — 🎵 · 📒 · Random · 🔊 · Layout. Patch-in-place like `tv.js`; `lbSet` rebuilds nothing now.
+Layout id stays `shelves` (label "Board", 🏷️). `bdDrop()` is the Timer Lifecycle clear. No packet.
+Harness: `tools/verify-board.js` + `visual-lobby.js` § 18. Detail: `shared-implementation-notes.md` DD-56.
 
-**Previous versions: `docs/sw-changelog.md`** — continuous, v248 back to v167.
+**Previous versions: `docs/sw-changelog.md`** — continuous, v249 back to v167.
 
 **Where the suite stands.** **20 games shipped**, all gold-master, plus multiplayer; newest are Honeycomb Hills (`comb`, MDLM-only, no Sylly Mode), Cold Shoulder (`cld`, first physics game) and Cookie Jar (`cjar`). Every game has an identity doc (`docs/game-identities/`). The Cartridge System (word packs + skin packs, `docs/cartridge-system-plan.md`) is complete; core art has rolled out to `pko`, `flw`, `frt`, `shp`, `comb` — PASS runs CSS defaults, DYB and CLD art are procedural and never need a pack (`docs/expansion-guide.md` § Core art packs). **Phase gates 37–39 and 41 are closed; phase 40 (Cold Shoulder) is open** — `docs/phase40-snapshot.md` names what is left (a live multi-device session and the offline install check).
 

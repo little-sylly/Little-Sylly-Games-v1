@@ -19,6 +19,13 @@ Detail: pointer to the canonical doc (snapshot / impl note / spec / memory).
 ```
 
 
+## 2026-10-18 — The phone's lobby is the Board: a sticker sheet, a held card, a dock (Strategy)
+Category: Strategy
+Decision: the Shelves layout is replaced by the Board — 20 die-cut stickers on one sheet, washi-tape shelf tabs, a peel-off held card on a swipe rail, and a glass dock (Jukebox · Stickers · Random · Sound · Layout); no Play again (suite-wide later, with profiles).
+Why: Shelves named no game on its first screen, took three taps to reach one and had no Random; the phone wanted its own identity rather than a portrait copy of TV, and the sticker sheet is the suite's existing language.
+Changed: new `js/lobby/board.js` (`bd`, patch-in-place) + `css/board.css`; `lobby.js` lost the Shelves render path (`lbSet` rebuilds nothing); `lobby-host.js` mounts/drops it; label "Board" (id stays `shelves`); `sw.js` v250. New `tools/verify-board.js`; `visual-lobby.js` § 18. Deferred: the owner's phone pass; the dock is full at five slots.
+Detail: spec `docs/superpowers/specs/2026-10-18-shelves-board-design.md`; `shared-implementation-notes.md` DD-56.
+
 ## 2026-10-18 — `SM_ARCADE` is the arcade's registration, not just its menu (Architecture)
 Category: Architecture
 Decision: every consumer that acts on "a cabinet" iterates `SM_ARCADE`; each entry carries `stop` beside `start`, and no engine code names a cabinet individually.

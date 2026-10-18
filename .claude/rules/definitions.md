@@ -11,7 +11,7 @@
 | Sets / Arrays | Pluralised camelCase | `allScreens`, `gmSessionGuesses`, `gmRoundLog` |
 | Constants | `SCREAMING_SNAKE_CASE` | `GM_CATEGORIES`, `BLD_ROLE_TABLE`, `LTTP_SMALL_TALK` |
 
-**Active plugin prefixes (20 games):** `li5` (state vars unprefixed — see above), `gm`, `ss`, `jec`, `ygi`, `lttp`, `nat`, `dsd`, `gth`, `dyb`, `bld`, `pass`, `nt`, `frt`, `shp`, `flw`, `pko`, `cjar`, `cld`, `comb`. **Lobby modules, not games** (SW v231) — also reserved: `lou` (the Lounge's room), `tv` (TV layout), `lb` (Shelves + shared layout helpers), `lobby` (router/doors/host), `ach` (stickerbook rules), `sb` (stickerbook DOM), `jbx` (the jukebox screen, SW v233). A new game's abbreviation must not collide with any of these (Naming Collision Check 3, `new-game-process.md`). **This list is the collision check's source — a stale one is how a collision gets shipped**, so extend it in the same pass that registers a new plugin. (It sat at 15 from `shp` until the phase-41 gate, missing five live prefixes.)
+**Active plugin prefixes (20 games):** `li5` (state vars unprefixed — see above), `gm`, `ss`, `jec`, `ygi`, `lttp`, `nat`, `dsd`, `gth`, `dyb`, `bld`, `pass`, `nt`, `frt`, `shp`, `flw`, `pko`, `cjar`, `cld`, `comb`. **Lobby modules, not games** (SW v231) — also reserved: `lou` (the Lounge's room), `tv` (TV layout), `bd` (the Board, SW v250), `lb` (the shared layout helpers), `lobby` (router/doors/host), `ach` (stickerbook rules), `sb` (stickerbook DOM), `jbx` (the jukebox screen, SW v233). A new game's abbreviation must not collide with any of these (Naming Collision Check 3, `new-game-process.md`). **This list is the collision check's source — a stale one is how a collision gets shipped**, so extend it in the same pass that registers a new plugin. (It sat at 15 from `shp` until the phase-41 gate, missing five live prefixes.)
 
 ## Function Naming
 
@@ -80,11 +80,13 @@ syllyMultiplayerMode: 'single' | 'host' | 'client'
 | `mpPlayersListener` | `let`-declared `onValue` unsubscribe for the `/players` node; active during host lobby only — do NOT access via `window.` prefix |
 | `getMuteToggleOnClass(gameId)` | Engine helper mapping `activeGameId` → the game's `game-toggle-on-[colour]` class; fallback `game-toggle-on-stone` |
 | `game-toggle-on-[colour]` | CSS class family for ALL ON-state toggles (settings, Sylly Mode, global mute); OFF state is `game-toggle-off` (canonical; `sylly-toggle-off` legacy alias). `sylly-toggle-on` is deprecated — never use |
-| Layout | One of the lobby's four views: `lounge`, `tv`, `shelves`, `original`. Exactly one is on screen whenever the lobby is |
+| Layout | One of the lobby's four views: `lounge`, `tv`, `shelves` (displays as "Board"), `original` (displays as "Classic"). Exactly one is on screen whenever the lobby is |
+| The Board | The phone's layout (SW v250, id `shelves`): the games as stickers on one sheet, a peel-off held card, the dock. `js/lobby/board.js` |
+| Held card | The Board's card rail, opened by peeling a sticker; one layer over the board, its back carries a game's details |
 | The Lounge | The 3D room layout (was "Premium" in the sandbox). The only layout that is not a menu |
 | Home layout | The router's `view` — the last layout on screen; where `lobbyShow()` returns. A game launch never changes it. Memory only |
 | Handed out | A device whose Lounge arrival beat has played (a phone). The Lounge is closed to it for the session |
-| Ornament | The live 3D controller shown in Original, Shelves or TV — one canvas, moved between their slots |
+| Ornament | The live 3D controller shown in Original, the Board or TV — one canvas, moved between their slots |
 | Internal game id | The `activeGameId` string is the *internal* id and may differ from the display name — SS uses `'sylly-signals'` (legacy) although the game is displayed as Secret Signals |
 | Seats | `rooms/{code}/seats` — the uids in seat order, frozen by the host at `GAME_START` (`mpSeats`). Answers "does this room still have a seat for me?" without asking the host. Rewritten each match (SW v236) |
 | Presence | `rooms/{code}/presence/{uid}/{pushId}` — one child **per connection**, each removed by its own `onDisconnect`. A seat is present while any child exists. Clients only; the host writes none |

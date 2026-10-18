@@ -101,7 +101,7 @@ const canvasParent = page => page.evaluate(() => (typeof ctlRenderer !== 'undefi
 
       section('4 — every layout: Play reaches the game, quitting lands back on that layout');
       const plays = {
-        shelves:  async () => { await page.evaluate(() => lbSet({ folder: lbGame('frt').shelves[0], sheet: 'frt' })); await page.click('#lb-play'); },
+        shelves:  async () => { await page.evaluate(() => bdHold('frt')); await page.waitForFunction(() => !bdFlying && !bdFlights.length, null, { timeout: 15000 }).catch(() => {}); await page.click('#shelves-canvas .bd-card.is-cur .bd-c-play'); },
         tv:       async () => { await page.evaluate(() => tvSelect('frt')); await page.click('#tv-app .lb-lg-play'); },
         original: async () => { await page.click('#btn-frt'); },
       };
@@ -115,6 +115,8 @@ const canvasParent = page => page.evaluate(() => (typeof ctlRenderer !== 'undefi
         if (layout === 'tv') ok(await page.evaluate(() => !document.getElementById('tv-app').__tv), "tv: the rail's RAF and clock are stopped during a game");
         await page.click('#btn-frt-menu-back'); await settle(page, 400);     // the game's own resetToLobby()
         ok(await onlyLayout(page, layout), `${layout}: quitting lands back on ${layout}`);
+        // The Board: a game launched from a held card comes back to a CLOSED board.
+        if (layout === 'shelves') ok(await page.evaluate(() => !bdHeldOpen() && BD_STATE.held === null), 'shelves: the Board comes back with no card held');
       }
       // The Lounge has no Play of its own — it is entered by a door, and a game started
       // through that door belongs to the layout the door opened (O4).
@@ -269,7 +271,7 @@ const canvasParent = page => page.evaluate(() => (typeof ctlRenderer !== 'undefi
       ok(await page.evaluate(() => getComputedStyle(document.getElementById('lou-fade')).opacity) === '0', 'the door\'s fade is cleared — the room is visible');
       await page.evaluate(() => lobbyGo('shelves')); await settle(page, 400);
       ok(await page.evaluate(() => Music.heldKey() === 'the-stakeout' && !Music.deck().paused), 'the song is held through lobby navigation');
-      await page.evaluate(() => lbSet({ folder: lbGame('frt').shelves[0], sheet: 'frt' })); await page.click('#lb-play'); await settle(page, 400);
+      await page.evaluate(() => bdHold('frt')); await page.waitForFunction(() => !bdFlying && !bdFlights.length, null, { timeout: 15000 }).catch(() => {}); await page.click('#shelves-canvas .bd-card.is-cur .bd-c-play'); await settle(page, 400);
       ok(await shown(page, 'screen-frt-menu') && await page.evaluate(() => Music.heldKey() === null), 'a game lets go of it — the game\'s music takes the room back');
       await page.click('#btn-frt-menu-back'); await settle(page, 400);
       ok(await onlyLayout(page, 'shelves'), 'and quitting the game still lands on Shelves');
@@ -338,8 +340,14 @@ const canvasParent = page => page.evaluate(() => (typeof ctlRenderer !== 'undefi
       ok(await onlyLayout(page, 'shelves'), `${reduced ? 'reduced: ' : ''}the beat hands to Shelves`);
       if (!reduced) {
         ok(await page.evaluate(() => !lobbyOffered('lounge')), 'the Lounge is closed to a handed-out phone');
-        ok(await page.evaluate(() => ![...document.querySelectorAll('#shelves-canvas .lb-switch .lb-seg')].some(b => b.getAttribute('aria-label') === 'Lounge')),
-           'Shelves\' switch does not offer it');
+        // The Board's switcher is the shared overlay, opened from the dock's Layout button.
+        await page.click('#shelves-canvas .bd-layout'); await settle(page, 300);
+        ok(await shown(page, 'lobby-switcher-overlay'), "the dock's Layout opens the switcher");
+        ok(await page.evaluate(() => { const b = document.querySelector('#lobby-switcher-overlay [data-lobby-layout="lounge"]');
+          const r = b && b.getBoundingClientRect(); return !r || r.width === 0 || r.height === 0; }), 'the switcher does not offer the Lounge');
+        ok(await page.evaluate(() => { const b = document.querySelector('#lobby-switcher-overlay [data-lobby-layout="shelves"]');
+          return !!b && b.textContent.includes('Board'); }), 'and names this layout the Board');
+        await page.click('#btn-lobby-switcher-close'); await settle(page, 300);
         await page.evaluate(() => lobbyGo('lounge')); await settle(page, 300);
         ok(await onlyLayout(page, 'shelves'), 'lobbyGo(\'lounge\') is refused');
 
@@ -448,6 +456,99 @@ const canvasParent = page => page.evaluate(() => (typeof ctlRenderer !== 'undefi
       ok(await page.evaluate(() => lobbyState.stickerbook && !document.getElementById('stickerbook-overlay').hidden), 'tv: 📒 opens the stickerbook');
       await page.click('#sb-close'); await settle(page, 300);
       ok(await onlyLayout(page, 'tv') && await page.evaluate(() => !lobbyState.stickerbook), 'tv: closing it comes back to tv');
+      await ctx.close();
+    }
+
+    section('18 — the Board: held card, Random, the dock, the timer drop (SW v250)');
+    {
+      // No WebGL: straight to the Board at a phone's size, without the arrival beat.
+      const { ctx, page } = await open({ width: 390, height: 844 });
+      await ctx.addInitScript(() => {
+        const orig = HTMLCanvasElement.prototype.getContext;
+        HTMLCanvasElement.prototype.getContext = function (t, ...a) { return /webgl/i.test(t) ? null : orig.call(this, t, ...a); };
+      });
+      await page.goto(base); await booted(page); await settle(page, 300);
+      ok(await onlyLayout(page, 'shelves'), 'a phone without WebGL is on the Board');
+      ok(await page.evaluate(() => document.querySelectorAll('#shelves-canvas .bd-st').length === GAMES.length), 'every game has a sticker on the sheet');
+
+      // Random lands on a game in the pool and opens its card.
+      await page.evaluate(() => { window.__pool = bdRail(GAMES, BD_STATE.tab, lbWhyOut).map(g => g.id); });
+      await page.click('#shelves-canvas .bd-die');
+      await page.waitForFunction(() => bdHeldOpen() && !BD_STATE.rolling, null, { timeout: 10000 }).catch(() => {});
+      ok(await page.evaluate(() => bdHeldOpen() && window.__pool.includes(BD_STATE.held)), 'Random lands on a game in the pool and holds its card');
+      ok(await page.evaluate(() => !lbWhyOut(lbGame(BD_STATE.held))), '  …one that fits the group');
+      await page.click('#shelves-canvas .bd-home'); await settle(page, 900);
+      ok(await page.evaluate(() => !bdHeldOpen()), '← Board puts the card back');
+
+      // A filter that empties the tab's pool: the die does nothing.
+      const empty = await page.evaluate(() => {
+        for (const tab of ['all', ...LB_SHELVES.map(s => s.id)]) for (const count of [2, 3, 8, 9, 10]) for (const onePhone of [true, false]) {
+          lbState.count = count; lbState.onePhone = onePhone;
+          if (!bdRail(GAMES, tab, lbWhyOut).length) { lbState.count = null; lbState.onePhone = false; return { tab, count, onePhone }; }
+        }
+        lbState.count = null; lbState.onePhone = false;
+        return null;
+      });
+      ok(!!empty, 'some filter empties a tab' + (empty ? ` (${empty.tab} @ ${empty.count}${empty.onePhone ? ', one phone' : ''})` : ''));
+      if (empty) {
+        await page.evaluate(e => { BD_STATE.tab = e.tab; lbSet({ count: e.count, onePhone: e.onePhone }); }, empty); await settle(page, 400);
+        ok(await page.evaluate(() => document.querySelector('#shelves-canvas .bd-die').getAttribute('aria-disabled') === 'true'), 'the die reads disabled');
+        await page.click('#shelves-canvas .bd-die', { force: true }); await settle(page, 800);
+        ok(await page.evaluate(() => !bdHeldOpen() && !BD_STATE.rolling && bdTimers.length === 0), 'and a tap on it does nothing');
+        ok(await page.evaluate(() => { const r = document.querySelector('#shelves-canvas .bd-note').getBoundingClientRect(); return r.width > 0 && r.height > 0; }),
+           'the empty tab shows its note');
+        await page.evaluate(() => { BD_STATE.tab = 'all'; lbSet({ count: null, onePhone: false }); }); await settle(page, 300);
+      }
+
+      // A ghost never opens a card (D6 / A1): inert but answerable.
+      const ghost = await page.evaluate(() => { lbSet({ count: 2 }); const g = GAMES.find(x => lbWhyOut(x)); return g && g.id; });
+      ok(!!ghost, 'a two-player filter leaves a ghost on the sheet');
+      if (ghost) {
+        await settle(page, 400);
+        await page.click(`#shelves-canvas .bd-st[data-id="${ghost}"]`); await settle(page, 600);
+        ok(await page.evaluate(() => !bdHeldOpen()), `a ghost sticker (${ghost}) opens nothing`);
+      }
+      await page.evaluate(() => lbSet({ count: null })); await settle(page, 300);
+
+      // The dock's Sound: a tap opens the overlay, a hold mutes and the icon follows.
+      await page.click('#shelves-canvas .bd-sound'); await settle(page, 300);
+      ok(await shown(page, 'sound-overlay'), "the dock's Sound opens the sound overlay");
+      await page.click('#btn-sound-overlay-done'); await settle(page, 300);
+      const muted0 = await page.evaluate(() => isMuted);
+      const sb = await page.evaluate(() => { const r = document.querySelector('#shelves-canvas .bd-sound').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
+      await page.mouse.move(sb.x, sb.y); await page.mouse.down(); await settle(page, 700); await page.mouse.up(); await settle(page, 200);
+      ok(await page.evaluate(m => isMuted === !m, muted0), 'holding it toggles Mute All');
+      ok(await page.evaluate(() => document.querySelector('#shelves-canvas .bd-sound .btn-open-sound').textContent === (isMuted ? '🔇' : '🔊')
+        && document.querySelector('#shelves-canvas .bd-sound .bd-lbl').textContent === 'Sound'), '  …the dock icon follows, and its label survives');
+      ok(!await shown(page, 'sound-overlay'), '  …without opening the overlay');
+      if (await page.evaluate(m => isMuted !== m, muted0)) await page.evaluate(() => toggleMute());
+
+      // A launch mid-Random leaves nothing of the Board's running (Timer Lifecycle).
+      await page.click('#shelves-canvas .bd-die'); await settle(page, 250);
+      ok(await page.evaluate(() => BD_STATE.rolling && bdTimers.length > 0), 'mid-Random, the Board has timers running');
+      await page.evaluate(() => lobbyLaunch('frt')); await settle(page, 300);
+      ok(await page.evaluate(() => bdTimers.length === 0 && bdRaf === null && bdFlights.length === 0 && !BD_STATE.rolling),
+         'a game launched mid-Random stops every Board timer, rAF and flight');
+      await settle(page, 1500);
+      ok(await shown(page, 'screen-frt-menu') && await page.evaluate(() => !bdHeldOpen()), '  …and no card opens behind the game');
+      await page.click('#btn-frt-menu-back'); await settle(page, 400);
+      ok(await onlyLayout(page, 'shelves') && await page.evaluate(() => !bdHeldOpen()), '  …quitting lands on a closed Board');
+      await ctx.close();
+    }
+    {
+      // Offline before the first sticker fetch: brand discs, never a broken image.
+      const { ctx, page } = await open({ width: 390, height: 844 }, {}, true);
+      await ctx.addInitScript(() => {
+        const orig = HTMLCanvasElement.prototype.getContext;
+        HTMLCanvasElement.prototype.getContext = function (t, ...a) { return /webgl/i.test(t) ? null : orig.call(this, t, ...a); };
+      });
+      await ctx.route('**/data/stickers/*.png', route => route.abort());
+      await page.goto(base); await booted(page); await settle(page, 1200);
+      ok(await page.evaluate(() => document.querySelectorAll('#shelves-canvas .bd-st .bd-disc').length === GAMES.length),
+         'stickers offline: every slot shows its brand disc');
+      ok(await page.evaluate(() => document.querySelectorAll('#shelves-canvas img').length === 0), '  …and no broken image is left on the sheet');
+      await page.evaluate(() => bdHold('cjar')); await settle(page, 1200);
+      ok(await page.evaluate(() => !!document.querySelector('#shelves-canvas .bd-card.is-cur .bd-c-stk .bd-disc')), '  …the held card carries the disc too');
       await ctx.close();
     }
 

@@ -8,10 +8,11 @@
 (function () {
   /* The four layouts, in the order every switcher shows them. `screen` is what
      showScreen() shows for it. The label is display copy only — the code keys on
-     the id: `original` shows as "Classic" (owner, 26 Sep 2026). */
+     the id: `original` shows as "Classic" (owner, 26 Sep 2026), and `shelves` as
+     "Board" (SW v250 — the id, its screen and enterShelves predate the rename). */
   const LOBBY_LAYOUTS = [
     { id: 'lounge',   label: 'Lounge',   ico: '✨', screen: 'screen-lounge' },
-    { id: 'shelves',  label: 'Shelves',  ico: '🗂️', screen: 'screen-shelves' },
+    { id: 'shelves',  label: 'Board',    ico: '🏷️', screen: 'screen-shelves' },
     { id: 'tv',       label: 'TV',       ico: '🖥️', screen: 'screen-tv' },
     { id: 'original', label: 'Classic',  ico: '▤',  screen: 'screen-lobby' },
   ];
@@ -45,7 +46,7 @@
   const LOBBY_PAGE_ACTIONS = ['go', 'roomMounted', 'workshopClose', 'designSaved', 'leaveLobby', 'arrivalBegin', 'arrivalReset',
     'stickerbookOpen', 'stickerbookClose', 'jukeboxOpen', 'jukeboxClose', 'home', 'closeSwitcher'];
   /* stickerbookOpen / jukeboxOpen are BOTH a door's action (the Lounge's binder and
-     cat) and the page's own (Shelves' and Classic's places row, SW v238). */
+     cat) and the page's own (the Board's dock and Classic's places row, SW v238). */
 
   function lobbyReduce(state, action) {
     const a = action || {};
@@ -68,10 +69,10 @@
         s.view = a.view;
         s.room = a.view === 'lounge' ? 'running' : keep();
         /* The dock is summoned, never automatic. Every other layout ships its
-           own switcher — Shelves' `.lb-switch`, TV's mode buttons, Original's
-           layout button — each offering every layout this device may use, so a dock
-           raised on arrival is a second copy of a control already on screen
-           (and under the rail, in TV). The Lounge is the only layout with none, by
+           own switcher — the Board's dock Layout button, TV's mode buttons, Original's
+           layout button — each offering every layout this device may use, so a
+           switcher raised on arrival is a second copy of a control already on
+           screen (and under the rail, in TV). The Lounge is the only layout with none, by
            design: it is a room, not a menu. Hence `openSwitcher`. */
         s.switcher = false;
         return s;
@@ -89,7 +90,7 @@
       case 'enterShelves':
         s.view = 'shelves';
         s.room = keep();
-        s.switcher = false;                 // the phone's own `.lb-switch` takes over
+        s.switcher = false;                 // the Board's dock carries its own Layout button
         if (state.arrival === 'playing') s.arrival = 'done';
         return s;
 

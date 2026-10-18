@@ -46,8 +46,8 @@ function lobbyOffered(id) {
 }
 function lobbyIsUp(view) { return lobbyState.view === view && !lobbyState.workshop; }
 
-/* The rooms' doors outside the Lounge (27 Sep 2026): Shelves' and Classic's places
-   row. A phone never keeps the Lounge, so without these it had no way in. Same
+/* The rooms' doors outside the Lounge (27 Sep 2026): the Board's dock and Classic's
+   places row. A phone never keeps the Lounge, so without these it had no way in. Same
    router actions the Lounge's doors dispatch, and the close goes back to whichever
    layout opened it (the router's jukeboxClose / stickerbookClose). The stickerbook
    needs its manifest — absent until it arrives, like a layout a device may not use. */
@@ -61,7 +61,7 @@ function lobbyOpenPlace(id) {
 }
 function lobbyPaintPlaces() {
   document.querySelectorAll('#screen-lobby [data-lobby-place]').forEach(b => { b.hidden = !lobbyPlaceOffered(b.dataset.lobbyPlace); });
-  if (lobbyIsUp('shelves')) { lbRender(); lobbyAfterLayoutRender(); }
+  if (typeof bdPaint === 'function') bdPaint();   // the Board's dock door appears in place
   // TV patches in place and is never scoped by the #screen-lobby query above
   // (it lives outside it) — repaint its own places row through tvApplyAll.
   if (typeof tvApplyAll === 'function') tvApplyAll();
@@ -101,6 +101,7 @@ function lobbyButtonFor(gameId) { return document.getElementById(LOBBY_BTN_IDS[g
 function lobbyLeaveForGame() {
   const tvRoot = document.getElementById('tv-app');
   if (tvRoot) tvDrop(tvRoot);
+  bdDrop();                                           // the Board's timers, rAF and flights; a held card closes
   if (lobbyScene && typeof lobbyScene.stop === 'function') lobbyScene.stop();
 }
 
@@ -117,7 +118,7 @@ function lobbyLaunch(gameId) {
   btn.click();
   return true;
 }
-/* lbSet re-renders Shelves' markup, slot included — put the ornament back. */
+/* After a layout repaints, make sure the ornament is in its slot. */
 function lobbyAfterLayoutRender() {
   if (!lobbyState.workshop && LOBBY_SLOTS[lobbyState.view]) lobbyMountOrnament(lobbyState.view);
 }
@@ -158,8 +159,9 @@ function lobbyApply(prev, next) {
 
   /* The Workshop takes the screen with `view` unchanged — TV's ornament keeps
      view 'tv' — so, as for a game (lobbyLaunch), TV's RAF and clock stop here;
-     workshopClose presents TV again and rebuilds it (Timer Lifecycle). */
-  if (next.workshop && !prev.workshop) { const tvRoot = document.getElementById('tv-app'); if (tvRoot) tvDrop(tvRoot); }
+     workshopClose presents TV again and rebuilds it (Timer Lifecycle). The
+     Board's ornament opens it too, possibly mid-Random: drop the Board's as well. */
+  if (next.workshop && !prev.workshop) { const tvRoot = document.getElementById('tv-app'); if (tvRoot) tvDrop(tvRoot); bdDrop(); }
 
   /* The Lounge's controller DOOR asks for the Workshop through the router; an
      ornament opens it itself and only tells the router (onOpen). */
@@ -171,7 +173,7 @@ function lobbyApply(prev, next) {
   // Not from behind the jukebox: the beat would hand the room on while its screen is up.
   if (next.view === 'lounge' && !next.workshop && !next.jukebox && !lobbyEligible()) lobbyRunArrival();
 
-  /* The beat has handed this device to Shelves for good, so its lean room is
+  /* The beat has handed this device to the Board for good, so its lean room is
      dead weight — a WebGL context and the room's GPU memory on exactly the
      hardware least able to spare them (spec § 4.3). Hopped out of apply():
      the handoff arrives from inside the scene's own frame callback. */
@@ -190,7 +192,8 @@ function lobbyPresent(view) {
   if (screen && screen.style.display !== 'flex') showScreen(lobbyScreen(view));
   const tvRoot = document.getElementById('tv-app');
   if (view !== 'tv' && tvRoot) tvDrop(tvRoot);        // TV's drift RAF + clock stop off screen (Timer Lifecycle)
-  if (view === 'shelves') lbRender();
+  if (view !== 'shelves') bdDrop();                    // ...and the Board's timers, rAF and flights
+  if (view === 'shelves') bdMount(document.getElementById('shelves-canvas'));
   if (view === 'tv') lbMountTVFull();
   if (LOBBY_SLOTS[view]) lobbyMountOrnament(view);
 }
@@ -262,7 +265,7 @@ function lobbyEnsureRoom() {
     lobbyScene = LouScene.louMount(document.getElementById('lou-canvas'), lobbyHost, { skipProps: full ? null : ['controller'] });
   } catch (e) {
     /* The probe said WebGL, the context said no. Treat the device as the
-       no-WebGL tier from here on: Shelves, and the Lounge never offered. */
+       no-WebGL tier from here on: the Board, and the Lounge never offered. */
     console.warn('lobby: the Lounge could not mount — ' + (e && e.message));
     lobbyScene = null; lobbyWebgl = false;
     setTimeout(() => lobbyDispatch({ t: 'go', view: 'shelves' }), 0);
