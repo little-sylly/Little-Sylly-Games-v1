@@ -58,9 +58,10 @@
 #screen-shelves .bd-intro { display: flex; flex-direction: column; gap: 12px; padding: 6px 0 4px; }
 #screen-shelves .bd-ask { margin: 0; font: 700 26px/1.05 'Fredoka', system-ui, sans-serif; letter-spacing: -0.01em; text-wrap: balance; }
 #screen-shelves .bd-ask em { font-style: normal; color: var(--lb-accent); }
-#screen-shelves .bd-who { display: flex; gap: 8px; align-items: center; }
-#screen-shelves .bd-step { display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0; }
-#screen-shelves .bd-step-val { flex: 1; min-width: 0; text-align: center; display: flex; flex-direction: column; gap: 2px; }
+#screen-shelves .bd-who { display: flex; gap: 10px; align-items: center; justify-content: space-between; }
+#screen-shelves .bd-step { display: flex; align-items: center; gap: 4px; flex: none; }
+#screen-shelves .bd-step-val { flex: none; width: 64px; text-align: center; display: flex; flex-direction: column; gap: 2px; }
+#screen-shelves .bd-onephone { flex: none; }
 #screen-shelves .bd-step-val small { font: 600 9.5px/1 'Fredoka', system-ui, sans-serif; letter-spacing: 0.12em; text-transform: uppercase; color: var(--lb-ink-3); }
 #screen-shelves .bd-step-val b { font: 700 18px/1 'Fredoka', system-ui, sans-serif; font-variant-numeric: tabular-nums; }
 
@@ -90,8 +91,12 @@
 /* ── Washi-tape tabs ─────────────────────────────────────────────────────── */
 #screen-shelves .bd-tapes {
   display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none;
-  margin: 4px calc(-1 * max(16px, calc((100vw - var(--lb-col)) / 2))) 0;
-  padding: 12px max(16px, calc((100vw - var(--lb-col)) / 2)) 14px;
+  /* A rail INSIDE the column: it bleeds only the column's own 16px gutter, so on a
+     wide window it scrolls rather than spreading every tape across the screen. */
+  margin: 4px -16px 0; padding: 12px 16px 14px;
+  scroll-padding: 0 16px;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 16px, #000 calc(100% - 28px), transparent 100%);
+  mask-image: linear-gradient(90deg, transparent 0, #000 16px, #000 calc(100% - 28px), transparent 100%);
 }
 #screen-shelves .bd-tapes::-webkit-scrollbar { display: none; }
 #screen-shelves .bd-tape {
@@ -145,11 +150,13 @@
   font: 500 11px/1 'Fredoka', system-ui, sans-serif; color: var(--lb-ink-2); display: none;
 }
 /* A ghost: the kiss-cut outline left on the backing paper, and why it is out. */
-#screen-shelves .bd-st.is-out .bd-st-tilt { opacity: 0.16; filter: grayscale(1) brightness(1.6); }
+#screen-shelves .bd-st.is-out .bd-st-tilt { opacity: 0.34; filter: grayscale(1) contrast(0.85) brightness(1.08); }
 #screen-shelves .bd-st.is-out .bd-st-art::before,
 #screen-shelves .bd-st.is-lifted .bd-st-art::before {
-  content: ''; position: absolute; inset: 8%; border-radius: 30%;
+  content: ''; position: absolute; left: var(--ol, 8%); top: var(--ot, 8%);
+  width: var(--ow, 84%); height: var(--oh, 84%); border-radius: 24%;
   border: 1.5px dashed rgba(43,27,69,.24); transform: rotate(var(--tilt));
+  transform-origin: var(--ox, 50%) var(--oy, 50%);
 }
 #screen-shelves .bd-st.is-out .bd-st-name { background: transparent; color: var(--lb-ink-3); box-shadow: none; }
 #screen-shelves .bd-st.is-out .bd-st-why { display: block; }
@@ -359,16 +366,16 @@
 #screen-shelves .bd-dock-btn:active { transform: scale(.94); background-color: #F3EEF9; }
 #screen-shelves .bd-ico { font-size: 21px; line-height: 1; }
 #screen-shelves .bd-die {
-  position: relative; width: 66px; height: 66px; margin-top: -26px; border-radius: 22px; flex: none;
-  background: var(--lb-accent); color: #fff; display: grid; place-items: center;
+  position: relative; width: 62px; height: 62px; margin-top: -10px; border-radius: 20px; flex: none;
+  background: var(--lb-accent); color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
   box-shadow: inset 0 2px 0 rgba(255,255,255,.35), inset 0 -10px 14px -8px rgba(0,0,0,.3), 0 5px 0 #A3205E, 0 14px 20px -8px rgba(233,64,142,.6);
   transition: transform 100ms var(--lb-ease-out), box-shadow 100ms var(--lb-ease-out), opacity 160ms ease;
 }
 #screen-shelves .bd-die:active { transform: translateY(4px); box-shadow: inset 0 2px 0 rgba(255,255,255,.35), inset 0 -10px 14px -8px rgba(0,0,0,.3), 0 1px 0 #A3205E, 0 6px 10px -6px rgba(233,64,142,.6); }
-#screen-shelves .bd-die svg { width: 34px; height: 34px; }
+#screen-shelves .bd-die svg { width: 28px; height: 28px; }
 #screen-shelves .bd-die.is-rolling svg { animation: bd-die-roll .5s linear infinite; }
 @keyframes bd-die-roll { to { transform: rotate(360deg); } }
-#screen-shelves .bd-die-lbl { position: absolute; bottom: -15px; left: 50%; transform: translateX(-50%); white-space: nowrap; font: 600 10.5px/1 'Fredoka', system-ui, sans-serif; color: var(--lb-accent); }
+#screen-shelves .bd-die-lbl { white-space: nowrap; font: 600 10.5px/1 'Fredoka', system-ui, sans-serif; color: #fff; }
 /* Nothing to roll: dimmed, inert but still there (aria-disabled, not removed). */
 #screen-shelves .bd-die.is-off { opacity: .4; }
 #screen-shelves .bd-die.is-off:active { transform: none; }

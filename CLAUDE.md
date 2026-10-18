@@ -293,7 +293,7 @@ On every bump the outgoing SW entry moves **verbatim** to `docs/sw-changelog.md`
 "keep the last three". **A second `**SW v…**` paragraph appearing here means that move didn't
 happen: do it before anything else.**
 
-**SW v250 — the Board: the phone's lobby becomes a sticker sheet (18 Oct 2026).** Shelves is
+**SW v251 — the Board: the phone's lobby becomes a sticker sheet (18 Oct 2026; v250 + dock and ghost-outline polish).** Shelves is
 replaced by **the Board** (`js/lobby/board.js`, prefix `bd`; `css/board.css`): the 20 games as stickers
 on one sheet, washi-tape shelf tabs, a peel-off held card on a swipe rail (its back is `lbSheetBodyInner`),
 and a glass dock — 🎵 · 📒 · Random · 🔊 · Layout. Patch-in-place like `tv.js`; `lbSet` rebuilds nothing now.

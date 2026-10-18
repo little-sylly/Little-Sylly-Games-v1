@@ -147,7 +147,38 @@ function bdShelfLabels(g) { return LB_SHELVES.filter(s => g.shelves.includes(s.i
 function bdDisc(g, cls) { return `<span class="${cls} bd-disc" style="--g:${g.brandHex}" aria-hidden="true">${g.emoji}</span>`; }
 function bdArt(g, cls) {
   if (LB_NO_STICKER.has(g.id)) return bdDisc(g, cls);
-  return `<img class="${cls} bd-art" src="data/stickers/${g.id}.png" alt="" draggable="false" data-id="${g.id}" data-cls="${cls}" onerror="bdArtFail(this)">`;
+  return `<img class="${cls} bd-art" src="data/stickers/${g.id}.png" alt="" draggable="false" data-id="${g.id}" data-cls="${cls}" onload="bdArtLoad(this)" onerror="bdArtFail(this)">`;
+}
+// A ghost's dashed outline should hug the sticker, not a square: stickers are
+// die-cut crops of every aspect with uneven transparent margins, so a fixed box
+// sat loose round the tall ones (Bailed). On load, find the opaque bounding box
+// of the image on a tiny canvas and place the outline round exactly that, mapped
+// into the art box (object-fit: contain, centred). Falls back to a centred
+// proportional box when the canvas can't be read.
+function bdArtLoad(img) {
+  const cell = img.closest && img.closest('.bd-st');
+  if (!cell || !img.naturalWidth || !img.naturalHeight) return;
+  const ar = img.naturalWidth / img.naturalHeight;
+  const dw = ar >= 1 ? 1 : ar, dh = ar >= 1 ? 1 / ar : 1;      // the image's share of the art box
+  let x0 = 0, y0 = 0, x1 = 1, y1 = 1;
+  try {
+    const W = 48, H = Math.max(8, Math.round(W / ar)), c = document.createElement('canvas');
+    c.width = W; c.height = H;
+    const g = c.getContext('2d'); g.drawImage(img, 0, 0, W, H);
+    const d = g.getImageData(0, 0, W, H).data;
+    let mnx = W, mny = H, mxx = -1, mxy = -1;
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (d[(y * W + x) * 4 + 3] > 8) { if (x < mnx) mnx = x; if (x > mxx) mxx = x; if (y < mny) mny = y; if (y > mxy) mxy = y; }
+    if (mxx >= 0) { x0 = mnx / W; x1 = (mxx + 1) / W; y0 = mny / H; y1 = (mxy + 1) / H; }
+  } catch (_) {}
+  const pad = 0.04;                                              // breathing room round the sticker, in art-box units
+  const l = 0.5 + (x0 - 0.5) * dw - pad, t = 0.5 + (y0 - 0.5) * dh - pad;
+  const w = (x1 - x0) * dw + pad * 2, h = (y1 - y0) * dh + pad * 2;
+  const pct = (v) => (v * 100).toFixed(1) + '%';
+  cell.style.setProperty('--ol', pct(l)); cell.style.setProperty('--ot', pct(t));
+  cell.style.setProperty('--ow', pct(w)); cell.style.setProperty('--oh', pct(h));
+  // The sticker turns about the art box's centre; so must its outline, or an
+  // off-centre sticker drifts out of it by the tilt.
+  cell.style.setProperty('--ox', pct((0.5 - l) / w)); cell.style.setProperty('--oy', pct((0.5 - t) / h));
 }
 function bdArtFail(img) {
   const g = lbGame(img.dataset.id);
@@ -339,6 +370,12 @@ function bdPaint() {
     t.classList.toggle('is-on', on);
     t.setAttribute('aria-pressed', String(on));
     t.querySelector('small').textContent = bdTabCount(GAMES, t.dataset.tab, lbWhyOut, filtered);
+    // The rail only shows part of the list on a narrow column: keep the chosen tape in view.
+    if (on && E.tapes.scrollWidth > E.tapes.clientWidth) {
+      const left = t.offsetLeft - (E.tapes.clientWidth - t.offsetWidth) / 2;
+      E.tapes.scrollTo({ left, behavior: bdReduced() || !E.tapes.dataset.ready ? 'auto' : 'smooth' });
+      E.tapes.dataset.ready = '1';
+    }
   }
 
   // The sheet, FLIPped into its new order (transform only, 280 ms).
