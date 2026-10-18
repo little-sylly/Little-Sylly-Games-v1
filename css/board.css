@@ -45,22 +45,22 @@
   min-width: 0;
 }
 #screen-shelves .bd-head-right { display: flex; align-items: center; gap: 4px; flex: none; }
-#screen-shelves .bd-arcade {
+/* 🔊 sits at the far right, after the controller (SW v254 — the Arcade took its dock slot). */
+#screen-shelves .bd-sound {
   width: 44px; height: 44px; border-radius: 14px; display: grid; place-items: center; font-size: 20px;
   background: rgba(255, 255, 255, 0.85); box-shadow: 0 0 0 1px rgba(43, 27, 69, 0.08);
 }
-#screen-shelves .bd-arcade[hidden] { display: none; }
 /* The name sits LEFT of the controller, one short row centred on the wordmark's line
-   (the controller stays in the corner). Under 340px there is no room for all three,
-   so it falls back to the old stack. The popover anchors to this wrap. */
+   (the controller stays in the corner). Under 430px there is no room for all three
+   beside the header 🔊 (SW v254), so it falls back to the old stack. The popover anchors to this wrap. */
 #screen-shelves .bd-you { width: auto; padding: 0; gap: 2px; flex-direction: row-reverse; align-items: center; }
 #screen-shelves .bd-you .lb-you-mount { width: 72px; height: 52px; }
 #screen-shelves .bd-you .lb-you-label { min-height: 44px; padding: 0 4px 0 6px; }
 #screen-shelves .bd-you #lb-you-label-text { max-width: 64px; }
 #screen-shelves .bd-you .lb-you-pop-arrow { right: 100px; }
-@media (max-width: 339px) {
-  #screen-shelves .bd-you { flex-direction: column; gap: 0; width: 88px; }
-  #screen-shelves .bd-you .lb-you-mount { width: 72px; height: 52px; }
+@media (max-width: 429px) {
+  #screen-shelves .bd-you { flex-direction: column; gap: 0; width: 76px; }
+  #screen-shelves .bd-you .lb-you-mount { width: 64px; height: 46px; }
   #screen-shelves .bd-you .lb-you-label { min-height: 24px; padding: 0 8px; }
   #screen-shelves .bd-you .lb-you-pop-arrow { right: 28px; }
 }

@@ -200,7 +200,6 @@ function bdMount(root) {
       <header class="bd-head">
         <h1 class="sylly-wordmark bd-mark"><span class="sylly-wordmark-a">Little Sylly</span><span class="sylly-wordmark-b">Games</span></h1>
         <div class="bd-head-right">
-          <button class="bd-arcade lb-press" aria-label="Arcade" title="Arcade" hidden>🕹️</button>
           <div class="lb-you-wrap bd-you">
             <span class="lb-you-mount ctl-ornament" id="shelves-controller" role="button" tabindex="0"
               aria-label="Your controller — tap to customise"></span>
@@ -208,6 +207,7 @@ function bdMount(root) {
               <span id="lb-you-label-text"></span><span class="lb-you-chev" aria-hidden="true">▾</span>
             </button>
           </div>
+          <button class="bd-sound lb-press" aria-label="Sound — hold to mute"><span class="btn-open-sound" aria-hidden="true">${typeof isMuted !== 'undefined' && isMuted ? '🔇' : '🔊'}</span></button>
         </div>
       </header>
       <section class="bd-intro">
@@ -240,7 +240,7 @@ function bdMount(root) {
       <button class="bd-dock-btn" data-lobby-place="jukebox"><span class="bd-ico" aria-hidden="true">🎵</span><span class="bd-lbl">Jukebox</span></button>
       <button class="bd-dock-btn" data-lobby-place="stickers" hidden><span class="bd-ico" aria-hidden="true">📒</span><span class="bd-lbl">Stickers</span></button>
       <button class="bd-die" aria-label="Random game">${BD_DIE}<span class="bd-die-lbl" aria-hidden="true">Random</span></button>
-      <button class="bd-dock-btn bd-sound" aria-label="Sound — hold to mute"><span class="bd-ico btn-open-sound" aria-hidden="true">${typeof isMuted !== 'undefined' && isMuted ? '🔇' : '🔊'}</span><span class="bd-lbl">Sound</span></button>
+      <button class="bd-dock-btn" data-lobby-place="arcade"><span class="bd-ico" aria-hidden="true">🕹️</span><span class="bd-lbl">Arcade</span></button>
       <button class="bd-dock-btn bd-layout" aria-label="Change layout"><span class="bd-ico" aria-hidden="true">🏷️</span><span class="bd-lbl">Layout</span></button>
     </nav>`;
   root.appendChild(el);
@@ -248,7 +248,7 @@ function bdMount(root) {
   const q = (s) => el.querySelector(s);
   bdEls = {
     container: root, root: el, scroll: q('.bd-scroll'), sheet: q('.bd-sheet'), tapes: q('.bd-tapes'),
-    note: q('.bd-note'), arcade: q('.bd-arcade'), youWrap: q('.bd-you'), youBtn: q('#lb-you-label'),
+    note: q('.bd-note'), youWrap: q('.bd-you'), youBtn: q('#lb-you-label'),
     minus: q('.bd-minus'), plus: q('.bd-plus'), stepVal: q('.bd-step-val b'), onePhone: q('.bd-onephone'),
     fitText: q('.bd-fit-text'), fitClear: q('.bd-fit .bd-clear'),
     held: q('.bd-held'), rail: q('.bd-rail'), dots: q('.bd-dots'), count: q('.bd-count'),
@@ -256,7 +256,6 @@ function bdMount(root) {
   };
 
   // Header
-  bdEls.arcade.addEventListener('click', () => { bdDrop(); smOpenArcadeMenu(); });
   bdEls.youBtn.addEventListener('click', () => lbSet({ profileOpen: !lbState.profileOpen }));
 
   // Who's playing — the same lbState TV's keycaps write, through lbSet.
@@ -346,8 +345,6 @@ function bdPaint() {
   const E = bdEls, c = lbState.count, filtered = bdFiltered();
 
   // Header
-  const arcade = typeof smArcadeUnlocked !== 'undefined' && smArcadeUnlocked;
-  E.arcade.hidden = !arcade;
   document.getElementById('lb-you-label-text').textContent = lbGetNickname() || 'You';
   const pop = E.youWrap.querySelector('.lb-you-pop');
   if (lbState.profileOpen && !pop) { E.youWrap.insertAdjacentHTML('beforeend', lbRenderProfilePop()); lbWireProfilePop(E.youWrap); }

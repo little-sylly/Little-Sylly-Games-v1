@@ -154,14 +154,14 @@ const canvasParent = page => page.evaluate(() => (typeof ctlRenderer !== 'undefi
       await page.click('#sm-btn-exit'); await settle(page, 400);
       ok(await onlyLayout(page, 'tv'), 'the gateway\'s exit lands on TV');
       await page.evaluate(() => lobbyGo('original')); await settle(page, 300);
-      await page.evaluate(() => smOpenArcadeMenu()); await settle(page, 500);
+      await page.evaluate(() => smOpenTerminal()); await settle(page, 800);
       await page.click('#sm-terminal-back'); await settle(page, 400);
       ok(await onlyLayout(page, 'original'), 'the Terminal\'s back lands on Original');
       /* From a layout that is NOT Original too: the pre-seam code always showed
          screen-lobby, so a check that only starts from Original cannot tell the
          seam from its absence (the mutation pass caught exactly that). */
       await page.evaluate(() => lobbyGo('shelves')); await settle(page, 300);
-      await page.evaluate(() => smOpenArcadeMenu()); await settle(page, 500);
+      await page.evaluate(() => smOpenTerminal()); await settle(page, 800);
       await page.click('#sm-terminal-back'); await settle(page, 400);
       ok(await onlyLayout(page, 'shelves'), 'the Terminal\'s back lands on Shelves');
 
@@ -289,6 +289,36 @@ const canvasParent = page => page.evaluate(() => (typeof ctlRenderer !== 'undefi
       await page.evaluate(() => resetToLobby()); await settle(page, 500);
       ok(await onlyLayout(page, 'lounge') && !await shown(page, 'screen-jukebox') && await page.evaluate(() => !Jukebox.debug().stageRunning && !Jukebox.isOpen()),
          'resetToLobby with the jukebox up lands on the Lounge with its loops stopped');
+
+      section('19 — the Arcade: a door in every menu layout, ✕ back to it, a cabinet\'s ✕ back to the room');
+      for (const layout of ['shelves', 'original', 'tv']) {
+        await page.evaluate(v => lobbyGo(v), layout); await settle(page, 400);
+        const sel = layout === 'shelves' ? '#shelves-canvas [data-lobby-place="arcade"]'
+                  : layout === 'original' ? '#btn-lobby-arcade' : '#tv-app [data-lobby-place="arcade"]';
+        ok(await page.evaluate(q => { const b = document.querySelector(q); if (!b || b.hidden) return false;
+          const r = b.getBoundingClientRect(); return r.width > 0 && r.height > 0; }, sel), `${layout}: the 🕹️ door is on screen — no unlock`);
+        await page.click(sel); await settle(page, 500);
+        ok(await shown(page, 'screen-arcade') && await page.evaluate(() => lobbyState.arcade
+          && document.querySelectorAll('#arc-list .arc-row').length === ARC_CABINETS.length), `${layout}: it opens the Arcade, every cabinet listed`);
+        await page.click('#btn-arc-close'); await settle(page, 500);
+        ok(await onlyLayout(page, layout) && !await shown(page, 'screen-arcade'), `${layout}: ✕ lands back on ${layout}`);
+      }
+      await page.evaluate(() => lobbyGo('shelves')); await settle(page, 300);
+      ok(await page.evaluate(() => { const b = document.querySelector('#shelves-canvas .bd-head .bd-sound'), c = document.getElementById('shelves-controller');
+        if (!b || !c) return false; return b.getBoundingClientRect().left >= c.getBoundingClientRect().right - 1; }),
+         'the Board: 🔊 sits in the header, right of the controller');
+      await page.evaluate(() => lobbyOpenPlace('arcade')); await settle(page, 400);
+      await page.evaluate(() => arcLaunch('minesweeper')); await settle(page, 800);
+      ok(await shown(page, 'screen-arcade-minesweeper') && !await shown(page, 'screen-arcade'), 'a cabinet launches from the room and takes the screen');
+      await page.evaluate(() => document.getElementById('btn-ms-exit').click()); await settle(page, 500);
+      ok(await shown(page, 'screen-arcade') && !await shown(page, 'screen-arcade-minesweeper'), 'the cabinet\'s ✕ walks back to the room, not the lobby');
+      await page.click('#btn-arc-close'); await settle(page, 400);
+      ok(await onlyLayout(page, 'shelves'), 'and the room\'s ✕ still lands on the Board');
+      await page.evaluate(() => lobbyOpenPlace('arcade')); await settle(page, 400);
+      await page.evaluate(() => arcLaunch('chicken')); await settle(page, 800);
+      await page.evaluate(() => resetToLobby()); await settle(page, 500);
+      ok(await onlyLayout(page, 'shelves') && await page.evaluate(() => !lobbyState.arcade) && !await shown(page, 'screen-arcade-chicken'),
+         'resetToLobby with a cabinet up lands on the Board with the arcade closed');
 
       section('13 — resizing below a layout\'s floor');
       await page.evaluate(() => lobbyGo('tv')); await settle(page, 300);
@@ -510,16 +540,16 @@ const canvasParent = page => page.evaluate(() => (typeof ctlRenderer !== 'undefi
       }
       await page.evaluate(() => lbSet({ count: null })); await settle(page, 300);
 
-      // The dock's Sound: a tap opens the overlay, a hold mutes and the icon follows.
+      // The header's Sound (the dock's until SW v254): a tap opens the overlay, a hold mutes and the icon follows.
       await page.click('#shelves-canvas .bd-sound'); await settle(page, 300);
-      ok(await shown(page, 'sound-overlay'), "the dock's Sound opens the sound overlay");
+      ok(await shown(page, 'sound-overlay'), "the header's Sound opens the sound overlay");
       await page.click('#btn-sound-overlay-done'); await settle(page, 300);
       const muted0 = await page.evaluate(() => isMuted);
       const sb = await page.evaluate(() => { const r = document.querySelector('#shelves-canvas .bd-sound').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
       await page.mouse.move(sb.x, sb.y); await page.mouse.down(); await settle(page, 700); await page.mouse.up(); await settle(page, 200);
       ok(await page.evaluate(m => isMuted === !m, muted0), 'holding it toggles Mute All');
       ok(await page.evaluate(() => document.querySelector('#shelves-canvas .bd-sound .btn-open-sound').textContent === (isMuted ? '🔇' : '🔊')
-        && document.querySelector('#shelves-canvas .bd-sound .bd-lbl').textContent === 'Sound'), '  …the dock icon follows, and its label survives');
+        && !!document.querySelector('#shelves-canvas .bd-head .bd-sound')), '  …the header icon follows (SW v254: 🔊 left the dock for the header)');
       ok(!await shown(page, 'sound-overlay'), '  …without opening the overlay');
       if (await page.evaluate(m => isMuted !== m, muted0)) await page.evaluate(() => toggleMute());
 

@@ -2590,7 +2590,7 @@ function slStagePointer(e, phase) {
 
   document.getElementById('btn-sl-exit').addEventListener('click', () => {
     resetArcadeSlice();
-    resetToLobby();
+    arcExitCabinet();   // back to the Arcade room (SW v254)
   });
 
   // A child WILL put the iPad down mid-run. Stop the loop (everything only

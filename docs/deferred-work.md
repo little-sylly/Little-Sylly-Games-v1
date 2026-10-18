@@ -16,7 +16,12 @@ the discovery record is kept there, not deleted. A section with nothing left ope
 
 Integration and registration are done and verified (`tools/verify-arcade.js`, 141 checks;
 `mutate-arcade.js`, 12/12 red; a headless pass launching all seven through the real
-`smLaunchArcade()` path). What is left is the half no harness covers.
+`smLaunchArcade()` path — since SW v254 `arcLaunch()` in the Arcade room). What is left is the half no harness covers.
+
+0. **The Arcade room, Stages 2–3** (`docs/superpowers/specs/2026-10-18-arcade-room-design.md`, Stage 1 shipped SW v254):
+   Stage 2 — the cabinet / modern select-screen design to jukebox quality (start with `/impeccable shape`);
+   Stage 3 — the Lounge prop (`lounge-props.js`, a hotspot `arcade` → optional `openArcade` door). Smaller: the
+   cabinet screens still live in `src/screens/_secret.html`; move them beside the room when Stage 2 touches markup.
 
 1. **The owner's phone play-test — all seven cabinets** (the workshop notes flag six of them as
    "built, awaiting a phone play-test"; ASHERPLANE's revamp and DEEP-SEA SWEEP's reskin too).

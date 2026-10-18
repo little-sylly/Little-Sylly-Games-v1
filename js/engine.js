@@ -25,7 +25,7 @@ let whoFirstPath        = null;   // 'random' | 'rps' — drives back-from-confi
 
 // ── DOM: all screen IDs ───────────────────────────────────────────────────────
 const allScreens = [
-  'screen-lobby', 'screen-lounge', 'screen-tv', 'screen-shelves', 'screen-jukebox',
+  'screen-lobby', 'screen-lounge', 'screen-tv', 'screen-shelves', 'screen-jukebox', 'screen-arcade',
   'screen-who-first', 'screen-workshop', 'screen-menu', 'screen-setup',
   'screen-gatekeeper', 'screen-active-play', 'screen-gameover',
   'screen-gm-menu', 'screen-gm-setup', 'screen-gm-input', 'screen-gm-pass-gate',
@@ -99,8 +99,8 @@ const allScreens = [
   // Honeycomb Hills
   'screen-comb-menu', 'screen-comb-standby', 'screen-comb-meadow',
   'screen-comb-gameover',
-  // Arcade cabinets (Secret Mode) — not Sylly Games, but still real screens.
-  // One entry per SM_ARCADE cabinet; an unregistered one is a ghost screen that
+  // Arcade cabinets (js/lobby/arcade.js, SW v254) — not Sylly Games, but still real screens.
+  // One entry per ARC_CABINETS cabinet; an unregistered one is a ghost screen that
   // never hides (its canvas paints under every later screen).
   'screen-arcade-asherplane', 'screen-arcade-minesweeper', 'screen-arcade-chicken',
   'screen-arcade-slice', 'screen-arcade-cookiejar', 'screen-arcade-stacking',
@@ -734,16 +734,17 @@ function resetToLobby() {
   resetSyllySignals();
   // Secret Mode hard-reset (forward ref — safe at runtime)
   if (typeof resetSecretMode === 'function') resetSecretMode();
-  // Arcade cabinet teardown — driven off the SM_ARCADE registry (forward ref:
-  // secret-mode.js loads after this file, but this runs at call time). Each
+  // Arcade cabinet teardown — driven off the ARC_CABINETS registry (forward ref:
+  // js/lobby/arcade.js loads after this file, but this runs at call time). Each
   // stop() cancels that cabinet's RAF loop and clears its pointer state, and
   // deliberately does NOT clear its session leaderboard; see asherplane.js.
-  // Iterating the registry is what keeps "a new cabinet = one SM_ARCADE entry
+  // Iterating the registry is what keeps "a new cabinet = one ARC_CABINETS entry
   // + one file" true — a hardcoded call here tears down one cabinet and leaves
   // every other loop painting under the next screen.
-  if (typeof SM_ARCADE !== 'undefined') {
-    SM_ARCADE.forEach(cab => { try { cab.stop(); } catch (_) {} });
+  if (typeof ARC_CABINETS !== 'undefined') {
+    ARC_CABINETS.forEach(cab => { try { cab.stop(); } catch (_) {} });
   }
+  if (typeof arcStop === 'function') arcStop();   // the room's launch beat (Timer Lifecycle)
   // JEC teardown
   document.getElementById('jec-quit-overlay').style.display        = 'none';
   document.getElementById('jec-settings-overlay').style.display    = 'none';

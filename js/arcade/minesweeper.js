@@ -1419,7 +1419,7 @@ function msStagePointer(e, phase) {
 
   document.getElementById('btn-ms-exit').addEventListener('click', () => {
     resetArcadeMinesweeper();
-    resetToLobby();
+    arcExitCabinet();   // back to the Arcade room (SW v254)
   });
 
   // A child WILL put the iPad down mid-board. Stop the loop (which also stops

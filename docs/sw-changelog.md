@@ -3,6 +3,14 @@
 Historical SW release notes, moved out of `CLAUDE.md` (1 Aug 2026) so they stop loading into every session.
 The **current** version and its notes stay in `CLAUDE.md` § Current Focus — append the outgoing entry here on each bump.
 
+## v253 — the Lounge gets its own music (18 Oct 2026; v252 boot screen + telly). The lobby is no longer one
+track: the Lounge (and the jukebox / Workshop / stickerbook rooms behind its doors) plays **Around the Table**
+(`lobby:lounge` in `data/music/manifest.json`); Classic, TV and the Board keep **Old Toy Box** (`lobby`, the
+fallback). `lobbyMusicKey()` in `lobby-host.js` names the place; `showScreen()` passes it when no game is active,
+and moving between layouts crossfades. A held jukebox song still wins. The boot screen now ends on a
+"Come on in" tap (browsers refuse audio before one), which starts the Lounge's music. No packet, no new file.
+
+
 
 
 ## v252 — the boot screen, and the Lounge loses its heading (18 Oct 2026). First launch now opens on a

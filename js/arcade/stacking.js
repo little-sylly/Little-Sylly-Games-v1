@@ -1258,7 +1258,7 @@ function stoStagePointer(e, phase) {
     else if (stoState === 'attract' || stoState === 'leaderboard') { STO_SOUND.select(); stoEnterState('playing'); }
     else if (stoState === 'nameEntry') stoSubmitInitials();
   });
-  document.getElementById('btn-sto-exit').addEventListener('click', () => { resetArcadeStacking(); resetToLobby(); });
+  document.getElementById('btn-sto-exit').addEventListener('click', () => { resetArcadeStacking(); arcExitCabinet(); });
   document.addEventListener('visibilitychange', () => {
     if (!visible()) return;
     if (document.hidden) { if (stoRafHandle) { cancelAnimationFrame(stoRafHandle); stoRafHandle = null; } stoPress = null; stoPtrId = null; }

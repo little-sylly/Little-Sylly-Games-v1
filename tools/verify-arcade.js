@@ -1,8 +1,10 @@
 // ═══════════════════════════════════════════════════════════════
 // verify-arcade.js — the arcade cabinet registration harness.
 //
-// SM_ARCADE is the whole contract: the terminal list renders from it and
-// engine.js's resetToLobby() tears every cabinet down through its stop().
+// ARC_CABINETS (js/lobby/arcade.js, SW v254 — was SM_ARCADE in secret-mode.js) is
+// the whole contract: the Arcade room's list renders from it, engine.js's
+// resetToLobby() tears every cabinet down through its stop(), and the keyboard
+// Konami guard checks every cabinet screen through it.
 // A cabinet is only really registered when SEVEN seams agree, and every one
 // of them fails SILENTLY:
 //   • missing allScreens[] entry  → ghost screen, canvas paints under the app
@@ -46,28 +48,30 @@ const bad = m => { fail++; console.log(`  ✗ ${m}`); };
 const is  = (cond, m) => cond ? ok(m) : bad(m);
 
 const secret   = R('js/secret-mode.js');
+const arcade   = R('js/lobby/arcade.js');
+const lobbyHtml = R('src/screens/lobby.html');
 const engine   = R('js/engine.js');
 const markup   = R('src/screens/_secret.html');
 const scripts  = R('src/screens/_scripts-3.html');
 const sw       = R('sw.js');
 
-// ── Parse SM_ARCADE out of secret-mode.js ────────────────────────────────────
+// ── Parse ARC_CABINETS out of arcade.js ──────────────────────────────────────
 // Read rather than eval: the file is full of browser globals.
-const block = secret.match(/const SM_ARCADE = \[([\s\S]*?)\n\];/);
-if (!block) { console.log('✗ SM_ARCADE not found in js/secret-mode.js'); process.exit(1); }
+const block = arcade.match(/const ARC_CABINETS = \[([\s\S]*?)\n\];/);
+if (!block) { console.log('✗ ARC_CABINETS not found in js/lobby/arcade.js'); process.exit(1); }
 
 const CABS = [...block[1].matchAll(
   /\{\s*id:\s*'([^']+)',\s*label:\s*'([^']+)',\s*screen:\s*'([^']+)',\s*start:\s*\(\)\s*=>\s*(\w+)\(\),\s*stop:\s*\(\)\s*=>\s*(\w+)\(\)/g
 )].map(m => ({ id: m[1], label: m[2], screen: m[3], start: m[4], stop: m[5] }));
 
 console.log('\n══ Arcade cabinet registration ══\n');
-console.log(`SM_ARCADE declares ${CABS.length} cabinet(s): ${CABS.map(c => c.id).join(', ')}\n`);
+console.log(`ARC_CABINETS declares ${CABS.length} cabinet(s): ${CABS.map(c => c.id).join(', ')}\n`);
 
 // Every entry must have parsed — a malformed one silently vanishes from CABS
 // and would make every check below pass by omission.
 const entryCount = (block[1].match(/\{\s*id:/g) || []).length;
 is(entryCount === CABS.length,
-  `all ${entryCount} SM_ARCADE entries parsed (id/label/screen/start/stop each present)`);
+  `all ${entryCount} ARC_CABINETS entries parsed (id/label/screen/start/stop each present)`);
 
 // ── Per-cabinet: the seven seams ─────────────────────────────────────────────
 const prefixes = {};
@@ -105,8 +109,8 @@ for (const c of CABS) {
     const stage = markup.match(new RegExp(`id="${px}-stage"[^>]*>`));
     is(!!stage && /touch-action:\s*none/.test(stage[0]), `#${px}-stage sets touch-action:none`);
     // the exit must tear its own cabinet down before leaving
-    is(new RegExp(`btn-${px}-exit'\\)[\\s\\S]{0,400}?${c.stop}\\(\\)`).test(src),
-      `exit button calls ${c.stop}() before resetToLobby()`);
+    is(new RegExp(`btn-${px}-exit'\\)[\\s\\S]{0,400}?${c.stop}\\(\\);?\\s*arcExitCabinet\\(\\)`).test(src),
+      `exit button calls ${c.stop}() then arcExitCabinet() (back to the room)`);
   }
 
   // 5. the script tag — without it start() is a ReferenceError
@@ -135,15 +139,36 @@ is(Object.keys(prefixes).length === CABS.length,
 // A hardcoded single call is the bug this harness exists to prevent: it tears
 // down one cabinet and leaves every other loop painting under the next screen.
 const reset = engine.match(/function resetToLobby\(\)[\s\S]*?\n\}/);
-is(!!reset && /SM_ARCADE\.forEach\(cab => \{[\s\S]{0,80}?cab\.stop\(\)/.test(reset[0]),
-  'resetToLobby() tears down every cabinet via SM_ARCADE.forEach(cab => cab.stop())');
+is(!!reset && /ARC_CABINETS\.forEach\(cab => \{[\s\S]{0,80}?cab\.stop\(\)/.test(reset[0]),
+  'resetToLobby() tears down every cabinet via ARC_CABINETS.forEach(cab => cab.stop())');
+is(!!reset && /arcStop\(\)/.test(reset[0]), "resetToLobby() clears the room's launch beat (arcStop)");
 is(!!reset && !/if \(typeof resetArcade === 'function'\) resetArcade\(\);/.test(reset[0]),
   'resetToLobby() no longer hardcodes a single cabinet teardown');
 
 // The keyboard-Konami guard must cover every cabinet, not just the first one —
 // the arrow keys are several cabinets' steering.
-is(/SM_ARCADE\.some\(cab => \{[\s\S]{0,200}?cab\.screen/.test(secret),
-  'keyboard Konami guard checks every cabinet screen (not just asherplane)');
+is(/\['screen-arcade'\]\.concat\(ARC_CABINETS\.map\(cab => cab\.screen\)\)\.some\(/.test(secret),
+  'keyboard Konami guard checks the room and every cabinet screen (not just asherplane)');
+
+// ── The room (SW v254) ───────────────────────────────────────────────────────
+console.log('\n── the Arcade room');
+is(/'screen-arcade'/.test(engine.match(/const allScreens = \[([\s\S]*?)\n\];/)[1]), 'screen-arcade in engine.js allScreens[]');
+for (const id of ['screen-arcade', 'arc-list', 'arc-blurb', 'btn-arc-start', 'btn-arc-close'])
+  is(lobbyHtml.includes(`id="${id}"`), `#${id} in src/screens/lobby.html`);
+is(/ARC_CABINETS\.forEach/.test(fnBody(arcade, 'arcRender') || ''), 'the room lists from ARC_CABINETS');
+is(/ARC_CABINETS\.forEach\(cab => \{[\s\S]{0,60}?cab\.stop\(\)/.test(fnBody(arcade, 'arcExitCabinet') || ''), "a cabinet's ✕ stops every cabinet before the room returns");
+is(/clearTimeout\(arcLaunchTimer\)/.test(fnBody(arcade, 'arcStop') || ''), 'arcStop() clears the launch beat');
+is(scripts.includes('js/lobby/arcade.js'), 'arcade.js <script src> in _scripts-3.html');
+is(/'js\/lobby\/arcade\.js'/.test(sw) && /'css\/arcade\.css'/.test(sw), 'arcade.js + arcade.css in sw.js PRECACHE_URLS');
+// No unlock any more, and nothing left pointing at the old Secret Mode arcade.
+const stale = [];
+const walkAll = (d) => { for (const e of fs.readdirSync(path.join(ROOT, d), { withFileTypes: true })) {
+  const p = `${d}/${e.name}`;
+  if (e.isDirectory()) { if (!p.includes('_archive')) walkAll(p); }
+  else if (/\.(js|html)$/.test(e.name) && /\b(SM_ARCADE|smArcadeUnlocked|smArcadeLastId|smLaunchArcade|smRenderArcade|smOpenArcadeMenu|smShowArcadeTile)\b/.test(R(p))) stale.push(p);
+} };
+walkAll('js'); walkAll('src');
+is(stale.length === 0, stale.length ? `stale Secret Mode arcade references: ${stale.join(', ')}` : 'no Secret Mode arcade references left (js/, src/)');
 
 // ── Global collisions: arcade vs production, and arcade vs arcade ────────────
 // Everything is a global here (no ES modules), so a stray unprefixed symbol in

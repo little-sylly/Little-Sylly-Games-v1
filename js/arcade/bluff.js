@@ -934,7 +934,7 @@ function bbStagePointer(e, phase) {
     }
   });
   document.addEventListener('keyup', e => { setKey(e, false); });
-  document.getElementById('btn-bb-exit').addEventListener('click', () => { resetArcadeBluff(); resetToLobby(); });
+  document.getElementById('btn-bb-exit').addEventListener('click', () => { resetArcadeBluff(); arcExitCabinet(); });
   document.addEventListener('visibilitychange', () => {
     if (!visible()) return;
     if (document.hidden) {

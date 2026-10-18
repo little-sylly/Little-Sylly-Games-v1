@@ -22,6 +22,7 @@
   <link rel="stylesheet" href="css/lobby.css" />
   <link rel="stylesheet" href="css/board.css" />
   <link rel="stylesheet" href="css/jukebox.css" />
+  <link rel="stylesheet" href="css/arcade.css" />
   <link rel="stylesheet" href="css/workshop.css" />
 
   <title>Little Sylly Games</title>
@@ -54,6 +55,7 @@
     <div class="lobby-places" role="group" aria-label="Around the house">
       <button id="btn-lobby-jukebox" class="lobby-place" data-lobby-place="jukebox"><span aria-hidden="true">🎵</span>Jukebox</button>
       <button id="btn-lobby-stickers" class="lobby-place" data-lobby-place="stickers" hidden><span aria-hidden="true">📒</span>Stickers</button>
+      <button id="btn-lobby-arcade" class="lobby-place" data-lobby-place="arcade"><span aria-hidden="true">🕹️</span>Arcade</button>
     </div>
     <div class="flex items-baseline justify-between w-full">
       <p class="text-stone-700 text-lg font-medium">What are we playing today?</p>
@@ -446,6 +448,28 @@ Rock Paper Scissors
       <div class="jbx-pick" id="jbx-pick"></div>
     </main>
     <div class="jbx-toast" id="jbx-toast" role="status" aria-live="polite"></div>
+  </section>
+
+  <!-- THE ARCADE (SW v254) — not a layout: a place, like the jukebox. Opened by the router's
+       arcadeOpen (the 🕹️ door in every layout), closed by arcadeClose. The list renders
+       from ARC_CABINETS (js/lobby/arcade.js). Styles: css/arcade.css, scoped under #screen-arcade.
+       Stage 1 room — the cabinet design pass is spec Stage 2. -->
+  <section id="screen-arcade" class="arc" style="display:none" aria-label="The Arcade">
+    <div class="arc-cab">
+      <header class="arc-marquee">
+        <h1 class="arc-title">The Arcade</h1>
+        <div class="arc-tools">
+          <button class="btn-open-sound arc-icon" aria-label="Sound">🔊</button>
+          <button id="btn-arc-close" class="arc-icon" aria-label="Leave the arcade">✕</button>
+        </div>
+      </header>
+      <div class="arc-screen">
+        <p class="arc-eyebrow">Select game</p>
+        <div id="arc-list" class="arc-list" role="list"></div>
+        <p id="arc-blurb" class="arc-blurb" aria-live="polite"></p>
+      </div>
+      <button id="btn-arc-start" class="arc-start">Press start</button>
+    </div>
   </section>
 
   <!-- The dock (DD-17): summoned, never automatic — the Lounge's channel dial and
@@ -2534,10 +2558,10 @@ Deploy
   <!-- h-screen + overflow-y-auto, not min-h-screen: this section IS the scroll
        container. Two things depend on it and both were silently dead under
        min-h-screen — the sticky header below (sticky needs a scrolling
-       ancestor) and smSelectGame()/smRenderArcade()'s
+       ancestor) and smSelectGame()'s
        `terminal.scrollTop = terminal.scrollHeight`, which is a no-op on a
-       non-scrollable element. It stopped being cosmetic when the ARCADE list
-       grew past one cabinet: at 7 the last row sits below the fold. -->
+       non-scrollable element. (It mattered most for the old ARCADE list, which
+       moved to its own room in SW v254.) -->
   <section id="screen-secret-terminal" style="display:none"
     class="relative flex flex-col w-full h-screen overflow-y-auto bg-black px-4 pt-5 pb-6 font-mono">
 
@@ -7471,6 +7495,7 @@ Climb Again
   <script src="js/lobby/achievements.js"></script>
   <script src="js/lobby/stickerbook.js"></script>
   <script src="js/lobby/jukebox.js"></script>
+  <script src="js/lobby/arcade.js"></script>
   <script src="js/lobby/lobby-router.js"></script>
   <script src="js/lobby/lobby-doors.js"></script>
   <script src="js/lobby/lobby-host.js"></script>

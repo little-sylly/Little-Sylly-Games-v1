@@ -1251,7 +1251,7 @@ function hjStagePointer(e, phase) {
     if (!visible()) return;
     if ((e.code === 'Space' || e.key === ' ') && hjPtrId === 'key') { hjPtrId = null; hjOnUp(); }
   });
-  document.getElementById('btn-hj-exit').addEventListener('click', () => { resetArcadeCookieJar(); resetToLobby(); });
+  document.getElementById('btn-hj-exit').addEventListener('click', () => { resetArcadeCookieJar(); arcExitCabinet(); });
   document.addEventListener('visibilitychange', () => {
     if (!visible()) return;
     if (document.hidden) {

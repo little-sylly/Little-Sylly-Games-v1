@@ -128,7 +128,7 @@ are already correct here, so deviating from them is nearly always a bug rather t
 // Depends on: engine.js (showScreen, resetToLobby), secret-mode.js (playSecretBeep)
 //  - Prefix `xx`. Screen id: screen-arcade-<id>. DOM: #xx-stage (pointer
 //    target, touch-action:none) wrapping #xx-canvas, plus #btn-xx-exit.
-//  - Teardown is wired by the SM_ARCADE entry's `stop` field, NOT by editing
+//  - Teardown is wired by the ARC_CABINETS entry's `stop` field, NOT by editing
 //    engine.js — resetToLobby() iterates the registry and calls every stop().
 //  - NO setTimeouts: every delayed effect is scheduled on xxClock via xxEvents.
 // ═══════════════════════════════════════════════════════════════════════════
@@ -288,7 +288,7 @@ function xxStagePointer(e, phase) {
 
   const visible = () => document.getElementById('screen-arcade-<id>').style.display !== 'none';
   document.addEventListener('keydown', e => { if (!visible()) return; /* desktop bonus keys */ });
-  document.getElementById('btn-xx-exit').addEventListener('click', () => { resetArcade<Name>(); resetToLobby(); });
+  document.getElementById('btn-xx-exit').addEventListener('click', () => { resetArcade<Name>(); arcExitCabinet(); });   // back to the Arcade room
   document.addEventListener('visibilitychange', () => {
     if (!visible()) return;
     if (document.hidden) { if (xxRafHandle) { cancelAnimationFrame(xxRafHandle); xxRafHandle = null; } xxPress = null; xxPtrId = null; }

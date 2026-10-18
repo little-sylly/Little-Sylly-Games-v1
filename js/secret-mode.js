@@ -29,32 +29,6 @@ const SM_GAMES = [
   { id: 'pko',  label: 'PECKING ORDER',   screen: 'screen-pko-menu'  },
 ];
 
-// ── Arcade cabinets — standalone canvas games, NOT packs and NOT Sylly Games.
-// Adding a cabinet = one entry here + one file in js/arcade/. No pack manifest,
-// no MP config, no game-identities entry. See the spec § 2 for the exemption.
-// Each entry is the WHOLE registration: the terminal list renders from it, and
-// engine.js's resetToLobby() tears every cabinet down through stop(). Both are
-// lazily-called arrows, so a cabinet's file may load after this one.
-const SM_ARCADE = [
-  { id: 'asherplane',  label: 'ASHERPLANE',       screen: 'screen-arcade-asherplane',
-    start: () => apStart(),  stop: () => resetArcade() },
-  { id: 'minesweeper', label: 'DEEP-SEA SWEEP',   screen: 'screen-arcade-minesweeper',
-    start: () => msStart(),  stop: () => resetArcadeMinesweeper() },
-  { id: 'chicken',     label: 'OTHER SIDE',       screen: 'screen-arcade-chicken',
-    start: () => ckStart(),  stop: () => resetArcadeChicken() },
-  { id: 'slice',       label: 'CHOP SALAD',       screen: 'screen-arcade-slice',
-    start: () => slStart(),  stop: () => resetArcadeSlice() },
-  { id: 'cookiejar',   label: 'COOKIE JAR',       screen: 'screen-arcade-cookiejar',
-    start: () => hjStart(),  stop: () => resetArcadeCookieJar() },
-  { id: 'stacking',    label: 'STACKING ORDER',   screen: 'screen-arcade-stacking',
-    start: () => stoStart(), stop: () => resetArcadeStacking() },
-  { id: 'bluff',       label: 'BEYOND THE BLUFF', screen: 'screen-arcade-bluff',
-    start: () => bbStart(),  stop: () => resetArcadeBluff() },
-];
-
-// Last cabinet played this session — survives resetSecretMode() (see below).
-let smArcadeLastId = null;
-
 // ── Terminal config — expansions are built at runtime from data/packs/ ───────
 // To add/remove a pack: drop a folder in data/packs/ + edit data/packs/registry.json.
 // No edits here, no sw.js edit, no version bump. See docs/expansion-guide.md.
@@ -206,11 +180,6 @@ function resetSecretMode() {
   smTypewriterTimers  = [];
   document.querySelectorAll('.sm-menu-banner').forEach(el => el.remove());
   window.activeExpansionData = null;
-  // DELIBERATELY NOT CLEARED: smArcadeUnlocked, smArcadeLastId and the
-  // Asherplane session leaderboard. This function runs on every resetToLobby(),
-  // so clearing them would re-lock the arcade and wipe the scores each time a
-  // child backs out to the menu. That is the whole problem the sticky unlock
-  // solves. Do not "tidy" these into the list above.
   smUpdateProgress();
 }
 
@@ -250,9 +219,6 @@ function smHandleButton(code) {
   if (smKonamiBuffer.join('') === SM_KONAMI.join('')) {
     smKonamiBuffer = [];
     smUpdateProgress();
-    // Discovery beat — the arcade stays unlocked for the rest of the session.
-    smArcadeUnlocked = true;
-    smShowArcadeTile();
     smOpenGateway();
   }
 }
@@ -484,7 +450,6 @@ function smRunBootError() {
     '> [ LOAD FAILED ] — DATABASE UNREACHABLE',
     '',
     '> WORD PACKS AND SKINS NEED A NETWORK. RECONNECT, THEN RE-ENTER THE CODE.',
-    '> THE ARCADE NEEDS NO NETWORK — TAP THE JOYSTICK BACK IN THE BOX.',
   ], 0, 220, null);
 }
 
@@ -565,10 +530,9 @@ function smRenderExpansions() {
   const all = SM_TERMINAL_CONFIG.expansions;
   const hasWords = all.some(e => !e.isAsset && !e.locked);
   const hasSkins = all.some(e => e.isAsset);
-  // ARCADE leads: Secret Mode is broader than "packs that change existing games".
-  // It is unconditional — cabinets are engine knowledge, not pack data, so it
-  // renders even when the pack registry failed to load.
-  const cats = [{ id: 'arcade', label: 'ARCADE' }];
+  // The arcade left for a room of its own in SW v254 (js/lobby/arcade.js) —
+  // Secret Mode is packs and skins only.
+  const cats = [];
   if (hasWords) cats.push({ id: 'words', label: 'WORD PACKS' });
   if (hasSkins) cats.push({ id: 'skins', label: 'GAME SKINS' });
   all.filter(e => e.locked).forEach(e => cats.push({ id: e.id, label: e.label, locked: true }));
@@ -599,18 +563,13 @@ function smReturnToCategories() {
 function smSelectCategory(cat) {
   playSecretBeep(660);
   smLogCheckpoint();
-  const label = cat === 'arcade' ? 'ARCADE'
-              : cat === 'words'  ? 'WORD PACKS'
-              :                    'GAME SKINS';
+  const label = cat === 'words' ? 'WORD PACKS' : 'GAME SKINS';
   smLogLine(`> CATEGORY: ${label} SELECTED`);
   smLogSpacer();
-  smLogLine(cat === 'arcade' ? '  └─ SELECT CABINET:'
-          : cat === 'words'  ? '  └─ SELECT PACK:'
-          :                    '  └─ SELECT GAME:');
+  smLogLine(cat === 'words' ? '  └─ SELECT PACK:' : '  └─ SELECT GAME:');
   document.getElementById('sm-terminal-log').scrollTop = document.getElementById('sm-terminal-log').scrollHeight;
-  if      (cat === 'arcade') smRenderArcade();
-  else if (cat === 'words')  smRenderWordPacks();
-  else                       smRenderSkinGames();
+  if (cat === 'words') smRenderWordPacks();
+  else                 smRenderSkinGames();
 }
 
 // Word-pack themes (theme-first; multi-game). Reuses the existing smSelectExpansion flow.
@@ -644,92 +603,6 @@ function smRenderSkinGames() {
     wrap.appendChild(btn);
   });
   smShowList(wrap);
-}
-
-// ── Arcade drill-down: cabinet list → launch ──────────────────────────────────
-// Tapping a cabinet launches it immediately. This diverges from the skin flow
-// (which arms, then needs a LAUNCH tap) on purpose: skins arm first so the
-// active settings can be reviewed before committing, and a cabinet has none.
-function smRenderArcade() {
-  const wrap = document.getElementById('sm-terminal-expansions');
-  wrap.innerHTML = '';
-  smAppendBackButton(wrap);
-  SM_ARCADE.forEach((cab, i) => {
-    const btn = document.createElement('button');
-    btn.className = SM_BTN_CLS;
-    btn.textContent = `  [${i + 1}] ${cab.label}`;
-    btn.addEventListener('click', () => smLaunchArcade(cab.id));
-    wrap.appendChild(btn);
-  });
-  smShowList(wrap);
-}
-
-// Lean sibling of smLaunch(). No word bank, no settings overrides, no asset
-// pack, no breadcrumb banner — a cabinet has no host game to decorate.
-// smLaunch() is deliberately left untouched.
-function smLaunchArcade(id) {
-  const cab = SM_ARCADE.find(c => c.id === id);
-  if (!cab) return;
-  isSecretMode   = true;
-  smArcadeLastId = id;
-  playSecretBeep(523);
-  setTimeout(() => playSecretBeep(784), 120);
-  setTimeout(() => cab.start(), 260);
-}
-
-// ── Sticky session unlock ─────────────────────────────────────────────────────
-// Flips true the moment the Konami sequence lands — the discovery beat. Stays
-// true until the page is reloaded, so the arcade needs unlocking once per
-// session rather than once per visit to the lobby. Memory only: no
-// localStorage, and "scores last the afternoon, not forever" is the intent.
-let smArcadeUnlocked = false;
-
-// Injects the 🕹️ shortcut beside the lobby's 🎮. Built in JS rather than in
-// index.html because the tile only exists once unlocked — this keeps the whole
-// arcade self-contained and leaves the lobby markup alone. Idempotent.
-/* The 🕹️ sits in the lobby's header icon row, to the LEFT of the speaker —
-   prepended, so it reads as the earlier of the two. It used to wrap the lobby's
-   🎮 emoji in a flex row and sit beside it; that emoji is now the 3D
-   controller, which is the hero of the screen and has no room for a sibling.
-   Idempotent, and the sticky unlock across resetToLobby() is unchanged. */
-function smShowArcadeTile() {
-  if (document.getElementById('sm-arcade-tile')) return;
-  const row = document.getElementById('lobby-header-icons');
-  if (!row) return;
-  const btn = document.createElement('button');
-  btn.id = 'sm-arcade-tile';
-  btn.className = 'lobby-icon';   // Classic's header icon (css/lobby.css), same as its two neighbours
-  btn.setAttribute('aria-label', 'Arcade');
-  btn.textContent = '🕹️';
-  btn.addEventListener('click', () => { playSecretBeep(660); smOpenArcadeMenu(); });
-  row.insertBefore(btn, row.firstChild);
-}
-
-// Lean sibling of smOpenTerminal(). Critically it does NOT await smLoadPacks():
-// cabinets need no pack data, so the arcade still opens on a cold offline start
-// — exactly the case where the registry fetch fails and smRunBootError() would
-// otherwise block entry.
-function smOpenArcadeMenu() {
-  smSelectedExpansion   = null;
-  smSelectedGame        = null;
-  smSelectedSubCategory = null;
-  document.getElementById('sm-terminal-log').innerHTML            = '';
-  document.getElementById('sm-terminal-expansions').innerHTML     = '';
-  document.getElementById('sm-terminal-expansions').style.display = 'none';
-  document.getElementById('sm-terminal-subcategories').innerHTML     = '';
-  document.getElementById('sm-terminal-subcategories').style.display = 'none';
-  document.getElementById('sm-terminal-games').innerHTML          = '';
-  document.getElementById('sm-terminal-games').style.display      = 'none';
-  document.getElementById('sm-terminal-launch-wrap').style.display = 'none';
-  const sp = document.getElementById('sm-terminal-settings');
-  if (sp) sp.remove();
-  showScreen('screen-secret-terminal');
-  smTypeLines([
-    '> SYLLY-OS ARCADE',
-    '> INSERT COIN...',
-    '',
-    '  └─ SELECT CABINET:',
-  ], 0, 200, smRenderArcade);
 }
 
 // ── Asset-pack drill-down: <GAME> SKINS → skin list → arm + launch ─────────────
@@ -1116,12 +989,9 @@ document.getElementById('gm-vocab-list-btn').addEventListener('click', () => {
    one-shot boot animation: sending the player back there would either replay
    the whole hack sequence at them or strand them on a screen already reading
    ACCESS GRANTED with nothing to do but tap forward again.
-   What that costs is worth being precise about. smArcadeUnlocked is sticky, so
-   🕹️ stays in the lobby header for the rest of the session — but it calls
-   smOpenArcadeMenu(), which lists CABINETS only (and skips smLoadPacks, so the
-   arcade still opens on a cold offline start). The arcade is therefore one tap
-   away; the pack/skin terminal costs a fresh Konami. Confirmed with the owner
-   at spec review. */
+   The pack/skin terminal costs a fresh Konami — confirmed with the owner at
+   spec review. (The arcade used to be reachable from here too; since SW v254
+   it is a place in the house, js/lobby/arcade.js.) */
 document.getElementById('sm-terminal-back').addEventListener('click', () => {
   smTypewriterTimers.forEach(clearTimeout);
   smTypewriterTimers = [];
@@ -1164,9 +1034,10 @@ document.addEventListener('keydown', e => {
   // A cabinet's RAF loop reschedules unconditionally, so navigating away from
   // one without tearing it down leaves it updating and painting under every
   // later screen. The arrow keys are also several cabinets' steering — see
-  // Small 3. Checked across the whole registry, not just cabinet 01.
-  if (SM_ARCADE.some(cab => {
-    const el = document.getElementById(cab.screen);
+  // Small 3. Checked across the whole registry, not just cabinet 01 — and the
+  // Arcade room too, whose ↑/↓/Enter must never feed the buffer (SW v254).
+  if (['screen-arcade'].concat(ARC_CABINETS.map(cab => cab.screen)).some(id => {
+    const el = document.getElementById(id);
     return el && el.style.display !== 'none';
   })) return;
   smKonamiBuffer.push(code);
@@ -1174,8 +1045,6 @@ document.addEventListener('keydown', e => {
   if (smKonamiBuffer.join('') === SM_KONAMI.join('')) {
     smKonamiBuffer = [];
     smUpdateProgress();
-    smArcadeUnlocked = true;
-    smShowArcadeTile();
     smOpenGateway();
   }
 });

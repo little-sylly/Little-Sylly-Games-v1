@@ -67,7 +67,8 @@ game returns there. **Nothing outside `js/lobby/` may `showScreen()` a layout's 
 `'screen-lobby'`, not the new three. The four sites: `resetToLobby()` (all 20 games' exits), both
 `secret-mode.js` returns (`sm-terminal-back`, `sm-btn-exit`), and the controller's idle nudge
 (`ctlOrnamentIsLive()`). The jukebox screen (SW v233) is not a layout but obeys the same rule: its ✕
-dispatches `jukeboxClose` and the router brings the Lounge back. A game is launched from any layout by `lobbyLaunch(id)`, which clicks the
+dispatches `jukeboxClose` and the router brings the Lounge back. The Arcade room (SW v254) is the same shape
+(`arcadeOpen`/`arcadeClose`; a cabinet's ✕ calls `arcExitCabinet()` and returns to the room, not the lobby). A game is launched from any layout by `lobbyLaunch(id)`, which clicks the
 game's existing lobby button — **no plugin knows the layouts exist**. `tools/visual-lobby.js` is the
 proof, and its mutation pass (revert any site → red) is what keeps it honest. Detail:
 `shared-implementation-notes.md` DD-42.

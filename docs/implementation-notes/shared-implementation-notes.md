@@ -4850,6 +4850,10 @@ Stopping one never touches the other, which is what lets Practice open mid-game 
 live Shake.
 
 
+### DD-58 — The Arcade becomes a place, not a Secret Mode category [19 Oct 2026, SW v254]
+**What:** `SM_ARCADE` → `ARC_CABINETS` (`js/lobby/arcade.js`); the room `screen-arcade` opens through the router like the jukebox; the unlock (`smArcadeUnlocked`, the injected 🕹️ tiles) is gone. A cabinet's ✕ returns to the room (`arcExitCabinet`) — the router never leaves `arcade: true` while a cabinet runs, so nothing else is told.
+**Lessons:** (1) every `next.jukebox`/`prev.jukebox` read in `lobbyApply` had to learn `arcade` too — a place that misses one plays the Lounge arrival beat behind it. A fourth place should make that list data. (2) The Konami keydown guard must also skip the room itself: its ↑/↓/Enter are Konami letters. (3) The Board's header could not hold wordmark + name + controller + 🔊 below 430 px; the existing stacked "You" fallback moved up from 340 px. (4) `visual-lobby.js` § 17's TV click is timing-flaky under software GL on the untouched code too (a 15 s click) — not this change.
+
 ### DD-57 — The boot screen, and the telly stops being a banner [18 Oct 2026, SW v252]
 
 **What happened.** The Lounge opened on a bare heading, then the whole room appeared at once, with sticker art

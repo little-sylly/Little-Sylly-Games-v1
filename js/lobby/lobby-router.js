@@ -30,6 +30,7 @@
     workshop: false,          // the real Workshop screen is up
     stickerbook: false,       // the stickerbook (the binder's door) is up — prototype, 23 Sep 2026
     jukebox:  false,          // the jukebox screen (the cat's door) is up — SW v233
+    arcade:   false,          // the Arcade room is up (a cabinet may be running in front of it) — SW v254
     switcher: false,          // the dock is visible — SUMMONED only (W6)
     design:   null,           // the last-read sylly_controller design
     /* The phone tier's one-way arrival beat. 'none' on a widescreen, where it
@@ -44,9 +45,10 @@
      from a door in the room — see LOBBY_DOORS in lobby-doors.js. Keeping the
      split as data is what lets verify-lobby-router.js prove no action is unreachable. */
   const LOBBY_PAGE_ACTIONS = ['go', 'roomMounted', 'workshopClose', 'designSaved', 'leaveLobby', 'arrivalBegin', 'arrivalReset',
-    'stickerbookOpen', 'stickerbookClose', 'jukeboxOpen', 'jukeboxClose', 'home', 'closeSwitcher'];
+    'stickerbookOpen', 'stickerbookClose', 'jukeboxOpen', 'jukeboxClose', 'arcadeOpen', 'arcadeClose', 'home', 'closeSwitcher'];
   /* stickerbookOpen / jukeboxOpen are BOTH a door's action (the Lounge's binder and
-     cat) and the page's own (the Board's dock and Classic's places row, SW v238). */
+     cat) and the page's own (the Board's dock and Classic's places row, SW v238).
+     arcadeOpen is the page's only, until the Lounge's cabinet prop (spec Stage 3). */
 
   function lobbyReduce(state, action) {
     const a = action || {};
@@ -156,6 +158,23 @@
         s.switcher = false;
         return s;
 
+      /* The Arcade (SW v254): the jukebox's shape exactly. A cabinet launched from
+         it takes the screen with `arcade` still true — the room is behind it, and
+         the cabinet's ✕ comes back to it without the router hearing about it. */
+      case 'arcadeOpen':
+        if (state.arcade) return state;
+        s.arcade = true;
+        s.room = keep();
+        return s;
+
+      case 'arcadeClose':
+        if (!state.arcade) return state;
+        s.arcade = false;
+        s.view = (state.view === 'lounge' && !lounged) ? 'shelves' : state.view;
+        s.room = state.room === 'absent' ? 'absent' : (s.view === 'lounge' ? 'running' : 'idle');
+        s.switcher = false;
+        return s;
+
       case 'designSaved': {
         const d = a.design || null;
         if (d === state.design) return state;   // same reference: one change to apply, not two
@@ -194,6 +213,7 @@
         s.workshop = false;
         s.stickerbook = false;
         s.jukebox = false;
+        s.arcade = false;
         s.switcher = false;
         s.view = (state.view === 'lounge' && !lounged) ? 'shelves' : state.view;
         s.room = state.room === 'absent' ? 'absent' : (s.view === 'lounge' ? 'running' : 'idle');

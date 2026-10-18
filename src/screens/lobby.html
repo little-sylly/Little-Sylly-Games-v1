@@ -89,6 +89,28 @@
     <div class="jbx-toast" id="jbx-toast" role="status" aria-live="polite"></div>
   </section>
 
+  <!-- THE ARCADE (SW v254) — not a layout: a place, like the jukebox. Opened by the router's
+       arcadeOpen (the 🕹️ door in every layout), closed by arcadeClose. The list renders
+       from ARC_CABINETS (js/lobby/arcade.js). Styles: css/arcade.css, scoped under #screen-arcade.
+       Stage 1 room — the cabinet design pass is spec Stage 2. -->
+  <section id="screen-arcade" class="arc" style="display:none" aria-label="The Arcade">
+    <div class="arc-cab">
+      <header class="arc-marquee">
+        <h1 class="arc-title">The Arcade</h1>
+        <div class="arc-tools">
+          <button class="btn-open-sound arc-icon" aria-label="Sound">🔊</button>
+          <button id="btn-arc-close" class="arc-icon" aria-label="Leave the arcade">✕</button>
+        </div>
+      </header>
+      <div class="arc-screen">
+        <p class="arc-eyebrow">Select game</p>
+        <div id="arc-list" class="arc-list" role="list"></div>
+        <p id="arc-blurb" class="arc-blurb" aria-live="polite"></p>
+      </div>
+      <button id="btn-arc-start" class="arc-start">Press start</button>
+    </div>
+  </section>
+
   <!-- The dock (DD-17): summoned, never automatic — the Lounge's channel dial and
        Original's layout button open it. Closed by the router's `home` and `closeSwitcher`. -->
   <div id="lobby-switcher-overlay" style="display:none"

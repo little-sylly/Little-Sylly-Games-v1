@@ -19,6 +19,9 @@ Detail: pointer to the canonical doc (snapshot / impl note / spec / memory).
 ```
 
 
+## 2026-10-19 — The Arcade leaves Secret Mode for a room of its own (Architecture)
+**Decision:** cabinets are a lobby *place* (router `arcade`, doors in every menu layout), always open; Secret Mode is packs + skins only. **Why:** the list will grow and is not a secret; a phone never keeps the Lounge, so it needed doors outside it before any prop. **Impact:** `ARC_CABINETS` in `js/lobby/arcade.js`, `screen-arcade`, Board 🔊 → header. Spec: `docs/superpowers/specs/2026-10-18-arcade-room-design.md`; detail: `shared-implementation-notes.md` DD-58.
+
 ## 2026-10-18 — The phone's lobby is the Board: a sticker sheet, a held card, a dock (Strategy)
 Category: Strategy
 Decision: the Shelves layout is replaced by the Board — 20 die-cut stickers on one sheet, washi-tape shelf tabs, a peel-off held card on a swipe rail, and a glass dock (Jukebox · Stickers · Random · Sound · Layout); no Play again (suite-wide later, with profiles).

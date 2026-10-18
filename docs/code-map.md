@@ -1011,15 +1011,24 @@ Helpers: `smLogLine`/`smLogSpacer`/`smShowList`/`smAppendBackButton`, consts `SM
 
 ---
 
-## Arcade Cabinets (Secret Mode)
+## Arcade Cabinets (the Arcade room — js/lobby/arcade.js, SW v254)
 
-**Files:** `js/arcade/<id>.js` — one per cabinet. **Markup:** `src/screens/_secret.html`.
+**The room:** `#screen-arcade` (markup `src/screens/lobby.html`, styles `css/arcade.css` under
+`#screen-arcade`). A lobby **place**, not a layout: router `state.arcade` + `arcadeOpen`/`arcadeClose`
+(`home` clears it); doors are `data-lobby-place="arcade"` in Classic (`#btn-lobby-arcade`), the Board's
+dock and TV's tools, all via `lobbyOpenPlace`. `lobbyOpenArcade()` (lobby-host.js) drops TV/Board then
+calls `arcOpen()`. Functions: `arcOpen`, `arcClose`, `arcStop` (clears `arcLaunchTimer`; also called by
+`resetToLobby()`), `arcRender`, `arcSelect`, `arcLaunch(id)`, `arcExitCabinet()` (every cabinet's ✕:
+stop all → room). State: `arcSel` (memory only). Ids: `#arc-list`, `#arc-blurb`, `#btn-arc-start`,
+`#btn-arc-close`. Desktop keys ↑/↓/Enter/Esc while the room is up.
+
+**Files:** `js/arcade/<id>.js` — one per cabinet. **Markup:** `src/screens/_secret.html` (cabinet screens only — moving them out is a deferred tidy-up).
 **Not Sylly Games:** no MP config, no identity doc, no Sylly Mode, no pack manifest, and
 `docs/rules/new-game-checklist.md` does not apply. Seven cabinets shipped SW v249.
 
-**`SM_ARCADE` (`js/secret-mode.js`) is the whole registration.** Both consumers read it, so a
+**`ARC_CABINETS` (`js/lobby/arcade.js`; `SM_ARCADE` in secret-mode.js until SW v254) is the whole registration.** Every consumer reads it, so a
 cabinet is added with one entry + one file and nothing else:
-- `smRenderArcade()` builds the terminal list from it (`[N] LABEL`, tap launches immediately).
+- `arcRender()` builds the room's list from it (tap selects, tap again / PRESS START launches).
 - `engine.js`'s `resetToLobby()` calls **every** entry's `stop()`. A hardcoded teardown here tears
   down one cabinet and leaves the other six repainting under the next screen — that was the
   pre-v249 state, invisible while only one cabinet existed.
@@ -1027,7 +1036,9 @@ cabinet is added with one entry + one file and nothing else:
 | Field | Purpose |
 |-------|---------|
 | `id` | Matches the file (`js/arcade/<id>.js`) and the screen (`screen-arcade-<id>`) |
-| `label` | The terminal row's text |
+| `label` | The room row's text |
+| `blurb` | One line under the list for the highlighted cabinet |
+| `accent` | Hex for that row's highlight |
 | `screen` | Screen id — must also be in `allScreens[]` or it is a ghost screen |
 | `start` | `() => <px>Start()` — lazy arrow; the cabinet's file loads after `secret-mode.js` |
 | `stop` | `() => resetArcade<Name>()` — cancels the RAF loop, clears pointer state, **keeps** the session leaderboard |
@@ -1049,12 +1060,12 @@ under a prefix are fine (`slice.js`'s `SLC_*`/`slc*` hold the Fruity Personaliti
 **Per-cabinet DOM** — identical shape, `<px>` = the prefix: `#screen-arcade-<id>` (black,
 `font-mono`, green terminal chrome) › a header row (label · `.btn-open-sound` · `#btn-<px>-exit`)
 › `#<px>-stage` (`flex-1`, **`touch-action:none`** — without it the browser eats the drag) ›
-`#<px>-canvas` (fixed 360×640 logical, letterboxed by `<px>Resize()`).
+`#<px>-canvas` (fixed 360×640 logical, letterboxed by `<px>Resize()`). The exit calls `resetArcade<Name>(); arcExitCabinet();`.
 
 **Other seams a cabinet touches:** a `<script src>` in `src/screens/_scripts-3.html` (after
 `secret-mode.js`), an entry in `sw.js` `PRECACHE_URLS` + a `CACHE_NAME` bump (code is always
 precached), and `allScreens[]` in `engine.js`. The keyboard-Konami guard in `secret-mode.js`
-also skips the buffer while **any** cabinet screen is up — the arrow keys are several cabinets'
+also skips the buffer while the room or **any** cabinet screen is up — the arrow keys are several cabinets'
 steering.
 
 **Engine surface used:** `showScreen`, `resetToLobby`, `playSecretBeep`, `isMuted`,

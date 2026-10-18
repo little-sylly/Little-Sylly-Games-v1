@@ -834,6 +834,7 @@
    across all three menus. */
 .lb-lg-tool.is-jukebox { background: #EFE7FB; }
 .lb-lg-tool.is-stickers { background: #FBEFC8; }
+.lb-lg-tool.is-arcade { background: #DDF5E4; }   /* the Arcade's phosphor green, softened (SW v254) */
 .lb-lg-tool[hidden] { display: none; }
 .lb-lg-modes { display: flex; align-items: center; gap: 4px; background: var(--lb-sunken); border-radius: 22px; padding: 4px; }
 .lb-lg-mode {

@@ -253,6 +253,7 @@ function tvBuildHeader(inst) {
       <button class="lb-lg-tool is-sound" title="Sound" aria-label="Sound">🔊</button>
       <button class="lb-lg-tool is-jukebox" data-lobby-place="jukebox" title="Jukebox" aria-label="Jukebox">🎵</button>
       <button class="lb-lg-tool is-stickers" data-lobby-place="stickers" title="Stickers" aria-label="Stickers" hidden>📒</button>
+      <button class="lb-lg-tool is-arcade" data-lobby-place="arcade" title="Arcade" aria-label="Arcade">🕹️</button>
       <div class="lb-lg-modes" role="tablist" aria-label="Lobby layout"></div>
     </div>`;
   inst.els.clock = h.querySelector('.lb-lg-clock');

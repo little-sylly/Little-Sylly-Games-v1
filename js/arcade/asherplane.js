@@ -2319,7 +2319,7 @@ function apStagePointer(e, phase) {
     }
   });
   document.addEventListener('keyup', e => { setKey(e, false); });
-  document.getElementById('btn-ap-exit').addEventListener('click', () => { resetArcade(); resetToLobby(); });
+  document.getElementById('btn-ap-exit').addEventListener('click', () => { resetArcade(); arcExitCabinet(); });
   // A child WILL put the iPad down mid-run: stop the loop while the tab is hidden.
   document.addEventListener('visibilitychange', () => {
     if (!visible()) return;

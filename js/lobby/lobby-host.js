@@ -53,11 +53,11 @@ function lobbyIsUp(view) { return lobbyState.view === view && !lobbyState.worksh
    needs its manifest — absent until it arrives, like a layout a device may not use. */
 function lobbyPlaceOffered(id) {
   if (id === 'stickers') return !!lobbyBook;
-  return id === 'jukebox';
+  return id === 'jukebox' || id === 'arcade';   // the Arcade needs nothing loaded — always open (SW v254)
 }
 function lobbyOpenPlace(id) {
   if (!window.lobbyReady || !lobbyPlaceOffered(id)) return;   // Jukebox is configured by lobbyLoadContent
-  lobbyDispatch({ t: id === 'stickers' ? 'stickerbookOpen' : 'jukeboxOpen' });
+  lobbyDispatch({ t: id === 'stickers' ? 'stickerbookOpen' : id === 'arcade' ? 'arcadeOpen' : 'jukeboxOpen' });
 }
 function lobbyPaintPlaces() {
   document.querySelectorAll('#screen-lobby [data-lobby-place]').forEach(b => { b.hidden = !lobbyPlaceOffered(b.dataset.lobbyPlace); });
@@ -127,14 +127,14 @@ function lobbyAfterLayoutRender() {
 function lobbyApply(prev, next) {
   // The room: kept and stopped, never disposed, whenever anything else has the screen.
   if (next.room === 'absent' && prev.room !== 'absent') lobbyDisposeRoom();
-  const roomUp = next.view === 'lounge' && !next.workshop && !next.stickerbook && !next.jukebox;
+  const roomUp = next.view === 'lounge' && !next.workshop && !next.stickerbook && !next.jukebox && !next.arcade;
   if (roomUp) {
     if (lobbyScene) {
       lobbyScene.resume();
       /* resetView on the way IN clears a fade a door left lit (the phone's
          fadeOut, the dial's pushIn) and shuts the binder. Guarded on the
          transition, because a resize re-applies and must not snap a drag. */
-      if (prev.view !== 'lounge' || prev.stickerbook || prev.workshop || prev.jukebox) lobbyScene.resetView();
+      if (prev.view !== 'lounge' || prev.stickerbook || prev.workshop || prev.jukebox || prev.arcade) lobbyScene.resetView();
       /* The jukebox prop reads Music only when told: a song may have changed,
          started or been let go (a game's music took over) while the room slept. */
       if (lobbyScene.syncMusic) lobbyScene.syncMusic();
@@ -149,6 +149,9 @@ function lobbyApply(prev, next) {
      what takes it down. Its two RAF loops stop in jbxClose (Timer Lifecycle). */
   if (next.jukebox && !prev.jukebox) lobbyOpenJukebox();
   if (!next.jukebox && prev.jukebox) Jukebox.jbxClose();
+  /* The Arcade (SW v254): the jukebox's shape — a screen, closed by lobbyPresent below. */
+  if (next.arcade && !prev.arcade) lobbyOpenArcade();
+  if (!next.arcade && prev.arcade) arcClose();
 
   if (next.stickerbook && !prev.stickerbook) lobbyOpenStickerbook();
   if (!next.stickerbook && prev.stickerbook && lobbySb) lobbySb.close();
@@ -167,11 +170,11 @@ function lobbyApply(prev, next) {
      ornament opens it itself and only tells the router (onOpen). */
   if (next.workshop && !prev.workshop && next.view === 'lounge') lobbyOpenWorkshopFromRoom();
 
-  if (!next.workshop && !next.jukebox && (next.view !== prev.view || prev.workshop || prev.jukebox)) lobbyPresent(next.view);
+  if (!next.workshop && !next.jukebox && !next.arcade && (next.view !== prev.view || prev.workshop || prev.jukebox || prev.arcade)) lobbyPresent(next.view);
 
   // A lounge that no longer fits (a phone, or a window shrunk) plays the beat and hands on.
   // Not from behind the jukebox: the beat would hand the room on while its screen is up.
-  if (next.view === 'lounge' && !next.workshop && !next.jukebox && !lobbyEligible() && !lobbyVeil) lobbyRunArrival();   // behind the boot screen it would play unseen — lobbyVeilFinish starts it
+  if (next.view === 'lounge' && !next.workshop && !next.jukebox && !next.arcade && !lobbyEligible() && !lobbyVeil) lobbyRunArrival();   // behind the boot screen it would play unseen — lobbyVeilFinish starts it
 
   /* The beat has handed this device to the Board for good, so its lean room is
      dead weight — a WebGL context and the room's GPU memory on exactly the
@@ -218,6 +221,11 @@ function lobbyWorkshopReturn(design) {
 function lobbyOpenJukebox() {
   showScreen('screen-jukebox');
   Jukebox.jbxOpen();
+}
+function lobbyOpenArcade() {
+  const tvRoot = document.getElementById('tv-app'); if (tvRoot) tvDrop(tvRoot);   // the layout behind stops (Timer Lifecycle)
+  bdDrop();
+  arcOpen();   // shows screen-arcade
 }
 function lobbyOpenWorkshopFromRoom() {
   ctlOpenWorkshop({ returnScreen: 'screen-lounge', onReturn: lobbyWorkshopReturn });
@@ -521,7 +529,7 @@ async function lobbyVeilFinish(picturesIn) {
   el.classList.add('is-out');
   setTimeout(lobbyVeilDrop, 520);
   // the phone's arrival beat waited for this (lobbyApply); the room is on screen from here
-  if (lobbyState.view === 'lounge' && !lobbyState.workshop && !lobbyState.jukebox && !lobbyEligible()) lobbyRunArrival();
+  if (lobbyState.view === 'lounge' && !lobbyState.workshop && !lobbyState.jukebox && !lobbyState.arcade && !lobbyEligible()) lobbyRunArrival();
 }
 function lobbyVeilWelcome(el) {
   return new Promise(res => {

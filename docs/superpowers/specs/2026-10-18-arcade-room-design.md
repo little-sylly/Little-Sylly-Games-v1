@@ -1,6 +1,6 @@
 # The Arcade leaves Secret Mode — its own room (design)
 
-**Status:** draft for owner approval · **Tier 2** · 18 Oct 2026 · target SW v254
+**Status:** approved 19 Oct 2026 (A–D as written) · Stage 1 shipped SW v254 · **Tier 2** · 18 Oct 2026 · target SW v254
 
 ## 1. Outcome
 
@@ -55,8 +55,8 @@ iterates it:
 `.bd-arcade`, `smArcadeLastId`, and the gateway line "THE ARCADE NEEDS NO NETWORK…". Konami success
 just opens the gateway.
 
-**Markup / files:** room + all seven cabinet screens → new partial `src/screens/arcade.html` (out of
-`_secret.html`); check `tools/build-index.js`'s partial order. `css/arcade.css` scoped under
+**Markup / files:** the room went into `src/screens/lobby.html` beside the jukebox. *Deviation (Stage 1):* the seven
+cabinet screens stay in `_secret.html` for now — moving them is churn with no behaviour; do it in Stage 2. `css/arcade.css` scoped under
 `#screen-arcade`. `screen-arcade` joins `allScreens[]` and the `h-screen` whitelist only if the room is
 a fixed full-window stage. New JS + CSS → `PRECACHE_URLS` + `CACHE_NAME` bump; load order: after
 `jukebox.js`.

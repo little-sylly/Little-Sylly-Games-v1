@@ -1293,7 +1293,7 @@ function ckStagePointer(e, phase) {
 
   document.getElementById('btn-ck-exit').addEventListener('click', () => {
     resetArcadeChicken();
-    resetToLobby();
+    arcExitCabinet();   // back to the Arcade room (SW v254)
   });
 
   // A child WILL put the iPad down mid-run. Stop the loop (the world and the

@@ -1,7 +1,7 @@
 // Little Sylly Games — Service Worker v236
 // All assets are local — no external CDN URLs, no opaque response issues.
 
-const CACHE_NAME = 'sylly-games-v253';
+const CACHE_NAME = 'sylly-games-v254';
 
 const PRECACHE_URLS = [
   './',
@@ -53,7 +53,9 @@ const PRECACHE_URLS = [
   // (data/music/jukebox/, ~68 MB) are runtime-cached by the data/music/ branch
   // below — a phone that never opens the jukebox never downloads a byte of it.
   'css/jukebox.css',
+  'css/arcade.css',
   'js/lobby/jukebox.js',
+  'js/lobby/arcade.js',
   // The Workshop as a full room (SW v234) — design B, ported from wip/workshop-lab/.
   'css/workshop.css',
   'js/lounge/lounge-lib.js',
