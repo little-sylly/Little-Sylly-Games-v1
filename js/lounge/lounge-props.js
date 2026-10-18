@@ -124,27 +124,55 @@
   /* The TV's attract screen, spec § 8. Pure drawing on an injected canvas; the
      scene turns it into a CanvasTexture and calls draw() at ~10 fps. */
   const LOU_ATTRACT_LINES = ['Tap the telly to browse the box.', 'Game night. No excuses.', 'Twenty games. One couch.', 'Pick a game, any game.'];
-  function louAttract(makeCanvas, games, lines = LOU_ATTRACT_LINES) {
-    const W = 512, H = 384, c = makeCanvas(W, H), x = c.getContext('2d');
-    const imgs = {}; let frame = 0;
-    function draw(tSec) {
-      x.fillStyle = '#e4f0e8'; x.fillRect(0, 0, W, H);
-      const pitch = 150, speed = 50, span = games.length * pitch, off = (tSec * speed) % span;
-      games.forEach((g, i) => {
-        [W + i * pitch - off, W + i * pitch - off - span].forEach(px => {
-          if (px < -pitch || px > W + pitch) return;
-          const img = imgs[g.id];
-          if (img) x.drawImage(img, px, 170, 110, 110);
-          else { x.fillStyle = g.brandHex; x.beginPath(); x.arc(px + 55, 225, 45, 0, 7); x.fill(); }
-        });
-      });
-      x.fillStyle = '#2B1B45'; x.textAlign = 'center'; x.textBaseline = 'middle';
-      x.font = 'bold 44px Fredoka, sans-serif'; x.fillText("LITTLE SYLLY'S LOUNGE", W / 2, 90);
-      x.font = '22px Fredoka, sans-serif'; x.fillText(lines[Math.floor(tSec / 6) % lines.length], W / 2, 330);
-      x.fillStyle = 'rgba(0,0,0,0.06)'; for (let y = 0; y < H; y += 4) x.fillRect(0, y, W, 2);   // scanlines
-      frame++;
+  /* The telly's idle screen: channel surfing (SW v252). One game per channel, held
+     LOU_CHANNEL_S seconds, then a short burst of static and the next one. It was a
+     scrolling rail under a title, repainted ten times a second on a 512 px canvas —
+     soft, busy, and a rail the controller's own TV layout already does better. Now
+     a still 1024 px frame that is repainted ONLY when it changes: on a cut, through
+     the static, and when a sticker lands. draw() says whether it painted, so the
+     scene uploads the texture only then. `flavour` is { gameId: line }; a game
+     without one shows the tap hint alone. */
+  const LOU_CHANNEL_S = 6, LOU_STATIC_S = 0.28;
+  function louAttract(makeCanvas, games, lines = LOU_ATTRACT_LINES, flavour = {}) {
+    const W = 1024, H = 768, c = makeCanvas(W, H), x = c.getContext('2d');
+    const imgs = {}; let frame = 0, lastKey = null, dirty = true;
+    const INK = '#2B1B45';
+    function wrap(text, maxW) {
+      const words = String(text).split(' '), out = []; let cur = '';
+      words.forEach(w => { const t = cur ? cur + ' ' + w : w; if (cur && x.measureText(t).width > maxW) { out.push(cur); cur = w; } else cur = t; });
+      if (cur) out.push(cur);
+      return out;
     }
-    return { canvas: c, draw, attach(id, img) { imgs[id] = img; }, frames: () => frame };
+    function paintChannel(g, n) {
+      x.fillStyle = '#e4f0e8'; x.fillRect(0, 0, W, H);
+      x.textAlign = 'center'; x.textBaseline = 'middle';
+      x.fillStyle = g.brandHex; x.globalAlpha = 0.16; x.beginPath(); x.arc(W / 2, 270, 215, 0, 7); x.fill(); x.globalAlpha = 1;
+      const img = imgs[g.id];
+      if (img) x.drawImage(img, W / 2 - 180, 90, 360, 360);
+      else { x.font = '230px sans-serif'; x.fillStyle = INK; x.fillText(g.emoji || '', W / 2, 280); }
+      x.fillStyle = INK; x.font = 'bold 76px Fredoka, sans-serif'; x.fillText(g.gameName, W / 2, 510);
+      x.font = '38px Fredoka, sans-serif'; x.fillStyle = '#4a3a63';
+      const say = flavour[g.id];
+      if (say) wrap(say, W - 160).slice(0, 2).forEach((ln, i) => x.fillText(ln, W / 2, 590 + i * 46));
+      x.font = '26px Fredoka, sans-serif'; x.fillStyle = '#6b5d80'; x.fillText(lines[n % lines.length], W / 2, 712);
+      x.font = 'bold 28px Fredoka, sans-serif'; x.textAlign = 'left'; x.fillStyle = INK; x.fillText('CH ' + String(n + 1).padStart(2, '0'), 44, 52);
+    }
+    function paintStatic() {
+      x.fillStyle = '#cfd9d2'; x.fillRect(0, 0, W, H);
+      for (let i = 0; i < 900; i++) { x.fillStyle = Math.random() < 0.5 ? 'rgba(43,27,69,0.35)' : 'rgba(255,255,255,0.7)'; x.fillRect(Math.random() * W, Math.random() * H, 24 + Math.random() * 90, 4 + Math.random() * 6); }
+    }
+    function draw(tSec) {
+      const ch = Math.floor(tSec / LOU_CHANNEL_S), into = tSec - ch * LOU_CHANNEL_S;
+      const staticOn = ch > 0 && into < LOU_STATIC_S;
+      const key = staticOn ? 's' + Math.floor(into * 30) : 'c' + ch;   // static re-rolls ~30 fps; a channel holds still
+      if (key === lastKey && !dirty) return false;
+      lastKey = key; dirty = false;
+      if (staticOn) paintStatic(); else paintChannel(games[ch % games.length], ch % games.length);
+      x.fillStyle = 'rgba(0,0,0,0.06)'; for (let y = 0; y < H; y += 6) x.fillRect(0, y, W, 3);   // scanlines
+      frame++;
+      return true;
+    }
+    return { canvas: c, draw, attach(id, img) { imgs[id] = img; dirty = true; }, frames: () => frame };
   }
 
   // ── builders are appended below by Tasks 5–9 ──────────────────────────────

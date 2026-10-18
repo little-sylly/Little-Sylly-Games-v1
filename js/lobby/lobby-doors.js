@@ -27,6 +27,7 @@
 
     const host = {
       games:      deps.games,
+      flavour:    deps.flavour,          // optional: { gameId: line } for the telly's channels
       stickers:   deps.stickers,
       design:     deps.design,
       lampPanels: deps.lampPanels,

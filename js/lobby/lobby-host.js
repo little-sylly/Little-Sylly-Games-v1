@@ -410,6 +410,7 @@ async function lobbyLoadContent() {
   const lamp = lampMan && Array.isArray(lampMan.panels) ? lampMan : { panels: [] };
   lobbyHost = LobbyDoors.lobbyCreateHost({
     games: GAMES,
+    flavour: LOBBY_FLAVOUR,
     stickers: { base: LOBBY_DATA.stickers, list: stickers },
     lampPanels: { base: LOBBY_DATA.lamp, manifest: lamp },
     design: lobbyDesignColours(),
@@ -435,6 +436,7 @@ async function lobbyLoadContent() {
 /* Synchronous up to the first screen, so nothing else is ever painted first
    (screen-lobby is hidden in markup for the same reason). */
 function lobbyBoot() {
+  lobbyVeilStart();
   try { const c = document.createElement('canvas'); lobbyWebgl = !!(c.getContext('webgl2') || c.getContext('webgl')); } catch (_) { lobbyWebgl = false; }
   try { lobbyReducedData = !!(window.matchMedia && window.matchMedia('(prefers-reduced-data: reduce)').matches); } catch (_) { lobbyReducedData = false; }
   lobbyDebug = new URLSearchParams(location.search).has('lobbydebug');
@@ -446,7 +448,9 @@ function lobbyBoot() {
   showScreen(lobbyScreen(first));
   if (first === 'shelves') lobbyPresent('shelves');
   window.addEventListener('resize', lobbyOnResize);
-  lobbyLoadContent().catch(e => console.warn('lobby: content did not load — ' + (e && e.message))).then(() => {
+  lobbyLoadContent().catch(e => console.warn('lobby: content did not load — ' + (e && e.message))).then(async () => {
+    lobbyVeilStage(0.4);
+    if (lobbyVeil && lobbyState.view === 'lounge' && lobbyHost) await lobbyNextPaint();   // the bar is on screen before the build freezes the page
     if (lobbyState.view === 'lounge') {
       if (lobbyHost) { lobbyEnsureRoom(); lobbyApply(lobbyState, lobbyState); }
       else lobbyDispatch({ t: 'go', view: 'shelves' });   // no host: nothing to mount, so never a blank room
@@ -454,5 +458,61 @@ function lobbyBoot() {
     lobbyPaintSwitcher(lobbyState);
     window.lobbyReady = true;
     lobbyPaintPlaces();   // the stickerbook's door appears once its manifest has
+    lobbyVeilStage(0.8);
+    await lobbyVeilFinish(lobbyScene && lobbyScene.loaded ? lobbyScene.loaded(4000) : null);
   });
+}
+
+// ── The boot screen (SW v252) ──────────────────────────────────────────────
+/* A veil over the first launch only — coming back from a game never rebuilds the
+   room, so it never shows again. The bar is driven by real stages (content in,
+   room built, pictures in) with a gentle time creep so a fast load still fills
+   over the minimum. Both timers below end in lobbyVeilDrop(), which always runs:
+   it is the Timer Lifecycle clear. ?lobbydebug and automated browsers skip it so
+   the harnesses see the lobby, not the veil. */
+const LOBBY_VEIL_MIN_MS = 2000, LOBBY_VEIL_LINE_MS = 1600;
+let lobbyVeil = null, lobbyVeilT0 = 0, lobbyVeilStageAt = 0.1, lobbyVeilLineTimer = null, lobbyVeilBarTimer = null;
+function lobbyVeilStart() {
+  const el = document.getElementById('lobby-veil');
+  if (!el) return;
+  if (new URLSearchParams(location.search).has('lobbydebug') || navigator.webdriver) { el.remove(); return; }
+  lobbyVeil = el; lobbyVeilT0 = performance.now();
+  const pool = Object.keys(LOBBY_FLAVOUR).map(k => LOBBY_FLAVOUR[k]).concat(LOBBY_ROOM_LINES);
+  for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
+  const line = el.querySelector('.lbv-line'), fill = el.querySelector('.lbv-fill');
+  let n = 0;
+  const say = () => { line.textContent = pool[n++ % pool.length]; line.classList.remove('is-in'); void line.offsetWidth; line.classList.add('is-in'); };
+  say();
+  lobbyVeilLineTimer = setInterval(say, LOBBY_VEIL_LINE_MS);
+  const tick = () => {
+    const f = Math.min(1, (performance.now() - lobbyVeilT0) / LOBBY_VEIL_MIN_MS);
+    const v = Math.max(lobbyVeilStageAt, Math.min(0.9 * f, lobbyVeilStageAt + 0.25));   // creeps, but never far ahead of the truth
+    fill.style.transform = 'scaleX(' + v.toFixed(3) + ')';
+  };
+  tick(); lobbyVeilBarTimer = setInterval(tick, 120);
+}
+function lobbyVeilStage(v) { if (lobbyVeil) lobbyVeilStageAt = Math.max(lobbyVeilStageAt, v); }
+function lobbyVeilDrop() {
+  clearInterval(lobbyVeilLineTimer); clearInterval(lobbyVeilBarTimer);
+  lobbyVeilLineTimer = lobbyVeilBarTimer = null;
+  if (lobbyVeil) { lobbyVeil.remove(); lobbyVeil = null; }
+}
+/* Wait for the pictures (already capped by the scene) AND the minimum, give the room
+   two frames to actually paint, then fill the bar and fade out. Never throws. */
+async function lobbyVeilFinish(picturesIn) {
+  if (!lobbyVeil) return;
+  const el = lobbyVeil;
+  try { if (picturesIn) await picturesIn; } catch (_) {}
+  await lobbyNextPaint();
+  const wait = LOBBY_VEIL_MIN_MS - (performance.now() - lobbyVeilT0);
+  if (wait > 0) await new Promise(r => setTimeout(r, wait));
+  lobbyVeilStageAt = 1; el.querySelector('.lbv-fill').style.transform = 'scaleX(1)';
+  await new Promise(r => setTimeout(r, 260));
+  clearInterval(lobbyVeilBarTimer); clearInterval(lobbyVeilLineTimer);
+  el.classList.add('is-out');
+  setTimeout(lobbyVeilDrop, 520);
+}
+/* Two animation frames, or 120 ms if the tab is hidden and none ever comes. */
+function lobbyNextPaint() {
+  return new Promise(res => { const t = setTimeout(res, 120); requestAnimationFrame(() => requestAnimationFrame(() => { clearTimeout(t); res(); })); });
 }

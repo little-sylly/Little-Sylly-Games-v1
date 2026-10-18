@@ -232,7 +232,7 @@
        The window's brightness is now the bloom and the shafts (lou-room louBuildWindowLight), ~2%
        held-state. A revived light was +3.2%, and it moved every approved look (DD-35). */
     const dialLight = new THREE.PointLight(design.buttons || '#ffffff', 0.25, 0.6, 2); dialLight.name = 'dialLight'; dialLight.position.set(0.60, 0.5, 0.0); scene.add(dialLight);
-    const attract = P.louAttract(makeCanvas, host.games);
+    const attract = P.louAttract(makeCanvas, host.games, undefined, host.flavour);
     const attractTex = new THREE.CanvasTexture(attract.canvas); attractTex.encoding = THREE.sRGBEncoding;
     const ctx = { lib, design, games: host.games, stickers: host.stickers, lampPanels: host.lampPanels, ControllerBody: CB, controllerParts: host.controllerParts, attractTexture: attractTex, roomData: room.userData, skipProps: mountOpts.skipProps || null,
       rand: host.rand, sfx };   // sfx: a hoisted declaration below — the controller's idle beats name their sounds through the same seam as a door
@@ -257,13 +257,18 @@
     let shadowDirty = true;
 
     // images: stickers, lamp portraits — loaded here, never by a builder
+    /* `pending` counts every picture still on its way, so the boot screen can wait for
+       the room to be IN rather than merely built (SW v252): a loaded or failed picture
+       both count down, and loaded() never rejects. */
+    let pending = 0; const idle = [];
+    const settle = () => { if (--pending <= 0) { pending = 0; idle.splice(0).forEach(f => f()); } };
     const loader = new THREE.TextureLoader();
     props.traverse(o => {
       if (!o.isMesh || !o.material || !o.material.userData.louImage) return;
-      const m = o.material;
-      loader.load(m.userData.louImage, t => { t.encoding = THREE.sRGBEncoding; m.map = t; if (m.userData.louEmissiveMap) m.emissiveMap = t; m.needsUpdate = true; shadowDirty = true; wake(); });
+      const m = o.material; pending++;
+      loader.load(m.userData.louImage, t => { t.encoding = THREE.sRGBEncoding; m.map = t; if (m.userData.louEmissiveMap) m.emissiveMap = t; m.needsUpdate = true; shadowDirty = true; wake(); settle(); }, undefined, settle);
     });
-    (host.stickers.list || []).forEach(s => { const img = new Image(); img.onload = () => attract.attach(s.id, img); img.src = host.stickers.base + s.image; });
+    (host.stickers.list || []).forEach(s => { const img = new Image(); pending++; img.onload = () => { attract.attach(s.id, img); settle(); }; img.onerror = settle; img.src = host.stickers.base + s.image; });
     // the bench bay's atlas (the Play-Max's name, the disk labels) repainted once Fredoka is in; a page without the face keeps the fallback
     const cubbyMap = lib.mats.cubby.map;
     if (cubbyMap && cubbyMap.userData.louRepaint && document.fonts && document.fonts.load)
@@ -518,11 +523,12 @@
     canvasEl.addEventListener('blur', () => { focused = -1; drawFocus(); });
 
     // the attract loop, 10 fps, only while visible; one frozen frame under reduced motion
-    const t0 = performance.now(); let attractDrawn = false;
+    const t0 = performance.now();
     timers.interval = setInterval(() => {
       if (document.hidden || paused) return;
-      if (reduced()) { if (attractDrawn) return; attractDrawn = true; attract.draw(0); }
-      else attract.draw((performance.now() - t0) / 1000);
+      // reduced motion holds channel 1 (draw(0) repaints only when a sticker lands)
+      const painted = attract.draw(reduced() ? 0 : (performance.now() - t0) / 1000);
+      if (!painted) return;   // a held channel costs nothing: no upload, no frame
       attractTex.needsUpdate = true; wake();
     }, LOU_ATTRACT_MS);
 
@@ -585,6 +591,8 @@
          after its own record tap; a song the page changed (the jukebox screen, a
          track ending) is the page's to announce. */
       syncMusic: syncJukebox,
+      /* Resolves when every picture has landed or failed, or after capMs, whichever is first. */
+      loaded(capMs) { return new Promise(res => { if (pending <= 0) return res(); const id = setTimeout(res, capMs || 4000); idle.push(() => { clearTimeout(id); res(); }); }); },
       /* Call a prop's api from outside the scene and re-render — the shell tells
          the binder what the collection is. A missing prop or api is a no-op. */
       withProp(id, fn) { const a = built[id] && built[id].userData.api; if (!a) return; try { fn(a); } catch (_) {} shadowDirty = true; wake(); },

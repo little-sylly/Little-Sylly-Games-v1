@@ -7,12 +7,21 @@
        Ref     : js/lobby/lobby-host.js (every effect), js/lobby/lobby-router.js (the rules)
        Visibility is showScreen()'s inline style.display — never `hidden` (BUG-19).
   ════════════════════════════════════════════════════════════════ -->
+  <!-- THE BOOT SCREEN (SW v252) — shown from first paint, lifted by lobbyVeilFinish
+       (lobby-host.js) once the content is in, the room is built and its pictures have
+       landed, and never before 2 s. Not a screen: it is not in allScreens[], so no
+       showScreen() touches it. Styles: css/lobby.css § The boot screen. -->
+  <div id="lobby-veil" role="status" aria-label="Loading Little Sylly Games">
+    <div class="sylly-wordmark lbv-mark" aria-hidden="true"><span class="sylly-wordmark-a">Little Sylly</span><span class="sylly-wordmark-b">Games</span></div>
+    <div class="lbv-bar" aria-hidden="true"><i class="lbv-fill"></i></div>
+    <p class="lbv-line" aria-hidden="true"></p>
+  </div>
+
   <section id="screen-lounge" style="display:none">
     <div id="lou-stage">
       <canvas id="lou-canvas" tabindex="0" aria-label="Little Sylly's lounge. Tab through the room, Enter to use a thing."></canvas>
       <div id="lou-vignette"></div>
       <div id="lou-hud">
-        <h1 id="lou-heading">Little Sylly's Lounge</h1>
         <div id="lou-status" role="status" aria-live="polite"></div>
         <div id="lou-focus"></div>
       </div>

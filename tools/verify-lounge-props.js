@@ -283,7 +283,7 @@ ok(Array.isArray(LouProps.LOU_TAB_ORDER) && LouProps.LOU_TAB_ORDER[0] === 'tv-sc
 }
 {
   const at = LouProps.louAttract(makeCanvas, GAMES);
-  at.draw(0); at.draw(3.5); eq(at.frames(), 2, 'attract counts frames'); ok(at.canvas.width === 512, 'attract canvas is 512 wide');
+  at.draw(0); eq(at.draw(3.5), false, 'a held channel does not repaint'); at.draw(7); eq(at.frames(), 2, 'attract counts painted frames'); ok(at.canvas.width === 1024, 'attract canvas is 1024 wide');
 }
 {
   const ctx = { lib, design: { shell: '#111111', plate: '#222222', ears: '#333333', buttons: '#444444' }, games: GAMES,

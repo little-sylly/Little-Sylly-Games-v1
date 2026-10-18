@@ -781,7 +781,7 @@ not precached**, the `data/stickers/` contract.
 ### Screens and overlays
 | ID | Layout / purpose |
 |----|------------------|
-| `#screen-lounge` | The Lounge — `#lou-stage` › `#lou-canvas`, `#lou-vignette`, `#lou-hud` (`#lou-heading`, `#lou-status`, `#lou-focus`), `#lou-fade`. Fixed stage |
+| `#screen-lounge` | The Lounge — `#lou-stage` › `#lou-canvas`, `#lou-vignette`, `#lou-hud` (`#lou-status`, `#lou-focus`), `#lou-fade`. Fixed stage |
 | `#screen-tv` | TV — `#tv-app`. Fixed stage; below 900×500 it shows the hand-off card (`#lb-tv-handoff-back` → the Board) |
 | `#screen-shelves` | **The Board** (SW v250) — `#shelves-canvas` › `.lb-phone.bd` › `.bd-scroll` (the ONE scroller, the 440 px column centred by padding) holding `.bd-head` (one-line `.sylly-wordmark.bd-mark`, `.bd-arcade` 🕹️ once unlocked, `.bd-you` › `#shelves-controller` + `#lb-you-label`), `.bd-intro` (`.bd-ask`, the stepper `.bd-minus`/`.bd-step-val`/`.bd-plus`, `.bd-onephone`, `.bd-fit` + `.bd-clear`), `.bd-tapes` (`.bd-tape[data-tab]`), `.bd-sheet` (20 `.bd-st[data-id]`), `.bd-note`; then the held layer `.bd-held` (`role=dialog`: `.bd-scrim`, `.bd-top` › `.bd-home` "← Board" / `.bd-hint` / `.bd-count`, `.bd-rail` › `.bd-card[data-id]` › `.bd-flipper` › `.bd-front` (`.bd-c-play`, `.bd-c-flip`) + `.bd-back` (`.bd-b-turn`, `.bd-b-body` = `lbSheetBodyInner`), `.bd-dots`); then the dock `.bd-dock` (`[data-lobby-place]` 🎵/📒, `.bd-die`, `.bd-sound` › `.btn-open-sound`, `.bd-layout`). Not an `h-screen` exception — the column scrolls |
 | `#screen-lobby` | Original — `#btn-lobby-layout` (opens the switcher), the wordmark and the places row (SW v238); full detail in § Engine / Global |

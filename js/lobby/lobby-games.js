@@ -314,5 +314,40 @@ const SHELVES = [
   { id: 'board',      label: 'Strategy',  emoji: '♟️' },
 ];
 
-if (typeof module !== 'undefined') module.exports = { GAMES, SHELVES, SHELF_NOTES };
-if (typeof window !== 'undefined') { window.GAMES = GAMES; window.SHELVES = SHELVES; window.SHELF_NOTES = SHELF_NOTES; }
+// One line per game, in the game's own voice. The boot screen rotates them and the
+// Lounge's telly shows each under its game (SW v252). Keyed by GAMES[].id; a game
+// without a line simply sits out of the rotation. Australian spelling, no emoji.
+const LOBBY_FLAVOUR = {
+  li5:  'Explaining mortgages to a five-year-old',
+  gm:   'Waiting for two brains to say the same word',
+  ss:   'Encrypting the group chat',
+  jec:  'Too many cooks. Sending some home',
+  ygi:  'Waiting for the penny to drop',
+  lttp: 'Making up an excuse for being late',
+  nat:  'Recording a wildlife documentary',
+  dsd:  'Counting the mines. Twice',
+  gth:  'And how does that make you feel?',
+  dyb:  'Practising a straight face',
+  bld:  "Checking who's actually coming",
+  pass: 'Shuffling, badly',
+  nt:   'Sending the hacker the long way round',
+  frt:  'Fruit salad. Yummy, yummy',
+  shp:  'Counting sheep. Lost count at 98',
+  flw:  'Spotting the fake gem',
+  pko:  'Settling the pecking order (the chook wins)',
+  cjar: 'Hand in the cookie jar. Act natural',
+  cld:  'Nudging a penguin into the drink. Gently',
+  comb: 'Negotiating with the bees',
+};
+// The room's own lines — boot screen only.
+const LOBBY_ROOM_LINES = [
+  "Finding the remote (it's in the couch)",
+  'Blowing on the cartridge',
+  'Fluffing the cushions',
+  'Telling the cat to get off the jukebox',
+  'Untangling the controller cords',
+  '↑ ↑ ↓ ↓ … no, never mind',
+];
+
+if (typeof module !== 'undefined') module.exports = { GAMES, SHELVES, SHELF_NOTES, LOBBY_FLAVOUR, LOBBY_ROOM_LINES };
+if (typeof window !== 'undefined') { window.GAMES = GAMES; window.SHELVES = SHELVES; window.SHELF_NOTES = SHELF_NOTES; window.LOBBY_FLAVOUR = LOBBY_FLAVOUR; window.LOBBY_ROOM_LINES = LOBBY_ROOM_LINES; }

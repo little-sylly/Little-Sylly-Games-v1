@@ -5,6 +5,13 @@ The **current** version and its notes stay in `CLAUDE.md` § Current Focus — a
 
 
 
+## v251 — the Board: the phone's lobby becomes a sticker sheet (18 Oct 2026; v250 + dock and ghost-outline polish). Shelves is
+replaced by **the Board** (`js/lobby/board.js`, prefix `bd`; `css/board.css`): the 20 games as stickers
+on one sheet, washi-tape shelf tabs, a peel-off held card on a swipe rail (its back is `lbSheetBodyInner`),
+and a glass dock — 🎵 · 📒 · Random · 🔊 · Layout. Patch-in-place like `tv.js`; `lbSet` rebuilds nothing now.
+Layout id stays `shelves` (label "Board", 🏷️). `bdDrop()` is the Timer Lifecycle clear. No packet.
+Harness: `tools/verify-board.js` + `visual-lobby.js` § 18. Detail: `shared-implementation-notes.md` DD-56.
+
 ## v249 — the arcade fills up: seven cabinets (18 Oct 2026).
  Six new Secret Mode cabinets
 join a revamped ASHERPLANE — DEEP-SEA SWEEP (Minesweeper in DSD's world), OTHER SIDE, CHOP SALAD,

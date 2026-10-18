@@ -4850,6 +4850,25 @@ Stopping one never touches the other, which is what lets Practice open mid-game 
 live Shake.
 
 
+### DD-57 — The boot screen, and the telly stops being a banner [18 Oct 2026, SW v252]
+
+**What happened.** The Lounge opened on a bare heading, then the whole room appeared at once, with sticker art
+and the telly pixellated until pictures arrived. Cause: `lobbyEnsureRoom` builds the room synchronously (nothing
+can paint), then stickers, lamp portraits and paintings load one by one afterwards, and the telly was a 512 px
+canvas repainted at 10 fps.
+
+**Decision.** A veil in the page markup (`#lobby-veil`, outside `allScreens[]`) covers first launch only; the
+room is kept across games so it never re-shows. The bar uses real stages (content 0.4, room 0.8, pictures in 1)
+plus a time creep capped at stage + 0.25; it lifts at max(2 s, pictures-in) after two painted frames. The scene's
+new `loaded(capMs)` counts every texture and sticker (success or error both count down) and never rejects.
+`lobbyNextPaint()` lets the veil draw before the build freezes the page; the shimmer is a compositor animation so it
+survives the freeze. "Little Sylly's Lounge" (heading and telly title) is removed. The telly is channel-surfing:
+`louAttract(..., flavour)` is 1024x768, `draw()` returns whether it painted and the scene uploads the texture only then.
+
+**Lessons.** (1) A harness that waits on `lobbyReady` would screenshot the veil, so `?lobbydebug` and
+`navigator.webdriver` remove it at start. (2) To screenshot it, delay `data/stickers/manifest.json` with a route —
+a software-GL build blocks the page past the veil's whole life. (3) Both veil timers end in `lobbyVeilDrop()`.
+
 ### DD-56 — Shelves becomes the Board: stickers, a held card, a dock [18 Oct 2026, SW v250]
 
 **What happened.** The phone's lobby layout was rebuilt from the spec

@@ -50,15 +50,27 @@
   background: rgba(255, 255, 255, 0.85); box-shadow: 0 0 0 1px rgba(43, 27, 69, 0.08);
 }
 #screen-shelves .bd-arcade[hidden] { display: none; }
-#screen-shelves .bd-you { width: 96px; padding: 0; gap: 0; }
-#screen-shelves .bd-you .lb-you-mount { width: 88px; height: 64px; }
-#screen-shelves .bd-you .lb-you-label { min-height: 24px; padding: 0 8px; }
+/* The name sits LEFT of the controller, one short row centred on the wordmark's line
+   (the controller stays in the corner). Under 340px there is no room for all three,
+   so it falls back to the old stack. The popover anchors to this wrap. */
+#screen-shelves .bd-you { width: auto; padding: 0; gap: 2px; flex-direction: row-reverse; align-items: center; }
+#screen-shelves .bd-you .lb-you-mount { width: 72px; height: 52px; }
+#screen-shelves .bd-you .lb-you-label { min-height: 44px; padding: 0 4px 0 6px; }
+#screen-shelves .bd-you #lb-you-label-text { max-width: 64px; }
+#screen-shelves .bd-you .lb-you-pop-arrow { right: 100px; }
+@media (max-width: 339px) {
+  #screen-shelves .bd-you { flex-direction: column; gap: 0; width: 88px; }
+  #screen-shelves .bd-you .lb-you-mount { width: 72px; height: 52px; }
+  #screen-shelves .bd-you .lb-you-label { min-height: 24px; padding: 0 8px; }
+  #screen-shelves .bd-you .lb-you-pop-arrow { right: 28px; }
+}
 
 /* ── What are we playing / who's playing ─────────────────────────────────── */
-#screen-shelves .bd-intro { display: flex; flex-direction: column; gap: 12px; padding: 6px 0 4px; }
+#screen-shelves .bd-intro { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 6px 0 4px; text-align: center; }
 #screen-shelves .bd-ask { margin: 0; font: 700 26px/1.05 'Fredoka', system-ui, sans-serif; letter-spacing: -0.01em; text-wrap: balance; }
 #screen-shelves .bd-ask em { font-style: normal; color: var(--lb-accent); }
-#screen-shelves .bd-who { display: flex; gap: 10px; align-items: center; justify-content: space-between; }
+/* One tight, centred group: the stepper and One phone sit together at any width. */
+#screen-shelves .bd-who { display: flex; gap: 14px; align-items: center; justify-content: center; flex-wrap: wrap; }
 #screen-shelves .bd-step { display: flex; align-items: center; gap: 4px; flex: none; }
 #screen-shelves .bd-step-val { flex: none; width: 64px; text-align: center; display: flex; flex-direction: column; gap: 2px; }
 #screen-shelves .bd-onephone { flex: none; }
@@ -84,12 +96,13 @@
 }
 #screen-shelves .bd-key:disabled { opacity: 0.4; pointer-events: none; }
 #screen-shelves .bd-key-sq { width: 44px; padding: 0; font-size: 20px; flex: none; }
-#screen-shelves .bd-fit { margin: 0; font: 400 13px/1.3 'Fredoka', system-ui, sans-serif; color: var(--lb-ink-2); display: flex; justify-content: space-between; align-items: center; gap: 8px; min-height: 24px; }
+#screen-shelves .bd-fit { margin: 0; font: 400 13px/1.3 'Fredoka', system-ui, sans-serif; color: var(--lb-ink-2); display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 4px 12px; min-height: 24px; }
 #screen-shelves .bd-clear { color: var(--lb-accent); font-weight: 600; min-height: 44px; margin: -10px 0; padding: 0 2px; }
 #screen-shelves .bd-clear[hidden] { display: none; }
 
 /* ── Washi-tape tabs ─────────────────────────────────────────────────────── */
 #screen-shelves .bd-tapes {
+  position: relative;   /* the tapes' offsetParent: bdPaint centres the chosen one by offsetLeft */
   display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none;
   /* A rail INSIDE the column: it bleeds only the column's own 16px gutter, so on a
      wide window it scrolls rather than spreading every tape across the screen. */
