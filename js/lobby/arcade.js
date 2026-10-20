@@ -82,7 +82,10 @@ const ARC_CRT_HTML =
    with. The bear's ears on the panda's one-piece body. Glow first, then ears,
    then body — positioned siblings paint in DOM order, so the ears sit behind
    the hood and the accent pool sits behind everything. */
+/* Every row is `.arc-row` (layout + scroll-snap box, never transformed — snap reads the TRANSFORMED box, so a
+   ring transform on the row itself moves its own snap point) around `.arc-m`, which carries the ring. */
 const ARC_MACHINE_HTML =
+  '<span class="arc-m">' +
   '<span class="arc-m-glow"></span>' +
   '<span class="arc-m-ear is-l"></span><span class="arc-m-ear is-r"></span>' +
   '<span class="arc-m-body">' +
@@ -90,17 +93,18 @@ const ARC_MACHINE_HTML =
     '<span class="arc-m-bezel">' + ARC_CRT_HTML + '</span>' +
     '<span class="arc-m-deck"><span class="arc-m-stick"></span><span class="arc-m-btns"><i></i><i></i><i></i><i></i></span></span>' +
     '<span class="arc-m-door"><span class="arc-m-slot"></span><span class="arc-m-lamp"></span></span>' +
-  '</span>';
+  '</span></span>';
 
 /* SW v259 — the real model (spec § 3.2, 4a). The Lounge's cabinet
    (lounge-props.js louBuildArcade, built `blank`) rendered ONCE into a picture
    every row wears; the marquee text, the CRT and the coin lamp are DOM laid over
    the places in the picture where the model's own glass and lamp landed. */
 const ARC_SHOT_HTML =
+  '<span class="arc-m">' +
   '<span class="arc-m-glow"></span>' +
   '<img class="arc-m-shot" alt="" draggable="false">' +
   ARC_MARQ_HTML + ARC_CRT_HTML +
-  '<span class="arc-m-lamp"></span>';
+  '<span class="arc-m-lamp"></span></span>';
 const ARC_SHOT_ASPECT = 0.66;   // a row's width / height (css/arcade.css .arc-track --w)
 
 let arcSel = 0;              // the centred cabinet — memory only, survives leaving the room
@@ -342,12 +346,18 @@ function arcRender() {
    cabinet can be "in view" — the one under the centre line. */
 function arcWatchCentre(track) {
   if (typeof IntersectionObserver !== 'function') return;
+  /* The observer only says "something crossed the centre band". WHICH cabinet is centred is read from
+     layout (offsetLeft, which ignores transforms): the arch turns and pushes the neighbours back, and
+     their transformed boxes can touch the band while the centred one still owns the middle. */
   arcObserver = new IntersectionObserver(entries => {
-    entries.forEach(e => {
-      if (!e.isIntersecting) return;
-      const i = Array.prototype.indexOf.call(track.children, e.target);
-      if (i >= 0 && i !== arcSel) { arcSel = i; playSecretBeep(660); arcPaintSel(); }
+    if (!entries.some(e => e.isIntersecting)) return;
+    const mid = track.scrollLeft + track.clientWidth / 2;
+    let best = -1, bestD = Infinity;
+    Array.prototype.forEach.call(track.querySelectorAll('.arc-row'), (m, k) => {
+      const d = Math.abs(m.offsetLeft + m.offsetWidth / 2 - mid);
+      if (d < bestD) { bestD = d; best = k; }
     });
+    if (best >= 0 && best !== arcSel) { arcSel = best; playSecretBeep(660); arcPaintSel(); }
   }, { root: track, rootMargin: '0px -49% 0px -49%', threshold: 0 });
   Array.prototype.forEach.call(track.children, m => arcObserver.observe(m));
 }
@@ -385,6 +395,8 @@ function arcPaintSel() {
   if (room) room.style.setProperty('--arc-accent', cab.accent);   // START, the strip and the floor pool
   document.querySelectorAll('#arc-list .arc-row').forEach((m, i) => {
     m.classList.toggle('is-sel', i === arcSel);
+    m.style.setProperty('--d', i - arcSel); m.style.setProperty('--a', Math.abs(i - arcSel));   // the ring: signed distance and its size
+    m.classList.toggle('is-far', Math.abs(i - arcSel) > 3);
     m.setAttribute('aria-current', String(i === arcSel));
   });
   document.querySelectorAll('#arc-scrub i').forEach((t, i) => t.classList.toggle('is-on', i === arcSel));

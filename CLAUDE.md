@@ -296,7 +296,7 @@ happen: do it before anything else.**
 **SW v259 — the real model on the Arcade Floor (21 Oct 2026).** Spec § 3.2 (Stage 4): the room renders the Lounge's
 cabinet once (`arcModelShot`, a lite lib, no env map, cached per design) and every row wears it — marquee = number + name,
 the CRT a live preview of the centred cabinet's own attract scene (`preview()` adapters in all nine, the room's one RAF;
-stills elsewhere, silent) with PRESS START and HI only when the session board has one (`best()`). The nine cabinet
+stills elsewhere, silent) with PRESS START and HI only when the session board has one (`best()`). The cabinets stand on a ring (centre faces us, neighbours turn outward and sit back). The nine cabinet
 screens wear the room's chrome. No WebGL → the CSS cabinet. No new file, no packet. Detail: `shared-implementation-notes.md` DD-62.
 
 **Previous versions: `docs/sw-changelog.md`** — continuous, v258 back to v167.

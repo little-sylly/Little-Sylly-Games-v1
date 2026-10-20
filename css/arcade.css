@@ -96,9 +96,13 @@
 #screen-arcade .arc-track {
   --h: min(96cqh, calc(64cqw / .66), 560px);   /* one cabinet, ears to feet — 4% of the floor left for its glow and shadow, which the row would clip */
   --w: calc(var(--h) * .66);
-  --gap: calc(var(--w) * .07);
+  --gap: calc(var(--w) * -.16);   /* the neighbours overlap the centred cabinet's edges: they stand in an arch, behind it */
+  /* the ring: cabinets stand on a circle, backs to an invisible ball, fronts out. One step round is --step; L is the
+     layout pitch between two rows and R the circle's radius that makes one step land exactly one pitch aside */
+  --step: 20deg; --L: calc(var(--w) + var(--gap)); --R: calc(var(--L) / sin(var(--step)));
+  perspective: calc(var(--h) * 2.4);   /* the row's vanishing point stays at the middle of the glass as it scrolls */
   position: relative; height: 100%;
-  display: flex; align-items: center; gap: var(--gap);
+  display: flex; align-items: center;   /* no flex gap: it cannot be negative — the rows overlap by margin */
   overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain;
   scroll-snap-type: x mandatory; touch-action: pan-x;
   scrollbar-width: none;
@@ -107,22 +111,36 @@
 /* Spacers rather than padding — a scroller's inline-end padding is not reliably
    scrollable on older Safari, and the last cabinet must still reach the centre. */
 #screen-arcade .arc-track::before, #screen-arcade .arc-track::after {
-  content: ''; flex: none; width: calc(50cqw - var(--w) / 2 - var(--gap)); height: 1px;
+  content: ''; flex: none; width: calc(50cqw - var(--w) / 2 - var(--gap) / 2); height: 1px;
 }
 
 /* ── A cabinet ─────────────────────────────────────────────────────────── */
 /* 30em tall by 19.8em wide. Off-centre ones stand back in the dark. */
 #screen-arcade .arc-row {
-  flex: none; position: relative; width: var(--w); height: var(--h);
+  flex: none; position: relative; width: var(--w); height: var(--h); margin: 0 calc(var(--gap) / 2);
   font-size: calc(var(--h) / 30);
   padding: 0; background: none; cursor: pointer; text-align: center;
   scroll-snap-align: center;
-  opacity: .38; transform: scale(.86); transform-origin: 50% 100%;
+}
+/* the ring itself — on the wrapper, so the row's snap point stays where layout put it */
+#screen-arcade .arc-m {
+  /* The ring (owner, 21 Oct 2026): --d is the signed distance from the centred cabinet and --a its size
+     (arcPaintSel). Row d stands at angle d·step round the circle: the centred one faces us, each step away
+     turns further outward (the left one faces left, the right one faces right) and sits further back along the
+     curve. Layout puts it d·L aside; the translateX swaps that for where the circle puts it, R·sin θ. Angles
+     past three steps are held (those rows are hidden, see is-far). Flip the sign of θ for a horseshoe. */
+  --th: calc(clamp(-3, var(--d, 0), 3) * var(--step));
+  z-index: calc(10 - var(--a, 0));
+  opacity: calc(1 - min(var(--a, 0), 4) * .27);
+  transform: translateX(calc(var(--R) * sin(var(--th)) - var(--d, 0) * var(--L))) translateZ(calc(var(--R) * (cos(var(--th)) - 1))) rotateY(var(--th));
+  transform-origin: 50% 100%;
   transition: transform 240ms ease-in-out, opacity 200ms ease;
 }
-#screen-arcade .arc-row.is-sel { opacity: 1; transform: none; }
+#screen-arcade .arc-row.is-sel .arc-m { opacity: 1; }
+#screen-arcade .arc-row.is-far { pointer-events: none; }
 #screen-arcade .arc-row:focus-visible { outline: 2px solid var(--arc-accent); outline-offset: 6px; border-radius: 3em; }
-#screen-arcade .arc-row > span { position: absolute; }
+#screen-arcade .arc-m { position: absolute; inset: 0; display: block; }
+#screen-arcade .arc-m > span { position: absolute; }
 
 #screen-arcade .arc-m-glow {
   left: -22%; right: -22%; top: 18%; bottom: -2%; pointer-events: none;

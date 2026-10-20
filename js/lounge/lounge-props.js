@@ -3351,10 +3351,13 @@
     const deck = new THREE.Group(); deck.name = 'deck'; deck.position.set(0, 0.1025 + B * DY + B, 0.060 + B * DZ); deck.rotation.x = DTIP; rig.add(deck);
     const DT = 0.0025, TOP = DT - 0.0004;
     add(deck, flat(lib.moulded(0.110, 0.027, DT, 0.005)), plate, 'deckPlate', [0, DT / 2 - 0.0004, 0], null, false);
-    add(deck, new THREE.CylinderGeometry(0.0072, 0.0072, 0.0012, 24), mats.black, 'stickWell', [-0.030, TOP + 0.0004, 0], null, false);
-    const stick = new THREE.Group(); stick.name = 'stick'; stick.position.set(-0.030, TOP, 0); deck.add(stick);
-    add(stick, new THREE.CylinderGeometry(0.0013, 0.0013, 0.014, 10), mats.black, 'stickShaft', [0, 0.007, 0], null, false);
-    add(stick, new THREE.SphereGeometry(0.0062, 20, 14), ball, 'stickBall', [0, 0.0148, 0]);
+    /* A short stick, set toward the front of the deck: the CRT is tipped back above it, and a tall ball
+       drawn from the front of the cabinet (the Floor's portrait) stood up IN FRONT of the glass. */
+    const STICK_Z = 0.005;
+    add(deck, new THREE.CylinderGeometry(0.0072, 0.0072, 0.0012, 24), mats.black, 'stickWell', [-0.030, TOP + 0.0004, STICK_Z], null, false);
+    const stick = new THREE.Group(); stick.name = 'stick'; stick.position.set(-0.030, TOP, STICK_Z); deck.add(stick);
+    add(stick, new THREE.CylinderGeometry(0.0013, 0.0013, 0.009, 10), mats.black, 'stickShaft', [0, 0.0045, 0], null, false);
+    add(stick, new THREE.SphereGeometry(0.0062, 20, 14), ball, 'stickBall', [0, 0.0098, 0]);
     const btnGeo = louDome(THREE, 0.0042, 0.0032, 0.55, 20), buttons = [];
     [[0.013, -0.0045], [0.029, -0.0073], [0.0145, 0.0062], [0.0305, 0.0034]].forEach(([bx, bz], i) => buttons.push(add(deck, btnGeo, btnM, 'button' + i, [bx, TOP - 0.0003, bz], null, false)));
 
