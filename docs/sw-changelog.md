@@ -3,6 +3,14 @@
 Historical SW release notes, moved out of `CLAUDE.md` (1 Aug 2026) so they stop loading into every session.
 The **current** version and its notes stay in `CLAUDE.md` § Current Focus — append the outgoing entry here on each bump.
 
+## v255 — Cold Shot and Trace Route join the Arcade (20 Oct 2026). Cabinets 08 (`coldshot`, `csh`, Cold
+Shoulder's world — you're the penguin in the Drink, snowballing the floe) and 09 (`traceroute`, `trc`, Net-Trace's —
+Snake where you're the breach) are in `ARC_CABINETS`, `allScreens[]`, `_secret.html`, `_scripts-3.html` and
+`PRECACHE_URLS` (+~180 KB code). Nine rows now scroll inside the room's list (START stays reachable at 375×667,
+375×548 and 320×452). `verify-arcade.js` 192/192, `mutate-arcade.js` 16/16. No packet.
+
+
+
 ## v254 — the Arcade leaves Secret Mode (19 Oct 2026). The arcade is now a **place in the house**, like the
 jukebox: always open, no Konami, no unlock. A 🕹️ door in Classic's places row, the Board's dock (🔊 moved to the
 Board's header, right of the controller) and TV's tools opens `screen-arcade` through the router (`arcadeOpen`/

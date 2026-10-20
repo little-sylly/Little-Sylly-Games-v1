@@ -69,3 +69,16 @@
   transition: transform .12s ease-out;
 }
 #screen-arcade .arc-start:active { transform: translateY(3px); }
+
+/* ── Cabinet screens (SW v256) ───────────────────────────────────────────────
+   Every `screen-arcade-<id>` — NOT the room. A cabinet is played by swiping, and
+   a fast swipe that dwells or crosses the 🔊 / ✕ / label made the phone select
+   text and raise its Copy / Look Up callout over the game. A cabinet has nothing
+   worth selecting, so selection, the long-press callout and the tap flash are off
+   for the whole screen. The attribute selector needs the trailing hyphen, so
+   #screen-arcade (the room, whose list is tapped, not swiped) is untouched. */
+[id^="screen-arcade-"] {
+  -webkit-user-select: none; user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}

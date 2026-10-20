@@ -104,7 +104,7 @@ All symbols are global (no ES modules). Forward references work at runtime.
 ## 🛠 Tech Stack & Zero-Cost Constraints
 - **Languages:** Vanilla JS (ES6+), HTML5, CSS3
 - **Styling:** Tailwind CSS — local file `/js/lib/tailwind-play.js` (no CDN, works offline)
-- **Hosting:** GitHub Pages ($0) — no backend
+- **Hosting:** Cloudflare Pages ($0), `little-sylly-games-v1.pages.dev`, deployed from `main` with no build step — no backend. GitHub Pages is a second copy of the same repo (decide separately whether to keep it); never add `wrangler.jsonc`, the Pages project ignores `.git` on its own (a Workers project on this repo failed on the 115 MiB pack file, 20 Oct 2026)
 - **Audio:** Web Audio API (synthesised tones) — **effects are never files**. The one exception is background *music* (`data/music/`, SW v212), runtime-cached like packs and never precached — see `logic-engine.md` § Background music
 - **Capabilities:** PWA (offline via Service Worker), Screen Wake Lock API
 - **Diagrams:** Mermaid (`stateDiagram-v2`) — used in tech specs for state flows; rendered natively by GitHub, no install required
@@ -114,7 +114,7 @@ All symbols are global (no ES modules). Forward references work at runtime.
 
 ## 🚫 Anti-Patterns (Do Not)
 - Do NOT add a build step **to the runtime** — no `npm`/`webpack`/bundler, no transpile, nothing
-  between the repo and what GitHub Pages serves. **Sanctioned exception (15 Sep 2026):**
+  between the repo and what the host serves. **Sanctioned exception (15 Sep 2026):**
   `tools/build-index.js`, a dev-only assembler with zero dependencies that concatenates
   `src/screens/*.html` into the committed `index.html`. The output is committed, so deleting the
   script still leaves a shippable app. Rationale and the process that approved it:
@@ -293,13 +293,12 @@ On every bump the outgoing SW entry moves **verbatim** to `docs/sw-changelog.md`
 "keep the last three". **A second `**SW v…**` paragraph appearing here means that move didn't
 happen: do it before anything else.**
 
-**SW v255 — Cold Shot and Trace Route join the Arcade (20 Oct 2026).** Cabinets 08 (`coldshot`, `csh`, Cold
-Shoulder's world — you're the penguin in the Drink, snowballing the floe) and 09 (`traceroute`, `trc`, Net-Trace's —
-Snake where you're the breach) are in `ARC_CABINETS`, `allScreens[]`, `_secret.html`, `_scripts-3.html` and
-`PRECACHE_URLS` (+~180 KB code). Nine rows now scroll inside the room's list (START stays reachable at 375×667,
-375×548 and 320×452). `verify-arcade.js` 192/192, `mutate-arcade.js` 16/16. No packet.
+**SW v256 — no text-selection callout on the cabinets (20 Oct 2026).** A fast swipe on a phone sometimes selected the
+🔊 / ✕ / label and raised the Copy bar over the game. `css/arcade.css` now sets `user-select:none`,
+`-webkit-touch-callout:none` and a transparent tap highlight on every `[id^="screen-arcade-"]` cabinet screen (not the
+room). Hosting is Cloudflare Pages now (`little-sylly-games-v1.pages.dev`). No packet.
 
-**Previous versions: `docs/sw-changelog.md`** — continuous, v254 back to v167.
+**Previous versions: `docs/sw-changelog.md`** — continuous, v255 back to v167.
 
 **Where the suite stands.** **20 games shipped**, all gold-master, plus multiplayer; newest are Honeycomb Hills (`comb`, MDLM-only, no Sylly Mode), Cold Shoulder (`cld`, first physics game) and Cookie Jar (`cjar`). Every game has an identity doc (`docs/game-identities/`). The Cartridge System (word packs + skin packs, `docs/cartridge-system-plan.md`) is complete; core art has rolled out to `pko`, `flw`, `frt`, `shp`, `comb` — PASS runs CSS defaults, DYB and CLD art are procedural and never need a pack (`docs/expansion-guide.md` § Core art packs). **Phase gates 37–39 and 41 are closed; phase 40 (Cold Shoulder) is open** — `docs/phase40-snapshot.md` names what is left (a live multi-device session and the offline install check).
 
