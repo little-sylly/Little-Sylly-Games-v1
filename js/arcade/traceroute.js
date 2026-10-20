@@ -1611,11 +1611,12 @@ function trcDrawOver() {
 function trcDrawAttract() {
   const g = trcCtx, d = trcDemo, el = trcClock - trcAttractT, T = trcAttractTimes();
   if (d) {
-    g.globalAlpha = 0.3;
+    g.globalAlpha = trcPreviewing ? 0.75 : 0.3;   // the Arcade Floor's preview: the field is the picture, not a backdrop
     trcDrawField({ grid: d.grid, honey: d.honey, ingress: d.ingress, warns: [], packet: -1, egress: -1, inHoney: false });
     g.globalAlpha = 1;
     trcDrawTrace(d.body, d.dir, d.grow, 0, 0.35, TRC_RAMP_OK, false);
   }
+  if (trcPreviewing) return;   // …and none of the boot log, the title or the button
   g.fillStyle = 'rgba(15,23,42,0.5)'; g.fillRect(0, 0, TRC_W, TRC_H);
 
   // the boot log, typed out on the game clock
@@ -1808,6 +1809,27 @@ function resetArcadeTraceRoute() {
   trcActive = null; trcShout = null; trcCoach = null; trcCoachQ = [];
   // trcScores and trcCoachSeen are NOT cleared — they last the session.
 }
+
+// ── The Arcade Floor's preview (SW v259) ─────────────────────────────────────
+// js/lobby/arcade.js drives it: begin() borrows the room's canvas, step()/draw()
+// run the attract scene with its card off, end() hands everything back — the
+// next trcStart() takes its own canvas again. No RAF of its own here.
+let trcPreviewing = false;
+function trcPreview() {
+  return {
+    w: TRC_W, h: TRC_H, fy: 0.5,   // the Node's grid and the demo trace crawling across it
+    begin(canvas, ctx) {
+      resetArcadeTraceRoute(); trcCanvas = canvas; trcCtx = ctx; trcPreviewing = true;
+      trcEnterState('attract');
+      if (trcRafHandle) { cancelAnimationFrame(trcRafHandle); trcRafHandle = null; }
+    },
+    step: (dt) => trcUpdate(dt),
+    draw: () => trcDraw(),
+    end() { resetArcadeTraceRoute(); trcPreviewing = false; trcCanvas = null; trcCtx = null; },
+  };
+}
+// The session board's top score, for the room's HI line — null until someone has played.
+function trcBest() { return trcScores.length ? trcFmt(trcScores[0].score) + ' KB' : null; }
 
 window.addEventListener('resize', () => {
   if (document.getElementById('screen-arcade-traceroute').style.display !== 'none') trcResize();

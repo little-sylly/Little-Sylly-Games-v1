@@ -1854,8 +1854,12 @@
   function louCreateLib(THREE, deps) {
     const makeCanvas = deps.makeCanvas, smoothNormals = deps.smoothNormals || null;
     const tex = louTextures(THREE, makeCanvas);
+    /* `lite` (the Arcade Floor's one-off cabinet render, SW v259): the room's material set builds every
+       wood and fabric texture up front — far too much to pay on a phone to draw one cabinet. A lite lib
+       carries only the fixed black the cabinet uses; anything else reading lib.mats there is a bug. */
+    const mats = deps.lite ? { black: new THREE.MeshStandardMaterial({ color: '#1b1b1f', roughness: .45 }) } : louMaterials(THREE, tex);
     return {
-      THREE, tex, mats: louMaterials(THREE, tex), makeCanvas,
+      THREE, tex, mats, makeCanvas,
       roundedRect: (w, h, r) => louRoundedRect(THREE, w, h, r),
       /* The caller's w/h/d are the FINISHED size. bevelSize pushes the outline
          outward, so the shape is inset by the bevel first — otherwise every

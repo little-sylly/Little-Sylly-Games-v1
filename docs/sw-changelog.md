@@ -3,6 +3,14 @@
 Historical SW release notes, moved out of `CLAUDE.md` (1 Aug 2026) so they stop loading into every session.
 The **current** version and its notes stay in `CLAUDE.md` § Current Focus — append the outgoing entry here on each bump.
 
+## v258 — the Lounge's arcade cabinet (21 Oct 2026). Stage 3 of the arcade spec (§ 3.1): `LOU_BUILDERS.arcade` in
+the bookshelf's bottom bay — the bear-eared cabinet in the four controller roles, its black CRT cycling the real cabinet
+names (fed `ARC_CABINETS` via `host.cabinets`) on the scene's 10 fps attract loop. Tap: START flashes, the coin drops
+(`arcadeCoin`), push-in on the CRT → optional `openArcade` door (`arcadeOpen`; no host → `bop`). Four idle beats on a
+9–15 s gap. No new file, no packet. Detail: `shared-implementation-notes.md` DD-61.
+
+
+
 ## v257 — the Arcade Floor (20 Oct 2026). Stage 2 of the arcade spec (§ 3.1): `#screen-arcade` is a fixed-`100dvh`
 room — a marquee sign with bear ears, a swipe-and-snap row of DOM/CSS cabinets in the saved controller's colours (classic
 black CRTs, each game's accent), a tap/drag position strip, PRESS START in the centred accent, and an INSERT COIN beat.

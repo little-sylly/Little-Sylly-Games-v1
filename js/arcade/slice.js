@@ -2013,7 +2013,7 @@ function slDraw() {
   slDrawParts();
 
   if (slState === 'attract') {
-    slDrawAttract();
+    if (!slPreviewing) slDrawAttract();   // the Arcade Floor's preview shows the lineup, not the titles
   } else if (slState === 'playing' || slState === 'dying') {
     slDrawMarks();
     slDrawHud();
@@ -2646,6 +2646,32 @@ function resetArcadeSlice() {
   slShake  = 0;
   // slBoardScores and slArt are NOT cleared — see their declarations above.
 }
+
+// ── The Arcade Floor's preview (SW v259) ─────────────────────────────────────
+// js/lobby/arcade.js drives it: begin() borrows the room's canvas, step()/draw()
+// run the attract scene with its card off, end() hands everything back — the
+// next slStart() takes its own canvas again. No RAF of its own here.
+let slPreviewing = false;
+function slPreview() {
+  return {
+    w: SL_W, h: SL_H, fy: 0.62,   // the fruit lineup on the tablecloth
+    begin(canvas, ctx) {
+      resetArcadeSlice(); slCanvas = canvas; slCtx = ctx; slPreviewing = true;
+      // the tablecloth is painted once per size into its own canvas (slResize) — paint one at this scale
+      const s = ctx.getTransform().a; slSprites = {};
+      slBoard = document.createElement('canvas'); slBoard.width = Math.max(1, Math.round(SL_W * s)); slBoard.height = Math.max(1, Math.round(SL_H * s));
+      { const bg = slBoard.getContext('2d'); bg.setTransform(s, 0, 0, s, 0, 0); slPaintBoard(bg); }
+      slEnterState('attract');
+      if (slRaf) { cancelAnimationFrame(slRaf); slRaf = null; }
+    },
+    step: (dt) => slUpdate(dt),
+    draw: () => slDraw(),
+    // slStart() -> slResize() repaints the board at its own size; the sprites were drawn for this one
+    end() { resetArcadeSlice(); slPreviewing = false; slCanvas = null; slCtx = null; slSprites = {}; },
+  };
+}
+// The session board's top score, for the room's HI line — null until someone has played.
+function slBest() { return slBoardScores.length ? slBoardScores[0].score.toLocaleString('en-AU') : null; }
 
 window.addEventListener('resize', () => {
   if (document.getElementById('screen-arcade-slice').style.display !== 'none') slResize();

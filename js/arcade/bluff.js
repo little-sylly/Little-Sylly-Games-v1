@@ -567,7 +567,7 @@ function bbDraw() {
   g.globalAlpha = 1;
   if (live) bbDrawHud(g);
 
-  if (bbState === 'attract') bbDrawAttract(g);
+  if (bbState === 'attract') { if (!bbPreviewing) bbDrawAttract(g); }   // the Arcade Floor's preview shows the scene, not the card
   else if (bbState === 'over') bbDrawOver(g);
   else if (bbState === 'nameEntry') bbDrawNameEntry(g);
   else if (bbState === 'leaderboard') bbDrawLeaderboard(g);
@@ -964,6 +964,27 @@ function resetArcadeBluff() {
   bbEvents = []; bbParts = []; bbCallouts = []; bbRocks = []; bbShake = 0;
   // bbScores is NOT cleared — session high scores survive the lobby.
 }
+
+// ── The Arcade Floor's preview (SW v259) ─────────────────────────────────────
+// js/lobby/arcade.js drives it: begin() borrows the room's canvas, step()/draw()
+// run the attract scene with its card off, end() hands everything back — the
+// next bbStart() takes its own canvas again. No RAF of its own here.
+let bbPreviewing = false;
+function bbPreview() {
+  return {
+    w: BB_W, h: BB_H, fy: 0.9,   // the cliff's foot: the demo climber on its start pip, the sea under it
+    begin(canvas, ctx) {
+      resetArcadeBluff(); bbCanvas = canvas; bbCtx = ctx; bbPreviewing = true;
+      bbEnterState('attract');
+      if (bbRafHandle) { cancelAnimationFrame(bbRafHandle); bbRafHandle = null; }
+    },
+    step: (dt) => bbUpdate(dt),
+    draw: () => bbDraw(),
+    end() { resetArcadeBluff(); bbPreviewing = false; bbCanvas = null; bbCtx = null; },
+  };
+}
+// The session board's top score, for the room's HI line — null until someone has played.
+function bbBest() { return bbScores.length ? bbScores[0].score.toLocaleString('en-AU') + ' M' : null; }
 
 window.addEventListener('resize', () => {
   if (document.getElementById('screen-arcade-bluff').style.display !== 'none') bbResize();

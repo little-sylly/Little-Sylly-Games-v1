@@ -1104,8 +1104,11 @@ function hjDrawCaught(g) {
 
 // ── Attract / over / name entry / leaderboard ──
 function hjDrawAttract(g) {
-  hjText(HJ_TITLE_LINES[0], 180, 82, 26, HJ_CREAM);
-  hjText(HJ_TITLE_LINES[1], 180, 124, 44, HJ_GOLD, 'center', HJ_W - 24, true);
+  // the Arcade Floor's preview (hjPreviewing) draws the jar and the hand, none of the words or the button
+  if (!hjPreviewing) {
+    hjText(HJ_TITLE_LINES[0], 180, 82, 26, HJ_CREAM);
+    hjText(HJ_TITLE_LINES[1], 180, 124, 44, HJ_GOLD, 'center', HJ_W - 24, true);
+  }
   g.save(); g.translate(0, -120);
   hjDrawCounter(g, HJ_COUNTER_Y);
   hjDrawJarBack(g);
@@ -1116,6 +1119,7 @@ function hjDrawAttract(g) {
   hjDrawJarFront(g);
   g.restore();
   g.fillStyle = HJ_WALL; g.fillRect(0, 456, HJ_W, HJ_H - 456);
+  if (hjPreviewing) return;
   hjText('HOLD TO TAKE COOKIES.', 180, 470, 16, HJ_CREAM);
   hjText('LET GO BEFORE ANYONE LOOKS!', 180, 492, 16, HJ_CREAM);
   hjText('LET GO LATE = DINNER WAITS LONGER', 180, 512, 12, HJ_GOLD);
@@ -1282,6 +1286,27 @@ function resetArcadeCookieJar() {
   hjVisit = null; hjResetHand(); hjHandPos = 0;
   // hjScores is NOT cleared — session high scores survive the lobby.
 }
+
+// ── The Arcade Floor's preview (SW v259) ─────────────────────────────────────
+// js/lobby/arcade.js drives it: begin() borrows the room's canvas, step()/draw()
+// run the attract scene with its card off, end() hands everything back — the
+// next hjStart() takes its own canvas again. No RAF of its own here.
+let hjPreviewing = false;
+function hjPreview() {
+  return {
+    w: HJ_W, h: HJ_H, fy: 0.42,   // the jar on the counter and the hand hovering over it
+    begin(canvas, ctx) {
+      resetArcadeCookieJar(); hjCanvas = canvas; hjCtx = ctx; hjPreviewing = true;
+      hjEnterState('attract');
+      if (hjRafHandle) { cancelAnimationFrame(hjRafHandle); hjRafHandle = null; }
+    },
+    step: (dt) => hjUpdate(dt),
+    draw: () => hjDraw(),
+    end() { resetArcadeCookieJar(); hjPreviewing = false; hjCanvas = null; hjCtx = null; },
+  };
+}
+// The session board's top score, for the room's HI line — null until someone has played.
+function hjBest() { return hjScores.length ? hjScores[0].score.toLocaleString('en-AU') : null; }
 
 window.addEventListener('resize', () => {
   if (document.getElementById('screen-arcade-cookiejar').style.display !== 'none') hjResize();

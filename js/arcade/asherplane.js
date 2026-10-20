@@ -1500,7 +1500,7 @@ function apDraw() {
   g.restore();
 
   if (apFlash) { g.fillStyle = `rgba(${apFlash.col},${0.55 * apFlash.t / apFlash.max})`; g.fillRect(0, 0, AP_W, AP_H); }
-  if (apState === 'attract') apDrawAttract(g);
+  if (apState === 'attract') { if (!apPreviewing) apDrawAttract(g); }
   else if (apState === 'over') apDrawOver(g);
   else if (apState === 'nameEntry') apDrawNameEntry(g);
   else if (apState === 'leaderboard') apDrawLeaderboard(g);
@@ -2353,6 +2353,28 @@ function resetArcade() {
   apShots = []; apFoes = []; apFoeShots = []; apDrops = []; apStars = []; apBoss = null;
   // apLeaderboard is NOT cleared — session high scores survive the lobby.
 }
+
+// ── The Arcade Floor's preview (SW v259) ─────────────────────────────────────
+// js/lobby/arcade.js drives it: begin() borrows the room's canvas, step()/draw()
+// run the attract scene with its card off, end() hands everything back — the
+// next apStart() takes its own canvas again. No RAF of its own here.
+let apPreviewing = false;
+function apPreview() {
+  return {
+    w: AP_W, h: AP_H, fy: 0.95,   // the bottom band: the plane, its shots and the islands sliding under it
+    begin(canvas, ctx) {
+      resetArcade(); apCanvas = canvas; apCtx = ctx; apPreviewing = true;
+      if (!apIslands.length) apInitSea();
+      apEnterState('attract');
+      if (apRafHandle) { cancelAnimationFrame(apRafHandle); apRafHandle = null; }
+    },
+    step: (dt) => apUpdate(dt),
+    draw: () => apDraw(),
+    end() { resetArcade(); apPreviewing = false; apCanvas = null; apCtx = null; },
+  };
+}
+// The session board's top score, for the room's HI line — null until someone has played.
+function apBest() { return apLeaderboard.length ? apLeaderboard[0].score.toLocaleString('en-AU') : null; }
 
 window.addEventListener('resize', () => {
   if (document.getElementById('screen-arcade-asherplane').style.display !== 'none') apResize();

@@ -1,6 +1,6 @@
 # The Arcade leaves Secret Mode — its own room (design)
 
-**Status:** approved 19 Oct 2026 (A–D as written) · Stage 1 shipped SW v254 · Stage 2 (§ 3.1 Arcade Floor) shipped SW v257 · Stage 3 (Lounge prop) shipped SW v258 (DD-61) — **spec complete** · **Tier 2** · 18 Oct 2026
+**Status:** approved 19 Oct 2026 (A–D as written) · Stage 1 shipped SW v254 · Stage 2 (§ 3.1 Arcade Floor) shipped SW v257 · Stage 3 (Lounge prop) shipped SW v258 (DD-61) · Stage 4 (§ 3.2 the real model on the Floor) shipped SW v259 (DD-62) · **Tier 2** · 18 Oct 2026
 
 ## 1. Outcome
 
@@ -95,6 +95,52 @@ RAF attract loop. Test at 375×667, 375×548 and 320×452. Detailed direction ge
 
 **Open:** renumber stages (v255/v256 are taken): room = SW v257, prop = SW v258. Room first.
 
+### 3.2 Stage 4 — the real model on the Floor (owner, 21 Oct 2026)
+
+**Why:** in the Lounge the cabinet is ~60 px tall, so the model is wasted there; on the Floor the CSS
+cabinet's stick and buttons read wrong (a sloped deck drawn flat-on). *Supersedes § 3.1's "DOM/CSS
+cabinets, no WebGL".*
+
+- **4a — the model as a picture.** On room open the Floor renders `louBuildArcade` once, with a
+  short-lived offscreen `WebGLRenderer` (`preserveDrawingBuffer`, then `dispose()` +
+  `forceContextLoss()`), into an image every `.arc-row` wears. Camera: down the CRT's normal from
+  slightly above, narrow fov, so the glass projects as a near-rectangle and the deck reads from above.
+  The builder takes `{ blank: true }` — marquee and CRT glass rendered as plain black — and the
+  render also returns the glass and marquee rects (projected corners, in % of the image) for the DOM
+  overlays. Cached per controller design for the session (a re-open costs nothing). Zero new bytes:
+  Three.js, `lounge-lib.js` and `lounge-props.js` already load on every device. `louCreateLib` gains
+  `{ lite: true }` — the room's full material set (every wood/fabric texture) is not built just to
+  draw one cabinet; `mats` then holds only `black`. **No WebGL → today's CSS cabinet** (kept, untouched).
+  Still no RAF loop in the room.
+- **The marquee = number + name** (`03  ASHERPLANE`), DOM text over the rendered black glass, in the
+  accent — the cabinet's first focus point. The CRT stops repeating the name.
+- **4b — the screen is the game.** The CRT shows that cabinet's own menu scene (the world its attract
+  screen draws behind the card) with **PRESS START** over it, and **HI + the score** only if the cabinet's
+  session board has one. No blurb (the game's menu has it). New optional registry fields:
+  `preview(canvas) → stop()` (the game draws its attract scene, card off, into the given canvas, input
+  off) and `best() → string | null` (the session board's top entry, formatted by the game; boards stay
+  memory-only — persisting them would be a new localStorage exception, not taken). *As built:* `preview()`
+  returns an adapter `{ w, h, fy, begin(canvas, ctx), step(dt), draw(), end() }` and the ROOM runs the loop
+  (DD-62) — one RAF to stop instead of nine. **Only the centred
+  cabinet runs live**; neighbours keep the last frame they drew (the first one drawn on open). Reduced
+  motion: one still frame. A cabinet without `preview` shows the accent pool + PRESS START. Preview is
+  stopped before launch, on select-away, by `arcStop()` and `resetToLobby()`; a cabinet's `start()`
+  must still begin from a clean state after a preview ran.
+- **4c — the cabinet screens join the room.** The nine `screen-arcade-<id>` headers drop the green
+  terminal strip for the room's chrome: number + name in the accent (Fredoka), the room's `.arc-icon`
+  🔊 / ✕, black ground; the canvas stage framed like the CRT. Each game's own in-canvas menu card is
+  the game's drawing and is not restyled here.
+- **Contract:** `arcade-cabinet-prompt.md` Step 6, `tools/add-cabinet.js` and `verify-arcade.js` learn
+  `preview` / `best` (optional — a cabinet without them still integrates).
+
+**Verification (named up front):** `verify-arcade.js` — every cabinet with `preview` returns a stop
+function, draws into the canvas it was given and not its own, and leaves `start()` clean (a preview
+then a launch then ✕ leaves no RAF running); `best()` is null on a fresh board and a string after a
+seeded score; `arcStop()` / `resetToLobby()` stop a running preview. `verify-lounge-props.js` — the
+`blank` build paints no CRT and returns the rects; `lite` lib builds the arcade. `smoke-arcade.js` +
+`visual-lobby.js` § 19 re-run; `visual-check` the Floor at 375×667 / 375×548 / 320×452 and desktop,
+with and without WebGL.
+
 ## 4. Stages
 
 | Stage | Contents | Ships as |
@@ -102,6 +148,7 @@ RAF attract loop. Test at 375×667, 375×548 and 320×452. Detailed direction ge
 | **1. Rewire** | Registry move, router place, doors in all three layouts, Board sound → header, Secret Mode cleanup, cabinet exits, a **plain but correct** room (list + launch + ✕), harnesses, docs | SW v254 — the arcade works everywhere, looking basic |
 | **2. The room** | The cabinet/select-screen design to jukebox quality | SW v257 (shipped) |
 | **3. Lounge prop** | 3D cabinet in `lounge-props.js`, hotspot `arcade` → `openArcade` (optional, with fallback), `lobby-doors.js` door | SW v258 (shipped) |
+| **4. The real model on the Floor** | § 3.2: 4a the rendered cabinet + marquee number/name, 4b live menu-scene previews + PRESS START + HI, 4c cabinet screens' chrome | SW v259 (shipped) |
 
 Each stage ships on its own; Stage 1 alone is a complete, shippable change.
 

@@ -186,6 +186,8 @@ function resetSecretMode() {
 // ── Retro beep (square wave, NES-style) ──────────────────────────────────────
 function playSecretBeep(freq = 440) {
   if (isMuted) return;
+  // an arcade cabinet's attract scene running as a preview on the Arcade Floor is silent (js/lobby/arcade.js arcQuiet)
+  if (typeof arcPreviewQuiet !== 'undefined' && arcPreviewQuiet) return;
   const ctx = getAudioCtx();
   const now = ctx.currentTime;
   const osc = ctx.createOscillator();

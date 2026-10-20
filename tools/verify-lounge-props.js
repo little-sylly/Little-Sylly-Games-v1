@@ -1431,13 +1431,13 @@ section('arcade cabinet (SW v258)');
   { const s = P.louArcadeScreen(makeCanvas, CABS);
     ok(s.paint({ t: 0, reduced: false, score: null, hiscore: 0, start: 0 }), 'the first frame paints');
     eq(s.paint({ t: 0.1, reduced: false, score: null, hiscore: 0, start: 0 }), false, 'the same frame does not repaint');
-    ok(s.paint({ t: 0.6, reduced: false, score: null, hiscore: 0, start: 0 }), 'INSERT COIN blinks (a repaint at half a second)');
+    eq(s.paint({ t: 0.6, reduced: false, score: null, hiscore: 0, start: 0 }), false, 'INSERT COIN is steady: no repaint until the name changes');
     eq(s.accentAt(0), '#ff0000', 'the first cabinet in its accent'); eq(s.accentAt(P.LOU_ARCADE_CYCLE_S + 0.1), '#00ff00', 'then the next');
     eq(s.accentAt(3 * P.LOU_ARCADE_CYCLE_S + 0.1), '#ff0000', 'and round again');
     s.paint({ t: 0, reduced: true }); let n = 0; for (let t = 0; t < 10; t += 0.1) if (s.paint({ t, reduced: true, score: 5, hiscore: 1, start: 1 })) n++;
     eq(n, 0, 'reduced motion: one still title card, never repainted'); }
   { const f0 = fresh(); let n = 0; for (let t = 0; t < 10; t += 0.1) if (f0.userData.api.attract(t, false)) n++;
-    ok(n >= 15 && n <= 30, `through the scene's attract loop: ~2 repaints a second, not 10 (${n} in 10 s)`); }
+    ok(n >= 3 && n <= 5, `through the scene's attract loop: one repaint per name, not 10 a second (${n} in 10 s) — each one wakes a full room render`); }
   { const none = P.LOU_BUILDERS.arcade(Object.assign({}, global.__prmCtx, { cabinets: undefined })); ok(none.userData.api.attract(1, false) !== undefined, 'no cabinet list: it still builds and shows its own title'); }
   // the idle: a 9–15 s gap off the frame time, four beats, weighted, never twice running, each home exactly
   { const f = fresh(), a = f.userData.api;
@@ -1472,6 +1472,18 @@ section('arcade cabinet (SW v258)');
     ok(hopped, 'the fallback bop hops'); ok(atRest(), 'and lands');
     a.startBeat('hiscore'); a.tick(95000, 0.02, false); a.tick(95500, 0.02, false); a.reset(); ok(atRest() && a.currentBeat() === null, 'reset() puts it back as it rests'); }
   { const S = require(path.join(ROOT, 'js/lounge/lounge-sfx.js')); ok(S.LOU_SFX_VOICES.includes('arcadeCoin'), 'lou-sfx has the arcadeCoin voice'); }
+  /* SW v259 — the Arcade Floor's portrait of it (spec § 3.2 4a): a LITE lib (no room material set)
+     builds it, `blank` paints no glass and names the faces the Floor lays its DOM over. */
+  { const lite = LouLib.louCreateLib(THREE, { makeCanvas, smoothNormals: CB.smoothNormals, lite: true });
+    eq(Object.keys(lite.mats).join(','), 'black', 'a lite lib carries only the fixed black — no room textures built');
+    const b = P.louBuildArcade(lite, global.__prmCtx.design, null, null, { blank: true }), F = b.userData.louArcadeFaces;
+    ok(F && F.screen.mesh.name === 'screen' && F.marquee.mesh.name === 'marqueeGlass', 'blank: names its CRT and marquee glass');
+    ok(F.screen.w > F.screen.h && F.marquee.w > F.marquee.h, 'and their sizes');
+    ok(!F.screen.mesh.material.map && !F.marquee.mesh.material.map, 'blank: neither glass carries a picture');
+    ok(!b.getObjectByName('screenGlow').visible, 'blank: no screen glow');
+    eq(b.userData.api.attract(5, false), false, 'blank: the CRT never paints');
+    let bumped = 0; b.traverse(o => { if (o.isMesh && o.material.bumpMap) bumped++; }); eq(bumped, 0, 'blank: no speckle bump (a close portrait reads it as blotches)');
+    ok(b.getObjectByName('coinLamp'), 'the coin lamp is findable for the Floor\'s lamp dot'); }
   { const f = P.LOU_BUILDERS.arcade(Object.assign({}, global.__prmCtx, { sfx: undefined })); let threw = false;
     try { f.userData.api.press(false); f.userData.api.startBeat('ghost'); f.userData.api.tick(1, 0.02, false); } catch (_) { threw = true; }
     ok(!threw, 'a host with no sfx presses silently'); }

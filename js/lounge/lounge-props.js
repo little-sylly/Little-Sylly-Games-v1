@@ -3212,7 +3212,10 @@
      The CRT repaints through the scene's 10 fps attract loop (api.attract), and
      only when what it shows changes: the cabinet names in their accents, INSERT
      COIN blinking. */
-  const LOU_ARCADE_CYCLE_S = 2.4;   // each cabinet's name holds this long on the CRT
+  /* Each cabinet's name holds this long on the CRT, and that is the ONLY idle repaint: INSERT COIN is
+     steady, not blinking. Every repaint wakes a full room render (the telly's SW v252 lesson); a blink
+     at 2 Hz kept the idle room rendering twice a second for a 60 px screen (found 21 Oct 2026). */
+  const LOU_ARCADE_CYCLE_S = 3;
   const LOU_ARCADE_FALLBACK = [{ label: 'ARCADE', accent: '#3fa9ff' }];
   /* A closed outline from [x, y, r] corners, each rounded by its own radius
      (clamped to half of either edge). Any angle, unlike lib.roundPoly. */
@@ -3239,8 +3242,8 @@
        a builder reads nothing back from a context (verify-lounge-props.js's mock refuses it). */
     function fit(text, px, maxW) { x.font = 'bold ' + Math.max(14, Math.min(px, Math.floor(maxW / (String(text).length * 0.62)))) + 'px Fredoka, sans-serif'; }
     function paint(st) {
-      const i = st.reduced ? -1 : at(st.t), blink = Math.floor(st.t * 2) % 2 === 0;
-      const key = st.reduced ? 'title' : [i, blink ? 1 : 0, st.score === null ? '' : st.score, st.hiscore, st.start].join('|');
+      const i = st.reduced ? -1 : at(st.t);
+      const key = st.reduced ? 'title' : [i, st.score === null ? '' : st.score, st.hiscore, st.start].join('|');
       if (key === lastKey) return false;
       lastKey = key; frames++;
       const cab = i < 0 ? null : cabinets[i], accent = cab ? cab.accent : '#ffe7a3';
@@ -3261,7 +3264,7 @@
         const title = st.hiscore ? 'HI-SCORE!' : cab.label;
         if (st.hiscore !== 2) { x.fillStyle = st.hiscore ? '#ffe7a3' : accent; fit(title, 46, W - 40); x.fillText(title, W / 2, 96); }
         const foot = st.start ? 'START' : 'INSERT COIN';
-        if (st.start ? st.start === 1 : blink) { x.fillStyle = '#f4efe6'; x.font = 'bold 20px Fredoka, sans-serif'; x.fillText(foot, W / 2, 162); }
+        if (st.start !== 2) { x.fillStyle = '#f4efe6'; x.font = 'bold 20px Fredoka, sans-serif'; x.fillText(foot, W / 2, 162); }
       }
       x.fillStyle = 'rgba(0,0,0,0.28)'; for (let y = 0; y < H; y += 4) x.fillRect(0, y, W, 2);   // light scanlines
       return true;
@@ -3276,8 +3279,12 @@
     return c;
   }
 
-  function louBuildArcade(lib, design, cabinets, sfx) {
+  /* opts.blank (the Arcade Floor's portrait of it, SW v259): the marquee and CRT glass are plain black
+     and nothing is painted, because the Floor lays its own DOM over both — userData.louArcadeFaces
+     names the two glass meshes and their sizes so it can find where they land in the picture. */
+  function louBuildArcade(lib, design, cabinets, sfx, opts = {}) {
     const { THREE, mats } = lib; const g = new THREE.Group(); louTag(g, 'arcade');
+    const blank = !!opts.blank;
     const say = name => { if (typeof sfx === 'function') { try { sfx(name); } catch (_) {} } };
     const cabs = Array.isArray(cabinets) && cabinets.length ? cabinets : LOU_ARCADE_FALLBACK;
     const W = 0.13, B = 0.004;   // width; the body's bevel, which also grows its outline by B all round
@@ -3288,7 +3295,7 @@
     const PROFILE = [[-0.062, 0, 0.006], [0.054, 0, 0.006], [0.054, 0.078, 0.006], [0.076, 0.090, 0.004], [0.076, 0.099, 0.004],
                      [0.044, 0.106, 0.006], [0.028, 0.166, 0.004], [0.052, 0.170, 0.004], [0.052, 0.196, 0.008], [-0.062, 0.196, 0.022]];
     const ROOF = 0.196 + 2 * B;
-    const BUMP = lib.tex.plasticBump(11, 11, 41);
+    const BUMP = blank ? null : lib.tex.plasticBump(11, 11, 41);   // the Floor's close portrait reads the speckle as blotches
     const shell = lib.role('shell', design.shell, { bumpMap: BUMP, bumpScale: 0.0004 });
     const plate = lib.role('plate', design.plate, { bumpMap: BUMP, bumpScale: 0.0003 });
     const door  = lib.role('shell', design.shell, { roughness: .6 }, 0.74);
@@ -3311,10 +3318,15 @@
     // ── the marquee: a plate frame on the hood's face, lit glass in it
     const MQ_Y = 0.187, MQ_Z = 0.052 + B;
     add(rig, lib.moulded(0.110, 0.023, 0.0035, 0.006), plate, 'marquee', [0, MQ_Y, MQ_Z + 0.0013]);
-    const marqTex = new THREE.CanvasTexture(louArcadeMarquee(lib.makeCanvas)); marqTex.encoding = THREE.sRGBEncoding;
-    const MQ_GLOW = 0.95;
-    const marqM = new THREE.MeshStandardMaterial({ color: '#000000', map: marqTex, emissiveMap: marqTex, emissive: '#ffffff', emissiveIntensity: MQ_GLOW, roughness: .25, envMapIntensity: .3 });
-    add(rig, new THREE.PlaneGeometry(0.098, 0.0145), marqM, 'marqueeGlass', [0, MQ_Y, MQ_Z + 0.0032], null, false);
+    const MQ_GLOW = 0.95, MQ_W = 0.098, MQ_H = 0.0145;
+    const blackGlass = () => new THREE.MeshStandardMaterial({ color: '#050507', roughness: .25, metalness: 0, envMapIntensity: .3 });
+    let marqM;
+    if (blank) marqM = blackGlass();
+    else {
+      const marqTex = new THREE.CanvasTexture(louArcadeMarquee(lib.makeCanvas)); marqTex.encoding = THREE.sRGBEncoding;
+      marqM = new THREE.MeshStandardMaterial({ color: '#000000', map: marqTex, emissiveMap: marqTex, emissive: '#ffffff', emissiveIntensity: MQ_GLOW, roughness: .25, envMapIntensity: .3 });
+    }
+    const marqGlass = add(rig, new THREE.PlaneGeometry(MQ_W, MQ_H), marqM, 'marqueeGlass', [0, MQ_Y, MQ_Z + 0.0032], null, false);
 
     /* ── the CRT on the tipped-back face (profile edge [0.044, 0.106] → [0.028, 0.166]).
        Its group's +z is the face's outward normal, so everything on it is flat. */
@@ -3324,11 +3336,14 @@
     const GW = 0.0864, GH = 0.0468;
     const scr = louArcadeScreen(lib.makeCanvas, cabs), scrTex = new THREE.CanvasTexture(scr.canvas);
     scrTex.encoding = THREE.sRGBEncoding; scrTex.anisotropy = 4;
-    const glassM = new THREE.MeshStandardMaterial({ color: '#000000', map: scrTex, emissiveMap: scrTex, emissive: '#ffffff', emissiveIntensity: 0.9, roughness: .18, metalness: 0, envMapIntensity: .3 });
+    const glassM = blank ? blackGlass()
+      : new THREE.MeshStandardMaterial({ color: '#000000', map: scrTex, emissiveMap: scrTex, emissive: '#ffffff', emissiveIntensity: 0.9, roughness: .18, metalness: 0, envMapIntensity: .3 });
     const glass = add(crt, new THREE.PlaneGeometry(GW, GH), glassM, 'screen', [0, 0, 0.0027], null, false);
-    const GLOW = 0.10;
+    const GLOW = blank ? 0 : 0.10;
     const glowM = new THREE.MeshBasicMaterial({ color: cabs[0].accent, transparent: true, opacity: GLOW, blending: THREE.AdditiveBlending, depthWrite: false });
-    add(crt, new THREE.PlaneGeometry(GW + 0.008, GH + 0.008), glowM, 'screenGlow', [0, 0, 0.0034], null, false);
+    const glow = add(crt, new THREE.PlaneGeometry(GW + 0.008, GH + 0.008), glowM, 'screenGlow', [0, 0, 0.0034], null, false);
+    glow.visible = !blank;
+    g.userData.louArcadeFaces = { screen: { mesh: glass, w: GW, h: GH }, marquee: { mesh: marqGlass, w: MQ_W, h: MQ_H } };
 
     /* ── the control deck (profile edge [0.076, 0.099] → [0.044, 0.106]): the stick
        on the left, four buttons in a tilted 2×2 on the right, as the room draws them */
@@ -3386,6 +3401,7 @@
     };
     const bump = (e, at, len) => (e >= at && e < at + len ? Math.sin(Math.PI * (e - at) / len) : 0);
     function repaint() {
+      if (blank) return false;
       const painted = scr.paint({ t: tSec, reduced: reducedNow, score, hiscore: flashHi, start: flashStart });
       if (painted) scrTex.needsUpdate = true;
       if (!reducedNow) glowM.color.set(scr.accentAt(tSec));

@@ -1601,7 +1601,7 @@ function cshDraw() {
   g.fillStyle = vg; g.fillRect(0, 0, CSH_W, CSH_H);
   if (cshFlash > 0) { g.fillStyle = `rgba(255,255,255,${(cshFlash * 0.6).toFixed(3)})`; g.fillRect(0, 0, CSH_W, CSH_H); }
 
-  if (cshState === 'attract') cshDrawAttract(g);
+  if (cshState === 'attract') { if (!cshPreviewing) cshDrawAttract(g); }   // the Arcade Floor's preview shows the floe, not the card
   else if (cshState === 'playing' || cshState === 'over') {
     cshDrawHud(g);
     if (cshState === 'playing') { cshDrawBottom(g); cshDrawBanner(g); }
@@ -1915,6 +1915,28 @@ function resetArcadeColdShot() {
   cshShout = null; cshBanner = null; cshPower = null; cshGulls = [];
   // cshScores is NOT cleared — session high scores survive the lobby.
 }
+
+// ── The Arcade Floor's preview (SW v259) ─────────────────────────────────────
+// js/lobby/arcade.js drives it: begin() borrows the room's canvas, step()/draw()
+// run the attract scene with its card off, end() hands everything back — the
+// next cshStart() takes its own canvas again. No RAF of its own here.
+let cshPreviewing = false;
+function cshPreview() {
+  return {
+    w: CSH_W, h: CSH_H, fy: 0.5,   // the floe and its penguins
+    begin(canvas, ctx) {
+      resetArcadeColdShot(); cshCanvas = canvas; cshCtx = ctx; cshPreviewing = true;
+      if (!cshGrain) cshMakeGrain(); cshGrainPat = null;   // a pattern belongs to the context that made it
+      cshEnterState('attract');
+      if (cshRafHandle) { cancelAnimationFrame(cshRafHandle); cshRafHandle = null; }
+    },
+    step: (dt) => cshUpdate(dt),
+    draw: () => cshDraw(),
+    end() { resetArcadeColdShot(); cshPreviewing = false; cshCanvas = null; cshCtx = null; cshGrainPat = null; },
+  };
+}
+// The session board's top score, for the room's HI line — null until someone has played.
+function cshBest() { return cshScores.length ? cshScores[0].score.toLocaleString('en-AU') : null; }
 
 window.addEventListener('resize', () => {
   if (document.getElementById('screen-arcade-coldshot').style.display !== 'none') cshResize();

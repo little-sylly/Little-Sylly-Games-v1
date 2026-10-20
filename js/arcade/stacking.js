@@ -1136,6 +1136,7 @@ function stoDrawAttract(g) {
   stoDrawAnimal(g, 'bee', { alpha: true, seed: 300 });
   g.restore();
   g.restore();
+  if (stoPreviewing) return;   // the Arcade Floor's preview: the tower and the Bee, none of the words or the button
 
   stoText(g, STO_TITLE, 180, 72, STO_TITLE.length > 16 ? 26 : 34, STO_YELLOW);
   stoText(g, 'Know the food chain. Become the Apex.', 180, 112, 13, STO_CREAM);
@@ -1287,6 +1288,27 @@ function resetArcadeStacking() {
   stoCallouts = []; stoPopups = []; stoBanner = null;
   // stoScores is NOT cleared — session high scores survive the lobby.
 }
+
+// ── The Arcade Floor's preview (SW v259) ─────────────────────────────────────
+// js/lobby/arcade.js drives it: begin() borrows the room's canvas, step()/draw()
+// run the attract scene with its card off, end() hands everything back — the
+// next stoStart() takes its own canvas again. No RAF of its own here.
+let stoPreviewing = false;
+function stoPreview() {
+  return {
+    w: STO_W, h: STO_H, fy: 0.45,   // the tower on its rock, the Bee swinging in
+    begin(canvas, ctx) {
+      resetArcadeStacking(); stoCanvas = canvas; stoCtx = ctx; stoPreviewing = true;
+      stoEnterState('attract');
+      if (stoRafHandle) { cancelAnimationFrame(stoRafHandle); stoRafHandle = null; }
+    },
+    step: (dt) => stoUpdate(dt),
+    draw: () => stoDraw(),
+    end() { resetArcadeStacking(); stoPreviewing = false; stoCanvas = null; stoCtx = null; },
+  };
+}
+// The session board's top score, for the room's HI line — null until someone has played.
+function stoBest() { return stoScores.length ? stoScores[0].score.toLocaleString('en-AU') : null; }
 
 window.addEventListener('resize', () => {
   if (document.getElementById('screen-arcade-stacking').style.display !== 'none') stoResize();

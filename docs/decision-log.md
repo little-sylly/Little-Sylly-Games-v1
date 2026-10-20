@@ -19,6 +19,9 @@ Detail: pointer to the canonical doc (snapshot / impl note / spec / memory).
 ```
 
 
+## 2026-10-21 — The Arcade Floor shows the real model, and each cabinet's screen is its game (Strategy)
+**Decision:** the Floor's cabinets are a one-off WebGL render of the Lounge's cabinet (CSS cabinet kept as the no-WebGL fallback), the marquee carries number + name, and the screen runs the centred cabinet's own attract scene through an optional `preview` adapter (+ `best` for a HI line). Reverses § 3.1's "DOM/CSS cabinets, no WebGL". **Why:** owner — the model is barely visible in the Lounge and the CSS stick/buttons read wrong; the game's own menu scene is a better preview than its blurb. **Changed:** `js/lobby/arcade.js`, `css/arcade.css`, all nine `js/arcade/*.js`, `src/screens/arcade.html`, `lounge-lib.js` (`lite`), `lounge-props.js` (`blank`), `secret-mode.js`, `tools/add-cabinet.js`, `arcade-cabinet-prompt.md`, SW v259. **Detail:** spec § 3.2; `shared-implementation-notes.md` DD-62.
+
 ## 2026-10-21 — A Lounge prop may own a screen and a press: the arcade cabinet (Architecture)
 **Decision:** the Lounge's arcade cabinet (spec Stage 3) brings two general seams to the scene: any prop api with `attract(t, reduced)` repaints on the scene's existing 10 fps attract loop (no new timer), and a `press` flag on a `LOU_ACTIONS` entry runs the prop's own touch reaction before an optional door's push-in. **Why:** the CRT needed a live screen without a second loop or a forever-running RAF, and the tap needed START + coin before the camera moves; both are now data, so the next prop with a screen or a press costs no scene edit. **Changed:** `js/lounge/lounge-props.js`, `lounge-scene.js`, `lounge-sfx.js`, `js/lobby/lobby-doors.js`, `lobby-host.js`, SW v258. **Detail:** `shared-implementation-notes.md` DD-61.
 

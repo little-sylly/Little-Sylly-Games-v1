@@ -1192,13 +1192,16 @@ function msDrawAttract() {
   const g = msCtx;
   msDrawAnchorSticker(MS_W / 2, 100, 0.92, -0.42);
 
-  g.textAlign = 'center';
-  g.fillStyle = MS_FOAM;
-  g.font = 'bold 30px monospace';
-  g.fillText(MS_TITLE, MS_W / 2, 214);
-  g.fillStyle = MS_DIM;
-  g.font = '10px monospace';
-  g.fillText('A DEEP-SEA DEPLOY MISSION', MS_W / 2, 232);
+  // the Arcade Floor's preview (msPreviewing) keeps the sticker and the strip, none of the words or buttons
+  if (!msPreviewing) {
+    g.textAlign = 'center';
+    g.fillStyle = MS_FOAM;
+    g.font = 'bold 30px monospace';
+    g.fillText(MS_TITLE, MS_W / 2, 214);
+    g.fillStyle = MS_DIM;
+    g.font = '10px monospace';
+    g.fillText('A DEEP-SEA DEPLOY MISSION', MS_W / 2, 232);
+  }
 
   // A five-square strip that shows the whole game at a glance:
   // a number, a buoy, a mine that went off, another number, unswept water.
@@ -1208,6 +1211,7 @@ function msDrawAttract() {
   msDrawOpen(x0 + s * 2, y0, s, '#DC2626'); msDrawMine(x0 + s * 2.5, y0 + s / 2, s);
   msDrawOpen(x0 + s * 3, y0, s, null, 2);   msDrawNumber(x0 + s * 3.5, y0 + s / 2, s, 2, 1);
   msDrawTile(x0 + s * 4, y0, s, false, 4);
+  if (msPreviewing) return;
 
   g.textAlign = 'center';
   g.fillStyle = MS_FOAM;
@@ -1466,6 +1470,28 @@ function resetArcadeMinesweeper() {
   msSonar   = [];
   // msBoards is NOT cleared — see the declaration above.
 }
+
+// ── The Arcade Floor's preview (SW v259) ─────────────────────────────────────
+// js/lobby/arcade.js drives it: begin() borrows the room's canvas, step()/draw()
+// run the attract scene with its card off, end() hands everything back — the
+// next msStart() takes its own canvas again. No RAF of its own here.
+let msPreviewing = false;
+function msPreview() {
+  return {
+    w: MS_W, h: MS_H, fy: 0.15,   // the anchor sticker and the five-square strip over the sea
+    begin(canvas, ctx) {
+      resetArcadeMinesweeper(); msCanvas = canvas; msCtx = ctx; msPreviewing = true;
+      msEnterState('attract');
+      if (msRafHandle) { cancelAnimationFrame(msRafHandle); msRafHandle = null; }
+    },
+    step: (dt) => msUpdate(dt),
+    draw: () => msDraw(),
+    end() { resetArcadeMinesweeper(); msPreviewing = false; msCanvas = null; msCtx = null; },
+  };
+}
+// The session board's top score, for the room's HI line — null until someone has played.
+// The hardest sea state anyone has cleared, and its best time.
+function msBest() { return (() => { const k = MS_LEVEL_KEYS.slice().reverse().find(key => msBoards[key].length); return k ? MS_LEVELS[k].label + ' ' + msFmtTime(msBoards[k][0].time) : null; })(); }
 
 window.addEventListener('resize', () => {
   if (document.getElementById('screen-arcade-minesweeper').style.display !== 'none') msResize();

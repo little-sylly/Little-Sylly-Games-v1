@@ -326,6 +326,8 @@ function xxDraw() {
   g.save();
   if (xxShake > 0) g.translate((Math.random() - 0.5) * 8, (Math.random() - 0.5) * 8);
   // draw by state: attract / playing / over / nameEntry / leaderboard
+  // The attract state draws its SCENE first and its card/title text last, so the Arcade
+  // Floor's preview can skip only the words: if (xxState === 'attract' && !xxPreviewing) xxDrawAttract(g);
   g.restore();
 }
 
@@ -411,6 +413,30 @@ function resetArcade<Name>() {
   xxEvents = []; xxParts = []; xxShake = 0;
   // xxScores is NOT cleared — session high scores survive the lobby.
 }
+
+// ── The Arcade Floor's preview ──────────────────────────────────────────────
+// The room shows each cabinet's attract scene, card off, on the cabinet's own
+// CRT, and drives the loop itself: begin() borrows the canvas it is handed,
+// step()/draw() are your update and draw, end() hands everything back. No RAF
+// of your own here, and no sound reaches the speaker (the room hushes
+// playSecretBeep around these calls). `fy` (0 top … 1 bottom) picks which band
+// of your tall scene the wide screen shows — aim it at the thing worth seeing.
+let xxPreviewing = false;
+function xxPreview() {
+  return {
+    w: XX_W, h: XX_H, fy: 0.5,
+    begin(canvas, ctx) {
+      resetArcade<Name>(); xxCanvas = canvas; xxCtx = ctx; xxPreviewing = true;
+      xxEnterState('attract');
+      if (xxRafHandle) { cancelAnimationFrame(xxRafHandle); xxRafHandle = null; }
+    },
+    step: (dt) => xxUpdate(dt),
+    draw: () => xxDraw(),
+    end() { resetArcade<Name>(); xxPreviewing = false; xxCanvas = null; xxCtx = null; },
+  };
+}
+// The session board's top score for the room's HI line, formatted your way — null until someone has played.
+function xxBest() { return xxScores.length ? xxScores[0].score.toLocaleString('en-AU') : null; }
 
 window.addEventListener('resize', () => {
   if (document.getElementById('screen-arcade-<id>').style.display !== 'none') xxResize();
@@ -519,6 +545,7 @@ Blurb:     <one line, ~60 characters, shown under the list — what the player d
 Accent:    <#rrggbb>   (the list row's highlight colour; the world's signature colour)
 State:     built / play-tested on a phone / needs X
 Entry:     xxStart()            Teardown: resetArcade<Name>()
+Floor:     xxPreview()  fy <0..1>  ·  xxBest()   (or "none" — the screen then shows its accent only)
 Screen:    screen-arcade-<id>   DOM: #xx-stage, #xx-canvas, #btn-xx-exit
 Decisions: <anything non-obvious chosen deliberately>
 Open:      <anything unfinished or unverified>
@@ -560,7 +587,7 @@ The seams, for reference — every one fails silently if missed, and the tool do
 | # | Seam | What breaks if it is missed |
 |---|------|-----------------------------|
 | 1 | `js/arcade/<id>.js` | — |
-| 2 | `ARC_CABINETS` in `js/lobby/arcade.js` — `{ id, label, screen, start, stop, blurb, accent }` | not listed in the Arcade room |
+| 2 | `ARC_CABINETS` in `js/lobby/arcade.js` — `{ id, label, screen, start, stop, preview?, best?, blurb, accent }` (the tool adds `preview` / `best` when the file defines `xxPreview` / `xxBest`) | not listed in the Arcade room; without `preview` its screen on the Floor is blank |
 | 3 | `allScreens[]` in `js/engine.js` | **ghost screen** — it never hides, and its canvas paints under every later screen |
 | 4 | Markup in `src/screens/arcade.html` | `getElementById` returns null and `start()` throws |
 | 5 | `<script src>` in `src/screens/_scripts-3.html` | `start()` is a ReferenceError on launch |
@@ -576,7 +603,7 @@ steering the game.
 
 ```js
 { id: '<id>', label: '<ROOM LABEL>', screen: 'screen-arcade-<id>',
-  start: () => xxStart(), stop: () => resetArcade<Name>(),
+  start: () => xxStart(), stop: () => resetArcade<Name>(), preview: () => xxPreview(), best: () => xxBest(),
   blurb: '<one line>', accent: '<#hex>' },
 ```
 

@@ -1025,7 +1025,15 @@ cabinets from `ARC_MACHINE_HTML`), `arcWatchCentre` (an `IntersectionObserver`, 
 selection follows the swipe; no RAF, no scroll timer), `arcCentre(smooth)`, `arcRenderStrip`, `arcPaintSel`,
 `arcPaintPalette` (`ctlReadDesign()` → `--arc-shell/plate/ears/buttons` on the room), `arcSelect(i)` (clamped — a row,
 not a ring), `arcScrubAt`, `arcLaunch(id)` (`.is-coin` → INSERT COIN, two notes, `ARC_LAUNCH_MS` 480),
-`arcExitCabinet()` (every cabinet's ✕: stop all → room). State: `arcSel` (memory only), `arcObserver`,
+`arcExitCabinet()` (every cabinet's ✕: stop all → room). SW v259 (spec § 3.2, DD-62): `arcModelShot(design)` (renders the
+Lounge's cabinet once → `arcShot { key, url, screen, marquee, lamp }`, cached per design; `arcShotFailed` → the CSS cabinet),
+`arcPlaceShot` (the overlays' `--mq*/--sc*/--lp*` on `#arc-list.is-shot`), `arcDesign()` (the room's four role colours),
+`arcBest(cab)`, the preview driver `arcPreviewSetup` / `arcPreviewStill` / `arcPreviewPlay` / `arcPreviewStop` / `arcQuiet`
+(state `arcPrev` — the one live RAF — and `arcPreviewQuiet`, read by `playSecretBeep`), `arcDressCabinet(cab, i)` (palette,
+accent and number onto a cabinet screen at launch). Markup constants `ARC_MARQ_HTML`, `ARC_CRT_HTML`, `ARC_MACHINE_HTML`
+(CSS fallback), `ARC_SHOT_HTML`; row classes `.arc-m-num`/`.arc-m-name`, `.arc-crt-view` (canvas), `.arc-crt-hi`, `.arc-m-shot`.
+Registry fields `preview` / `best` (optional) → each cabinet's `xxPreview()` / `xxBest()` + `xxPreviewing` flag. Cabinet screen
+header: `.arc-cab-head` > `.arc-cab-title` (`.arc-cab-num`) + `.arc-cab-tools` (`.arc-icon` ×2). State: `arcSel` (memory only), `arcObserver`,
 `arcScrubbing`/`arcScrubDragged`. Constants: `ARC_LAUNCH_MS`, `ARC_COIN_NOTE_MS`, `ARC_TICKS_MAX` (12 — past it the
 strip's ticks become a rail + thumb), `ARC_ROLES`. Ids: `#arc-list` (the row; children `.arc-row` = one cabinet each,
 `data-arc-id`), `#arc-scrub` (the strip, `role="slider"`), `#arc-count` (`03 / 09`), `#arc-blurb` (visually hidden

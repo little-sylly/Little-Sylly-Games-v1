@@ -663,7 +663,7 @@ function ckDraw() {
   ckDrawParts();
 
   if (ckState === 'attract') {
-    ckDrawAttract();
+    if (!ckPreviewing) ckDrawAttract();   // the Arcade Floor's preview shows the road, not the card
   } else if (ckState === 'playing' || ckState === 'dying') {
     ckDrawHud();
     if (ckState === 'dying') ckDrawDeathText();
@@ -1338,6 +1338,27 @@ function resetArcadeChicken() {
   ckShake  = 0;
   // ckBoard is NOT cleared — see the declaration above.
 }
+
+// ── The Arcade Floor's preview (SW v259) ─────────────────────────────────────
+// js/lobby/arcade.js drives it: begin() borrows the room's canvas, step()/draw()
+// run the attract scene with its card off, end() hands everything back — the
+// next ckStart() takes its own canvas again. No RAF of its own here.
+let ckPreviewing = false;
+function ckPreview() {
+  return {
+    w: CK_W, h: CK_H, fy: 0.62,   // the road and the traffic below the card
+    begin(canvas, ctx) {
+      resetArcadeChicken(); ckCanvas = canvas; ckCtx = ctx; ckPreviewing = true;
+      ckEnterState('attract');
+      if (ckRaf) { cancelAnimationFrame(ckRaf); ckRaf = null; }
+    },
+    step: (dt) => ckUpdate(dt),
+    draw: () => ckDraw(),
+    end() { resetArcadeChicken(); ckPreviewing = false; ckCanvas = null; ckCtx = null; },
+  };
+}
+// The session board's top score, for the room's HI line — null until someone has played.
+function ckBest() { return ckBoard.length ? ckBoard[0].score.toLocaleString('en-AU') : null; }
 
 window.addEventListener('resize', () => {
   if (document.getElementById('screen-arcade-chicken').style.display !== 'none') ckResize();

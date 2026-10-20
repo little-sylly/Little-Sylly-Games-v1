@@ -64,6 +64,11 @@ const shown = pg => pg.evaluate(() => [...document.querySelectorAll('section[id^
   const cabs = await pg.evaluate(() => ARC_CABINETS.map(c => ({ id: c.id, label: c.label, screen: c.screen })));
   console.log(`\n══ Arcade smoke — ${cabs.length} cabinet(s), real path, 375×667 ══`);
 
+  /* The Floor's screens (SW v259, spec § 3.2 4b): each cabinet's session board, so best() can be
+     seeded. Deep-Sea Sweep keeps one board per sea state, of times. */
+  const BOARDS = { asherplane: 'apLeaderboard', minesweeper: 'msBoards.hard', chicken: 'ckBoard', slice: 'slBoardScores',
+    cookiejar: 'hjScores', stacking: 'stoScores', bluff: 'bbScores', coldshot: 'cshScores', traceroute: 'trcScores' };
+
   for (const cab of cabs.filter(c => !only || c.id === only)) {
     console.log(`\n── ${cab.id}  (${cab.label})`);
     const errsBefore = errs.length;
@@ -74,6 +79,57 @@ const shown = pg => pg.evaluate(() => [...document.querySelectorAll('section[id^
     }, cab.id);
     ok(!!px, 'screen has a <prefix>-canvas');
     if (!px) continue;
+
+    // ── its screen on the Floor: the attract scene, card off, on a canvas it is handed
+    const pv = await pg.evaluate(([id, px, board]) => {
+      const c = ARC_CABINETS.find(x => x.id === id), out = {};
+      out.hooks = typeof c.preview === 'function' && typeof c.best === 'function';
+      if (!out.hooks) return out;
+      const a = c.preview();
+      out.adapter = !!a && a.w > 0 && a.h > 0 && ['begin', 'step', 'draw', 'end'].every(k => typeof a[k] === 'function');
+      const own = document.getElementById(px + '-canvas'), ownWH = own.width + 'x' + own.height;
+      const cv = document.createElement('canvas'); cv.style.cssText = 'position:fixed;left:0;top:0;width:160px;height:90px';
+      document.body.appendChild(cv);
+      const real = window.playSecretBeep; let leaks = 0, hushed = 0;
+      window.playSecretBeep = () => { if (arcPreviewQuiet) hushed++; else leaks++; };
+      try { arcPreviewStill(ARC_CABINETS.indexOf(c), cv); } finally { window.playSecretBeep = real; }
+      const d = cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data; let lit = 0;
+      for (let k = 3; k < d.length; k += 4) if (d[k] > 0) lit++;
+      out.paint = lit / (cv.width * cv.height); out.leaks = leaks; out.hushed = hushed;
+      out.ownUntouched = own.width + 'x' + own.height === ownWH;
+      out.handedBack = window.eval(px + 'Previewing') === false && window.eval(px + 'Canvas') === null;
+      cv.remove();
+      // best(): nothing on a fresh board, a string once someone has a score
+      const b = window.eval(board), seeded = id === 'minesweeper' ? { name: 'TST', time: 41234 } : { name: 'TST', score: 1234 };
+      out.fresh = b.length ? 'board not fresh' : c.best();
+      b.push(seeded); out.seeded = c.best(); b.splice(b.indexOf(seeded), 1);
+      return out;
+    }, [cab.id, px, BOARDS[cab.id]]);
+    ok(pv.hooks, 'registers preview() and best()');
+    if (pv.hooks) {
+      ok(pv.adapter, 'preview() hands back { w, h, begin, step, draw, end }');
+      ok(pv.paint > 0.9, `a still frame paints the canvas it was given (${Math.round(pv.paint * 100)}% of it)`);
+      ok(pv.ownUntouched, 'and leaves the cabinet\'s own canvas alone');
+      ok(pv.handedBack, 'end() hands the game back: not previewing, its canvas let go');
+      ok(pv.leaks === 0, `silent: no beep escapes the preview (${pv.hushed} hushed, ${pv.leaks} leaked)`);
+      ok(pv.fresh === null, `best() is null on a fresh board (got ${JSON.stringify(pv.fresh)})`);
+      ok(typeof pv.seeded === 'string' && pv.seeded.length > 0, `best() is a string once there is a score (${JSON.stringify(pv.seeded)})`);
+    }
+    // the live preview follows the selection, and stops before the game takes its canvas back
+    await pg.evaluate(() => lobbyDispatch({ t: 'arcadeOpen' }));
+    await pg.waitForTimeout(400);
+    await pg.evaluate(id => arcSelect(ARC_CABINETS.findIndex(c => c.id === id), false), cab.id);
+    await pg.waitForTimeout(300);
+    ok(await pg.evaluate(id => !!arcPrev && arcPrev.i === ARC_CABINETS.findIndex(c => c.id === id), cab.id), 'centred, its screen runs live');
+    ok(await pg.evaluate(id => { const row = document.querySelector('#arc-list .arc-row.is-sel');
+      return !!row && row.querySelector('.arc-crt-hi').textContent === '' && row.querySelector('.arc-m-name').textContent === ARC_CABINETS.find(c => c.id === id).label; }, cab.id),
+       'the marquee carries its name; no HI line without a score');
+    await pg.evaluate(id => arcLaunch(id), cab.id);
+    ok(await pg.evaluate(() => arcPrev === null), 'a launch stops the live preview at once');
+    await pg.waitForTimeout(700);
+    await pg.click(`#btn-${px}-exit`); await pg.waitForTimeout(300);
+    ok(await pg.evaluate(() => !!arcPrev && arcPrev.i === arcSel), '✕ back to the room: the centred screen runs live again');
+    await pg.evaluate(() => lobbyDispatch({ t: 'arcadeClose' })); await pg.waitForTimeout(300);
 
     // Twice: the second entry proves re-entry after ✕ works (stale state, double loops).
     for (const lap of [1, 2]) {
@@ -106,6 +162,28 @@ const shown = pg => pg.evaluate(() => [...document.querySelectorAll('section[id^
       ok(back.length === 1 && back[0] === 'screen-arcade', `lap ${lap}: ✕ returns to the room and nothing else paints (got ${back.join(',') || 'none'})`);
     }
     ok(errs.length === errsBefore, `no console errors${errs.length > errsBefore ? ' — ' + errs.slice(errsBefore).join(' | ') : ''}`);
+  }
+
+  // ── the room's preview lifecycle (Timer Lifecycle: every RAF has its clear sites)
+  console.log('\n── the Floor\'s live preview');
+  await pg.evaluate(() => lobbyDispatch({ t: 'arcadeOpen' })); await pg.waitForTimeout(400);
+  ok(await pg.evaluate(() => !!arcPrev), 'the room opens with the centred screen live');
+  await pg.evaluate(() => arcStop());
+  ok(await pg.evaluate(() => arcPrev === null), 'arcStop() stops it');
+  await pg.evaluate(() => arcPreviewPlay(arcSel)); await pg.evaluate(() => resetToLobby()); await pg.waitForTimeout(300);
+  ok(await pg.evaluate(() => arcPrev === null && document.getElementById('screen-arcade').style.display === 'none'), 'resetToLobby() with a preview running stops it');
+  {
+    await ctx.close();   // one page at a time: two busy pages starve each other's load event
+    const rctx = await browser.newContext({ viewport: { width: 375, height: 667 }, reducedMotion: 'reduce', serviceWorkers: 'block' });
+    const rp = await rctx.newPage();
+    await rp.goto(`http://localhost:${srv.address().port}/index.html`, { waitUntil: 'domcontentloaded', timeout: 60000 });
+    await rp.waitForFunction(() => typeof lobbyDispatch === 'function', null, { timeout: 30000 }); await rp.waitForTimeout(1500);
+    await rp.evaluate(() => lobbyDispatch({ t: 'arcadeOpen' })); await rp.waitForTimeout(500);
+    ok(await rp.evaluate(() => arcPrev === null), 'reduced motion: no screen runs live');
+    ok(await rp.evaluate(() => { const cv = document.querySelector('#arc-list .arc-row.is-sel .arc-crt-view');
+      const d = cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data; let lit = 0;
+      for (let k = 3; k < d.length; k += 4) if (d[k] > 0) lit++; return lit > d.length / 8; }), 'reduced motion: the screen still shows its still frame');
+    await rctx.close();
   }
 
   await browser.close(); srv.close();

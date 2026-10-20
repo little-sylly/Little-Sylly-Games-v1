@@ -90,9 +90,13 @@ for (const other of existing.filter(o => o !== id)) {
 if (existing.includes(id)) say(false, 'registry: already registered');
 else {
   const q = s => s.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+  /* The Arcade Floor's screen (SW v259, spec § 3.2): preview / best are optional — registered
+     only when the cabinet's file defines them; without them the screen keeps its accent pool. */
+  const csrc = R(`js/arcade/${id}.js`);
+  const opt = (csrc.includes(`function ${px}Preview(`) ? ` preview: () => ${px}Preview(),` : '') + (csrc.includes(`function ${px}Best(`) ? ` best: () => ${px}Best(),` : '');
   const text =
 `  { id: '${id}', label: '${q(label)}', screen: '${screen}',
-    start: () => ${startFn}(), stop: () => ${stopFn}(),
+    start: () => ${startFn}(), stop: () => ${stopFn}(),${opt}
     blurb: '${q(blurb)}', accent: '${accent.toLowerCase()}' },`;
   put('js/lobby/arcade.js', arcadeSrc.replace(block[0], () => `const ARC_CABINETS = [${block[1]}\n${text}\n];`));
   if (cur('js/lobby/arcade.js') === arcadeSrc) die('could not insert into ARC_CABINETS');
@@ -122,13 +126,13 @@ else {
   <!-- ══ ARCADE CABINET ${NN} — ${T} ══ -->
   <section id="${screen}" style="display:none"
     class="relative flex flex-col w-full h-screen bg-black font-mono overflow-hidden">
-    <div class="flex items-center justify-between px-4 pt-3 pb-2 flex-shrink-0">
-      <div class="text-green-400 text-xs tracking-widest opacity-60 select-none">${T}</div>
-      <div class="flex items-center gap-2">
-        <button class="btn-open-sound text-xl text-green-400 active:scale-90 transition-transform duration-100 min-h-11 min-w-11">🔊</button>
-        <button id="btn-${px}-exit" class="text-green-400 text-lg font-bold active:scale-90 transition-transform duration-100 min-h-11 min-w-11">✕</button>
+    <header class="arc-cab-head">
+      <p class="arc-cab-title"><b class="arc-cab-num"></b>${T}</p>
+      <div class="arc-cab-tools">
+        <button class="btn-open-sound arc-icon" aria-label="Sound">🔊</button>
+        <button id="btn-${px}-exit" class="arc-icon" aria-label="Back to the arcade">✕</button>
       </div>
-    </div>
+    </header>
     <div id="${px}-stage" class="flex-1 min-h-0 flex items-center justify-center" style="touch-action:none">
       <canvas id="${px}-canvas" class="block"></canvas>
     </div>

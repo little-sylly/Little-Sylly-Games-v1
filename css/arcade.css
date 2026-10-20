@@ -79,14 +79,15 @@
   color: #fff4d8; text-shadow: 0 0 10px rgba(255, 196, 100, .75), 0 0 2px rgba(255, 255, 255, .8);
 }
 #screen-arcade .arc-tools { display: flex; gap: 8px; flex: none; }
-#screen-arcade .arc-icon {
-  min-width: 44px; min-height: 44px; border-radius: 14px;
-  display: grid; place-items: center; font-size: 18px;
+/* the room's round-cornered 🔊 / ✕ — the cabinet screens wear them too (SW v259) */
+#screen-arcade .arc-icon, [id^="screen-arcade-"] .arc-icon {
+  min-width: 44px; min-height: 44px; border-radius: 14px; border: 0;
+  display: grid; place-items: center; font: inherit; font-size: 18px; color: #f6f3fb;
   background: rgba(255, 255, 255, .08); cursor: pointer;
   transition: transform 120ms ease-out, background-color 150ms ease;
 }
-#screen-arcade .arc-icon:hover { background: rgba(255, 255, 255, .14); }
-#screen-arcade .arc-icon:active { transform: scale(.94); }
+#screen-arcade .arc-icon:hover, [id^="screen-arcade-"] .arc-icon:hover { background: rgba(255, 255, 255, .14); }
+#screen-arcade .arc-icon:active, [id^="screen-arcade-"] .arc-icon:active { transform: scale(.94); }
 
 /* ── The floor and the row ──────────────────────────────────────────────── */
 /* Edge to edge (the room's gutter is cancelled), so the neighbours peek in at
@@ -165,6 +166,9 @@
   color: var(--arc-accent); text-shadow: 0 0 .55em var(--arc-accent);
   box-shadow: inset 0 0 1em color-mix(in srgb, var(--arc-accent) 22%, transparent);
 }
+/* number then name: the number a step quieter, so the name is what the eye lands on */
+#screen-arcade .arc-m-num { font-weight: 700; opacity: .6; margin-right: .6em; font-variant-numeric: tabular-nums; }
+#screen-arcade .arc-m-name { overflow: hidden; text-overflow: ellipsis; }
 
 /* the bezel and its CRT */
 #screen-arcade .arc-m-bezel {
@@ -173,9 +177,8 @@
   box-shadow: inset 0 .15em .2em rgba(255, 255, 255, .28), inset 0 -.25em .35em rgba(0, 0, 0, .22);
 }
 #screen-arcade .arc-crt {
-  position: relative; height: 100%; overflow: hidden;
-  display: flex; flex-direction: column; justify-content: center; align-items: center; gap: .45em;
-  padding: .9em 1em; border-radius: 1.3em;
+  position: relative; display: block; height: 100%; overflow: hidden;
+  border-radius: 1.3em;
   background: radial-gradient(130% 95% at 50% 42%, #15141c, var(--arc-glass) 72%);
   box-shadow: inset 0 0 0 .16em #000, inset 0 0 2.4em rgba(0, 0, 0, .95),
     inset 0 0 1.5em color-mix(in srgb, var(--arc-accent) 20%, transparent);
@@ -184,22 +187,17 @@
 #screen-arcade .arc-crt::before, #screen-arcade .arc-crt::after { content: ''; position: absolute; inset: 0; pointer-events: none; border-radius: inherit; }
 #screen-arcade .arc-crt::before { z-index: 2; background: repeating-linear-gradient(180deg, rgba(255, 255, 255, .04) 0 1px, transparent 1px 3px); }
 #screen-arcade .arc-crt::after { z-index: 3; background: linear-gradient(158deg, rgba(255, 255, 255, .11), rgba(255, 255, 255, 0) 36%); }
-#screen-arcade .arc-crt > span:not(.arc-crt-coin) { position: relative; z-index: 1; max-width: 100%; }
-#screen-arcade .arc-crt-num {
-  font-family: ui-monospace, Menlo, Consolas, monospace; font-size: max(9px, .9em); letter-spacing: .14em;
-  color: var(--arc-accent); opacity: .75;
+/* the screen (spec § 3.2): the game's own menu scene, edge to edge, with HI on top and PRESS START over it */
+#screen-arcade .arc-crt-view { position: absolute; inset: 0; width: 100%; height: 100%; display: block; z-index: 0; }
+#screen-arcade .arc-crt-hi, #screen-arcade .arc-crt-press {
+  position: absolute; left: 0; right: 0; z-index: 1; text-align: center; pointer-events: none;
+  font-family: ui-monospace, Menlo, Consolas, monospace; letter-spacing: .14em; text-transform: uppercase;
+  text-shadow: 0 0 .35em #000, 0 0 .9em #000;
 }
-#screen-arcade .arc-crt-title {
-  font-size: max(13px, 1.4em); font-weight: 700; line-height: 1.08; letter-spacing: .03em; text-wrap: balance;
-  color: var(--arc-accent); text-shadow: 0 0 .5em color-mix(in srgb, var(--arc-accent) 70%, transparent);
-}
-#screen-arcade .arc-crt-blurb {
-  font-size: max(11px, 1.08em); line-height: 1.3; color: var(--arc-dim); text-wrap: pretty;
-  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; overflow: hidden;
-}
+#screen-arcade .arc-crt-hi { top: .55em; font-size: max(9px, .8em); color: var(--arc-accent); font-variant-numeric: tabular-nums; }
+#screen-arcade .arc-crt-hi:empty { display: none; }
 #screen-arcade .arc-crt-press {
-  margin-top: .2em; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: max(9px, .88em);
-  letter-spacing: .16em; text-transform: uppercase; color: #fff; opacity: 0;
+  bottom: .7em; font-size: max(10px, .95em); font-weight: 700; color: #fff; opacity: 0;
 }
 #screen-arcade .arc-row.is-sel .arc-crt-press { opacity: 1; animation: arcBlink 1.2s steps(1, end) infinite; }
 /* the launch beat — INSERT COIN takes the whole screen and flickers three times */
@@ -251,6 +249,33 @@
 #screen-arcade .arc-m-lamp { width: .85em; height: .85em; border-radius: 50%; background: #34333b; box-shadow: inset 0 .1em .1em rgba(255, 255, 255, .15); }
 #screen-arcade .arc-row.is-sel .arc-m-lamp { background: var(--arc-accent); box-shadow: 0 0 .7em var(--arc-accent), inset 0 .1em .1em rgba(255, 255, 255, .5); }
 
+/* ── The real model (SW v259, spec § 3.2 4a) ──────────────────────────────
+   Every row wears one rendered picture of the Lounge's cabinet; js/lobby/arcade.js
+   arcPlaceShot sets, once on the row, where the model's marquee glass, CRT glass
+   and coin lamp landed in it (--mq*, --sc*, --lp*, in % of the picture), and the
+   DOM is laid exactly there. A row is a size container so text can scale with it. */
+#screen-arcade .arc-track.is-shot .arc-row { container-type: size; }
+#screen-arcade .arc-m-shot {
+  position: absolute; inset: 0; width: 100%; height: 100%; display: block;
+  pointer-events: none; -webkit-user-drag: none; user-select: none;
+  filter: drop-shadow(0 1.2em 1.4em rgba(0, 0, 0, .55));
+}
+#screen-arcade .arc-track.is-shot .arc-m-marq-text {
+  position: absolute; left: var(--mql); top: var(--mqt); width: var(--mqw); height: var(--mqh);
+  padding: 0 .4em; border-radius: .35em; background: transparent; box-shadow: none;
+  /* the smaller of: most of the glass's height, or what fits the line across it */
+  font-size: min(calc(var(--mqhn) * .62cqh), calc(var(--mqwn) * 1cqw / (var(--mqc) * .66)));
+}
+#screen-arcade .arc-track.is-shot .arc-crt {
+  position: absolute; left: var(--scl); top: var(--sct); width: var(--scw); height: var(--sch);
+  border-radius: .45em; font-size: calc(var(--schn) * .055cqh);
+}
+#screen-arcade .arc-track.is-shot .arc-m-lamp {
+  position: absolute; left: var(--lpl); top: var(--lpt); width: 2.6cqw; height: 2.6cqw; margin: -1.3cqw 0 0 -1.3cqw;
+  background: transparent; box-shadow: none; border-radius: 50%;
+}
+#screen-arcade .arc-track.is-shot .arc-row.is-sel .arc-m-lamp { background: var(--arc-accent); box-shadow: 0 0 .9em var(--arc-accent); }
+
 /* ── The position strip: ticks + 03 / 09, one control (tap or drag) ─────── */
 #screen-arcade .arc-strip { flex: none; display: flex; align-items: center; gap: 14px; }
 #screen-arcade .arc-scrub {
@@ -299,9 +324,6 @@
   #screen-arcade { gap: 8px; padding-top: max(8px, env(safe-area-inset-top)); padding-bottom: max(12px, env(safe-area-inset-bottom)); }
   #screen-arcade .arc-sign-text { font-size: 17px; padding: 5px 14px 4px; }
   #screen-arcade .arc-start { min-height: 50px; font-size: 17px; }
-  #screen-arcade .arc-crt-blurb { -webkit-line-clamp: 3; }
-  /* the number is on the strip and PRESS START is the button right below — the screen keeps name + blurb */
-  #screen-arcade .arc-crt-num, #screen-arcade .arc-crt-press, #screen-arcade .arc-row.is-sel .arc-crt-press { display: none; }
 }
 
 /* ── Cabinet screens (SW v256) ───────────────────────────────────────────────
@@ -315,4 +337,49 @@
   -webkit-user-select: none; user-select: none;
   -webkit-touch-callout: none;
   -webkit-tap-highlight-color: transparent;
+}
+
+/* SW v259 (spec § 3.2 4c): the cabinet screens join the room. arcLaunch copies
+   the room's palette and the cabinet's accent onto the section (the defaults are
+   the factory lilac, as on the room). The header is the room's sign in small —
+   black glass in a plate-coloured rim, the bear's two ears, the number and name
+   in the accent — with the room's 🔊 / ✕. The stage is held off the edges so
+   the canvas reads as a lit screen on the floor, not a hole in the page. Each
+   game's in-canvas card is the game's own drawing and is not touched here. */
+[id^="screen-arcade-"] {
+  --arc-plate: #9670c8; --arc-ears: #a97fd6; --arc-accent: #3fa9ff;
+  background:
+    radial-gradient(70% 40% at 50% 60%, color-mix(in srgb, var(--arc-accent) 10%, transparent), transparent 72%),
+    linear-gradient(180deg, #0d0b13 0%, #060509 50%, #0a0910 100%) !important;
+  font-family: 'Fredoka', system-ui, sans-serif;
+}
+[id^="screen-arcade-"] .arc-cab-head {
+  flex: none; display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: max(16px, env(safe-area-inset-top)) 16px 10px;
+  isolation: isolate;   /* so the title's ears (z-index −1) tuck behind its rim, not behind the page */
+  font-family: 'Fredoka', system-ui, sans-serif;   /* here, not on the section: its Tailwind font-mono wins there */
+}
+[id^="screen-arcade-"] .arc-cab-title {
+  position: relative; min-width: 0; margin: 6px 0 0 4px; padding: 6px 14px 5px; border-radius: 11px;
+  white-space: nowrap;
+  background: #050507;
+  box-shadow: 0 0 0 4px var(--arc-plate), inset 0 0 14px color-mix(in srgb, var(--arc-accent) 22%, transparent), 0 6px 16px rgba(0, 0, 0, .5);
+  font-size: clamp(11px, 3.9vw, 15px); font-weight: 700;   /* "01 BEYOND THE BLUFF" beside 🔊 ✕ at 320 px */ line-height: 1.2; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--arc-accent); text-shadow: 0 0 8px color-mix(in srgb, var(--arc-accent) 70%, transparent);
+}
+/* the ears sit on the rim's top edge, behind it */
+[id^="screen-arcade-"] .arc-cab-title::before, [id^="screen-arcade-"] .arc-cab-title::after {
+  content: ''; position: absolute; top: -13px; width: 16px; height: 16px; border-radius: 50%; z-index: -1;
+  background: var(--arc-ears); box-shadow: inset 0 0 0 4px var(--arc-ears), inset 0 0 0 9px var(--arc-plate);
+}
+[id^="screen-arcade-"] .arc-cab-title::before { left: 6px; }
+[id^="screen-arcade-"] .arc-cab-title::after { right: 6px; }
+[id^="screen-arcade-"] .arc-cab-num { opacity: .6; margin-right: .55em; font-variant-numeric: tabular-nums; }
+[id^="screen-arcade-"] .arc-cab-num:empty { display: none; }
+[id^="screen-arcade-"] .arc-cab-tools { display: flex; gap: 8px; flex: none; }
+/* margins, not padding: every cabinet's resize fits its canvas to the stage's clientWidth/Height, which counts padding */
+[id^="screen-arcade-"] > [id$="-stage"] { margin: 0 12px max(12px, env(safe-area-inset-bottom)); }
+[id^="screen-arcade-"] > [id$="-stage"] > canvas {
+  border-radius: 14px;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, .06), 0 0 40px color-mix(in srgb, var(--arc-accent) 20%, transparent), 0 10px 30px rgba(0, 0, 0, .6);
 }
