@@ -1,0 +1,14 @@
+{
+  // Cloudflare Workers static-assets deploy (`npx wrangler deploy`). The app is the repo root
+  // served as-is — no build step. WHAT ships is decided by .assetsignore, not by this file:
+  // without it the whole repo uploads and `.git/objects/pack` (>25 MiB) fails the deploy.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "little-sylly-games",
+  "compatibility_date": "2026-10-19",
+  "observability": {
+    "enabled": true
+  },
+  "assets": {
+    "directory": "."
+  }
+}
