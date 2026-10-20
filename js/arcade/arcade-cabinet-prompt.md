@@ -6,25 +6,31 @@ with no project folder attached.
 **Where this file lives:** `js/arcade/` for now, so it is easy to grab. **It moves to
 `docs/content-prompts/` once it has settled** — nothing links to it by path, so the move is free.
 
-**How to use it:** paste this whole file into the offline chat as the first message, then say which
-game you want. It is deliberately self-contained and assumes the chat can see *nothing* else.
+**How to use it:** paste this whole file into the offline chat as the first message, then
+**`arcade-roster.md`** as the second, then say which game you want (or paste its brief). Together
+they're self-contained and assume the chat can see *nothing* else.
+
+**Two files, two jobs:**
+- **This prompt** says how to design and build a cabinet: the rules, the skeleton, the soft design
+  guidelines, the hand-off.
+- **`arcade-roster.md`** is the running list of what exists: every cabinet and its world and status
+  (idea, brief, built, shipped), plus every prefix that's taken. Update the roster whenever a
+  cabinet's status changes. This prompt only changes when the way we build changes.
 
 ---
 
 ## What the arcade is
 
-A secret back door in Little Sylly Games: the Konami code on the 3D controller unlocks a 🕹️ tile,
-which opens the Sylly-OS terminal, which lists **arcade cabinets**. A cabinet is a small, one-more-go
-canvas game — 1–3 minutes a run, playable with one thumb.
+A room in the Little Sylly house: **the Arcade** (a 🕹️ door in every lobby layout; always open, no
+unlock). It lists **arcade cabinets**; a cabinet's ✕ comes back to that list. A cabinet is a small,
+one-more-go canvas game — 1–3 minutes a run, playable with one thumb.
 
 **A cabinet is NOT a Sylly Game and NOT a pack.** No multiplayer, no settings overlay, no Sylly Mode,
 no identity doc, no pack manifest, and the new-game checklist does not apply to it. It speaks the
 terminal's CRT green-on-black language, or a Sylly game's world if it is set in one.
 
-**Seven cabinets shipped (SW v249):** ASHERPLANE (a sky-and-sea shmup), DEEP-SEA SWEEP (Minesweeper in
-Deep-Sea Deploy's world), OTHER SIDE (a lane-hopper), CHOP SALAD (Fruit Ninja in Fruit Salad's world),
-COOKIE JAR (push-your-luck), STACKING ORDER (Stack/Tower Bloxx in Pecking Order's world) and
-BEYOND THE BLUFF (Doodle Jump in The Bluff's world).
+**What already exists** (every cabinet, its genre, its world and whether it's live) is in
+`arcade-roster.md`, not here.
 
 ---
 
@@ -33,8 +39,8 @@ BEYOND THE BLUFF (Doodle Jump in The Bluff's world).
 Settle these in a short back-and-forth **before any code**:
 
 1. **The pitch** — one line. What the player does, and why they would have one more go.
-2. **The arcade ancestor** — name it plainly (the shipped seven lean on a shmup, Minesweeper,
-   Frogger/Crossy Road, Fruit Ninja, push-your-luck, Tower Bloxx and Doodle Jump).
+2. **The arcade ancestor** — name it plainly, and check the roster so it doesn't repeat a genre
+   that's already there.
 3. **Which Sylly world it borrows, if any.** Several cabinets are a genre reskinned into a real
    game's world, which is a cheap way to make it feel part of the suite. Its own thing in the house
    arcade palette is equally fine.
@@ -43,18 +49,105 @@ Settle these in a short back-and-forth **before any code**:
    (`js/arcade/<id>.js`, `screen-arcade-<id>`); it need not match the display title — the shipped
    `minesweeper.js` is titled DEEP-SEA SWEEP, and `bluff.js` is BEYOND THE BLUFF.
 
-### ⚠ Prefixes already taken — a new one must collide with NONE of these
+### ⚠ Prefixes already taken — a new one must collide with NONE of them
 
-| Taken by | Prefixes |
-|----------|----------|
-| **Arcade cabinets** | `ap` Asherplane · `ms` Deep-Sea Sweep · `ck` Other Side · `sl` Chop Salad · `hj` Cookie Jar · `sto` Stacking Order · `bb` Beyond the Bluff |
-| **The 20 Sylly Games** | `li5` `gm` `ss` `jec` `ygi` `lttp` `nat` `dsd` `gth` `dyb` `bld` `pass` `nt` `frt` `shp` `flw` `pko` `cjar` `cld` `comb` |
-| **Lobby / shared modules** | `lou` `tv` `lb` `lobby` `ach` `sb` `jbx` `ctl` `mp` `sm` |
+The full, current list is in **`arcade-roster.md`**: arcade cabinets, prefixes reserved by briefs,
+the 20 Sylly Games, and the lobby / shared modules. Add the new prefix there when you pick it.
 
 Everything in a cabinet is a **global** — the app uses no ES modules, so 20 games and the whole lobby
 share one scope. A collision silently clobbers something a dozen screens away, and nothing warns you.
 A **sub-namespace under your own prefix is fine and encouraged** for a large art block: Chop Salad
 keeps its Fruity Personalities in `SLC_*` / `slc*` beneath `sl`.
+
+---
+
+## Design guidelines — soft, use them where they fit
+
+These are lessons from building the cabinets, most of them from COLD SHOT and TRACE ROUTE (Oct
+2026). They are **not rules**; Step 2 has the rules. Use a guideline when it makes the cabinet
+better and skip it when it doesn't fit. A calm puzzle like DEEP-SEA SWEEP needs far less madness than a shooter.
+
+1. **A companion, not a demo.** A cabinet set in a Sylly game's world borrows its look, its words
+   and one idea. It doesn't replay the party game. A good move is to flip a role, or take one
+   element and build a different arcade loop around it. COLD SHOT's first draft was Cold Shoulder
+   played solo and felt like a demo. Making you the heckler in the Drink, throwing at the penguins
+   on the ice, turned it into its own game.
+2. **An arcade loop you get in five seconds.** The score climbs all run, the danger is visible on
+   screen (ICE LOAD, The Depths rising), a run lasts 1–3 minutes, and one tap starts another go.
+3. **Controls that feel natural.**
+   - Things go the way the finger goes: left is left. Avoid a mirrored slingshot unless the fiction
+     really is one.
+   - Where you touch should mean something (touch where you want to throw), and the very first
+     touch should show feedback.
+   - Give each input one job. If one drag does two things (aim *and* power), split them so one
+     can't knock the other off.
+   - Forgive timing: buffer an input made a moment early. A throw released during the re-pack fires
+     when it's ready.
+   - Try it with a mouse as well as a thumb. A sloppy desktop drag shows up problems a phone hides.
+   - For steering, swipes beat buttons. TRACE ROUTE's controls were the stand-out with a kid: a
+     swipe of about 24 px anywhere on the stage sets the direction, up to two turns buffer, and
+     one drag can chain both (re-anchor the swipe's start point after each turn), so a quick
+     double-swipe is a U-turn. A turn that arrives within 90 ms *after* a would-be crash is
+     applied anyway. It forgives without feeling like cheating.
+4. **Make the skilful input worth it.** If spamming or flicking beats doing it properly, the game
+   feels cheap. Add a short cooldown or a power curve (a quick flick is a soft lob; only a full
+   wind-up hits hard), and label it on screen (LOB → FULL POWER!).
+5. **Variety and escalation.** The biggest jump in fun came from new things arriving. Waves each
+   introduce one new kind of enemy with its own look and behaviour, then mix them together. Keep
+   every new thing readable at a glance, and introduce it with a banner or callout.
+   **Escalate the space, not only the cast.** TRACE ROUTE's first build added one hazard and then
+   nothing new, so it stayed open and calm when it should have closed in. What fixed it: state
+   that carries between levels (the trace keeps its length, so the arena tightens the way
+   late-game snake does), one new element per level with its own boot banner, a timed surge
+   near the end of each level (LOCKDOWN), and an enemy that hunts you rather than patrols.
+   Ask of every level after the second: what is new here, and is there less room than before?
+6. **Power-ups that break your own rules.** Keep them short, all timed, and on the same clock.
+   Deliver them in-world (snowball the seagull carrying one), so grabbing one takes skill. Each
+   should bend the core limit: no cooldown, three at once, ploughs straight through.
+7. **Arcade madness, in proportion.** Go a little over the top: an announcer line for big moments,
+   speech bubbles from the characters, hit-stop, a flash, shake, slow motion and confetti, scaled
+   to how big the moment is. Show one big line at a time, never block input or hide the danger,
+   and keep it kid-friendly. Quieter cabinets get a smaller dose, and none get it on every frame.
+   **Translate it into the world's voice rather than dropping it.** A serious world gets the same
+   dose in its own register. TRACE ROUTE's announcer is dry system alerts (`>> DAEMON
+   TERMINATED`, `>> PACKET CHAIN ×3`) that resolve out of scrambled hex, with hit-stop and a flash
+   on the big moments, and still no exclamation marks.
+8. **Teach in play.** Show one short coach line the first time each new thing appears, once per
+   session. No instructions screen.
+   Pair the banner that announces a new thing with a small text box that says what it does, in one
+   or two plain sentences. TRACE ROUTE's play-test singled this out: each new element gets a
+   boot banner ("NEW PROCESS DETECTED: PATROL DAEMON", with the element drawn as it looks in
+   play), then a coach box the first time it shows up ("Patrol Daemon. Head contact terminates
+   the trace. Your trail deflects it."). Rules for the box: written in sentence case so a kid can
+   read it, in the world's voice, one box at a time (queue the rest), about 5 seconds each, and
+   placed away from the player so it never hides the danger.
+9. **Tune with numbers.** A headless bot run (Playwright, calling the cabinet's own update loop)
+   quickly checks run length and score spread before a phone play-test. Aim for about 1.5–3 minutes
+   for an average player. If the bot never runs out of time, the clock isn't a threat yet:
+   TRACE ROUTE's windows came down by a third once the bot showed that.
+10. **Make a fairness promise and prove it.** If the game promises something (the exit is never
+    sealed, nothing lands in front of you), write it as a rule in the code and have a bot run
+    count violations over hundreds of events. A check made when something is placed isn't
+    enough if it lands later: the player has moved by then. TRACE ROUTE's bot found exactly that.
+11. **The front door is part of the game.** The attract screen is the first taste of the world,
+    so build it from the world's own material, not a generic title card. TRACE ROUTE types
+    Net-Trace's real boot log out on the game clock (a tap skips it) while a demo trace snakes
+    round a dim Node behind it, then the title, one line of role, and a button worded in the
+    world (INITIALISE ▶). It's the model for how a cabinet's attract screen should feel.
+12. **Show the player their own run back.** A few hundred milliseconds replaying what the
+    player just did is cheap and very satisfying. TRACE ROUTE redraws the route you took after
+    each breach, the way Net-Trace plays back a trace, with the hop count and the latency.
+13. **Leave room for the build chat's own ideas.** A brief is a floor, not a ceiling. Given
+    little direction, TRACE ROUTE's chat made every visual call from the world itself (its
+    palette, its terminal conventions, its real copy) and added touches no brief asked for:
+    the route playback, the boot-log front door, the decrypting alerts. Those turned out to be
+    the best parts. So:
+    - **Briefs** say what the game is, why it's fun and which world it borrows. They name the
+      few things that are fixed and leave the look, the feel and the small moments open.
+    - **The build chat** treats the world's own material as its source: its documents, UI,
+      vocabulary and in-jokes. It adds one or two touches of its own that come from that
+      world, and names each one in the hand-off's *Decisions* line so it can be kept or cut.
+    - **Reviews** keep what worked, even when it wasn't asked for, and push on what didn't.
 
 ---
 
@@ -90,9 +183,10 @@ keeps its Fruity Personalities in `SLC_*` / `slc*` beneath `sl`.
 
 ### The only engine functions a cabinet may call
 
-`showScreen(id)` · `resetToLobby()` · `playSecretBeep(freq)` — plus the `isMuted` / `masterVolume`
+`showScreen(id)` · `resetToLobby()` · `playSecretBeep(freq)` · `arcExitCabinet()` (the ✕ button: back
+to the Arcade room) — plus the `isMuted` / `masterVolume`
 globals if it wants to respect the global mute itself. **Nothing else exists from a cabinet's point of
-view:** no `Music`, no `art.js`, no `mp*`, no `Physics`, no Firebase. All seven shipped cabinets stay
+view:** no `Music`, no `art.js`, no `mp*`, no `Physics`, no Firebase. Every shipped cabinet stays
 inside that surface.
 
 ---
@@ -117,15 +211,17 @@ and renames every noun (mines are sea mines, flags are marker buoys, DIG is a so
 ## Step 3 — Build it from this skeleton
 
 Copy it whole, rename `xx` / `XX_` / `<Name>` / `<id>`, then fill in the game. This is the shape all
-seven shipped cabinets share — the loop, the letterboxing, the pointer discipline and the leaderboard
+shipped cabinets share — the loop, the letterboxing, the pointer discipline and the leaderboard
 are already correct here, so deviating from them is nearly always a bug rather than a choice.
 
 ```js
 // ═══════════════════════════════════════════════════════════════════════════
 // <id>.js — ARCADE CABINET 0N. <one-line pitch>. Procedural canvas art.
 // NOT a Sylly Game: no multiplayer, no settings, no Sylly Mode, no gameplay
-// harness (registration is checked by tools/verify-arcade.js once it lands).
-// Depends on: engine.js (showScreen, resetToLobby), secret-mode.js (playSecretBeep)
+// harness (registration is checked by tools/verify-arcade.js; launch + exit by
+// tools/smoke-arcade.js — both run when Claude Code integrates it).
+// Depends on: engine.js (showScreen, resetToLobby), secret-mode.js (playSecretBeep),
+// arcade.js (arcExitCabinet)
 //  - Prefix `xx`. Screen id: screen-arcade-<id>. DOM: #xx-stage (pointer
 //    target, touch-action:none) wrapping #xx-canvas, plus #btn-xx-exit.
 //  - Teardown is wired by the ARC_CABINETS entry's `stop` field, NOT by editing
@@ -380,6 +476,7 @@ high-score entry, leaderboard, exit, re-enter, tab away and back. Check the cons
   // Stand-ins for the suite's engine.js / secret-mode.js
   function showScreen(id) { document.querySelectorAll('.screen').forEach(s => { s.style.display = s.id === id ? 'flex' : 'none'; }); }
   function resetToLobby() { showScreen('screen-lobby'); }
+  function arcExitCabinet() { showScreen('screen-lobby'); }   // without this, ✕ throws in the bench
   let benchAudio = null, benchMuted = false;
   function playSecretBeep(freq) {          // NES-style square blip
     if (benchMuted) return;
@@ -417,12 +514,25 @@ OFFLINE HAND-OFF — Arcade cabinet <TITLE> (id <id>, prefix xx)
 File:      <id>.js  (save to js/arcade/)
 Genre:     <the arcade ancestor>
 World:     <which Sylly game's world, or "house arcade palette">
+Label:     <ROOM LABEL>   (what the Arcade's list shows; usually XX_TITLE)
+Blurb:     <one line, ~60 characters, shown under the list — what the player does>
+Accent:    <#rrggbb>   (the list row's highlight colour; the world's signature colour)
 State:     built / play-tested on a phone / needs X
 Entry:     xxStart()            Teardown: resetArcade<Name>()
 Screen:    screen-arcade-<id>   DOM: #xx-stage, #xx-canvas, #btn-xx-exit
 Decisions: <anything non-obvious chosen deliberately>
 Open:      <anything unfinished or unverified>
 ```
+
+**Put the same block in the cabinet file's header comment** (under the HOW IT PLAYS notes) — the
+header is the one durable home for it; the roster does not carry hand-off blocks.
+
+Then **update `arcade-roster.md`** in two places only: add the cabinet's row (status **Built**, with a
+provisional number and a `*`) and its one-line summary, and add its prefix to the taken list — that
+reservation is what stops two parallel chats picking the same prefix. If the chat can't see the folder,
+give the user those two edits to paste in. **Leave the cabinet number as `0N` in the file header** and
+do not touch anything outside `js/arcade/`: Claude Code numbers it, registers it and flips the roster
+row to Shipped in one command (Step 6).
 
 ---
 
@@ -431,35 +541,56 @@ Open:      <anything unfinished or unverified>
 Do **not** attempt any of this offline; it needs the repo. It is recorded here so the offline chat
 knows what shape the file must be in, and so the hand-off carries the right facts.
 
-Integrating a cabinet touches **seven** seams. Every one of them fails silently:
+**Integration is one command**, run by Claude Code in the repo:
+
+```
+node tools/add-cabinet.js <id> --blurb "<the hand-off's Blurb>" --accent "<the hand-off's Accent>"
+```
+
+It reads the id, prefix, label, entry and teardown out of the cabinet file, does all seven seams below,
+numbers the cabinet, flips the roster row to Shipped, adds the code-map row, rebuilds `index.html` and
+runs `verify-build-fresh`, `verify-arcade` and `tools/smoke-arcade.js` (the cabinet launched through
+the real room, tapped, dragged, ✕'d and re-entered). A batch of cabinets is one command each and **one**
+SW bump (it bumps only if `sw.js` still matches git HEAD). That is why the hand-off block must carry
+**Label, Blurb and Accent**, and why the file must follow the skeleton: the tool refuses a cabinet whose
+✕ handler, `<prefix>Start()` or `resetArcade*()` it cannot find.
+
+The seams, for reference — every one fails silently if missed, and the tool does them all:
 
 | # | Seam | What breaks if it is missed |
 |---|------|-----------------------------|
 | 1 | `js/arcade/<id>.js` | — |
-| 2 | `SM_ARCADE` in `js/secret-mode.js` — `{ id, label, screen, start, stop }` | not listed in the terminal |
+| 2 | `ARC_CABINETS` in `js/lobby/arcade.js` — `{ id, label, screen, start, stop, blurb, accent }` | not listed in the Arcade room |
 | 3 | `allScreens[]` in `js/engine.js` | **ghost screen** — it never hides, and its canvas paints under every later screen |
 | 4 | Markup in `src/screens/_secret.html` | `getElementById` returns null and `start()` throws |
 | 5 | `<script src>` in `src/screens/_scripts-3.html` | `start()` is a ReferenceError on launch |
 | 6 | `sw.js` `PRECACHE_URLS` + a `CACHE_NAME` bump | the cabinet is missing **offline only** |
 | 7 | `node tools/build-index.js` | `index.html` is generated; a hand edit is silently overwritten |
 
-**`SM_ARCADE` is the registration.** Its entry carries `stop` beside `start`, both as lazy arrows (a
-cabinet's file loads *after* `secret-mode.js`), because `resetToLobby()` **and** the keyboard-Konami
+**`ARC_CABINETS` is the registration** (it was `SM_ARCADE` in `secret-mode.js` until SW v254). Its entry carries `stop` beside `start`, both as lazy arrows (a
+cabinet's file loads *after* `arcade.js`), because `resetToLobby()` **and** the keyboard-Konami
 guard both iterate the registry. That is what keeps "one entry + one file" honest: before SW v249 each
 of them named Asherplane directly, which meant six cabinets' RAF loops would have kept updating and
 painting underneath every later screen, and the arrow keys would have fed the Konami buffer while
 steering the game.
 
 ```js
-{ id: '<id>', label: '<TERMINAL LABEL>', screen: 'screen-arcade-<id>',
-  start: () => xxStart(), stop: () => resetArcade<Name>() },
+{ id: '<id>', label: '<ROOM LABEL>', screen: 'screen-arcade-<id>',
+  start: () => xxStart(), stop: () => resetArcade<Name>(),
+  blurb: '<one line>', accent: '<#hex>' },
 ```
 
-`node tools/verify-arcade.js` then checks all seven seams per cabinet plus the global-collision scans,
-and `node tools/mutate-arcade.js` proves that harness still goes red when a seam is broken.
+`node tools/verify-arcade.js` checks all seven seams per cabinet plus the global-collision scans,
+`node tools/mutate-arcade.js` proves that harness still goes red when a seam is broken, and
+`node tools/smoke-arcade.js [id]` is the real-browser launch/exit pass. **Always launch a cabinet
+through the room** (`arcLaunch`), never `cab.start()` directly: that skips the router's state and the
+lobby repaints underneath it.
 
-One sizing note: the terminal's cabinet list already needs a small scroll on an iPhone SE at seven
-rows. An eighth is fine, but at some point the list wants paging rather than more rows.
+One sizing note: the Arcade room's list scrolls inside its own panel (nine rows at SW v255; START stays
+reachable down to 320×452). Past a dozen or so the list wants paging rather than more rows.
+
+**When it ships:** in `arcade-roster.md`, set the status to **Shipped (SW vNNN)**, confirm its
+cabinet number, and move its hand-off block out of *Built, waiting to go into the real game*.
 
 ---
 

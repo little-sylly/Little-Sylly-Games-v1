@@ -1024,7 +1024,7 @@ stop all → room). State: `arcSel` (memory only). Ids: `#arc-list`, `#arc-blurb
 
 **Files:** `js/arcade/<id>.js` — one per cabinet. **Markup:** `src/screens/_secret.html` (cabinet screens only — moving them out is a deferred tidy-up).
 **Not Sylly Games:** no MP config, no identity doc, no Sylly Mode, no pack manifest, and
-`docs/rules/new-game-checklist.md` does not apply. Seven cabinets shipped SW v249.
+`docs/rules/new-game-checklist.md` does not apply. Seven cabinets shipped SW v249; COLD SHOT and TRACE ROUTE joined SW v255 (nine).
 
 **`ARC_CABINETS` (`js/lobby/arcade.js`; `SM_ARCADE` in secret-mode.js until SW v254) is the whole registration.** Every consumer reads it, so a
 cabinet is added with one entry + one file and nothing else:
@@ -1052,6 +1052,8 @@ cabinet is added with one entry + one file and nothing else:
 | 05 | COOKIE JAR | `cookiejar` | `hj` | `#screen-arcade-cookiejar` | `hjStart()` | `resetArcadeCookieJar()` |
 | 06 | STACKING ORDER | `stacking` | `sto` | `#screen-arcade-stacking` | `stoStart()` | `resetArcadeStacking()` |
 | 07 | BEYOND THE BLUFF | `bluff` | `bb` | `#screen-arcade-bluff` | `bbStart()` | `resetArcadeBluff()` |
+| 08 | COLD SHOT | `coldshot` | `csh` | `#screen-arcade-coldshot` | `cshStart()` | `resetArcadeColdShot()` |
+| 09 | TRACE ROUTE | `traceroute` | `trc` | `#screen-arcade-traceroute` | `trcStart()` | `resetArcadeTraceRoute()` |
 
 `resetArcade()` keeps its un-suffixed name because it predates the others and is what engine.js
 called before the registry existed. Every cabinet global is otherwise prefixed; sub-namespaces
@@ -1071,9 +1073,11 @@ steering.
 **Engine surface used:** `showScreen`, `resetToLobby`, `playSecretBeep`, `isMuted`,
 `masterVolume`. Nothing else — all art is drawn in code, all sound is `playSecretBeep`.
 
-**Harness:** `node tools/verify-arcade.js` (141 checks — every seam above, plus
+**Integrate:** `node tools/add-cabinet.js <id> --blurb … --accent #hex` does every seam below (SW v255). **Real-browser pass:** `node tools/smoke-arcade.js [id]`.
+
+**Harness:** `node tools/verify-arcade.js` (192 checks — every seam above, plus
 arcade↔production and arcade↔arcade global-collision scans) and `tools/mutate-arcade.js`
-(12 mutations, each must turn it red). Workshop/bench history: `js/arcade/_archive/`.
+(16 mutations, each must turn it red). Workshop/bench history: `js/arcade/_archive/`.
 
 ---
 

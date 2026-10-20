@@ -19,6 +19,9 @@ Detail: pointer to the canonical doc (snapshot / impl note / spec / memory).
 ```
 
 
+## 2026-10-20 — Arcade cabinets integrate by script, and have a real-browser smoke (Process)
+**Decision:** `tools/add-cabinet.js` does the seven identical seams in one command; `tools/smoke-arcade.js` launches every cabinet through the real room. **Why:** integration was mechanical, silent-fail boilerplate, and no harness proved a cabinet launches. **Changed:** two new tools; prompt Step 5/6 + hand-off block (Label/Blurb/Accent). **Detail:** `shared-implementation-notes.md` DD-59.
+
 ## 2026-10-19 — The Arcade leaves Secret Mode for a room of its own (Architecture)
 **Decision:** cabinets are a lobby *place* (router `arcade`, doors in every menu layout), always open; Secret Mode is packs + skins only. **Why:** the list will grow and is not a secret; a phone never keeps the Lounge, so it needed doors outside it before any prop. **Impact:** `ARC_CABINETS` in `js/lobby/arcade.js`, `screen-arcade`, Board 🔊 → header. Spec: `docs/superpowers/specs/2026-10-18-arcade-room-design.md`; detail: `shared-implementation-notes.md` DD-58.
 

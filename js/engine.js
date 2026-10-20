@@ -104,7 +104,7 @@ const allScreens = [
   // never hides (its canvas paints under every later screen).
   'screen-arcade-asherplane', 'screen-arcade-minesweeper', 'screen-arcade-chicken',
   'screen-arcade-slice', 'screen-arcade-cookiejar', 'screen-arcade-stacking',
-  'screen-arcade-bluff',
+  'screen-arcade-bluff', 'screen-arcade-coldshot', 'screen-arcade-traceroute',
 ];
 
 // ── Web Audio API ─────────────────────────────────────────────────────────────

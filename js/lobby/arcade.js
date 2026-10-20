@@ -43,6 +43,12 @@ const ARC_CABINETS = [
   { id: 'bluff',       label: 'BEYOND THE BLUFF', screen: 'screen-arcade-bluff',
     start: () => bbStart(),  stop: () => resetArcadeBluff(),
     blurb: 'Climb the dice cliff before The Depths catch you.', accent: '#ff6a86' },
+  { id: 'coldshot',    label: 'COLD SHOT',        screen: 'screen-arcade-coldshot',
+    start: () => cshStart(), stop: () => resetArcadeColdShot(),
+    blurb: 'Snowball the smug penguins off the floe. Don’t let it sink.', accent: '#8ecae6' },
+  { id: 'traceroute',  label: 'TRACE ROUTE',      screen: 'screen-arcade-traceroute',
+    start: () => trcStart(), stop: () => resetArcadeTraceRoute(),
+    blurb: 'Swipe the signal through the Node. Find the Egress.', accent: '#34d399' },
 ];
 
 const ARC_LAUNCH_MS = 260;   // the two-note "coin in" beat before the cabinet takes the screen

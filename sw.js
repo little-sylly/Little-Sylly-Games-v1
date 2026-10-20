@@ -1,7 +1,7 @@
 // Little Sylly Games — Service Worker v236
 // All assets are local — no external CDN URLs, no opaque response issues.
 
-const CACHE_NAME = 'sylly-games-v254';
+const CACHE_NAME = 'sylly-games-v255';
 
 const PRECACHE_URLS = [
   './',
@@ -80,6 +80,8 @@ const PRECACHE_URLS = [
   'js/arcade/cookiejar.js',
   'js/arcade/stacking.js',
   'js/arcade/bluff.js',
+  'js/arcade/coldshot.js',
+  'js/arcade/traceroute.js',
   'js/app.js',
   'js/lib/tailwind-play.js',
   'js/lib/canvas-draw.js',

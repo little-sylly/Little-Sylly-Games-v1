@@ -3,6 +3,15 @@
 Historical SW release notes, moved out of `CLAUDE.md` (1 Aug 2026) so they stop loading into every session.
 The **current** version and its notes stay in `CLAUDE.md` § Current Focus — append the outgoing entry here on each bump.
 
+## v254 — the Arcade leaves Secret Mode (19 Oct 2026). The arcade is now a **place in the house**, like the
+jukebox: always open, no Konami, no unlock. A 🕹️ door in Classic's places row, the Board's dock (🔊 moved to the
+Board's header, right of the controller) and TV's tools opens `screen-arcade` through the router (`arcadeOpen`/
+`arcadeClose`); a cabinet's ✕ returns to the room. Registry: `ARC_CABINETS` in `js/lobby/arcade.js` (was
+`SM_ARCADE`). Secret Mode is packs + skins only. Stage 1 of `docs/superpowers/specs/2026-10-18-arcade-room-design.md`
+— the room is plain; Stage 2 (cabinet design) and Stage 3 (Lounge prop) are open. No packet.
+
+
+
 ## v253 — the Lounge gets its own music (18 Oct 2026; v252 boot screen + telly). The lobby is no longer one
 track: the Lounge (and the jukebox / Workshop / stickerbook rooms behind its doors) plays **Around the Table**
 (`lobby:lounge` in `data/music/manifest.json`); Classic, TV and the Board keep **Old Toy Box** (`lobby`, the

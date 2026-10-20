@@ -12,7 +12,7 @@ the discovery record is kept there, not deleted. A section with nothing left ope
 
 ---
 
-## Arcade cabinets — six new ones integrated, none phone-tested (18 Oct 2026, SW v249)
+## Arcade cabinets — eight new ones integrated, none phone-tested (18 Oct 2026, SW v249; COLD SHOT + TRACE ROUTE SW v255)
 
 Integration and registration are done and verified (`tools/verify-arcade.js`, 141 checks;
 `mutate-arcade.js`, 12/12 red; a headless pass launching all seven through the real
@@ -23,7 +23,7 @@ Integration and registration are done and verified (`tools/verify-arcade.js`, 14
    Stage 3 — the Lounge prop (`lounge-props.js`, a hotspot `arcade` → optional `openArcade` door). Smaller: the
    cabinet screens still live in `src/screens/_secret.html`; move them beside the room when Stage 2 touches markup.
 
-1. **The owner's phone play-test — all seven cabinets** (the workshop notes flag six of them as
+1. **The owner's phone play-test — all nine cabinets** (TRACE ROUTE was phone-tested in the workshop; COLD SHOT's wave pacing and gull frequency were not) (the workshop notes flag six of them as
    "built, awaiting a phone play-test"; ASHERPLANE's revamp and DEEP-SEA SWEEP's reskin too).
    Per cabinet: every state (start, play, lose, score, high-score entry, exit), one-handed reach,
    and the drag feel on the ones steered by dragging (ASHERPLANE, BEYOND THE BLUFF).
@@ -33,9 +33,8 @@ Integration and registration are done and verified (`tools/verify-arcade.js`, 14
 3. **The offline install check** — SW v249 precaches ~516 KB of new cabinet JS. Confirm a cold
    offline install still boots and every cabinet launches (code is always precached, so this should
    hold; it has not been checked on a device).
-4. **Cabinet count vs the terminal list.** Seven rows now need a 5 px scroll on an iPhone SE
-   (`#screen-secret-terminal` is the scroller since v249 — `shared-implementation-notes.md` DD-55).
-   An eighth cabinet pushes further; at that point consider paging the list rather than growing it.
+4. **Cabinet count vs the room list.** Nine rows scroll inside `#arc-list` (checked 375×667 / 375×548 / 320×452, START always
+   reachable; at 320×452 only ~2½ rows show at once). Stage 2 of the room design should decide paging vs a grid before a tenth.
 5. **`fruity-personalities/`** — the workshop notes describe a standalone copy of Chop Salad's
    code-drawn fruit art kept for a possible swap of Fruit Salad's PNG card faces. It was **not** in
    the folder handed over, so it exists only in the owner's offline workspace if at all. Decide
