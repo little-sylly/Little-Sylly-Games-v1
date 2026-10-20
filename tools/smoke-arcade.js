@@ -172,6 +172,47 @@ const shown = pg => pg.evaluate(() => [...document.querySelectorAll('section[id^
   ok(await pg.evaluate(() => arcPrev === null), 'arcStop() stops it');
   await pg.evaluate(() => arcPreviewPlay(arcSel)); await pg.evaluate(() => resetToLobby()); await pg.waitForTimeout(300);
   ok(await pg.evaluate(() => arcPrev === null && document.getElementById('screen-arcade').style.display === 'none'), 'resetToLobby() with a preview running stops it');
+
+  /* ── the ring (SW v260, spec § 3.3): one scene of the real cabinets, ONE loop, released with the room.
+     Rules and state only — how it looks is visual-check's job. Skipped where the browser has no WebGL. */
+  console.log('\n── the ring');
+  await pg.evaluate(() => { arcSel = 3; lobbyDispatch({ t: 'arcadeOpen' }); });
+  if (!(await pg.evaluate(() => !!arcGl))) {
+    ok(await pg.evaluate(() => typeof lobbyWebgl !== 'undefined' && lobbyWebgl === false && !document.querySelector('#arc-list.is-gl')),
+      'no ring: only because there is no WebGL, and the CSS row stands instead');
+  } else {
+    await pg.waitForFunction(() => arcGl && arcGl.ms.first !== null, null, { timeout: 120000 });   // software GL compiles slowly
+    const ms = await pg.evaluate(() => arcGl.ms);
+    console.log(`     (first open: build ${ms.build} ms, first frame ${ms.first} ms — software GL)`);
+    ok(await pg.evaluate(() => arcGl.cabs.length === ARC_CABINETS.length && document.querySelectorAll('#screen-arcade .arc-gl').length === 1),
+      'one canvas, one cabinet model per ARC_CABINETS entry');
+    ok(await pg.evaluate(() => arcRaf !== null), 'the room runs its one loop');
+    // the scroll turns the ring, and the cabinet that comes round does a turn
+    await pg.evaluate(() => { arcGl.lastBeat = ''; const t = document.getElementById('arc-list'); t.scrollLeft += arcGl.pitch; });
+    await pg.waitForFunction(() => arcSel === 4 && arcGl.live === 4, null, { timeout: 60000 });
+    ok(await pg.evaluate(() => Math.abs(arcGl.ring.rotation.y + 4 * arcGl.step * Math.PI / 180) < 0.02), 'one pitch of scroll turns the ring one step');
+    ok(await pg.evaluate(() => arcGl.lastBeat !== ''), 'the cabinet that comes round to the front plays an arrival beat');
+    // a tap on a neighbour's model selects it
+    const at = await pg.evaluate(() => {
+      const g = arcGl, h = g.cabs[5].holder, p = h.localToWorld(new THREE.Vector3(0, 0.12, 0)).project(g.cam), r = g.canvas.getBoundingClientRect();
+      return { x: r.left + (p.x + 1) / 2 * r.width, y: r.top + (1 - p.y) / 2 * r.height };
+    });
+    await pg.mouse.click(at.x, at.y);
+    await pg.waitForFunction(() => arcSel === 5, null, { timeout: 30000 }).catch(() => {});
+    ok(await pg.evaluate(() => arcSel === 5), 'a tap on a neighbour\'s model selects it');
+    // the launch: the press, INSERT COIN, the push-in — then no loop while the cabinet plays, the ring kept
+    await pg.evaluate(() => arcLaunch(ARC_CABINETS[arcSel].id));
+    ok(await pg.evaluate(() => !!arcGl.coin && (!!arcGl.push || arcReducedMotion())), 'a launch shows INSERT COIN and pushes into the glass');
+    await pg.waitForFunction(() => arcLaunchTimer === null, null, { timeout: 30000 });
+    ok(await pg.evaluate(() => arcRaf === null && !!arcGl), 'while a cabinet plays: no loop, the ring kept for the way back');
+    await pg.evaluate(() => arcExitCabinet());
+    ok(await pg.evaluate(() => arcRaf !== null && !!arcGl && arcGl.push === null), '✕ back to the room: the same ring, the loop running again');
+    await pg.evaluate(() => arcStop());
+    ok(await pg.evaluate(() => arcRaf === null && arcGl === null && !document.querySelector('#screen-arcade .arc-gl')), 'arcStop() stops the loop and releases the renderer');
+    await pg.evaluate(() => lobbyDispatch({ t: 'arcadeOpen' })); await pg.waitForTimeout(300);
+    await pg.evaluate(() => resetToLobby()); await pg.waitForTimeout(300);
+    ok(await pg.evaluate(() => arcRaf === null && arcGl === null && !document.querySelector('#screen-arcade .arc-gl')), 'resetToLobby() with the ring up releases it');
+  }
   {
     await ctx.close();   // one page at a time: two busy pages starve each other's load event
     const rctx = await browser.newContext({ viewport: { width: 375, height: 667 }, reducedMotion: 'reduce', serviceWorkers: 'block' });
@@ -180,6 +221,7 @@ const shown = pg => pg.evaluate(() => [...document.querySelectorAll('section[id^
     await rp.waitForFunction(() => typeof lobbyDispatch === 'function', null, { timeout: 30000 }); await rp.waitForTimeout(1500);
     await rp.evaluate(() => lobbyDispatch({ t: 'arcadeOpen' })); await rp.waitForTimeout(500);
     ok(await rp.evaluate(() => arcPrev === null), 'reduced motion: no screen runs live');
+    ok(await rp.evaluate(() => arcRaf === null), 'reduced motion: the room runs no loop (the ring draws on scroll)');
     ok(await rp.evaluate(() => { const cv = document.querySelector('#arc-list .arc-row.is-sel .arc-crt-view');
       const d = cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data; let lit = 0;
       for (let k = 3; k < d.length; k += 4) if (d[k] > 0) lit++; return lit > d.length / 8; }), 'reduced motion: the screen still shows its still frame');

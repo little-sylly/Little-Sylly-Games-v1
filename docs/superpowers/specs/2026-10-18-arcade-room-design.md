@@ -141,6 +141,68 @@ seeded score; `arcStop()` / `resetToLobby()` stop a running preview. `verify-lou
 `visual-lobby.js` § 19 re-run; `visual-check` the Floor at 375×667 / 375×548 / 320×452 and desktop,
 with and without WebGL.
 
+### 3.3 Stage 5 — the Floor is a live 3D ring (owner, 21 Oct 2026)
+
+**Why:** 4a's one picture per row, turned by CSS `rotateY`, is a flat card swinging — it distorts, and
+it never shows a side. The owner asked for the cabinets on a circle, the centred one facing us, and
+for the Floor to have the cabinets' own over-the-top energy ("since we are using the actual props,
+when we spin to a cabinet it should execute one of its animations"). Creative lead handed over.
+*Supersedes § 3.2 4a (the rendered picture, `arcModelShot`, the DOM overlays at projected rects) and
+4a's "still no RAF loop in the room".* 4b (preview adapters, `best`) and 4c stand unchanged.
+
+- **One scene, one renderer.** `#arc-gl`, a canvas behind the row, holds ONE Three.js scene: every
+  cabinet a real `louBuildArcade` (lite lib), stood on a ring of radius R, fronts out, one step θ
+  apart. The centred one faces the camera; its neighbours turn away and sit back along the curve,
+  so you see their side profile (hood, tipped CRT, jutting deck). Camera a little above, looking
+  down onto the decks. Only cabinets within 3 steps are drawn. No env map, NoToneMapping, sRGB out,
+  white hemisphere + key + rim as in 4a, plus ONE accent point light in front of the centred
+  cabinet (its colour follows the selection — a colour change recompiles nothing).
+- **The faces are textures.** The builder gains `opts.faces = { screen, marquee }` (two canvases the
+  Floor owns) in place of `blank`: the glass and the marquee wear them as emissive maps, the screen
+  glow is on in the cabinet's accent, and every beat (flicker on the marquee, the HI lamp, the hop)
+  works as in the Lounge. No bump speckle on the Floor build. The marquee canvas = `NN NAME` in the
+  accent, painted once. The screen canvas = the game's preview (`.arc-crt-view`, a fixed-size
+  canvas of the glass's aspect) composited with HI, PRESS START (the centred one; blinking) and
+  scanlines — the composite is the texture, so a still can be repainted without its PRESS START.
+- **The row stays the input.** `#arc-list` keeps its rows (one per cabinet, layout + scroll-snap
+  box, never transformed), now invisible hit-boxes one *projected pitch* wide (the screen distance
+  from the centred cabinet to its neighbour), so a swipe of one pitch turns the ring one step.
+  The ring's angle is read from `scrollLeft` every frame, so it follows the finger and native snap
+  settles it. A tap is resolved against the projected cabinets (front-most wins): the centred one
+  launches, a neighbour is selected. Keys, strip, observer, `arcSel` unchanged.
+- **Energy.** (1) Arrival: when the selection settles on a cabinet, it plays one of its own beats
+  (`ghost` / `twitch` / `flicker` / `hiscore`, never twice running); then its own idle beats carry
+  on while it is centred. (2) Open: the ring spins in from 1.5 steps away and settles (650 ms,
+  ease-out). (3) Launch: the cabinet's `press` (stick snaps, buttons flash), INSERT COIN flickers on
+  its glass, and the camera pushes into the CRT over the 480 ms coin beat before the cabinet takes
+  the screen. (4) A lit floor: an accent pool under the centred cabinet, a soft contact shadow under
+  each.
+- **One loop.** The room's RAF (`arcLoop`) steps the live preview, ticks the centred cabinet, reads
+  the scroll and renders. It replaces the preview's own RAF (`arcPrev` keeps no handle). Stopped by
+  `arcStop()` (so `arcClose`, `resetToLobby()`), and the renderer is disposed there and before a
+  cabinet's `start()` (`dispose()` + `forceContextLoss()`); the built cabinets are kept per
+  controller design for the session, so a re-open re-uploads but does not rebuild. **Reduced
+  motion:** no loop — the scene renders once per scroll event, still frames, no beats, no spin-in,
+  no push-in. Resize → refit camera + pitch (a ResizeObserver, disconnected in `arcStop`).
+- **No WebGL** (`lobbyWebgl === false`, or a build/renderer that throws) → the CSS cabinet row,
+  flattened: no CSS ring (it was the distortion), neighbours just smaller and dimmer.
+- **Budget:** zero new bytes (Three.js, `lounge-lib.js`, `lounge-props.js` already load). Time the
+  first open (build + first render) and record it; target < 250 ms on a desktop, and say if a phone
+  needs lazy building (build only the cabinets within 3 steps).
+- **Review:** the ring is parametric (`ARC_RING`: radius, step, camera lift). Ship one pick and hand
+  the owner screenshots of 2–3 settings at 375×667.
+
+**Not this stage:** the model itself (owner's list for next: a larger screen, controls lower, ears
+integrated more seamlessly — the mock-up's detail).
+
+**Verification (named up front):** `smoke-arcade.js` (the preview contract unchanged: `.arc-crt-view`
+paints, `arcPrev` follows the selection and stops at launch / `arcStop` / `resetToLobby`; NEW: the
+room's loop is cancelled on all three, the renderer disposed, reduced motion runs no loop);
+`verify-lounge-props.js` (the `faces` build: the glass and marquee wear the given canvases, glow on,
+no bump; `blank` checks retired); `verify-arcade.js` + `mutate-arcade.js`; `verify-lobby-router.js`;
+`visual-lobby.js`; `verify-build-fresh.js`. `visual-check` at 375×667 / 375×548 / 320×452 / desktop,
+with and without WebGL.
+
 ## 4. Stages
 
 | Stage | Contents | Ships as |
@@ -149,6 +211,7 @@ with and without WebGL.
 | **2. The room** | The cabinet/select-screen design to jukebox quality | SW v257 (shipped) |
 | **3. Lounge prop** | 3D cabinet in `lounge-props.js`, hotspot `arcade` → `openArcade` (optional, with fallback), `lobby-doors.js` door | SW v258 (shipped) |
 | **4. The real model on the Floor** | § 3.2: 4a the rendered cabinet + marquee number/name, 4b live menu-scene previews + PRESS START + HI, 4c cabinet screens' chrome | SW v259 (shipped) |
+| **5. The live ring** | § 3.3: one Three.js scene of real cabinets on a ring, faces as textures, arrival beats, spin-in, push-in launch | SW v260 |
 
 Each stage ships on its own; Stage 1 alone is a complete, shippable change.
 

@@ -1472,18 +1472,25 @@ section('arcade cabinet (SW v258)');
     ok(hopped, 'the fallback bop hops'); ok(atRest(), 'and lands');
     a.startBeat('hiscore'); a.tick(95000, 0.02, false); a.tick(95500, 0.02, false); a.reset(); ok(atRest() && a.currentBeat() === null, 'reset() puts it back as it rests'); }
   { const S = require(path.join(ROOT, 'js/lounge/lounge-sfx.js')); ok(S.LOU_SFX_VOICES.includes('arcadeCoin'), 'lou-sfx has the arcadeCoin voice'); }
-  /* SW v259 — the Arcade Floor's portrait of it (spec § 3.2 4a): a LITE lib (no room material set)
-     builds it, `blank` paints no glass and names the faces the Floor lays its DOM over. */
+  /* SW v260 — the Arcade Floor's ring (spec § 3.3): a LITE lib (no room material set) builds it, and
+     `faces` hands it the Floor's own two canvases to wear as the CRT and the marquee. */
   { const lite = LouLib.louCreateLib(THREE, { makeCanvas, smoothNormals: CB.smoothNormals, lite: true });
     eq(Object.keys(lite.mats).join(','), 'black', 'a lite lib carries only the fixed black — no room textures built');
-    const b = P.louBuildArcade(lite, global.__prmCtx.design, null, null, { blank: true }), F = b.userData.louArcadeFaces;
-    ok(F && F.screen.mesh.name === 'screen' && F.marquee.mesh.name === 'marqueeGlass', 'blank: names its CRT and marquee glass');
+    const screen = makeCanvas(480, 260), marquee = makeCanvas(512, 80);
+    const b = P.louBuildArcade(lite, global.__prmCtx.design, [{ label: 'TEST', accent: '#ff6a86' }], null, { faces: { screen, marquee } }), F = b.userData.louArcadeFaces;
+    ok(F && F.screen.mesh.name === 'screen' && F.marquee.mesh.name === 'marqueeGlass', 'faces: names its CRT and marquee glass');
     ok(F.screen.w > F.screen.h && F.marquee.w > F.marquee.h, 'and their sizes');
-    ok(!F.screen.mesh.material.map && !F.marquee.mesh.material.map, 'blank: neither glass carries a picture');
-    ok(!b.getObjectByName('screenGlow').visible, 'blank: no screen glow');
-    eq(b.userData.api.attract(5, false), false, 'blank: the CRT never paints');
-    let bumped = 0; b.traverse(o => { if (o.isMesh && o.material.bumpMap) bumped++; }); eq(bumped, 0, 'blank: no speckle bump (a close portrait reads it as blotches)');
-    ok(b.getObjectByName('coinLamp'), 'the coin lamp is findable for the Floor\'s lamp dot'); }
+    ok(F.screen.mesh.material.map === F.screen.tex && F.screen.tex.image === screen, 'faces: the CRT wears the screen canvas it was given');
+    ok(F.marquee.mesh.material.map === F.marquee.tex && F.marquee.tex.image === marquee, 'faces: the marquee wears the marquee canvas');
+    ok(F.screen.mesh.material.emissiveMap === F.screen.tex && F.marquee.mesh.material.emissiveMap === F.marquee.tex, 'and both are lit by them');
+    ok(b.getObjectByName('screenGlow').visible, 'faces: the screen glow is on');
+    eq('#' + b.getObjectByName('screenGlow').material.color.getHexString(), '#ff6a86', "in the cabinet's own accent");
+    eq(b.userData.api.attract(5, false), false, 'faces: the CRT never paints its own picture');
+    let bumped = 0; b.traverse(o => { if (o.isMesh && o.material.bumpMap) bumped++; }); eq(bumped, 0, 'faces: no speckle bump (a close view reads it as blotches)');
+    const a = b.userData.api; let threw = false;
+    try { ['ghost', 'twitch', 'flicker', 'hiscore'].forEach((n, k) => { a.startBeat(n); for (let t = 0; t <= 1700; t += 50) a.tick(200000 + k * 5000 + t, 0.05, false); }); } catch (_) { threw = true; }
+    ok(!threw, 'faces: every beat runs on the Floor build');
+    ok(b.getObjectByName('coinLamp'), 'the coin lamp is findable'); }
   { const f = P.LOU_BUILDERS.arcade(Object.assign({}, global.__prmCtx, { sfx: undefined })); let threw = false;
     try { f.userData.api.press(false); f.userData.api.startBeat('ghost'); f.userData.api.tick(1, 0.02, false); } catch (_) { threw = true; }
     ok(!threw, 'a host with no sfx presses silently'); }

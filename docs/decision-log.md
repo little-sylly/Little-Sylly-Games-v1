@@ -19,6 +19,9 @@ Detail: pointer to the canonical doc (snapshot / impl note / spec / memory).
 ```
 
 
+## 2026-10-21 — The Arcade Floor is one live 3D scene: the real cabinets on a ring (Architecture)
+**Decision:** the Floor draws every cabinet as the real `louBuildArcade` model in ONE Three.js scene on a ring (centred one steps out, neighbours show their sides), with the game previews and marquees as canvas textures; the invisible scroll-snap row stays the input; one loop; the renderer lives with the arcade and is released by `arcStop()`. Reverses § 3.2's rendered picture (and its "no RAF in the room"). **Why:** owner — a flat PNG turned by CSS distorted and showed no sides; the Floor should have the cabinets' own over-the-top energy. **Changed:** `js/lobby/arcade.js`, `css/arcade.css`, `lounge-props.js` (`blank` → `faces`), `tools/smoke-arcade.js`, `tools/verify-lounge-props.js`, SW v260. **Detail:** spec § 3.3; `shared-implementation-notes.md` DD-63.
+
 ## 2026-10-21 — The Arcade Floor shows the real model, and each cabinet's screen is its game (Strategy)
 **Decision:** the Floor's cabinets are a one-off WebGL render of the Lounge's cabinet (CSS cabinet kept as the no-WebGL fallback), the marquee carries number + name, and the screen runs the centred cabinet's own attract scene through an optional `preview` adapter (+ `best` for a HI line). Reverses § 3.1's "DOM/CSS cabinets, no WebGL". **Why:** owner — the model is barely visible in the Lounge and the CSS stick/buttons read wrong; the game's own menu scene is a better preview than its blurb. **Changed:** `js/lobby/arcade.js`, `css/arcade.css`, all nine `js/arcade/*.js`, `src/screens/arcade.html`, `lounge-lib.js` (`lite`), `lounge-props.js` (`blank`), `secret-mode.js`, `tools/add-cabinet.js`, `arcade-cabinet-prompt.md`, SW v259. **Detail:** spec § 3.2; `shared-implementation-notes.md` DD-62.
 

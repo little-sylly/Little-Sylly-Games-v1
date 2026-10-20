@@ -18,8 +18,9 @@ Integration and registration are done and verified (`tools/verify-arcade.js`, 14
 `mutate-arcade.js`, 12/12 red; a headless pass launching all seven through the real
 `smLaunchArcade()` path — since SW v254 `arcLaunch()` in the Arcade room). What is left is the half no harness covers.
 
-0. **The Arcade Floor (SW v257; the real model + live screens SW v259) wants its own phone pass** — the swipe/snap feel and
-   the strip's drag; **time the first open** (`arcModelShot`: ~0.3 s in software GL, unmeasured on a phone GPU) and watch
+0. **The Arcade Floor (SW v257; live screens SW v259; the 3D ring SW v260) wants its own phone pass** — the swipe/snap feel
+   (does a pitch of swipe per step feel right?) and the strip's drag; **time the first open** (`arcGl.ms`: build ~100 ms,
+   first frame ~0.3 s in software GL at 1×, unmeasured on a phone GPU — if slow, build only the cabinets within 3 steps) and watch
    the live preview's battery/heat over a few minutes; check each screen's crop band (`fy`) reads on the real glass. (The spec's
    Stage 3, the Lounge prop, shipped SW v258 — moved to `deferred-work-log.md`.) The Lounge cabinet itself wants an
    owner look on a real widescreen: its x / z / turn were set from one SwiftShader render.

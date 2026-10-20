@@ -1025,13 +1025,22 @@ cabinets from `ARC_MACHINE_HTML`), `arcWatchCentre` (an `IntersectionObserver`, 
 selection follows the swipe; no RAF, no scroll timer), `arcCentre(smooth)`, `arcRenderStrip`, `arcPaintSel`,
 `arcPaintPalette` (`ctlReadDesign()` → `--arc-shell/plate/ears/buttons` on the room), `arcSelect(i)` (clamped — a row,
 not a ring), `arcScrubAt`, `arcLaunch(id)` (`.is-coin` → INSERT COIN, two notes, `ARC_LAUNCH_MS` 480),
-`arcExitCabinet()` (every cabinet's ✕: stop all → room). SW v259 (spec § 3.2, DD-62): `arcModelShot(design)` (renders the
-Lounge's cabinet once → `arcShot { key, url, screen, marquee, lamp }`, cached per design; `arcShotFailed` → the CSS cabinet),
-`arcPlaceShot` (the overlays' `--mq*/--sc*/--lp*` on `#arc-list.is-shot`), `arcDesign()` (the room's four role colours),
-`arcBest(cab)`, the preview driver `arcPreviewSetup` / `arcPreviewStill` / `arcPreviewPlay` / `arcPreviewStop` / `arcQuiet`
-(state `arcPrev` — the one live RAF — and `arcPreviewQuiet`, read by `playSecretBeep`), `arcDressCabinet(cab, i)` (palette,
-accent and number onto a cabinet screen at launch). Markup constants `ARC_MARQ_HTML`, `ARC_CRT_HTML`, `ARC_MACHINE_HTML`
-(CSS fallback), `ARC_SHOT_HTML`; row classes `.arc-m-num`/`.arc-m-name`, `.arc-crt-view` (canvas), `.arc-crt-hi`, `.arc-m-shot`.
+`arcExitCabinet()` (every cabinet's ✕: stop all → room). SW v259 (spec § 3.2, DD-62): `arcDesign()` (the room's four role
+colours), `arcBest(cab)`, the preview driver `arcPreviewSetup` / `arcPreviewStill` / `arcPreviewPlay` / `arcPreviewStop` /
+`arcQuiet` (state `arcPrev { i, a }` and `arcPreviewQuiet`, read by `playSecretBeep`), `arcDressCabinet(cab, i)` (palette,
+accent and number onto a cabinet screen at launch). **SW v260 — the ring (spec § 3.3, DD-63):** the room's ONE loop
+`arcLoop` (`arcRaf`, `arcLoopStart`/`arcLoopStop` — steps the live preview, draws the ring); `arcGlStart(track)` (builds
+every cabinet as `louBuildArcade(…, { faces })` on a lite lib into one scene + renderer → `arcGl { key, scene, ring, cabs[],
+cam, renderer, canvas .arc-gl, light, pool, beams, step, R, pitch, live, spin, push, coin, ms }`; `arcGlFailed` → the CSS
+row), `arcGlFit` (camera, ring radius `arcRingR(step)`, `--arc-pitch`/`--arc-ct`/`--arc-ch` on the row), `arcGlU` (ring
+position from `scrollLeft`), `arcGlPose(u)`, `arcGlFrame`, `arcGlPush` (launch push-in), `arcGlRender` (one draw outside the
+loop), `arcGlOnScroll` (reduced motion), `arcGlOnClick` (raycast tap → select/launch), `arcGlRelease` (disposes all + context
+loss; from `arcStop()` unless `arcStop(true)` — `arcOpen`, so a cabinet's ✕ keeps the ring), `arcPaintFace(i, now)` (the
+glass texture: `.arc-crt-view` + HI + PRESS START + INSERT COIN), `arcPaintMarquee`, `arcPickBeat`. Constants `ARC_RING`
+(step/stepWide/gap/lift/fov/fill/cy/out — mutable for review), `ARC_RING_SHOW`, `ARC_FACE_W/H`, `ARC_MARQ_W/H`, `ARC_SPIN_MS`,
+`ARC_BEATS`. Markup constants `ARC_MARQ_HTML`, `ARC_CRT_HTML`, `ARC_MACHINE_HTML` (CSS fallback), `ARC_GL_ROW_HTML` (a ring
+row: the hidden fixed-size `.arc-crt-view` + an `.arc-sr` label); `#arc-list.is-gl` on the ring; row classes
+`.arc-m-num`/`.arc-m-name`, `.arc-crt-view` (canvas), `.arc-crt-hi`.
 Registry fields `preview` / `best` (optional) → each cabinet's `xxPreview()` / `xxBest()` + `xxPreviewing` flag. Cabinet screen
 header: `.arc-cab-head` > `.arc-cab-title` (`.arc-cab-num`) + `.arc-cab-tools` (`.arc-icon` ×2). State: `arcSel` (memory only), `arcObserver`,
 `arcScrubbing`/`arcScrubDragged`. Constants: `ARC_LAUNCH_MS`, `ARC_COIN_NOTE_MS`, `ARC_TICKS_MAX` (12 — past it the
