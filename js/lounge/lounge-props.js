@@ -48,9 +48,14 @@
        the painting; a host with no openPainting leaves the frames as plain wall art. */
     'painting-a':     { callback: 'openPainting', arg: 'birches', optional: true },
     'painting-b':     { callback: 'openPainting', arg: 'toucan',  optional: true },
+    /* The arcade cabinet in the bookshelf's bottom bay (SW v258). The jukebox's
+       shape: a supplied openArcade pushes in on the CRT and then the host opens
+       the Arcade; no host, and the cabinet bops. `press` names the prop api the
+       scene calls first either way — START flashes, the stick snaps, the coin drops. */
+    'arcade':         { callback: 'openArcade', optional: true, fallback: 'bop', pushIn: 'arcade', press: 'press' },
   };
   /* Keyboard / remote order, spec § 9.2. */
-  const LOU_TAB_ORDER = ['tv-screen', 'jukebox-knob', 'jukebox-record', 'painting-a', 'painting-b', 'dial', 'binder', 'phone', 'controller', 'lamp'];
+  const LOU_TAB_ORDER = ['tv-screen', 'jukebox-knob', 'jukebox-record', 'painting-a', 'painting-b', 'dial', 'binder', 'phone', 'controller', 'arcade', 'lamp'];
   /* World placement per prop group. y values sit on the room's surfaces
      (lounge-room.js louRoom): bench top 0.52, table top 0.44, arm top 0.58,
      side table top 0.565. x/z mirror louRoom's tableX/tableZ/benchZ — keep
@@ -66,6 +71,7 @@
     'painting-a':  { pos: [-0.88, 1.18, -1.55] },                      // on the back wall (louRoom backZ), above the jukebox — over the telly they cluttered it
     'painting-b':  { pos: [-0.52, 1.06, -1.55] },
     lamp:          { pos: [ 1.52, 0.43, -1.425] },                     // the shelf's LOWEST board, 15 mm proud of centre so a swinging photo clears the back panel
+    arcade:        { pos: [ 1.28, 0.10, -1.43], rot: [0, -0.20, 0] },  // the bottom bay (base board top, louShelf.baseY), left of the lamp, turned a little toward the couch
     shelfContents: { pos: [0, 0, 0] },
   };
   /* Builders register here, one per task: id → (ctx, shared) => Group. */
@@ -3188,6 +3194,284 @@
   }
   LOU_BUILDERS.shelfContents = (ctx) => louBuildShelf(ctx.lib, ctx.roomData && ctx.roomData.louShelf);
 
+  /* ── The arcade cabinet (spec 2026-10-18 § 3.1, SW v258) ──────────────────────
+     The Arcade Floor's own cabinet, in the bookshelf's bottom bay: the bear's
+     round ears on the panda's one-piece body. A tap pushes in on its CRT and the
+     host opens the Arcade (openArcade, optional — no host, and it answers with a
+     bop). The room's DOM cabinets (css/arcade.css .arc-m-*) are the reference,
+     and it wears the same four roles: body `shell`, marquee frame, bezel, deck
+     and inner ears `plate`, ears `ears`, stick ball and buttons `buttons`. The
+     coin door is the shell a shade darker; the glass is fixed black.
+
+     ONE extrusion makes the body: the classic side profile (hood, marquee, a
+     CRT tipped back under the hood, a control deck jutting out, the lower front)
+     swept across the cabinet's width. The plates are 2 cm narrower than it, so
+     the shell rims every one of them — the inset faceplate. ~22 meshes, a few
+     thousand triangles: it never needs skipProps.
+
+     The CRT repaints through the scene's 10 fps attract loop (api.attract), and
+     only when what it shows changes: the cabinet names in their accents, INSERT
+     COIN blinking. */
+  const LOU_ARCADE_CYCLE_S = 2.4;   // each cabinet's name holds this long on the CRT
+  const LOU_ARCADE_FALLBACK = [{ label: 'ARCADE', accent: '#3fa9ff' }];
+  /* A closed outline from [x, y, r] corners, each rounded by its own radius
+     (clamped to half of either edge). Any angle, unlike lib.roundPoly. */
+  function louRoundedOutline(THREE, pts) {
+    const s = new THREE.Shape(), n = pts.length;
+    for (let i = 0; i < n; i++) {
+      const [x, y, r] = pts[i], p = pts[(i + n - 1) % n], q = pts[(i + 1) % n];
+      const lp = Math.hypot(p[0] - x, p[1] - y), lq = Math.hypot(q[0] - x, q[1] - y), k = Math.min(r, lp / 2, lq / 2);
+      const a = [x + (p[0] - x) * k / lp, y + (p[1] - y) * k / lp], b = [x + (q[0] - x) * k / lq, y + (q[1] - y) * k / lq];
+      if (i === 0) s.moveTo(a[0], a[1]); else s.lineTo(a[0], a[1]);
+      s.quadraticCurveTo(x, y, b[0], b[1]);
+    }
+    s.closePath(); return s;
+  }
+  /* The CRT. paint(state) draws only when the frame it would draw differs from
+     the last one, and says whether it did. state: { t, reduced, score, hiscore,
+     start } — the two flashes are 0 (off), 1 (lit) or 2 (between blinks), so the
+     beat that owns a flash also owns its rhythm. */
+  function louArcadeScreen(makeCanvas, cabinets) {
+    const W = 384, H = 208, c = makeCanvas(W, H), x = c.getContext('2d');
+    let lastKey = null, frames = 0;
+    const at = (t) => Math.floor(t / LOU_ARCADE_CYCLE_S) % cabinets.length;
+    /* Sized from the character count (Fredoka bold runs ~0.62 em a glyph), never measureText:
+       a builder reads nothing back from a context (verify-lounge-props.js's mock refuses it). */
+    function fit(text, px, maxW) { x.font = 'bold ' + Math.max(14, Math.min(px, Math.floor(maxW / (String(text).length * 0.62)))) + 'px Fredoka, sans-serif'; }
+    function paint(st) {
+      const i = st.reduced ? -1 : at(st.t), blink = Math.floor(st.t * 2) % 2 === 0;
+      const key = st.reduced ? 'title' : [i, blink ? 1 : 0, st.score === null ? '' : st.score, st.hiscore, st.start].join('|');
+      if (key === lastKey) return false;
+      lastKey = key; frames++;
+      const cab = i < 0 ? null : cabinets[i], accent = cab ? cab.accent : '#ffe7a3';
+      x.fillStyle = '#060609'; x.fillRect(0, 0, W, H);
+      const gr = x.createRadialGradient(W / 2, H / 2, 10, W / 2, H / 2, W * 0.55);
+      gr.addColorStop(0, accent + '40'); gr.addColorStop(1, accent + '00');
+      x.fillStyle = gr; x.fillRect(0, 0, W, H);
+      x.textAlign = 'center'; x.textBaseline = 'middle';
+      if (!cab) {
+        // reduced motion: one still title card
+        x.fillStyle = accent; fit('THE ARCADE', 48, W - 48); x.fillText('THE ARCADE', W / 2, 88);
+        x.fillStyle = '#f4efe6'; x.font = 'bold 20px Fredoka, sans-serif'; x.fillText('PRESS START', W / 2, 150);
+      } else {
+        x.fillStyle = '#9d97a8'; x.font = 'bold 16px Fredoka, sans-serif'; x.textAlign = 'left';
+        x.fillText(String(i + 1).padStart(2, '0') + ' / ' + String(cabinets.length).padStart(2, '0'), 18, 22);
+        if (st.score !== null) { x.textAlign = 'right'; x.fillStyle = '#f4efe6'; x.fillText('1UP ' + String(st.score).padStart(6, '0'), W - 18, 22); }
+        x.textAlign = 'center';
+        const title = st.hiscore ? 'HI-SCORE!' : cab.label;
+        if (st.hiscore !== 2) { x.fillStyle = st.hiscore ? '#ffe7a3' : accent; fit(title, 46, W - 40); x.fillText(title, W / 2, 96); }
+        const foot = st.start ? 'START' : 'INSERT COIN';
+        if (st.start ? st.start === 1 : blink) { x.fillStyle = '#f4efe6'; x.font = 'bold 20px Fredoka, sans-serif'; x.fillText(foot, W / 2, 162); }
+      }
+      x.fillStyle = 'rgba(0,0,0,0.28)'; for (let y = 0; y < H; y += 4) x.fillRect(0, y, W, 2);   // light scanlines
+      return true;
+    }
+    return { canvas: c, paint, accentAt: (t) => cabinets[at(t)].accent, frames: () => frames };
+  }
+  function louArcadeMarquee(makeCanvas) {
+    const W = 512, H = 76, c = makeCanvas(W, H), x = c.getContext('2d');
+    x.fillStyle = '#0b0a10'; x.fillRect(0, 0, W, H);
+    x.textAlign = 'center'; x.textBaseline = 'middle'; x.font = 'bold 50px Fredoka, sans-serif';
+    x.shadowColor = '#ffd27a'; x.shadowBlur = 14; x.fillStyle = '#ffe7a3'; x.fillText('THE ARCADE', W / 2, H / 2 + 2);
+    return c;
+  }
+
+  function louBuildArcade(lib, design, cabinets, sfx) {
+    const { THREE, mats } = lib; const g = new THREE.Group(); louTag(g, 'arcade');
+    const say = name => { if (typeof sfx === 'function') { try { sfx(name); } catch (_) {} } };
+    const cabs = Array.isArray(cabinets) && cabinets.length ? cabinets : LOU_ARCADE_FALLBACK;
+    const W = 0.13, B = 0.004;   // width; the body's bevel, which also grows its outline by B all round
+    /* The side profile as [z, y, r], pre-bevel: back, bottom, the lower front,
+       the deck's lip and top, the CRT tipped back, the hood's underside, the
+       marquee, the roof. After the bevel and a lift of B, a front face at z0
+       sits at z0 + B and the roof at 0.196 + 2B. */
+    const PROFILE = [[-0.062, 0, 0.006], [0.054, 0, 0.006], [0.054, 0.078, 0.006], [0.076, 0.090, 0.004], [0.076, 0.099, 0.004],
+                     [0.044, 0.106, 0.006], [0.028, 0.166, 0.004], [0.052, 0.170, 0.004], [0.052, 0.196, 0.008], [-0.062, 0.196, 0.022]];
+    const ROOF = 0.196 + 2 * B;
+    const BUMP = lib.tex.plasticBump(11, 11, 41);
+    const shell = lib.role('shell', design.shell, { bumpMap: BUMP, bumpScale: 0.0004 });
+    const plate = lib.role('plate', design.plate, { bumpMap: BUMP, bumpScale: 0.0003 });
+    const door  = lib.role('shell', design.shell, { roughness: .6 }, 0.74);
+    const ears  = lib.role('ears', design.ears, { roughness: .45 });
+    const earIn = lib.role('plate', design.plate, { roughness: .5 }, 0.9);
+    const ball  = lib.role('buttons', design.buttons, { roughness: .3 });
+    const btnM  = lib.role('buttons', design.buttons, { roughness: .34, emissive: design.buttons, emissiveIntensity: 0 });
+    btnM.userData.louEmissive = true;   // a lit button glows in the player's own colour
+    const lampM = new THREE.MeshStandardMaterial({ color: '#34333b', emissive: '#000000', roughness: .3 });
+
+    const rig = new THREE.Group(); rig.name = 'rig'; g.add(rig);
+    const add = (parent, geo, mat, name, pos, rot, cast) => { const m = louMesh(THREE, geo, mat, name, pos || [0, 0, 0], rot, cast); parent.add(m); return m; };
+    const flat = (geo) => { geo.rotateX(-Math.PI / 2); return geo; };
+
+    // ── the body: the profile swept across x (rotateY(−π/2) sends the shape's x to world z)
+    const bodyGeo = lib.extrude(louRoundedOutline(THREE, PROFILE), W, B, { center: false, curveSegments: 6, bevelSegments: 4, crease: 40 });
+    bodyGeo.translate(0, B, -(W / 2 - B)); bodyGeo.rotateY(-Math.PI / 2);
+    add(rig, bodyGeo, shell, 'body');
+
+    // ── the marquee: a plate frame on the hood's face, lit glass in it
+    const MQ_Y = 0.187, MQ_Z = 0.052 + B;
+    add(rig, lib.moulded(0.110, 0.023, 0.0035, 0.006), plate, 'marquee', [0, MQ_Y, MQ_Z + 0.0013]);
+    const marqTex = new THREE.CanvasTexture(louArcadeMarquee(lib.makeCanvas)); marqTex.encoding = THREE.sRGBEncoding;
+    const MQ_GLOW = 0.95;
+    const marqM = new THREE.MeshStandardMaterial({ color: '#000000', map: marqTex, emissiveMap: marqTex, emissive: '#ffffff', emissiveIntensity: MQ_GLOW, roughness: .25, envMapIntensity: .3 });
+    add(rig, new THREE.PlaneGeometry(0.098, 0.0145), marqM, 'marqueeGlass', [0, MQ_Y, MQ_Z + 0.0032], null, false);
+
+    /* ── the CRT on the tipped-back face (profile edge [0.044, 0.106] → [0.028, 0.166]).
+       Its group's +z is the face's outward normal, so everything on it is flat. */
+    const TIP = Math.atan2(0.016, 0.060), NZ = Math.cos(TIP), NY = Math.sin(TIP);
+    const crt = new THREE.Group(); crt.name = 'crt'; crt.position.set(0, 0.136 + B * NY + B, 0.036 + B * NZ); crt.rotation.x = -TIP; rig.add(crt);
+    add(crt, lib.moulded(0.110, 0.056, 0.003, 0.009), plate, 'bezel', [0, 0, 0.001]);
+    const GW = 0.0864, GH = 0.0468;
+    const scr = louArcadeScreen(lib.makeCanvas, cabs), scrTex = new THREE.CanvasTexture(scr.canvas);
+    scrTex.encoding = THREE.sRGBEncoding; scrTex.anisotropy = 4;
+    const glassM = new THREE.MeshStandardMaterial({ color: '#000000', map: scrTex, emissiveMap: scrTex, emissive: '#ffffff', emissiveIntensity: 0.9, roughness: .18, metalness: 0, envMapIntensity: .3 });
+    const glass = add(crt, new THREE.PlaneGeometry(GW, GH), glassM, 'screen', [0, 0, 0.0027], null, false);
+    const GLOW = 0.10;
+    const glowM = new THREE.MeshBasicMaterial({ color: cabs[0].accent, transparent: true, opacity: GLOW, blending: THREE.AdditiveBlending, depthWrite: false });
+    add(crt, new THREE.PlaneGeometry(GW + 0.008, GH + 0.008), glowM, 'screenGlow', [0, 0, 0.0034], null, false);
+
+    /* ── the control deck (profile edge [0.076, 0.099] → [0.044, 0.106]): the stick
+       on the left, four buttons in a tilted 2×2 on the right, as the room draws them */
+    const DTIP = Math.atan2(0.007, 0.032), DY = Math.cos(DTIP), DZ = Math.sin(DTIP);
+    const deck = new THREE.Group(); deck.name = 'deck'; deck.position.set(0, 0.1025 + B * DY + B, 0.060 + B * DZ); deck.rotation.x = DTIP; rig.add(deck);
+    const DT = 0.0025, TOP = DT - 0.0004;
+    add(deck, flat(lib.moulded(0.110, 0.027, DT, 0.005)), plate, 'deckPlate', [0, DT / 2 - 0.0004, 0], null, false);
+    add(deck, new THREE.CylinderGeometry(0.0072, 0.0072, 0.0012, 24), mats.black, 'stickWell', [-0.030, TOP + 0.0004, 0], null, false);
+    const stick = new THREE.Group(); stick.name = 'stick'; stick.position.set(-0.030, TOP, 0); deck.add(stick);
+    add(stick, new THREE.CylinderGeometry(0.0013, 0.0013, 0.014, 10), mats.black, 'stickShaft', [0, 0.007, 0], null, false);
+    add(stick, new THREE.SphereGeometry(0.0062, 20, 14), ball, 'stickBall', [0, 0.0148, 0]);
+    const btnGeo = louDome(THREE, 0.0042, 0.0032, 0.55, 20), buttons = [];
+    [[0.013, -0.0045], [0.029, -0.0073], [0.0145, 0.0062], [0.0305, 0.0034]].forEach(([bx, bz], i) => buttons.push(add(deck, btnGeo, btnM, 'button' + i, [bx, TOP - 0.0003, bz], null, false)));
+
+    // ── the coin door on the lower front: one slot and its lamp, as in the room
+    const DOOR_Z = 0.054 + B;
+    add(rig, lib.moulded(0.064, 0.034, 0.003, 0.006), door, 'coinDoor', [0, 0.044, DOOR_Z + 0.001], null, false);
+    add(rig, new THREE.BoxGeometry(0.0024, 0.012, 0.0012), mats.black, 'coinSlot', [-0.009, 0.045, DOOR_Z + 0.0027], null, false);
+    const lamp = add(rig, new THREE.SphereGeometry(0.0034, 16, 10), lampM, 'coinLamp', [0.010, 0.045, DOOR_Z + 0.0024], null, false);
+    lamp.scale.set(1, 1, 0.55);
+
+    // ── the side grille: slots on the left flank, the one the room's camera sees
+    add(rig, lib.merge([0, 1, 2, 3, 4].map(i => [new THREE.BoxGeometry(0.0016, 0.003, 0.044), [-W / 2 - 0.0002, 0.040 + i * 0.008, -0.010]])), mats.black, 'grille', null, null, false);
+
+    /* ── the ears: round bear ears (the room's), each on a pivot at its root so a
+       twitch turns it about where it meets the roof. Outer disc ears, inner plate. */
+    const earPivots = [];
+    [-1, 1].forEach(s => {
+      const pv = new THREE.Group(); pv.name = 'earPivot' + (s < 0 ? 'L' : 'R'); pv.position.set(s * 0.040, ROOF - 0.004, -0.030); rig.add(pv);
+      const eg = new THREE.SphereGeometry(0.0165, 28, 18); eg.scale(1, 1, 0.42);
+      add(pv, eg, ears, s < 0 ? 'earL' : 'earR', [0, 0.013, 0]);
+      const ig = new THREE.SphereGeometry(0.0105, 22, 14); ig.scale(1, 1, 0.3);
+      add(pv, ig, earIn, s < 0 ? 'earInL' : 'earInR', [0, 0.0135, 0.0046], null, false);
+      earPivots.push(pv);
+    });
+
+    /* ── THE IDLE (spec § 3.1): four beats, weighted, never the same one twice
+       running, on a 9–15 s gap — seeded, like every prop here (DD-20).
+         ghost    an invisible player: the stick rocks, the buttons light, the score ticks
+         twitch   one ear flicks
+         flicker  the marquee stutters
+         hiscore  HI-SCORE flashes, the coin lamp lights, a tiny hop
+       Every beat ends exactly at rest; under reduced motion there are none, and
+       the CRT holds one title card. */
+    const BEAT_MS = { ghost: 1600, twitch: 600, flicker: 700, hiscore: 1400 };
+    const BEAT_W = { ghost: 0.35, twitch: 0.30, flicker: 0.25, hiscore: 0.10 };
+    const PRESS_MS = 600, HOP_H = 0.004;
+    let beat = null, beatT0 = null, beatAt = null, lastBeat = '', beatSeed = 20261021, twitchSide = 0;
+    let press = null, hop = 0, score = null, flashHi = 0, flashStart = 0, tSec = 0, reducedNow = false;
+    const rnd = () => { beatSeed = (beatSeed * 1664525 + 1013904223) >>> 0; return beatSeed / 4294967296; };
+    const gap = () => 9000 + rnd() * 6000;
+    const pick = () => {
+      const pool = Object.keys(BEAT_W).filter(n => n !== lastBeat), sum = pool.reduce((a, n) => a + BEAT_W[n], 0);
+      let r = rnd() * sum; for (const n of pool) { r -= BEAT_W[n]; if (r < 0) return n; } return pool[pool.length - 1];
+    };
+    const bump = (e, at, len) => (e >= at && e < at + len ? Math.sin(Math.PI * (e - at) / len) : 0);
+    function repaint() {
+      const painted = scr.paint({ t: tSec, reduced: reducedNow, score, hiscore: flashHi, start: flashStart });
+      if (painted) scrTex.needsUpdate = true;
+      if (!reducedNow) glowM.color.set(scr.accentAt(tSec));
+      return painted;
+    }
+    function rest() {
+      stick.rotation.set(0, 0, 0); buttons.forEach(b => { b.position.y = TOP - 0.0003; }); btnM.emissiveIntensity = 0;
+      earPivots.forEach(p => { p.rotation.z = 0; }); marqM.emissiveIntensity = MQ_GLOW; glowM.opacity = GLOW;
+      lampM.emissive.set('#000000'); lampM.emissiveIntensity = 0; hop = 0; rig.position.y = 0; score = null; flashHi = 0; flashStart = 0;
+    }
+    function runBeat(name, e) {
+      if (name === 'ghost') {
+        stick.rotation.z = 0.32 * Math.sin(e * 0.012) * Math.sin(Math.PI * e / BEAT_MS.ghost);
+        stick.rotation.x = 0.22 * Math.sin(e * 0.007 + 1) * Math.sin(Math.PI * e / BEAT_MS.ghost);
+        let lit = 0;
+        buttons.forEach((b, i) => { const k = Math.max(bump(e, 180 + i * 260, 160), bump(e, 900 + ((i * 3) % 4) * 140, 130)); b.position.y = TOP - 0.0003 - 0.0012 * k; lit = Math.max(lit, k); });
+        btnM.emissiveIntensity = 0.9 * lit;
+        score = 250 * Math.floor(e / 160);
+      } else if (name === 'twitch') {
+        const s = twitchSide ? 1 : -1;
+        earPivots[twitchSide].rotation.z = s * (0.38 * bump(e, 0, 220) + 0.22 * bump(e, 260, 200));
+      } else if (name === 'flicker') {
+        const on = [[0, 60], [110, 150], [200, 330], [380, 410], [470, 700]].some(([a, z]) => e >= a && e < z);
+        marqM.emissiveIntensity = on ? MQ_GLOW * (0.55 + 0.45 * Math.min(1, e / 600)) : 0.12;
+      } else {
+        const k = Math.floor(e / 125) % 2 === 0;
+        flashHi = k ? 1 : 2;
+        lampM.emissive.set(scr.accentAt(tSec)); lampM.emissiveIntensity = k ? 1.8 : 0.6;
+        glowM.opacity = GLOW + 0.12 * (k ? 1 : 0);
+        hop = HOP_H * bump(e, 420, 260); rig.position.y = hop;
+      }
+    }
+    g.userData.api = {
+      screen: glass,
+      /* The scene's 10 fps attract loop. Paints only when the frame changes; says whether it did. */
+      attract(t, reduced) { tSec = t; reducedNow = !!reduced; return repaint(); },
+      /* A tap: START flashes, the stick snaps, the coin drops — then the scene pushes in. */
+      press(reduced) {
+        say('arcadeCoin');
+        beat = null; beatT0 = null; beatAt = null; rest();
+        if (reduced) return;
+        press = { t0: null };
+      },
+      /* No openArcade: the press, and a tiny hop. */
+      bop(reduced) { g.userData.api.press(reduced); if (press) press.hop = true; },
+      reset() { press = null; beat = null; beatT0 = null; beatAt = null; rest(); repaint(); },
+      focusPose() {
+        glass.updateWorldMatrix(true, false);
+        return { point: glass.getWorldPosition(new THREE.Vector3()), normal: new THREE.Vector3(0, 0, 1).transformDirection(glass.matrixWorld), w: GW, h: GH };
+      },
+      startBeat(name) { if (!BEAT_MS[name]) return false; rest(); beat = lastBeat = name; beatT0 = null; if (name === 'twitch') twitchSide = 1 - twitchSide; return true; },
+      currentBeat: () => beat,
+      nextBeatAt: () => beatAt,
+      hopAmount: () => hop,
+      score: () => score,
+      tick(now, dt, reduced) {
+        reducedNow = !!reduced;
+        if (reduced) { if (beat || press) { beat = null; beatT0 = null; press = null; rest(); repaint(); } beatAt = null; return false; }
+        if (press) {
+          if (press.t0 === null) press.t0 = now;
+          const e = now - press.t0;
+          stick.rotation.z = 0.42 * bump(e, 0, 240);
+          btnM.emissiveIntensity = 1.2 * bump(e, 0, 360);
+          if (press.hop) { hop = HOP_H * bump(e, 80, 280); rig.position.y = hop; }
+          flashStart = Math.floor(e / 100) % 2 === 0 ? 1 : 2;
+          if (e >= PRESS_MS) { press = null; rest(); repaint(); beatAt = now + gap(); return true; }
+          repaint();
+          return true;
+        }
+        if (beat === null) {
+          if (beatAt === null) beatAt = now + gap();
+          else if (now >= beatAt) { beat = lastBeat = pick(); beatT0 = now; if (beat === 'twitch') twitchSide = 1 - twitchSide; }
+        }
+        if (beat === null) return false;
+        if (beatT0 === null) beatT0 = now;
+        const e = now - beatT0;
+        if (e >= BEAT_MS[beat]) { beat = null; beatT0 = null; beatAt = now + gap(); rest(); repaint(); return true; }   // exactly home, and one frame to show it
+        runBeat(beat, e); repaint();
+        return true;
+      },
+    };
+    repaint();
+    return g;
+  }
+  LOU_BUILDERS.arcade = (ctx) => louBuildArcade(ctx.lib, ctx.design, ctx.cabinets, ctx.sfx);
+
   /* ── Little Sylly's paintings (owner's daughter, age 5) ────────────────────────
      The wall art over the jukebox, and the words the gallery overlay shows for each. Both halves live
      here so a painting's picture, its frame's proportions and its plaque cannot drift apart.
@@ -3220,7 +3504,7 @@
   }
   LOU_PAINTINGS.forEach(p => { LOU_BUILDERS[p.pick] = (ctx) => louBuildPainting(ctx.lib, p); });
 
-  const api = { LOU_PAINTINGS, LOU_PAINTINGS_BASE, louBuildPainting, LOU_ACTIONS, LOU_TAB_ORDER, LOU_PLACES, LOU_BUILDERS, LOU_ATTRACT_LINES, louBuildAll, louMotion, louEaseOutCubic, louEaseOutBack, louMesh, louTag, louAttract, louSpinPlan, louLampSlots, LOU_LAMP_TIERS, louBuildShelf, LOU_SHELF_COVERS, LOU_PHONE_OPEN_DEG, LOU_PHONE_FLIP_MS, LOU_PHONE_MENU };
+  const api = { LOU_PAINTINGS, LOU_PAINTINGS_BASE, louBuildPainting, LOU_ACTIONS, LOU_TAB_ORDER, LOU_PLACES, LOU_BUILDERS, LOU_ATTRACT_LINES, louBuildAll, louMotion, louEaseOutCubic, louEaseOutBack, louMesh, louTag, louAttract, louSpinPlan, louLampSlots, LOU_LAMP_TIERS, louBuildShelf, LOU_SHELF_COVERS, louBuildArcade, louArcadeScreen, LOU_ARCADE_CYCLE_S, LOU_PHONE_OPEN_DEG, LOU_PHONE_FLIP_MS, LOU_PHONE_MENU };
   if (typeof window !== 'undefined') window.LouProps = api;
   if (typeof module !== 'undefined') module.exports = api;
 })();

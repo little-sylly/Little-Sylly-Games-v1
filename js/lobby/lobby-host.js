@@ -428,6 +428,7 @@ async function lobbyLoadContent() {
     sfx: (name) => { if (!isMuted && sfxEnabled) lobbyPlaySfx(name); },
     controllerParts: () => (ctlEnsureModel() ? ctlModelParts() : null),
     openPainting: (id) => lobbyOpenPainting(id),
+    cabinets: typeof ARC_CABINETS !== 'undefined' ? ARC_CABINETS.map(c => ({ id: c.id, label: c.label, accent: c.accent })) : null,
     debug: lobbyDebug,
   });
   Jukebox.jbxConfigure({

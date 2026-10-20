@@ -168,7 +168,25 @@
       });
     }
 
-    const VOICE = { dialPress: click, phoneOpen: flip, binderOpen: flump, controllerRumble: rumble, phoneAlert, jukeboxWhistle };
+    /* The arcade cabinet's coin (SW v258): the Arcade Floor's own launch beat in
+       miniature — the same two notes a fifth apart (C5 → G5) and the same 180 ms
+       between them (js/lobby/arcade.js ARC_COIN_NOTE_MS; kept in step by hand), as
+       two short chip blips. Square waves through a lowpass so it reads as a cabinet
+       and not a phone. One-shot. */
+    function arcadeCoin(c) {
+      const t = c.currentTime;
+      const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 2600; lp.connect(master);
+      [[523.25, 0, 0.09], [783.99, 0.18, 0.22]].forEach(([hz, at, len]) => {
+        const o = c.createOscillator(); o.type = 'square'; o.frequency.value = hz;
+        const g = c.createGain();
+        g.gain.setValueAtTime(0.0001, t + at);
+        g.gain.exponentialRampToValueAtTime(0.09, t + at + 0.006);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + at + len);
+        o.connect(g); g.connect(lp); o.start(t + at); o.stop(t + at + len + 0.02);
+      });
+    }
+
+    const VOICE = { dialPress: click, phoneOpen: flip, binderOpen: flump, controllerRumble: rumble, phoneAlert, jukeboxWhistle, arcadeCoin };
     return {
       /* Total by design: an unknown name, a blocked context or a suspended one
          are all "no sound", never a throw — lounge-scene.js guards this call too,
@@ -190,7 +208,7 @@
 
   /* The names the room may say, as data, so a harness can check a door's sound
      exists without an AudioContext. Kept in step with VOICE by hand. */
-  const LOU_SFX_VOICES = ['dialPress', 'phoneOpen', 'binderOpen', 'controllerRumble', 'phoneAlert', 'jukeboxWhistle'];
+  const LOU_SFX_VOICES = ['dialPress', 'phoneOpen', 'binderOpen', 'controllerRumble', 'phoneAlert', 'jukeboxWhistle', 'arcadeCoin'];
   const api = { louCreateSfx, LOU_SFX_VOICES };
   if (typeof module !== 'undefined') module.exports = api;
   if (typeof window !== 'undefined') window.LouSfx = api;

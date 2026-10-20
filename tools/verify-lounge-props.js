@@ -1326,10 +1326,10 @@ section('contracts');
   const ids = new Set(); Object.values(built).forEach(g => g.traverse(o => { if (o.userData.louId) ids.add(o.userData.louId); }));
   Object.keys(A).forEach(id => ok(ids.has(id), `action id "${id}" exists as a pick node`));
   ids.forEach(id => ok(A[id], `pick node "${id}" has an action`));
-  const HOST = new Set(['enterTV', 'enterShelves', 'openWorkshop', 'openSound', 'openSwitcher', 'openStickerbook', 'openJukebox', 'openPainting', 'music.next']);
+  const HOST = new Set(['enterTV', 'enterShelves', 'openWorkshop', 'openSound', 'openSwitcher', 'openStickerbook', 'openJukebox', 'openPainting', 'openArcade', 'music.next']);
   Object.entries(A).forEach(([id, a]) => ok(a.local || HOST.has(a.callback), `"${id}" names a host callback or a local api`));
   ['enterTV', 'enterShelves', 'openWorkshop', 'openSound', 'openSwitcher'].forEach(cb => ok(Object.values(A).some(a => a.callback === cb), `required callback ${cb} is reachable from a prop`));
-  eq(Object.values(A).filter(a => a.optional).length, 4, 'exactly four optional actions (the binder, the jukebox knob and the two paintings)');
+  eq(Object.values(A).filter(a => a.optional).length, 5, 'exactly five optional actions (the binder, the jukebox knob, the two paintings and the arcade)');
   LouProps.LOU_TAB_ORDER.forEach(id => ok(ids.has(id), `tab order id "${id}" exists`));
   // footprints: each prop, placed, sits inside its surface's region (spec § 14 check 1)
   const place = (id) => { const g = built[id], p = LouProps.LOU_PLACES[id]; g.position.set(...p.pos); if (p.rot) g.rotation.set(...p.rot); g.updateMatrixWorld(true); return new THREE.Box3().setFromObject(g); };
@@ -1343,8 +1343,16 @@ section('contracts');
     phone:     { x: [R.tableX - 0.57, R.tableX + 0.57], z: [R.tableZ - 0.33, R.tableZ + 0.33], y: [R.tableTopY, 0.8] },
     controller:{ x: [-0.85, -0.15], z: [ 0.02,  0.60], y: [R.seatTopY, 1.0] },
     lamp:      { x: [S.x - 0.30, S.x + 0.30], z: [R.backZ, R.backZ + 0.32], y: [S.ys[0], 1.0] },
+    /* the bottom bay (SW v258): between the shelf's sides, back panel to the base board's front
+       edge (set 4 mm behind the sides), standing on the base board */
+    arcade:    { x: [S.x - S.inner, S.x + S.inner], z: [R.backZ + 0.01, S.z + S.d / 2 - 0.004], y: [S.baseY, S.ys[0]] },
   };
   Object.entries(REGIONS).forEach(([id, r]) => { const bb = place(id); ok(inside(bb, r), `${id} sits inside its surface region (x ${bb.min.x.toFixed(2)}..${bb.max.x.toFixed(2)}, z ${bb.min.z.toFixed(2)}..${bb.max.z.toFixed(2)}, y ${bb.min.y.toFixed(2)})`); });
+  { const bb = place('arcade'), S0 = S.ys[0] - 0.01;   // the lamp's board's underside
+    near(bb.min.y, S.baseY, 0.002, 'the arcade stands ON the base board, not in it or over it');
+    ok(bb.max.y < S0 - 0.05, `and clears the lamp's board above by a hand's gap (top ${bb.max.y.toFixed(3)}, board ${S0.toFixed(3)})`);
+    ok(bb.min.x - (S.x - S.inner) > 0.06, `left of centre but clear of the left side (${((bb.min.x - (S.x - S.inner)) * 100).toFixed(1)} cm)`);
+    ok((bb.min.x + bb.max.x) / 2 < LouProps.LOU_PLACES.lamp.pos[0], 'left of the lamp above it'); }
   { const pa = place('painting-a'), pb2 = place('painting-b');
     const jbX = LouProps.LOU_PLACES.jukebox.pos[0], tvX = LouProps.LOU_PLACES.tv.pos[0];
     [pa, pb2].forEach((b, i) => ok(Math.abs((b.min.x + b.max.x) / 2 - jbX) < Math.abs((b.min.x + b.max.x) / 2 - tvX),
@@ -1385,6 +1393,88 @@ section('contracts');
   eq(othersChanged, 0, 'and nothing else');
   const noRole = []; root.traverse(o => { if (o.isMesh && o.material.userData.louRole && !['shell', 'plate', 'ears', 'buttons'].includes(o.material.userData.louRole)) noRole.push(o.name); });
   eq(noRole.length, 0, 'every tagged role is one of the four');
+}
+
+section('arcade cabinet (SW v258)');
+{
+  const P = LouProps, A = P.LOU_ACTIONS.arcade;
+  const CABS = [{ id: 'a', label: 'ALPHA', accent: '#ff0000' }, { id: 'b', label: 'BRAVO', accent: '#00ff00' }, { id: 'c', label: 'CHARLIE', accent: '#0000ff' }];
+  const heard = [];
+  const fresh = (extra) => P.LOU_BUILDERS.arcade(Object.assign({}, global.__prmCtx, { cabinets: CABS, sfx: n => heard.push(n) }, extra || {}));
+  const g = fresh(), api = g.userData.api;
+  eq(g.userData.louId, 'arcade', 'the cabinet group is the pick node');
+  // the door: the jukebox's shape, with a press first
+  eq(A.callback, 'openArcade', 'the arcade names openArcade'); ok(A.optional === true, 'and it is optional');
+  eq(A.pushIn, 'arcade', 'a supplied door pushes in on the cabinet (its CRT, via focusPose)');
+  eq(A.fallback, 'bop', 'no host: the cabinet bops'); ok(typeof api[A.fallback] === 'function', 'the fallback names a real api method');
+  ok(typeof api[A.press] === 'function', 'the press names a real api method');
+  { const o = P.LOU_TAB_ORDER; ok(o.indexOf('arcade') === o.indexOf('controller') + 1 && o.indexOf('lamp') === o.indexOf('arcade') + 1, 'tab order: controller, arcade, lamp'); }
+  { const S = require(path.join(ROOT, 'js/lounge/lounge-scene.js')); ok(S.LOU_OPTIONAL_FUNCS.includes('openArcade'), 'openArcade is an optional scene door'); }
+  // the four roles, and nothing else painted
+  { const roles = new Set(); g.traverse(o => { if (o.isMesh && o.material.userData.louRole) roles.add(o.material.userData.louRole); });
+    ['shell', 'plate', 'ears', 'buttons'].forEach(r => ok(roles.has(r), `wears the ${r} role`));
+    ok(g.getObjectByName('earL').material.userData.louRole === 'ears' && g.getObjectByName('earInL').material.userData.louRole === 'plate', 'ears outer, plate inner — the room\'s cabinet');
+    eq(g.getObjectByName('screen').material.color.getHex(), 0x000000, 'the glass is fixed black'); }
+  // the budget: modest, so it never needs skipProps
+  { let tris = 0, meshes = 0; g.traverse(o => { if (o.isMesh) { meshes++; tris += (o.geometry.index ? o.geometry.index.count : o.geometry.attributes.position.count) / 3; } });
+    console.log(`  (arcade: ${meshes} meshes, ${Math.round(tris)} triangles)`);
+    ok(meshes <= 28, `no more draw calls than the lamp's budget (${meshes}, budget 28)`);
+    ok(tris < 15000, `a shelf ornament, not a hero prop (${Math.round(tris)} triangles)`); }
+  // size, spec § 3.1: ~13 W × 20 H (23 to the ear tips) × 14 D
+  { const bb = new THREE.Box3().setFromObject(g), s = bb.getSize(new THREE.Vector3());
+    near(s.x, 0.13, 0.005, 'about 13 cm wide'); near(s.y, 0.23, 0.01, 'about 23 cm to the ear tips'); near(s.z, 0.15, 0.015, 'about 14 cm deep');
+    near(bb.min.y, 0, 0.001, 'the group origin is its resting base'); }
+  // the push-in lands on the CRT, facing out of the cabinet and a little up
+  { const pose = api.focusPose(); ok(pose.normal.z > 0.9 && pose.normal.y > 0.1, `the CRT faces forward and tips up (n ${pose.normal.toArray().map(v => v.toFixed(2)).join(', ')})`);
+    ok(pose.w > pose.h && pose.w < 0.13, 'the focus is the glass, not the whole cabinet'); }
+  // the CRT: cycles the cabinet names, repaints only on a change, and one card under reduced motion
+  { const s = P.louArcadeScreen(makeCanvas, CABS);
+    ok(s.paint({ t: 0, reduced: false, score: null, hiscore: 0, start: 0 }), 'the first frame paints');
+    eq(s.paint({ t: 0.1, reduced: false, score: null, hiscore: 0, start: 0 }), false, 'the same frame does not repaint');
+    ok(s.paint({ t: 0.6, reduced: false, score: null, hiscore: 0, start: 0 }), 'INSERT COIN blinks (a repaint at half a second)');
+    eq(s.accentAt(0), '#ff0000', 'the first cabinet in its accent'); eq(s.accentAt(P.LOU_ARCADE_CYCLE_S + 0.1), '#00ff00', 'then the next');
+    eq(s.accentAt(3 * P.LOU_ARCADE_CYCLE_S + 0.1), '#ff0000', 'and round again');
+    s.paint({ t: 0, reduced: true }); let n = 0; for (let t = 0; t < 10; t += 0.1) if (s.paint({ t, reduced: true, score: 5, hiscore: 1, start: 1 })) n++;
+    eq(n, 0, 'reduced motion: one still title card, never repainted'); }
+  { const f0 = fresh(); let n = 0; for (let t = 0; t < 10; t += 0.1) if (f0.userData.api.attract(t, false)) n++;
+    ok(n >= 15 && n <= 30, `through the scene's attract loop: ~2 repaints a second, not 10 (${n} in 10 s)`); }
+  { const none = P.LOU_BUILDERS.arcade(Object.assign({}, global.__prmCtx, { cabinets: undefined })); ok(none.userData.api.attract(1, false) !== undefined, 'no cabinet list: it still builds and shows its own title'); }
+  // the idle: a 9–15 s gap off the frame time, four beats, weighted, never twice running, each home exactly
+  { const f = fresh(), a = f.userData.api;
+    eq(a.tick(1000, 0.016, false), false, 'at rest the cabinet asks for no frames');
+    const at = a.nextBeatAt() - 1000; ok(at >= 9000 && at <= 15000, `the first beat is 9–15 s off (${at.toFixed(0)} ms)`);
+    eq(a.tick(1000 + at - 1, 0.016, false), false, 'and not a frame early');
+    const seq = []; let now = 1000 + at;
+    for (let k = 0; k < 40; k++) { a.tick(now, 0.016, false); seq.push(a.currentBeat()); while (a.currentBeat()) { now += 50; a.tick(now, 0.05, false); } now = a.nextBeatAt(); }
+    ok(seq.every(b => ['ghost', 'twitch', 'flicker', 'hiscore'].includes(b)), 'only the four beats');
+    ok(seq.every((b, i) => i === 0 || b !== seq[i - 1]), 'never the same beat twice running');
+    ['ghost', 'twitch', 'flicker'].forEach(b => ok(seq.includes(b), `${b} turns up`));
+    const cnt = b => seq.filter(x => x === b).length; ok(cnt('hiscore') < cnt('ghost'), 'hiscore is the rare one'); }
+  { const f = fresh(), a = f.userData.api, stick = f.getObjectByName('stick'), rig = f.getObjectByName('rig'), earR = f.getObjectByName('earPivotR'), earL = f.getObjectByName('earPivotL');
+    const marq = f.getObjectByName('marqueeGlass').material, btn = f.getObjectByName('button0').material, lampM = f.getObjectByName('coinLamp').material;
+    const atRest = () => stick.rotation.z === 0 && stick.rotation.x === 0 && rig.position.y === 0 && earR.rotation.z === 0 && earL.rotation.z === 0 && btn.emissiveIntensity === 0 && lampM.emissiveIntensity === 0 && a.score() === null;
+    const run = (name, probe) => { a.startBeat(name); let seen = false; for (let t = 0; t <= 2000; t += 20) { a.tick(50000 + t, 0.02, false); if (a.currentBeat() === name && probe()) seen = true; } return seen; };
+    ok(run('ghost', () => Math.abs(stick.rotation.z) > 0.05 && btn.emissiveIntensity > 0.3), 'ghost: the stick rocks and the buttons light');
+    ok(run('ghost', () => a.score() > 0), 'ghost: the score ticks'); ok(atRest(), 'and ghost ends exactly at rest');
+    ok(run('twitch', () => Math.abs(earR.rotation.z) > 0.1 || Math.abs(earL.rotation.z) > 0.1), 'twitch: one ear flicks'); ok(atRest(), 'and comes home');
+    ok(run('flicker', () => marq.emissiveIntensity < 0.3), 'flicker: the marquee stutters'); ok(atRest() && marq.emissiveIntensity > 0.9, 'and comes back lit');
+    ok(run('hiscore', () => lampM.emissiveIntensity > 1 && rig.position.y > 0.001), 'hiscore: the coin lamp lights and it hops'); ok(atRest(), 'and lands');
+    // reduced motion: nothing moves, and a beat already running is dropped home
+    a.startBeat('ghost'); a.tick(70000, 0.02, false); a.tick(70400, 0.02, false);
+    eq(a.tick(70420, 0.02, true), false, 'reduced motion: no frames asked for'); ok(atRest(), 'reduced motion: a running beat is dropped at rest');
+    eq(a.nextBeatAt(), null, 'and none is armed'); eq(a.tick(99999, 0.02, true), false, 'nor ever starts');
+    // the tap: the coin, START, the stick snaps — and reduced motion keeps the coin only
+    heard.length = 0; a.press(false); eq(heard[0], 'arcadeCoin', 'a tap drops the coin (arcadeCoin through the sfx seam)');
+    let snapped = false; for (let t = 0; t <= 700; t += 20) { a.tick(80000 + t, 0.02, false); if (stick.rotation.z > 0.2) snapped = true; }
+    ok(snapped, 'the stick snaps'); ok(atRest(), 'and the press ends at rest');
+    heard.length = 0; a.press(true); eq(heard[0], 'arcadeCoin', 'reduced motion still hears the coin'); eq(a.tick(81000, 0.02, true), false, 'but nothing moves');
+    a.bop(false); let hopped = false; for (let t = 0; t <= 700; t += 20) { a.tick(90000 + t, 0.02, false); if (rig.position.y > 0.001) hopped = true; }
+    ok(hopped, 'the fallback bop hops'); ok(atRest(), 'and lands');
+    a.startBeat('hiscore'); a.tick(95000, 0.02, false); a.tick(95500, 0.02, false); a.reset(); ok(atRest() && a.currentBeat() === null, 'reset() puts it back as it rests'); }
+  { const S = require(path.join(ROOT, 'js/lounge/lounge-sfx.js')); ok(S.LOU_SFX_VOICES.includes('arcadeCoin'), 'lou-sfx has the arcadeCoin voice'); }
+  { const f = P.LOU_BUILDERS.arcade(Object.assign({}, global.__prmCtx, { sfx: undefined })); let threw = false;
+    try { f.userData.api.press(false); f.userData.api.startBeat('ghost'); f.userData.api.tick(1, 0.02, false); } catch (_) { threw = true; }
+    ok(!threw, 'a host with no sfx presses silently'); }
 }
 
 section('shell-doors');

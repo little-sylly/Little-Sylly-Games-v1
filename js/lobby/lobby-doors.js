@@ -18,6 +18,7 @@
     openStickerbook: 'stickerbookOpen',   // OPTIONAL in the scene's contract; the lobby supplies it
     openJukebox:  'jukeboxOpen',          // OPTIONAL too; supplied since SW v233 (the jukebox screen)
     openPainting: null,                   // OPTIONAL, and an effect like openSound: a gallery overlay over the room, no router state
+    openArcade:   'arcadeOpen',           // OPTIONAL; supplied since SW v258 (the bookshelf's cabinet)
   };
 
   function lobbyCreateHost(deps) {
@@ -45,6 +46,7 @@
       openSwitcher()  { dispatch({ t: 'openSwitcher' }); },
       openStickerbook() { dispatch({ t: 'stickerbookOpen' }); },
       openJukebox()     { dispatch({ t: 'jukeboxOpen' }); },
+      openArcade()      { dispatch({ t: 'arcadeOpen' }); },
       openSound()     { deps.openSound(); },
 
       debug: deps.debug !== false,
@@ -70,11 +72,15 @@
     /* An optional EFFECT: the room says which painting (a LOU_PAINTINGS id) was tapped. Absent-not-
        undefined, so a host with no gallery leaves the frames as plain wall art. */
     if (deps.openPainting) host.openPainting = (id) => deps.openPainting(id);
+    /* DATA for the arcade prop's CRT: [{ label, accent }] in the room's order. Absent-not-undefined;
+       absent, the cabinet shows its own title. */
+    if (deps.cabinets) host.cabinets = deps.cabinets;
 
-    /* Both optional doors are supplied now: openStickerbook since the stickerbook
-       prototype (23 Sep 2026), openJukebox since the jukebox screen (SW v233). A
-       host that leaves either off still gets a room — that door falls back to its
-       prop's own answer (the binder's cover flip, the jukebox's bop). */
+    /* The optional doors are all supplied now: openStickerbook since the stickerbook
+       prototype (23 Sep 2026), openJukebox since the jukebox screen (SW v233),
+       openArcade since the cabinet prop (SW v258). A host that leaves one off still
+       gets a room — that door falls back to its prop's own answer (the binder's
+       cover flip, the jukebox's and the cabinet's bop). */
     return host;
   }
 

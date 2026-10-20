@@ -46,9 +46,9 @@
      split as data is what lets verify-lobby-router.js prove no action is unreachable. */
   const LOBBY_PAGE_ACTIONS = ['go', 'roomMounted', 'workshopClose', 'designSaved', 'leaveLobby', 'arrivalBegin', 'arrivalReset',
     'stickerbookOpen', 'stickerbookClose', 'jukeboxOpen', 'jukeboxClose', 'arcadeOpen', 'arcadeClose', 'home', 'closeSwitcher'];
-  /* stickerbookOpen / jukeboxOpen are BOTH a door's action (the Lounge's binder and
-     cat) and the page's own (the Board's dock and Classic's places row, SW v238).
-     arcadeOpen is the page's only, until the Lounge's cabinet prop (spec Stage 3). */
+  /* stickerbookOpen / jukeboxOpen / arcadeOpen are BOTH a door's action (the Lounge's
+     binder, cat and cabinet — the cabinet since SW v258) and the page's own (the Board's
+     dock and Classic's places row, SW v238; the arcade's doors, SW v254). */
 
   function lobbyReduce(state, action) {
     const a = action || {};

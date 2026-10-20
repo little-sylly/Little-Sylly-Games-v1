@@ -9,6 +9,11 @@ game abbreviation, function or screen id. Items keep their original section head
 
 ## Arcade cabinets — eight new ones integrated, none phone-tested (18 Oct 2026, SW v249; COLD SHOT + TRACE ROUTE SW v255)
 
+Item 0, Stage 3 — **RESOLVED 21 Oct 2026 (SW v258; `shared-implementation-notes.md` DD-61)**:
+- "The Arcade room, Stage 3 (`docs/superpowers/specs/2026-10-18-arcade-room-design.md` § 3.1, Stage 1 SW v254, Stage 2
+  SW v257): the Lounge prop (`lounge-props.js` `LOU_BUILDERS.arcade`, a hotspot `arcade` → optional `openArcade` door),
+  target SW v258." — built as `louBuildArcade` in the bookshelf's bottom bay; the door dispatches `arcadeOpen`.
+
 Item 0, Stage 2 half — **RESOLVED 20 Oct 2026 (SW v257; `shared-implementation-notes.md` DD-60)**:
 - The cabinet / modern select-screen design to jukebox quality — built as the "Arcade Floor" (spec § 3.1, fixed by
   the shape pass): a row of DOM/CSS cabinets in the controller's colours, position strip, PRESS START.

@@ -303,6 +303,17 @@ const canvasParent = page => page.evaluate(() => (typeof ctlRenderer !== 'undefi
         await page.click('#btn-arc-close'); await settle(page, 500);
         ok(await onlyLayout(page, layout) && !await shown(page, 'screen-arcade'), `${layout}: ✕ lands back on ${layout}`);
       }
+      // the Lounge's door (SW v258): the cabinet on the bookshelf, pushed in on its CRT
+      await page.evaluate(() => lobbyGo('lounge')); await settle(page, 400);
+      ok(await page.evaluate(() => window.louDebug.nodes().indexOf('arcade') !== -1 && typeof lobbyHost.openArcade === 'function'
+        && Array.isArray(lobbyHost.cabinets) && lobbyHost.cabinets.length === ARC_CABINETS.length), 'lounge: the cabinet is in the room, and the host hands it every cabinet');
+      await page.evaluate(() => lobbyScene.activate('arcade'));
+      await page.waitForFunction(() => lobbyState.arcade === true, null, { timeout: 10000 }).catch(() => {});
+      ok(await shown(page, 'screen-arcade') && !await shown(page, 'screen-lounge') && await page.evaluate(() => !window.louDebug.isRunning()),
+         'lounge: the cabinet\'s door opens the Arcade, and the room stops behind it');
+      await page.click('#btn-arc-close'); await settle(page, 500);
+      ok(await onlyLayout(page, 'lounge') && !await shown(page, 'screen-arcade')
+        && await page.evaluate(() => getComputedStyle(document.getElementById('lou-fade')).opacity === '0'), 'lounge: ✕ lands back on the Lounge, the door\'s fade cleared');
       await page.evaluate(() => lobbyGo('shelves')); await settle(page, 300);
       ok(await page.evaluate(() => { const b = document.querySelector('#shelves-canvas .bd-head .bd-sound'), c = document.getElementById('shelves-controller');
         if (!b || !c) return false; return b.getBoundingClientRect().left >= c.getBoundingClientRect().right - 1; }),

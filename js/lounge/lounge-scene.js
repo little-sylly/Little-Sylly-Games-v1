@@ -24,7 +24,7 @@
   /* Optional host callbacks: absent is fine (the door is dormant), present
      must be a function. Adding a third dormant door means adding it here and
      flagging its action `optional: true` — no third hardcoded name. */
-  const LOU_OPTIONAL_FUNCS = ['openStickerbook', 'openJukebox', 'openPainting'];
+  const LOU_OPTIONAL_FUNCS = ['openStickerbook', 'openJukebox', 'openPainting', 'openArcade'];
   /* Optional host EFFECTS — validated the same way, but deliberately not in the
      list above, because that one is about dormant DOORS and a door is a thing
      with a destination. `sfx(name)` is the shell's audio hook: the scene names
@@ -123,7 +123,7 @@
     const shelf = B(['shelfSideL', 'shelfSideR', 'shelfTop', 'shelfBack'], 0.22, 0.5);
     const sill = B('sill', 0.06, 0.4), ledge = B('ledge', 0.12, 0.4);   // the window's shallow nose; the plant's ledge on the back wall (round 8)
     const prop = (id) => (built[id] ? [cs.box(built[id], 0.07, 0.45, 0.004, 0.8)] : []);   // tight: the sun already drops their shadows
-    const props = ['tv', 'jukebox', 'dial', 'binder', 'phone', 'lamp'].flatMap(prop);
+    const props = ['tv', 'jukebox', 'dial', 'binder', 'phone', 'lamp', 'arcade'].flatMap(prop);
     // the koala mug is room, not a prop, but it sits on the table like one (room pass, round 4)
     const mug = cs.box(get('mug'), 0.07, 0.45, 0.004, 0.8);
     props.push(mug);
@@ -235,7 +235,8 @@
     const attract = P.louAttract(makeCanvas, host.games, undefined, host.flavour);
     const attractTex = new THREE.CanvasTexture(attract.canvas); attractTex.encoding = THREE.sRGBEncoding;
     const ctx = { lib, design, games: host.games, stickers: host.stickers, lampPanels: host.lampPanels, ControllerBody: CB, controllerParts: host.controllerParts, attractTexture: attractTex, roomData: room.userData, skipProps: mountOpts.skipProps || null,
-      rand: host.rand, sfx };   // sfx: a hoisted declaration below — the controller's idle beats name their sounds through the same seam as a door
+      rand: host.rand, sfx,   // sfx: a hoisted declaration below — the controller's idle beats name their sounds through the same seam as a door
+      cabinets: host.cabinets };   // optional data: the arcade prop's CRT cycles their names; absent, it shows its own title
     const props = new THREE.Group(); props.name = 'props'; scene.add(props);
     const built = P.louBuildAll(ctx);
     Object.keys(built).forEach(id => {
@@ -448,6 +449,10 @@
          Flag-driven, so a third dormant door needs no third name. */
       if (a.optional) {
         const owner = built[a.prop || id];
+        /* `press` is the prop's own answer to being touched, before the door either way (the
+           arcade's START flash) — so a fallback that is itself the press must not repeat it. */
+        const pressFirst = a.press && owner && owner.userData.api && typeof owner.userData.api[a.press] === 'function' && typeof host[a.callback] === 'function';
+        if (pressFirst) owner.userData.api[a.press](reduced());
         if (typeof host[a.callback] === 'function') {
           /* A supplied optional door with an 'open' field is a real door now: the binder
              flips, the camera pushes in, then the host opens the stickerbook. */
@@ -527,9 +532,14 @@
     timers.interval = setInterval(() => {
       if (document.hidden || paused) return;
       // reduced motion holds channel 1 (draw(0) repaints only when a sticker lands)
-      const painted = attract.draw(reduced() ? 0 : (performance.now() - t0) / 1000);
-      if (!painted) return;   // a held channel costs nothing: no upload, no frame
-      attractTex.needsUpdate = true; wake();
+      const t = (performance.now() - t0) / 1000, quiet = reduced();
+      const painted = attract.draw(quiet ? 0 : t);
+      if (painted) attractTex.needsUpdate = true;
+      /* A prop with a screen of its own (the arcade's CRT, SW v258) rides the same loop: its
+         attract(t, reduced) repaints only when its frame changes and uploads its own texture. */
+      let propPainted = false;
+      Object.keys(built).forEach(id => { const a = built[id].userData.api; if (a && typeof a.attract === 'function' && a.attract(t, quiet)) propPainted = true; });
+      if (painted || propPainted) wake();   // a held frame costs nothing: no upload, no frame
     }, LOU_ATTRACT_MS);
 
     // render on demand: run while something animates, then stop

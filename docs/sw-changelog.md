@@ -3,6 +3,14 @@
 Historical SW release notes, moved out of `CLAUDE.md` (1 Aug 2026) so they stop loading into every session.
 The **current** version and its notes stay in `CLAUDE.md` § Current Focus — append the outgoing entry here on each bump.
 
+## v257 — the Arcade Floor (20 Oct 2026). Stage 2 of the arcade spec (§ 3.1): `#screen-arcade` is a fixed-`100dvh`
+room — a marquee sign with bear ears, a swipe-and-snap row of DOM/CSS cabinets in the saved controller's colours (classic
+black CRTs, each game's accent), a tap/drag position strip, PRESS START in the centred accent, and an INSERT COIN beat.
+No RAF loop (an IntersectionObserver reports the centred cabinet). Cabinet screens moved to `src/screens/arcade.html`.
+No new file to precache, no packet. Detail: `shared-implementation-notes.md` DD-60.
+
+
+
 ## v256 — no text-selection callout on the cabinets (20 Oct 2026). A fast swipe on a phone sometimes selected the
 🔊 / ✕ / label and raised the Copy bar over the game. `css/arcade.css` now sets `user-select:none`,
 `-webkit-touch-callout:none` and a transparent tap highlight on every `[id^="screen-arcade-"]` cabinet screen (not the

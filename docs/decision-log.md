@@ -19,6 +19,9 @@ Detail: pointer to the canonical doc (snapshot / impl note / spec / memory).
 ```
 
 
+## 2026-10-21 — A Lounge prop may own a screen and a press: the arcade cabinet (Architecture)
+**Decision:** the Lounge's arcade cabinet (spec Stage 3) brings two general seams to the scene: any prop api with `attract(t, reduced)` repaints on the scene's existing 10 fps attract loop (no new timer), and a `press` flag on a `LOU_ACTIONS` entry runs the prop's own touch reaction before an optional door's push-in. **Why:** the CRT needed a live screen without a second loop or a forever-running RAF, and the tap needed START + coin before the camera moves; both are now data, so the next prop with a screen or a press costs no scene edit. **Changed:** `js/lounge/lounge-props.js`, `lounge-scene.js`, `lounge-sfx.js`, `js/lobby/lobby-doors.js`, `lobby-host.js`, SW v258. **Detail:** `shared-implementation-notes.md` DD-61.
+
 ## 2026-10-20 — The Arcade room is a black-CRT "Arcade Floor", a scoped DESIGN.md exception (Strategy)
 **Decision:** the arcade room is a row of little DOM/CSS cabinets (bear ears, panda body) in the saved controller's colours, with classic black CRTs lit in each game's accent. It is the one sanctioned exception to DESIGN.md's "no dark-mode neon gaming", scoped to `#screen-arcade` + `screen-arcade-*`. **Why:** owner chose it in the shape pass; the room's cabinets are the future Lounge prop, so the two read as one object. **Changed:** `css/arcade.css`, `js/lobby/arcade.js`, `src/screens/lobby.html`, new `src/screens/arcade.html`, `DESIGN.md`, SW v257. **Detail:** spec `2026-10-18-arcade-room-design.md` § 3.1; `shared-implementation-notes.md` DD-60.
 

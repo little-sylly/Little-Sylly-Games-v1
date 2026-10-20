@@ -1,6 +1,6 @@
 # The Arcade leaves Secret Mode — its own room (design)
 
-**Status:** approved 19 Oct 2026 (A–D as written) · Stage 1 shipped SW v254 · Stage 2 (§ 3.1 Arcade Floor) shipped SW v257 · Stage 3 (Lounge prop) open, target SW v258 · **Tier 2** · 18 Oct 2026
+**Status:** approved 19 Oct 2026 (A–D as written) · Stage 1 shipped SW v254 · Stage 2 (§ 3.1 Arcade Floor) shipped SW v257 · Stage 3 (Lounge prop) shipped SW v258 (DD-61) — **spec complete** · **Tier 2** · 18 Oct 2026
 
 ## 1. Outcome
 
@@ -101,7 +101,7 @@ RAF attract loop. Test at 375×667, 375×548 and 320×452. Detailed direction ge
 |---|---|---|
 | **1. Rewire** | Registry move, router place, doors in all three layouts, Board sound → header, Secret Mode cleanup, cabinet exits, a **plain but correct** room (list + launch + ✕), harnesses, docs | SW v254 — the arcade works everywhere, looking basic |
 | **2. The room** | The cabinet/select-screen design to jukebox quality | SW v257 (shipped) |
-| **3. Lounge prop** | 3D cabinet in `lounge-props.js`, hotspot `arcade` → `openArcade` (optional, with fallback), `lobby-doors.js` door | SW v258 |
+| **3. Lounge prop** | 3D cabinet in `lounge-props.js`, hotspot `arcade` → `openArcade` (optional, with fallback), `lobby-doors.js` door | SW v258 (shipped) |
 
 Each stage ships on its own; Stage 1 alone is a complete, shippable change.
 
