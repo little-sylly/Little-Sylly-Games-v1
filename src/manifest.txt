@@ -3,6 +3,7 @@
 _head.html
 _shell.html
 lobby.html
+arcade.html
 li5.html
 gm.html
 ss.html

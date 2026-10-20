@@ -51,7 +51,7 @@ const secret   = R('js/secret-mode.js');
 const arcade   = R('js/lobby/arcade.js');
 const lobbyHtml = R('src/screens/lobby.html');
 const engine   = R('js/engine.js');
-const markup   = R('src/screens/_secret.html');
+const markup   = R('src/screens/arcade.html');
 const scripts  = R('src/screens/_scripts-3.html');
 const sw       = R('sw.js');
 
@@ -100,7 +100,7 @@ for (const c of CABS) {
   is(!!px, `${c.id}.js names a <prefix>-canvas`);
   if (px) {
     prefixes[px] = c.id;
-    is(markup.includes(`id="screen-arcade-${c.id}"`), `${c.screen} markup in _secret.html`);
+    is(markup.includes(`id="screen-arcade-${c.id}"`), `${c.screen} markup in arcade.html`);
     is(markup.includes(`id="${px}-stage"`),           `#${px}-stage in markup`);
     is(markup.includes(`id="${px}-canvas"`),          `#${px}-canvas in markup`);
     is(markup.includes(`id="btn-${px}-exit"`),        `#btn-${px}-exit in markup`);

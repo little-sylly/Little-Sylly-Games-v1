@@ -3,6 +3,13 @@
 Historical SW release notes, moved out of `CLAUDE.md` (1 Aug 2026) so they stop loading into every session.
 The **current** version and its notes stay in `CLAUDE.md` § Current Focus — append the outgoing entry here on each bump.
 
+## v256 — no text-selection callout on the cabinets (20 Oct 2026). A fast swipe on a phone sometimes selected the
+🔊 / ✕ / label and raised the Copy bar over the game. `css/arcade.css` now sets `user-select:none`,
+`-webkit-touch-callout:none` and a transparent tap highlight on every `[id^="screen-arcade-"]` cabinet screen (not the
+room). Hosting is Cloudflare Pages now (`little-sylly-games-v1.pages.dev`). No packet.
+
+
+
 ## v255 — Cold Shot and Trace Route join the Arcade (20 Oct 2026). Cabinets 08 (`coldshot`, `csh`, Cold
 Shoulder's world — you're the penguin in the Drink, snowballing the floe) and 09 (`traceroute`, `trc`, Net-Trace's —
 Snake where you're the breach) are in `ARC_CABINETS`, `allScreens[]`, `_secret.html`, `_scripts-3.html` and

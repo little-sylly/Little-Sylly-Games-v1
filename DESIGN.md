@@ -208,7 +208,7 @@ The last settings card, a toggle plus thematic name; the signature "advanced rul
 
 ### Don't:
 - **Don't** make it corporate or SaaS-clean: no sterile dashboards, thin grey type or generic card grids.
-- **Don't** go dark-mode neon gaming.
+- **Don't** go dark-mode neon gaming. *(One scoped exception: the Arcade room and its cabinets — `#screen-arcade`, `screen-arcade-*` — run a classic black CRT look by owner decision, 20 Oct 2026. Nothing else may borrow it.)*
 - **Don't** put emoji on action button labels or in setting-card titles.
 - **Don't** put a brand colour on exit, back or How to Play.
 - **Don't** add `transition-all`, `ease-in`, or a third overlay pattern.

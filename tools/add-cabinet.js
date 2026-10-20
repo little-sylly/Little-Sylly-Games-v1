@@ -7,7 +7,7 @@
 
      1  ARC_CABINETS entry            js/lobby/arcade.js
      2  allScreens[] entry            js/engine.js
-     3  cabinet <section> markup      src/screens/_secret.html
+     3  cabinet <section> markup      src/screens/arcade.html
      4  <script src>                  src/screens/_scripts-3.html
      5  PRECACHE_URLS + CACHE_NAME    sw.js
      6  header "ARCADE CABINET 0N"    js/arcade/<id>.js
@@ -110,12 +110,12 @@ else {
 
 // 3 ── markup
 {
-  const f = 'src/screens/_secret.html', s = R(f);
+  const f = 'src/screens/arcade.html', s = R(f);
   if (s.includes(`id="${screen}"`)) say(false, 'markup: already there');
   else {
     const at = s.lastIndexOf('<!-- ══ ARCADE CABINET');
     const close = at < 0 ? -1 : s.indexOf('\n  </section>\n', at);
-    if (close < 0) die('no existing cabinet <section> in _secret.html to insert after');
+    if (close < 0) die('no existing cabinet <section> in arcade.html to insert after');
     const T = label.toUpperCase();
     const sec =
 `

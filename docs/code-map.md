@@ -24,7 +24,8 @@ Spec: `docs/superpowers/specs/2026-09-15-index-decomposition-design.md`.
 | Like I'm Five (LI5) | `src/screens/li5.html` |
 | Great Minds (GM) | `src/screens/gm.html` + `src/screens/gm-overlays.html` |
 | Secret Signals (SS) | `src/screens/ss.html` |
-| Secret Mode / Arcade | `src/screens/_secret.html` |
+| Secret Mode | `src/screens/_secret.html` |
+| Arcade cabinets (SW v257) | `src/screens/arcade.html` — the room itself is in `lobby.html` |
 | Just Enough Cooks (JEC) | `src/screens/jec.html` |
 | You Get It? (YGI) | `src/screens/ygi.html` |
 | Late to the Party (LTTP) | `src/screens/lttp.html` |
@@ -1018,17 +1019,25 @@ Helpers: `smLogLine`/`smLogSpacer`/`smShowList`/`smAppendBackButton`, consts `SM
 (`home` clears it); doors are `data-lobby-place="arcade"` in Classic (`#btn-lobby-arcade`), the Board's
 dock and TV's tools, all via `lobbyOpenPlace`. `lobbyOpenArcade()` (lobby-host.js) drops TV/Board then
 calls `arcOpen()`. Functions: `arcOpen`, `arcClose`, `arcStop` (clears `arcLaunchTimer`; also called by
-`resetToLobby()`), `arcRender`, `arcSelect`, `arcLaunch(id)`, `arcExitCabinet()` (every cabinet's ✕:
-stop all → room). State: `arcSel` (memory only). Ids: `#arc-list`, `#arc-blurb`, `#btn-arc-start`,
-`#btn-arc-close`. Desktop keys ↑/↓/Enter/Esc while the room is up.
+`resetToLobby()`; since SW v257 also disconnects the observer and drops `.is-coin`), `arcRender` (builds the row of
+cabinets from `ARC_MACHINE_HTML`), `arcWatchCentre` (an `IntersectionObserver`, root = the row, 2% centre band — the
+selection follows the swipe; no RAF, no scroll timer), `arcCentre(smooth)`, `arcRenderStrip`, `arcPaintSel`,
+`arcPaintPalette` (`ctlReadDesign()` → `--arc-shell/plate/ears/buttons` on the room), `arcSelect(i)` (clamped — a row,
+not a ring), `arcScrubAt`, `arcLaunch(id)` (`.is-coin` → INSERT COIN, two notes, `ARC_LAUNCH_MS` 480),
+`arcExitCabinet()` (every cabinet's ✕: stop all → room). State: `arcSel` (memory only), `arcObserver`,
+`arcScrubbing`/`arcScrubDragged`. Constants: `ARC_LAUNCH_MS`, `ARC_COIN_NOTE_MS`, `ARC_TICKS_MAX` (12 — past it the
+strip's ticks become a rail + thumb), `ARC_ROLES`. Ids: `#arc-list` (the row; children `.arc-row` = one cabinet each,
+`data-arc-id`), `#arc-scrub` (the strip, `role="slider"`), `#arc-count` (`03 / 09`), `#arc-blurb` (visually hidden
+live region), `#btn-arc-start`, `#btn-arc-close`. Keys while the room is up: ←/→ (and ↑/↓) move, Enter/Space play,
+Esc leaves. Layout: spec § 3.1 ("Arcade Floor"), DD-60.
 
-**Files:** `js/arcade/<id>.js` — one per cabinet. **Markup:** `src/screens/_secret.html` (cabinet screens only — moving them out is a deferred tidy-up).
+**Files:** `js/arcade/<id>.js` — one per cabinet. **Markup:** `src/screens/arcade.html` (cabinet screens only; moved out of `_secret.html` SW v257).
 **Not Sylly Games:** no MP config, no identity doc, no Sylly Mode, no pack manifest, and
 `docs/rules/new-game-checklist.md` does not apply. Seven cabinets shipped SW v249; COLD SHOT and TRACE ROUTE joined SW v255 (nine).
 
 **`ARC_CABINETS` (`js/lobby/arcade.js`; `SM_ARCADE` in secret-mode.js until SW v254) is the whole registration.** Every consumer reads it, so a
 cabinet is added with one entry + one file and nothing else:
-- `arcRender()` builds the room's list from it (tap selects, tap again / PRESS START launches).
+- `arcRender()` builds the room's row of cabinets from it (tap a side one to centre it; tap the centred one / PRESS START launches).
 - `engine.js`'s `resetToLobby()` calls **every** entry's `stop()`. A hardcoded teardown here tears
   down one cabinet and leaves the other six repainting under the next screen — that was the
   pre-v249 state, invisible while only one cabinet existed.
@@ -1036,9 +1045,9 @@ cabinet is added with one entry + one file and nothing else:
 | Field | Purpose |
 |-------|---------|
 | `id` | Matches the file (`js/arcade/<id>.js`) and the screen (`screen-arcade-<id>`) |
-| `label` | The room row's text |
-| `blurb` | One line under the list for the highlighted cabinet |
-| `accent` | Hex for that row's highlight |
+| `label` | The cabinet's marquee and screen title |
+| `blurb` | One line on the cabinet's screen |
+| `accent` | Hex: the cabinet's marquee, screen glow and floor pool; START and the strip take the centred one's |
 | `screen` | Screen id — must also be in `allScreens[]` or it is a ghost screen |
 | `start` | `() => <px>Start()` — lazy arrow; the cabinet's file loads after `secret-mode.js` |
 | `stop` | `() => resetArcade<Name>()` — cancels the RAF loop, clears pointer state, **keeps** the session leaderboard |

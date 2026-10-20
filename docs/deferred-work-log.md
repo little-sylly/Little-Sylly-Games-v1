@@ -7,6 +7,14 @@ game abbreviation, function or screen id. Items keep their original section head
 
 ---
 
+## Arcade cabinets — eight new ones integrated, none phone-tested (18 Oct 2026, SW v249; COLD SHOT + TRACE ROUTE SW v255)
+
+Item 0, Stage 2 half — **RESOLVED 20 Oct 2026 (SW v257; `shared-implementation-notes.md` DD-60)**:
+- The cabinet / modern select-screen design to jukebox quality — built as the "Arcade Floor" (spec § 3.1, fixed by
+  the shape pass): a row of DOM/CSS cabinets in the controller's colours, position strip, PRESS START.
+- The cabinet screens moved out of `src/screens/_secret.html` into `src/screens/arcade.html`.
+Stage 3 (the Lounge prop) stays open in `deferred-work.md`.
+
 ## Cold Shoulder (CLD) — phase 40 gate still OPEN + two presentation follow-ons (4 Sep 2026, SW v219 → v221)
 
 Item 6, SW v244 final-review minors — five **RESOLVED 29 Sep 2026 (SW v245, the fun pass Phase 1;

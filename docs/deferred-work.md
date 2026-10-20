@@ -18,10 +18,9 @@ Integration and registration are done and verified (`tools/verify-arcade.js`, 14
 `mutate-arcade.js`, 12/12 red; a headless pass launching all seven through the real
 `smLaunchArcade()` path — since SW v254 `arcLaunch()` in the Arcade room). What is left is the half no harness covers.
 
-0. **The Arcade room, Stages 2–3** (`docs/superpowers/specs/2026-10-18-arcade-room-design.md`, Stage 1 shipped SW v254):
-   Stage 2 — the cabinet / modern select-screen design to jukebox quality (start with `/impeccable shape`);
-   Stage 3 — the Lounge prop (`lounge-props.js`, a hotspot `arcade` → optional `openArcade` door). Smaller: the
-   cabinet screens still live in `src/screens/_secret.html`; move them beside the room when Stage 2 touches markup.
+0. **The Arcade room, Stage 3** (`docs/superpowers/specs/2026-10-18-arcade-room-design.md` § 3.1, Stage 1 SW v254, Stage 2 SW v257):
+   the Lounge prop (`lounge-props.js` `LOU_BUILDERS.arcade`, a hotspot `arcade` → optional `openArcade` door), target SW v258.
+   Also: the Arcade Floor (SW v257) wants its own phone pass — the swipe/snap feel and the strip's drag.
 
 1. **The owner's phone play-test — all nine cabinets** (TRACE ROUTE was phone-tested in the workshop; COLD SHOT's wave pacing and gull frequency were not) (the workshop notes flag six of them as
    "built, awaiting a phone play-test"; ASHERPLANE's revamp and DEEP-SEA SWEEP's reskin too).

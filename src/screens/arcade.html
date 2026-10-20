@@ -1,0 +1,141 @@
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       THE ARCADE CABINETS (moved out of _secret.html, SW v257). One <section> per
+       ARC_CABINETS entry (js/lobby/arcade.js), launched from #screen-arcade
+       (lobby.html). A cabinet's ✕ returns to the room via arcExitCabinet().
+       New cabinets: tools/add-cabinet.js inserts after the last one here.
+       ═══════════════════════════════════════════════════════════════════════ -->
+  <!-- ══ ARCADE CABINET 01 — ASHERPLANE ══ -->
+  <section id="screen-arcade-asherplane" style="display:none"
+    class="relative flex flex-col w-full h-screen bg-black font-mono overflow-hidden">
+    <div class="flex items-center justify-between px-4 pt-3 pb-2 flex-shrink-0">
+      <div class="text-green-400 text-xs tracking-widest opacity-60 select-none">ASHERPLANE</div>
+      <div class="flex items-center gap-2">
+        <button class="btn-open-sound text-xl text-green-400 active:scale-90 transition-transform duration-100 min-h-11 min-w-11">🔊</button>
+        <button id="btn-ap-exit" class="text-green-400 text-lg font-bold active:scale-90 transition-transform duration-100 min-h-11 min-w-11">✕</button>
+      </div>
+    </div>
+    <div id="ap-stage" class="flex-1 min-h-0 flex items-center justify-center" style="touch-action:none">
+      <canvas id="ap-canvas" class="block"></canvas>
+    </div>
+  </section>
+
+  <!-- ══ ARCADE CABINET 02 — DEEP-SEA SWEEP ══ -->
+  <section id="screen-arcade-minesweeper" style="display:none"
+    class="relative flex flex-col w-full h-screen bg-black font-mono overflow-hidden">
+    <div class="flex items-center justify-between px-4 pt-3 pb-2 flex-shrink-0">
+      <div class="text-green-400 text-xs tracking-widest opacity-60 select-none">DEEP-SEA SWEEP</div>
+      <div class="flex items-center gap-2">
+        <button class="btn-open-sound text-xl text-green-400 active:scale-90 transition-transform duration-100 min-h-11 min-w-11">🔊</button>
+        <button id="btn-ms-exit" class="text-green-400 text-lg font-bold active:scale-90 transition-transform duration-100 min-h-11 min-w-11">✕</button>
+      </div>
+    </div>
+    <div id="ms-stage" class="flex-1 min-h-0 flex items-center justify-center" style="touch-action:none">
+      <canvas id="ms-canvas" class="block"></canvas>
+    </div>
+  </section>
+
+  <!-- ══ ARCADE CABINET 03 — OTHER SIDE ══ -->
+  <section id="screen-arcade-chicken" style="display:none"
+    class="relative flex flex-col w-full h-screen bg-black font-mono overflow-hidden">
+    <div class="flex items-center justify-between px-4 pt-3 pb-2 flex-shrink-0">
+      <div class="text-green-400 text-xs tracking-widest opacity-60 select-none">OTHER SIDE</div>
+      <div class="flex items-center gap-2">
+        <button class="btn-open-sound text-xl text-green-400 active:scale-90 transition-transform duration-100 min-h-11 min-w-11">🔊</button>
+        <button id="btn-ck-exit" class="text-green-400 text-lg font-bold active:scale-90 transition-transform duration-100 min-h-11 min-w-11">✕</button>
+      </div>
+    </div>
+    <div id="ck-stage" class="flex-1 min-h-0 flex items-center justify-center" style="touch-action:none">
+      <canvas id="ck-canvas" class="block"></canvas>
+    </div>
+  </section>
+
+  <!-- ══ ARCADE CABINET 04 — CHOP SALAD ══ -->
+  <section id="screen-arcade-slice" style="display:none"
+    class="relative flex flex-col w-full h-screen bg-black font-mono overflow-hidden">
+    <div class="flex items-center justify-between px-4 pt-3 pb-2 flex-shrink-0">
+      <div class="text-green-400 text-xs tracking-widest opacity-60 select-none">CHOP SALAD</div>
+      <div class="flex items-center gap-2">
+        <button class="btn-open-sound text-xl text-green-400 active:scale-90 transition-transform duration-100 min-h-11 min-w-11">🔊</button>
+        <button id="btn-sl-exit" class="text-green-400 text-lg font-bold active:scale-90 transition-transform duration-100 min-h-11 min-w-11">✕</button>
+      </div>
+    </div>
+    <div id="sl-stage" class="flex-1 min-h-0 flex items-center justify-center" style="touch-action:none">
+      <canvas id="sl-canvas" class="block"></canvas>
+    </div>
+  </section>
+
+  <!-- ══ ARCADE CABINET 05 — COOKIE JAR ══ -->
+  <section id="screen-arcade-cookiejar" style="display:none"
+    class="relative flex flex-col w-full h-screen bg-black font-mono overflow-hidden">
+    <div class="flex items-center justify-between px-4 pt-3 pb-2 flex-shrink-0">
+      <div class="text-green-400 text-xs tracking-widest opacity-60 select-none">COOKIE JAR</div>
+      <div class="flex items-center gap-2">
+        <button class="btn-open-sound text-xl text-green-400 active:scale-90 transition-transform duration-100 min-h-11 min-w-11">🔊</button>
+        <button id="btn-hj-exit" class="text-green-400 text-lg font-bold active:scale-90 transition-transform duration-100 min-h-11 min-w-11">✕</button>
+      </div>
+    </div>
+    <div id="hj-stage" class="flex-1 min-h-0 flex items-center justify-center" style="touch-action:none">
+      <canvas id="hj-canvas" class="block"></canvas>
+    </div>
+  </section>
+
+  <!-- ══ ARCADE CABINET 06 — STACKING ORDER ══ -->
+  <section id="screen-arcade-stacking" style="display:none"
+    class="relative flex flex-col w-full h-screen bg-black font-mono overflow-hidden">
+    <div class="flex items-center justify-between px-4 pt-3 pb-2 flex-shrink-0">
+      <div class="text-green-400 text-xs tracking-widest opacity-60 select-none">STACKING ORDER</div>
+      <div class="flex items-center gap-2">
+        <button class="btn-open-sound text-xl text-green-400 active:scale-90 transition-transform duration-100 min-h-11 min-w-11">🔊</button>
+        <button id="btn-sto-exit" class="text-green-400 text-lg font-bold active:scale-90 transition-transform duration-100 min-h-11 min-w-11">✕</button>
+      </div>
+    </div>
+    <div id="sto-stage" class="flex-1 min-h-0 flex items-center justify-center" style="touch-action:none">
+      <canvas id="sto-canvas" class="block"></canvas>
+    </div>
+  </section>
+
+  <!-- ══ ARCADE CABINET 07 — BEYOND THE BLUFF ══ -->
+  <section id="screen-arcade-bluff" style="display:none"
+    class="relative flex flex-col w-full h-screen bg-black font-mono overflow-hidden">
+    <div class="flex items-center justify-between px-4 pt-3 pb-2 flex-shrink-0">
+      <div class="text-green-400 text-xs tracking-widest opacity-60 select-none">BEYOND THE BLUFF</div>
+      <div class="flex items-center gap-2">
+        <button class="btn-open-sound text-xl text-green-400 active:scale-90 transition-transform duration-100 min-h-11 min-w-11">🔊</button>
+        <button id="btn-bb-exit" class="text-green-400 text-lg font-bold active:scale-90 transition-transform duration-100 min-h-11 min-w-11">✕</button>
+      </div>
+    </div>
+    <div id="bb-stage" class="flex-1 min-h-0 flex items-center justify-center" style="touch-action:none">
+      <canvas id="bb-canvas" class="block"></canvas>
+    </div>
+  </section>
+
+  <!-- ══ ARCADE CABINET 08 — COLD SHOT ══ -->
+  <section id="screen-arcade-coldshot" style="display:none"
+    class="relative flex flex-col w-full h-screen bg-black font-mono overflow-hidden">
+    <div class="flex items-center justify-between px-4 pt-3 pb-2 flex-shrink-0">
+      <div class="text-green-400 text-xs tracking-widest opacity-60 select-none">COLD SHOT</div>
+      <div class="flex items-center gap-2">
+        <button class="btn-open-sound text-xl text-green-400 active:scale-90 transition-transform duration-100 min-h-11 min-w-11">🔊</button>
+        <button id="btn-csh-exit" class="text-green-400 text-lg font-bold active:scale-90 transition-transform duration-100 min-h-11 min-w-11">✕</button>
+      </div>
+    </div>
+    <div id="csh-stage" class="flex-1 min-h-0 flex items-center justify-center" style="touch-action:none">
+      <canvas id="csh-canvas" class="block"></canvas>
+    </div>
+  </section>
+
+  <!-- ══ ARCADE CABINET 09 — TRACE ROUTE ══ -->
+  <section id="screen-arcade-traceroute" style="display:none"
+    class="relative flex flex-col w-full h-screen bg-black font-mono overflow-hidden">
+    <div class="flex items-center justify-between px-4 pt-3 pb-2 flex-shrink-0">
+      <div class="text-green-400 text-xs tracking-widest opacity-60 select-none">TRACE ROUTE</div>
+      <div class="flex items-center gap-2">
+        <button class="btn-open-sound text-xl text-green-400 active:scale-90 transition-transform duration-100 min-h-11 min-w-11">🔊</button>
+        <button id="btn-trc-exit" class="text-green-400 text-lg font-bold active:scale-90 transition-transform duration-100 min-h-11 min-w-11">✕</button>
+      </div>
+    </div>
+    <div id="trc-stage" class="flex-1 min-h-0 flex items-center justify-center" style="touch-action:none">
+      <canvas id="trc-canvas" class="block"></canvas>
+    </div>
+  </section>

@@ -92,23 +92,30 @@
   <!-- THE ARCADE (SW v254) — not a layout: a place, like the jukebox. Opened by the router's
        arcadeOpen (the 🕹️ door in every layout), closed by arcadeClose. The list renders
        from ARC_CABINETS (js/lobby/arcade.js). Styles: css/arcade.css, scoped under #screen-arcade.
-       Stage 1 room — the cabinet design pass is spec Stage 2. -->
+       SW v257 "Arcade Floor" (spec § 3.1): the marquee, a row of little cabinets (one per
+       game, the controller's colours) that swipes and snaps, the position strip, PRESS START.
+       Fixed 100dvh — only the row moves. -->
   <section id="screen-arcade" class="arc" style="display:none" aria-label="The Arcade">
-    <div class="arc-cab">
-      <header class="arc-marquee">
-        <h1 class="arc-title">The Arcade</h1>
-        <div class="arc-tools">
-          <button class="btn-open-sound arc-icon" aria-label="Sound">🔊</button>
-          <button id="btn-arc-close" class="arc-icon" aria-label="Leave the arcade">✕</button>
-        </div>
-      </header>
-      <div class="arc-screen">
-        <p class="arc-eyebrow">Select game</p>
-        <div id="arc-list" class="arc-list" role="list"></div>
-        <p id="arc-blurb" class="arc-blurb" aria-live="polite"></p>
+    <header class="arc-head">
+      <div class="arc-sign" aria-hidden="true">
+        <span class="arc-sign-ear is-l"></span><span class="arc-sign-ear is-r"></span>
+        <span class="arc-sign-face"><span class="arc-sign-text">The Arcade</span></span>
       </div>
-      <button id="btn-arc-start" class="arc-start">Press start</button>
+      <h1 class="arc-sr">The Arcade</h1>
+      <div class="arc-tools">
+        <button class="btn-open-sound arc-icon" aria-label="Sound">🔊</button>
+        <button id="btn-arc-close" class="arc-icon" aria-label="Leave the arcade">✕</button>
+      </div>
+    </header>
+    <div class="arc-floor">
+      <div id="arc-list" class="arc-track" role="group" aria-label="Cabinets"></div>
     </div>
+    <div class="arc-strip">
+      <div id="arc-scrub" class="arc-scrub" role="slider" tabindex="0" aria-label="Cabinet"></div>
+      <p id="arc-count" class="arc-count" aria-hidden="true"></p>
+    </div>
+    <p id="arc-blurb" class="arc-sr" aria-live="polite"></p>
+    <button id="btn-arc-start" class="arc-start">Press start</button>
   </section>
 
   <!-- The dock (DD-17): summoned, never automatic — the Lounge's channel dial and

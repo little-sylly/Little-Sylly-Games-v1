@@ -19,6 +19,9 @@ Detail: pointer to the canonical doc (snapshot / impl note / spec / memory).
 ```
 
 
+## 2026-10-20 — The Arcade room is a black-CRT "Arcade Floor", a scoped DESIGN.md exception (Strategy)
+**Decision:** the arcade room is a row of little DOM/CSS cabinets (bear ears, panda body) in the saved controller's colours, with classic black CRTs lit in each game's accent. It is the one sanctioned exception to DESIGN.md's "no dark-mode neon gaming", scoped to `#screen-arcade` + `screen-arcade-*`. **Why:** owner chose it in the shape pass; the room's cabinets are the future Lounge prop, so the two read as one object. **Changed:** `css/arcade.css`, `js/lobby/arcade.js`, `src/screens/lobby.html`, new `src/screens/arcade.html`, `DESIGN.md`, SW v257. **Detail:** spec `2026-10-18-arcade-room-design.md` § 3.1; `shared-implementation-notes.md` DD-60.
+
 ## 2026-10-20 — Arcade cabinets integrate by script, and have a real-browser smoke (Process)
 **Decision:** `tools/add-cabinet.js` does the seven identical seams in one command; `tools/smoke-arcade.js` launches every cabinet through the real room. **Why:** integration was mechanical, silent-fail boilerplate, and no harness proved a cabinet launches. **Changed:** two new tools; prompt Step 5/6 + hand-off block (Label/Blurb/Accent). **Detail:** `shared-implementation-notes.md` DD-59.
 

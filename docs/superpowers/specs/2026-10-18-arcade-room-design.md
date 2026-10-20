@@ -1,6 +1,6 @@
 # The Arcade leaves Secret Mode — its own room (design)
 
-**Status:** approved 19 Oct 2026 (A–D as written) · Stage 1 shipped SW v254 · **Tier 2** · 18 Oct 2026 · target SW v254
+**Status:** approved 19 Oct 2026 (A–D as written) · Stage 1 shipped SW v254 · Stage 2 (§ 3.1 Arcade Floor) shipped SW v257 · Stage 3 (Lounge prop) open, target SW v258 · **Tier 2** · 18 Oct 2026
 
 ## 1. Outcome
 
@@ -75,13 +75,33 @@ Enter on desktop. Motion follows the § Motion Standard. Reduced motion is check
 RAF attract loop. Test at 375×667, 375×548 and 320×452. Detailed direction gets fixed with
 `/impeccable shape` at the start of Stage 2, not here.
 
+### 3.1 Direction contract (shape pass, 20 Oct 2026 — owner-confirmed)
+
+**One idea:** the room's little cabinets *are* the Lounge prop. Tap the bear cabinet on the shelf, the camera pushes into its CRT, and you stand at a row of the same cabinet, one per game. *Supersedes the "phosphor glow / green-on-black" wording above:* owner chose a **classic black CRT** (light scanlines, each game's `accent` as its glow) set in the prop's lilac bezel. The room (and cabinets) are a scoped exception to DESIGN.md's "no dark-mode neon gaming" — record that one line at closing.
+
+**Room = "Arcade Floor" (fixed `100dvh`; only the row moves).**
+- Top: marquee title (the bear's round ears on it) + 🔊 ✕.
+- Centre: one large lit cabinet — marquee in the game's accent, screen showing name + `blurb`; neighbours peek in dark at both edges; swipe the row (scroll-snap).
+- Below: position strip (ticks + `03 / 09`, tap a tick to jump; becomes a scrubber past ~12 games) — this is what keeps 20+ games from feeling endless.
+- Thumb zone: **PRESS START**. Tap a side cabinet to centre it; tap the centred one (or START) to play. Desktop: ←/→ (and ↑/↓) move, Enter plays, Esc leaves.
+- Launch beat: screen flashes INSERT COIN, the two-note coin, then the cabinet takes over.
+- DOM/CSS cabinets, no WebGL and no RAF loop (the global reduced-motion block covers it). Cabinet colours follow the Workshop palette (the shelf prop's `shell / plate / ears / buttons` roles).
+- Test at 375×667, 375×548, 320×452. Move the cabinet screens out of `_secret.html` while touching markup.
+
+**Prop = bear ears on the panda's one-piece body**, built as `LOU_BUILDERS.arcade` in `lounge-props.js`: hood + inset faceplate + CRT + joystick + buttons, coin door, side grille, lit marquee. Roles: body `shell`, faceplate and marquee frame `plate`, ears `ears`, stick ball and buttons `buttons`; glass fixed black. ~13 cm W × 20 cm H (23 to ear tips) × 14 cm D; modest triangle budget so it never needs `skipProps`.
+- **Placement:** the **bottom bay** under the lamp's board (floor of bay = base board top, y = 0.10; bay ~31 cm tall, 22 cm deep, 78 cm wide), **left of centre — x ≈ 1.28** (the lamp is centred at 1.52; ~8 cm clear of the left wall), set forward so the screen shows, turned a few degrees toward the camera. Tune x, z and turn on the first render. Add a footprint entry for the bay to the harness. The dim baked bay shading is wanted: the lit CRT glows there.
+- **Door:** pick id `arcade` → `openArcade` (optional; fallback `bop`), push-in on the CRT; tab order between `controller` and `lamp`.
+- **Idle:** the CRT cycles the real cabinet names in their accents with INSERT COIN blinking (~10 fps). Beats on a 9–15 s gap: `ghost` (stick rocks, buttons light, score ticks; ~1.6 s, w .35), `twitch` (one ear flicks; ~0.6 s, w .30), `flicker` (marquee stutters; ~0.7 s, w .25), `hiscore` (HI-SCORE flash, coin lamp, tiny hop; ~1.4 s, w .10). Tap: START flashes, stick snaps, push-in. Reduced motion: nothing moves, one title card. One new synthesised name through the sfx seam (`arcadeCoin`).
+
+**Open:** renumber stages (v255/v256 are taken): room = SW v257, prop = SW v258. Room first.
+
 ## 4. Stages
 
 | Stage | Contents | Ships as |
 |---|---|---|
 | **1. Rewire** | Registry move, router place, doors in all three layouts, Board sound → header, Secret Mode cleanup, cabinet exits, a **plain but correct** room (list + launch + ✕), harnesses, docs | SW v254 — the arcade works everywhere, looking basic |
-| **2. The room** | The cabinet/select-screen design to jukebox quality | SW v255 |
-| **3. Lounge prop** | 3D cabinet in `lounge-props.js`, hotspot `arcade` → `openArcade` (optional, with fallback), `lobby-doors.js` door | SW v256 |
+| **2. The room** | The cabinet/select-screen design to jukebox quality | SW v257 (shipped) |
+| **3. Lounge prop** | 3D cabinet in `lounge-props.js`, hotspot `arcade` → `openArcade` (optional, with fallback), `lobby-doors.js` door | SW v258 |
 
 Each stage ships on its own; Stage 1 alone is a complete, shippable change.
 

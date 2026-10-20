@@ -562,7 +562,7 @@ The seams, for reference — every one fails silently if missed, and the tool do
 | 1 | `js/arcade/<id>.js` | — |
 | 2 | `ARC_CABINETS` in `js/lobby/arcade.js` — `{ id, label, screen, start, stop, blurb, accent }` | not listed in the Arcade room |
 | 3 | `allScreens[]` in `js/engine.js` | **ghost screen** — it never hides, and its canvas paints under every later screen |
-| 4 | Markup in `src/screens/_secret.html` | `getElementById` returns null and `start()` throws |
+| 4 | Markup in `src/screens/arcade.html` | `getElementById` returns null and `start()` throws |
 | 5 | `<script src>` in `src/screens/_scripts-3.html` | `start()` is a ReferenceError on launch |
 | 6 | `sw.js` `PRECACHE_URLS` + a `CACHE_NAME` bump | the cabinet is missing **offline only** |
 | 7 | `node tools/build-index.js` | `index.html` is generated; a hand edit is silently overwritten |
