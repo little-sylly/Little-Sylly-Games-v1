@@ -3,6 +3,13 @@
 Historical SW release notes, moved out of `CLAUDE.md` (1 Aug 2026) so they stop loading into every session.
 The **current** version and its notes stay in `CLAUDE.md` § Current Focus — append the outgoing entry here on each bump.
 
+## v260 — the Arcade Floor is a live 3D ring (21 Oct 2026). Spec § 3.3 (Stage 5, reverses § 3.2's rendered picture):
+ONE Three.js scene of the real `louBuildArcade` cabinets on a ring, backs to the middle — the centred one steps out toward
+you, neighbours show their sides (50° step on a phone, 30° on a wide floor). Glass + marquee are canvas textures
+(`faces` option): live preview, HI, PRESS START, `NN NAME`. The invisible row still drives it (scroll turns the ring, a tap
+raycasts). Arrival beat, spin-in, push-in launch; one loop (`arcLoop`), renderer released by `arcStop()`. No WebGL → a flat
+CSS row. No new file, no packet. Detail: `shared-implementation-notes.md` DD-63.
+
 ## v259 — the real model on the Arcade Floor (21 Oct 2026). Spec § 3.2 (Stage 4): the room renders the Lounge's
 cabinet once (`arcModelShot`, a lite lib, no env map, cached per design) and every row wears it — marquee = number + name,
 the CRT a live preview of the centred cabinet's own attract scene (`preview()` adapters in all nine, the room's one RAF;

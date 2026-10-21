@@ -3401,6 +3401,27 @@ Card *art* and card *names* were always separate skinning concerns by constructi
 
 ## Bug Index
 
+**BUG-27 — the Arcade Floor's number lagged or jumped back after a key or a tap (desktop). [21 Oct 2026, SW v261]**
+
+*What happened:* owner playtest of v260: on a browser, → sometimes moved the ring to the next cabinet while `03 / 09`
+stayed on the old one, sometimes the number jumped back a cabinet; clicking a neighbour the same. Swiping on a phone was fine.
+
+*Root cause:* the room's own smooth `scrollTo` raced the centre `IntersectionObserver`. `arcSelect` sets `arcSel` first,
+then glides; halfway, the next row ENTERS the 2% band while the old row is still nearer the middle by layout → the observer
+named the old one (the jump back). The glide's last event is the old row LEAVING, which the observer threw away (it only
+acted when some entry `isIntersecting`) → the stale number stuck. A finger swipe starts no programmatic glide, so the phone
+never met it. Narrow v260 ring rows (one projected pitch) made both events land mid-glide every time.
+
+*Fix:* `arcSyncCentre(track)` — every crossing counts (enter or leave); while a glide the room started is in flight
+(`arcSteerTo`, set by `arcCentre(true)`) rows passed on the way are ignored until the destination is centred; a pointer,
+wheel or touch on the row hands it back to the person; `scrollend` re-reads. `smoke-arcade.js` presses → ×4, ←, → with
+mixed gaps and checks the number against the row actually centred — red on the old observer, green now.
+
+*Regression found the same day:* treating LEAVING as news meant a hidden room reported too — while a cabinet plays, every row leaves the band and measures 0 wide, so the observer picked cabinet 1 and ✕ came back to 01 (owner). `arcSyncCentre` now returns when the room is down or the row has no width. The smoke only ever exited from the cabinet it had just launched at index 0..n in order, so it now asserts the room is still on the cabinet it left.
+
+*Lesson:* **an observer that reports "where the scroll settled" must treat LEAVING as news, and must know which scrolls
+are the app's own.** "Only act on isIntersecting" reads as a harmless filter and is exactly what loses the final state.
+
 **BUG-23 — a new Sylly Mode track needs an `engine.js` line, not just a manifest line.
 [27 Sep 2026]**
 

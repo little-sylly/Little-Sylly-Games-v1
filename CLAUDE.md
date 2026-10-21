@@ -293,14 +293,14 @@ On every bump the outgoing SW entry moves **verbatim** to `docs/sw-changelog.md`
 "keep the last three". **A second `**SW v…**` paragraph appearing here means that move didn't
 happen: do it before anything else.**
 
-**SW v260 — the Arcade Floor is a live 3D ring (21 Oct 2026).** Spec § 3.3 (Stage 5, reverses § 3.2's rendered picture):
-ONE Three.js scene of the real `louBuildArcade` cabinets on a ring, backs to the middle — the centred one steps out toward
-you, neighbours show their sides (50° step on a phone, 30° on a wide floor). Glass + marquee are canvas textures
-(`faces` option): live preview, HI, PRESS START, `NN NAME`. The invisible row still drives it (scroll turns the ring, a tap
-raycasts). Arrival beat, spin-in, push-in launch; one loop (`arcLoop`), renderer released by `arcStop()`. No WebGL → a flat
-CSS row. No new file, no packet. Detail: `shared-implementation-notes.md` DD-63.
+**SW v261 — the Arcade Floor's keys, and the cabinet screens on a wide window (21 Oct 2026).** Owner playtest of
+v260 (the live 3D ring, spec § 3.3): on desktop an arrow key or a tap could leave the number on the previous cabinet or jump it
+back — the centre observer named the row halfway through the room's own smooth glide, then ignored the row leaving. Fixed
+(`arcSyncCentre`: every crossing counts, a glide's destination is held in `arcSteerTo`, `scrollend` re-reads). On a wide
+window a cabinet's header now holds to its canvas's column, and the game's own edges spill out round it, blurred
+(`.arc-amb`, `arcAmbient`, 10 fps). No new file, no packet. Detail: `shared-implementation-notes.md` BUG-27.
 
-**Previous versions: `docs/sw-changelog.md`** — continuous, v259 back to v167.
+**Previous versions: `docs/sw-changelog.md`** — continuous, v260 back to v167.
 
 **Where the suite stands.** **20 games shipped**, all gold-master, plus multiplayer; newest are Honeycomb Hills (`comb`, MDLM-only, no Sylly Mode), Cold Shoulder (`cld`, first physics game) and Cookie Jar (`cjar`). Every game has an identity doc (`docs/game-identities/`). The Cartridge System (word packs + skin packs, `docs/cartridge-system-plan.md`) is complete; core art has rolled out to `pko`, `flw`, `frt`, `shp`, `comb` — PASS runs CSS defaults, DYB and CLD art are procedural and never need a pack (`docs/expansion-guide.md` § Core art packs). **Phase gates 37–39 and 41 are closed; phase 40 (Cold Shoulder) is open** — `docs/phase40-snapshot.md` names what is left (a live multi-device session and the offline install check).
 

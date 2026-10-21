@@ -1035,7 +1035,11 @@ cam, renderer, canvas .arc-gl, light, pool, beams, step, R, pitch, live, spin, p
 row), `arcGlFit` (camera, ring radius `arcRingR(step)`, `--arc-pitch`/`--arc-ct`/`--arc-ch` on the row), `arcGlU` (ring
 position from `scrollLeft`), `arcGlPose(u)`, `arcGlFrame`, `arcGlPush` (launch push-in), `arcGlRender` (one draw outside the
 loop), `arcGlOnScroll` (reduced motion), `arcGlOnClick` (raycast tap → select/launch), `arcGlRelease` (disposes all + context
-loss; from `arcStop()` unless `arcStop(true)` — `arcOpen`, so a cabinet's ✕ keeps the ring), `arcPaintFace(i, now)` (the
+loss; from `arcStop()` unless `arcStop(true)` — `arcOpen`, so a cabinet's ✕ keeps the ring), `arcSyncCentre(track)` (SW v261 — the observer's and `scrollend`'s one read of the centred row; quiet while `arcSteerTo`, a
+key/tap/strip glide's destination, set by `arcCentre(true)`, cleared by pointer/wheel/touch on the row — BUG-27),
+`arcAmbient` + `arcCabStop` (SW v261 — a playing cabinet on a wide window: `--arc-cab-w` holds `.arc-cab-head` to the canvas
+column via `arcCabRO`; `.arc-amb` canvas behind, its edges stretched out, `arcAmbTimer` 10 fps; set up in `arcDressCabinet`,
+cleared by `arcStop()`; `.is-wide` on the section), `arcPaintFace(i, now)` (the
 glass texture: `.arc-crt-view` + HI + PRESS START + INSERT COIN), `arcPaintMarquee`, `arcPickBeat`. Constants `ARC_RING`
 (step/stepWide/gap/lift/fov/fill/cy/out — mutable for review), `ARC_RING_SHOW`, `ARC_FACE_W/H`, `ARC_MARQ_W/H`, `ARC_SPIN_MS`,
 `ARC_BEATS`. Markup constants `ARC_MARQ_HTML`, `ARC_CRT_HTML`, `ARC_MACHINE_HTML` (CSS fallback), `ARC_GL_ROW_HTML` (a ring

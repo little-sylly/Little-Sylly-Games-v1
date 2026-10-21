@@ -677,7 +677,7 @@ RAF loop left running repaints/advances against the next screen's state. Referen
 
 **Non-game timers follow the same rule** — the 3D controller's `ctlRaf`, Secret Mode's
 `smTypewriterTimers`, the lobby layouts' RAFs/timers (`tvDrop()`, `bdDrop()` — the Board's `bdTimers`/`bdRaf`/`bdFlights`, SW v250 —
-`lobbyScene.stop()`, `jbxStop()`, the Arcade's one loop `arcRaf` — `arcStop()`, SW v260),
+`lobbyScene.stop()`, `jbxStop()`, the Arcade's one loop `arcRaf` and a playing cabinet's `arcAmbTimer` — `arcStop()`, SW v260/v261),
 reconnect's handles (all cleared in `mpEndMatchLocal()`) and the Bluff's two choreography bags
 (`dybAnimTimers` / `dybPrTimers` — stopping one never touches the other). Per-handle clear sites:
 `shared-implementation-notes.md` DD-54. A prop that idles schedules off the scene's frame time inside its

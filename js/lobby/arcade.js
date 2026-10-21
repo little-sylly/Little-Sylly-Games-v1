@@ -137,6 +137,9 @@ let arcRaf = null;           // the room's ONE loop (arcLoop)
 let arcLoopLast = 0;
 let arcGl = null;            // the ring while the arcade is open { renderer, scene, ring, cam, cabs, … }
 let arcGlFailed = false;     // no WebGL, or a build that threw: the CSS row for the rest of the session
+let arcSteerTo = null;       // a key/tap/strip glide's destination: the centre observer keeps quiet until the row lands there
+let arcCabRO = null;         // the playing cabinet's canvas, watched: its header follows the canvas's width
+let arcAmbTimer = null;      // the playing cabinet's ambient light (arcAmbient), 10 fps
 
 /* SW v259 — 4b: the screen is the game. A cabinet's optional `preview()` hands
    back an adapter { w, h, fy, begin(canvas, ctx), step(dt), draw(), end() }:
@@ -654,17 +657,25 @@ function arcWatchCentre(track) {
   /* The observer only says "something crossed the centre band". WHICH cabinet is centred is read from
      layout (offsetLeft, which ignores transforms): the CSS row scales the neighbours, and their
      transformed boxes can touch the band while the centred one still owns the middle. */
-  arcObserver = new IntersectionObserver(entries => {
-    if (!entries.some(e => e.isIntersecting)) return;
-    const mid = track.scrollLeft + track.clientWidth / 2;
-    let best = -1, bestD = Infinity;
-    Array.prototype.forEach.call(track.querySelectorAll('.arc-row'), (m, k) => {
-      const d = Math.abs(m.offsetLeft + m.offsetWidth / 2 - mid);
-      if (d < bestD) { bestD = d; best = k; }
-    });
-    if (best >= 0 && best !== arcSel) { arcSel = best; playSecretBeep(660); arcPaintSel(); }
-  }, { root: track, rootMargin: '0px -49% 0px -49%', threshold: 0 });
+  arcObserver = new IntersectionObserver(() => arcSyncCentre(track), { root: track, rootMargin: '0px -49% 0px -49%', threshold: 0 });
   Array.prototype.forEach.call(track.children, m => arcObserver.observe(m));
+}
+
+/* Whichever row's layout centre is nearest the middle is the selection. Every
+   crossing counts — a row LEAVING the band is as much news as one entering, and
+   the last event of a glide is often a leave. While a glide the room started is
+   under way (arcSteerTo) the rows it passes are not news: the selection is
+   already where it is going, and naming the one halfway past would jump back. */
+function arcSyncCentre(track) {
+  if (!arcIsUp() || !track.clientWidth) return;   // a hidden room measures every row at 0: that is not a selection (a playing cabinet's)
+  const mid = track.scrollLeft + track.clientWidth / 2;
+  let best = -1, bestD = Infinity;
+  Array.prototype.forEach.call(track.querySelectorAll('.arc-row'), (m, k) => {
+    const d = Math.abs(m.offsetLeft + m.offsetWidth / 2 - mid);
+    if (d < bestD) { bestD = d; best = k; }
+  });
+  if (arcSteerTo !== null) { if (best === arcSteerTo) arcSteerTo = null; return; }
+  if (best >= 0 && best !== arcSel) { arcSel = best; playSecretBeep(660); arcPaintSel(); }
 }
 
 // Scroll the selected cabinet to the middle of the row.
@@ -673,8 +684,10 @@ function arcCentre(smooth) {
   const m = track && track.children[arcSel];
   if (!m) return;
   const left = m.offsetLeft + m.offsetWidth / 2 - track.clientWidth / 2;
-  if (smooth && !arcReducedMotion() && typeof track.scrollTo === 'function') track.scrollTo({ left, behavior: 'smooth' });
-  else track.scrollLeft = left;
+  if (smooth && !arcReducedMotion() && typeof track.scrollTo === 'function') {
+    arcSteerTo = Math.abs(track.scrollLeft - left) > 1 ? arcSel : null;
+    track.scrollTo({ left, behavior: 'smooth' });
+  } else { arcSteerTo = null; track.scrollLeft = left; }
 }
 
 /* The position strip: one tick per cabinet, or one rail + thumb past
@@ -748,6 +761,44 @@ function arcDressCabinet(cab, i) {
   sec.style.setProperty('--arc-accent', cab.accent);
   const num = sec.querySelector('.arc-cab-num');
   if (num) num.textContent = arcPad(i + 1);
+  /* A wide window: the header is held to the canvas's column (--arc-cab-w), and the game's own picture,
+     blurred, spills out round it — the screen lighting the room. Only where there is room either side. */
+  arcCabStop();
+  const cv = sec.querySelector('[id$="-stage"] > canvas');
+  if (!cv) return;
+  let amb = sec.querySelector('.arc-amb');
+  if (!amb) { amb = document.createElement('canvas'); amb.className = 'arc-amb'; amb.setAttribute('aria-hidden', 'true'); sec.insertBefore(amb, sec.firstChild); }
+  const fit = () => { sec.style.setProperty('--arc-cab-w', cv.offsetWidth + 'px'); sec.classList.toggle('is-wide', sec.clientWidth - cv.offsetWidth > 80); };
+  if (typeof ResizeObserver === 'function') { arcCabRO = new ResizeObserver(fit); arcCabRO.observe(cv); arcCabRO.observe(sec); }
+  arcAmbTimer = setInterval(() => arcAmbient(sec, cv, amb), arcReducedMotion() ? 1000 : 100);
+}
+
+/* One frame of the ambient light: the game's picture, carried past its frame. The canvas is drawn
+   where it stands (in a tiny copy of the screen) and its own edge strips are stretched out to the
+   screen's edges — the sea, the road, the sky go on — then CSS blurs it all up. Never the middle
+   blown up: that is where the menu cards are, and enlarged they are only blobs. */
+const ARC_AMB_EDGE = 0.04;   // the share of the canvas's width (and height) each stretched strip takes
+function arcAmbient(sec, cv, amb) {
+  if (!sec.classList.contains('is-wide') || !cv.width || !cv.height || sec.style.display === 'none') return;
+  const sr = sec.getBoundingClientRect(), cr = cv.getBoundingClientRect();
+  if (!sr.width || !cr.width) return;
+  const W = 96, k = W / sr.width, H = Math.max(8, Math.round(sr.height * k));
+  if (amb.width !== W) amb.width = W;
+  if (amb.height !== H) amb.height = H;
+  const x = amb.getContext('2d'), cx = (cr.left - sr.left) * k, cy = (cr.top - sr.top) * k, cw = cr.width * k, ch = cr.height * k;
+  const ew = Math.max(1, Math.round(cv.width * ARC_AMB_EDGE)), eh = Math.max(1, Math.round(cv.height * ARC_AMB_EDGE));
+  try {
+    x.drawImage(cv, 0, 0, cv.width, eh, cx, 0, cw, cy + 1);                                   // top
+    x.drawImage(cv, 0, cv.height - eh, cv.width, eh, cx, cy + ch - 1, cw, H - cy - ch + 1);    // bottom
+    x.drawImage(cv, 0, 0, ew, cv.height, 0, 0, cx + 1, H);                                     // left, to the screen's edge
+    x.drawImage(cv, cv.width - ew, 0, ew, cv.height, cx + cw - 1, 0, W - cx - cw + 1, H);      // right
+    x.drawImage(cv, cx, cy, cw, ch);                  // the picture itself, under the real one
+  } catch (_) {}
+}
+
+function arcCabStop() {
+  if (arcAmbTimer) { clearInterval(arcAmbTimer); arcAmbTimer = null; }
+  if (arcCabRO) { arcCabRO.disconnect(); arcCabRO = null; }
 }
 
 /* The launch beat. On the ring: the cabinet's own press (the stick snaps, the
@@ -805,6 +856,8 @@ function arcClose() { arcStop(); }
 // Every timer and loop the room runs; and, unless asked to keep it, the ring itself.
 function arcStop(keepRing) {
   if (arcLaunchTimer) { clearTimeout(arcLaunchTimer); arcLaunchTimer = null; }
+  arcCabStop();
+  arcSteerTo = null;
   arcPreviewStop();
   arcLoopStop();
   if (arcObserver) { arcObserver.disconnect(); arcObserver = null; }
@@ -848,6 +901,14 @@ document.getElementById('btn-arc-close').addEventListener('click', () => {
   playPillClick();
   lobbyDispatch({ t: 'arcadeClose' });
 });
+(function arcBindRow() {
+  const t = document.getElementById('arc-list');
+  const take = () => { arcSteerTo = null; };
+  t.addEventListener('pointerdown', take, { passive: true });
+  t.addEventListener('wheel', take, { passive: true });
+  t.addEventListener('touchstart', take, { passive: true });
+  t.addEventListener('scrollend', () => { arcSteerTo = null; if (arcIsUp()) arcSyncCentre(t); });
+})();
 (function arcBindScrub() {
   const s = document.getElementById('arc-scrub');
   s.addEventListener('pointerdown', e => {

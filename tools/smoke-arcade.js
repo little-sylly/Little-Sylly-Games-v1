@@ -127,7 +127,9 @@ const shown = pg => pg.evaluate(() => [...document.querySelectorAll('section[id^
     await pg.evaluate(id => arcLaunch(id), cab.id);
     ok(await pg.evaluate(() => arcPrev === null), 'a launch stops the live preview at once');
     await pg.waitForTimeout(700);
-    await pg.click(`#btn-${px}-exit`); await pg.waitForTimeout(300);
+    await pg.click(`#btn-${px}-exit`); await pg.waitForTimeout(600);
+    ok(await pg.evaluate(id => ARC_CABINETS[arcSel].id === id && document.getElementById('arc-count').textContent.startsWith(arcPad(ARC_CABINETS.findIndex(c => c.id === id) + 1)), cab.id),
+      '✕ back to the room: it is still on the cabinet you left (not back at 01)');
     ok(await pg.evaluate(() => !!arcPrev && arcPrev.i === arcSel), '✕ back to the room: the centred screen runs live again');
     await pg.evaluate(() => lobbyDispatch({ t: 'arcadeClose' })); await pg.waitForTimeout(300);
 
@@ -192,6 +194,22 @@ const shown = pg => pg.evaluate(() => [...document.querySelectorAll('section[id^
     await pg.waitForFunction(() => arcSel === 4 && arcGl.live === 4, null, { timeout: 60000 });
     ok(await pg.evaluate(() => Math.abs(arcGl.ring.rotation.y + 4 * arcGl.step * Math.PI / 180) < 0.02), 'one pitch of scroll turns the ring one step');
     ok(await pg.evaluate(() => arcGl.lastBeat !== ''), 'the cabinet that comes round to the front plays an arrival beat');
+    /* the keys (owner, 21 Oct 2026 — desktop): a key's smooth glide crosses the centre band, and the observer used to
+       name the row halfway past (a jump back) and then ignore the row leaving (the number stuck). After a run of
+       presses, quick and slow, the number must be the cabinet that is actually in the middle. */
+    await pg.evaluate(() => { arcSelect(2, false); document.getElementById('btn-arc-start').focus(); });
+    await pg.waitForTimeout(300);
+    for (const [k, gap] of [['ArrowRight', 60], ['ArrowRight', 450], ['ArrowRight', 60], ['ArrowRight', 60], ['ArrowLeft', 450], ['ArrowRight', 700]]) {
+      await pg.keyboard.press(k); await pg.waitForTimeout(gap);
+    }
+    await pg.waitForTimeout(1500);
+    const keys = await pg.evaluate(() => {
+      const t = document.getElementById('arc-list'), mid = t.scrollLeft + t.clientWidth / 2;
+      let best = -1, bd = Infinity; [...t.querySelectorAll('.arc-row')].forEach((m, k) => { const d = Math.abs(m.offsetLeft + m.offsetWidth / 2 - mid); if (d < bd) { bd = d; best = k; } });
+      return { sel: arcSel, centred: best, count: document.getElementById('arc-count').textContent };
+    });
+    ok(keys.sel === 6 && keys.centred === 6 && keys.count.startsWith('07'), `keys: four right, a left, a right — on 07, the number agrees with the centre (sel ${keys.sel + 1}, centred ${keys.centred + 1}, ${keys.count})`);
+    await pg.evaluate(() => { arcSelect(4, false); }); await pg.waitForTimeout(400);
     // a tap on a neighbour's model selects it
     const at = await pg.evaluate(() => {
       const g = arcGl, h = g.cabs[5].holder, p = h.localToWorld(new THREE.Vector3(0, 0.12, 0)).project(g.cam), r = g.canvas.getBoundingClientRect();

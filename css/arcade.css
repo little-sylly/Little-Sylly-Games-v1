@@ -382,3 +382,15 @@
   border-radius: 14px;
   box-shadow: 0 0 0 1px rgba(255, 255, 255, .06), 0 0 40px color-mix(in srgb, var(--arc-accent) 20%, transparent), 0 10px 30px rgba(0, 0, 0, .6);
 }
+
+/* SW v260: a wide window. The header is held to the canvas's own column (--arc-cab-w, set by arcDressCabinet),
+   so the name sits over the canvas's left edge and 🔊 ✕ over its right; and the game's own picture, tiny and
+   blurred (.arc-amb, arcAmbient), spills out round it — the screen lighting the room. On a phone the canvas
+   fills the width, `is-wide` never sets, and neither changes anything. */
+[id^="screen-arcade-"] > .arc-cab-head { width: 100%; max-width: calc(var(--arc-cab-w, 100vw) + 32px); align-self: center; }
+[id^="screen-arcade-"] > .arc-cab-head, [id^="screen-arcade-"] > [id$="-stage"] { position: relative; z-index: 1; }
+[id^="screen-arcade-"] > .arc-amb {
+  position: absolute; left: -10%; top: -10%; width: 120%; height: 120%; z-index: 0; pointer-events: none;
+  filter: blur(48px) saturate(1.35); opacity: 0; transition: opacity 240ms ease;
+}
+[id^="screen-arcade-"].is-wide > .arc-amb { opacity: .5; }
