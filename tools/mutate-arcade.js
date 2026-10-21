@@ -25,7 +25,8 @@ const MUTS=[
  ['js/arcade/bluff.js','a cabinet leaks an unprefixed global',
    s=>s.replace('function resetArcadeBluff() {','function drawRock() {}\nfunction resetArcadeBluff() {')],
  ['js/arcade/chicken.js','teardown stops cancelling the RAF loop',
-   s=>s.replace('if (ckRaf) { cancelAnimationFrame(ckRaf); ckRaf = null; }','ckRaf = null;')],
+   // anchored to the teardown: the visibility handler carries the same line (SW v263)
+   s=>s.replace(/(function resetArcadeChicken\(\) \{\s*)if \(ckRaf\) \{ cancelAnimationFrame\(ckRaf\); ckRaf = null; \}/,'$1ckRaf = null;')],
  ['js/arcade/minesweeper.js','start() navigates to the wrong screen',
    s=>s.replace("showScreen('screen-arcade-minesweeper')","showScreen('screen-arcade-asherplane')")],
  ['js/arcade/stacking.js','exit button stops tearing its own cabinet down',

@@ -26,6 +26,13 @@
 //  - Every visit is a little timeline built in hjStartVisit(). All the tuning
 //    numbers live in the HJ_ constants just below, so play-test changes are
 //    one-line edits.
+//  - The tension pass (Oct 2026): the clock reads as a countdown (DINNER IN
+//    47 MIN); while someone's coming and your hand is in the jar a heartbeat
+//    speeds up, the kitchen darkens round the edges and leans toward the
+//    door; a brave escape freezes the frame for a beat and brave escapes in a
+//    row build a NERVES OF STEEL streak bonus; each family member's tell gets a
+//    coach line the first time they visit. None of it touches the visit
+//    timings or the fairness window.
 // ═══════════════════════════════════════════════════════════════════════════
 const HJ_W = 360, HJ_H = 640;
 const HJ_TITLE = 'HAND IN THE COOKIE JAR';
@@ -74,6 +81,21 @@ const HJ_CLOSE_SHAVE_MINS = 10, HJ_SNEAKY_MINS = 4;
 const HJ_SNEAKY_LEAD = 0.6;            // s before the door opens that still counts as SNEAKY
 const HJ_TUTOR_VISITS = 3, HJ_TUTOR_WINDOW = 0.45;   // Mum's first visits: a wider appear → look gap
 const HJ_HURRY_MINS = 10;              // under this many minutes the clock goes red and ticks
+// ── The tension (cosmetic — none of it moves a visit's timings) ──
+const HJ_HEART_SLOW = 0.85, HJ_HEART_FAST = 0.26;   // s between heartbeats, far away → in the doorway
+const HJ_STREAK_BONUS = 2;             // cookies per brave escape in a row after the first
+const HJ_COACH_S = 4.5;
+const HJ_COACH = {
+  mum:    'Mum: footsteps, a shadow, then the handle turns. Let go before she looks!',
+  dad:    'Dad: slow, heavy footsteps. Sometimes he stops at the fridge first…',
+  big:    'Big Sibling is quick! Fast footsteps and no shadow.',
+  little: 'Little Sibling giggles instead of making footsteps.',
+  pet:    "The family pet can't tell on you. But a bark makes the next visitor come quicker!",
+  walk:   'Footsteps fading away? They walked past. Keep grabbing!',
+  treat:  'Something special in the jar! Your next grab is a treat.',
+  brave:  'Letting go just as the door opens is brave, and it pushes dinner back.',
+  hurry:  "Dinner's nearly ready! Take a risk to push it back.",
+};
 
 // The family. lead = first tell → appears in the doorway, [early, late] (s).
 // shadowAt = when the shadow tell lands, as a fraction of lead (null = no shadow tell).
@@ -120,6 +142,8 @@ const HJ_SOUND = {
   sneaky:    () => { playSecretBeep(659); hjLater(90, () => playSecretBeep(784)); },
   tick:      () => playSecretBeep(1175),
   dinner:    () => { [1318, 1046, 1318, 1046].forEach((f, k) => hjLater(k * 160, () => playSecretBeep(f))); },
+  heart:     () => { playSecretBeep(82); hjLater(110, () => playSecretBeep(73)); },   // lub-dub
+  streak:    () => [1046, 1318, 1568, 2093].forEach((f, k) => hjLater(k * 70, () => playSecretBeep(f))),
 };
 const HJ_OVER_JINGLE = [523, 392, 330, 262];
 // Schedule something ms from now on the game clock (the cabinet's setTimeout).
@@ -186,6 +210,12 @@ let hjOverT = 0;
 let hjStashPop = 0;
 let hjAttractT = 0;
 let hjJarCookies = null;    // the cookies drawn inside the jar (built once)
+let hjTension = 0;          // 0 calm … 1 someone's in the doorway and your hand's in the jar (eased, for drawing)
+let hjNextHeart = 0;        // hjClock ms
+let hjFreeze = 0, hjFlash = 0, hjFlashCol = '255,183,3';
+let hjBrave = 0;            // brave escapes in a row
+let hjCoach = null, hjCoachQ = [];
+let hjCoachSeen = {};       // session-only, like the scores
 
 function hjStart() {
   hjCanvas = document.getElementById('hj-canvas');
@@ -210,6 +240,19 @@ function hjNewGame() {
   hjTreat = null; hjNextTreatVisit = HJ_FIRST_TREAT_VISIT;
   hjNow = 0; hjDinnerAt = HJ_DINNER_START; hjClockPop = 0; hjNextTick = 0; hjOverReason = 'caught';
   hjBarkPenalty = false; hjStashPop = 0; hjLastRank = -1;
+  hjTension = 0; hjNextHeart = 0; hjFreeze = 0; hjFlash = 0; hjBrave = 0; hjCoach = null; hjCoachQ = [];
+}
+
+function hjQueueCoach(key) { if (hjCoachSeen[key]) return; hjCoachSeen[key] = true; hjCoachQ.push(key); }
+
+// How close the visit on its way is to looking: 0 nobody coming … 1 in the doorway.
+function hjCloseness(v) {
+  if (!v || v.phase === 'gap') return 0;
+  if (v.walk) return v.stepFade ? 0.25 : 0.55;
+  if (v.phase === 'door' || v.phase === 'look') return 1;
+  if (v.phase === 'leave') return 0.3;
+  if (v.appearAt === null) return 0;
+  return Math.max(0, Math.min(1, (v.vt - v.t0) / Math.max(0.1, v.appearAt - v.t0)));
 }
 
 function hjResetHand() {
@@ -230,9 +273,22 @@ function hjLoop(now) {
 }
 
 function hjUpdate(dt) {
+  if (hjShake > 0) hjShake = Math.max(0, hjShake - dt);
+  if (hjFlash > 0) hjFlash = Math.max(0, hjFlash - dt * 2.5);
+  if (hjFreeze > 0) { hjFreeze -= dt; return; }   // hit-stop on the big moments
   hjClock += dt * 1000;
   hjAttractT += dt;
-  if (hjShake > 0) hjShake = Math.max(0, hjShake - dt);
+  // The tension: how close someone is, doubled up while your hand's in the jar.
+  const near = hjState === 'playing' ? hjCloseness(hjVisit) : 0;
+  const pet = hjVisit && HJ_VISITORS[hjVisit.who].harmless;
+  const want = near * (hjHand && hjHand.in ? 1 : 0.35) * (pet ? 0.5 : 1);
+  hjTension += (want - hjTension) * Math.min(1, dt * 5);
+  if (hjState === 'playing' && hjHand && hjHand.in && near > 0.05 && hjClock >= hjNextHeart) {
+    HJ_SOUND.heart();
+    hjNextHeart = hjClock + 1000 * hjLerp(HJ_HEART_SLOW, HJ_HEART_FAST, near);
+  }
+  if (hjCoach && hjClock > hjCoach.until) hjCoach = null;
+  if (!hjCoach && hjCoachQ.length && hjState === 'playing') hjCoach = { text: HJ_COACH[hjCoachQ.shift()], until: hjClock + HJ_COACH_S * 1000 };
   if (hjStashPop > 0) hjStashPop = Math.max(0, hjStashPop - dt * 3);
   hjParts.forEach(p => {
     p.x += p.vx * dt; p.y += p.vy * dt; p.vy += (p.grav || 0) * dt; p.life -= dt;
@@ -388,10 +444,11 @@ function hjStartVisit() {
     hjTreat = list[Math.floor(Math.random() * list.length)];
     hjNextTreatVisit = hjVisitNo + hjRandInt(HJ_TREAT_GAP[0], HJ_TREAT_GAP[1]);
     HJ_SOUND.sparkle();
+    hjQueueCoach('treat');
   }
 
   const v = {
-    who, walk, vt: 0, steps: [], phase: 'gap', win, appearVt: 0, appearAt: null, outVt: null,
+    who, walk, vt: 0, t0: gap, steps: [], phase: 'gap', win, appearVt: 0, appearAt: null, outVt: null,
     stepping: false, stepFade: false, nextStep: 0, prints: [],
     shadowT: 0, shadow: 0, passStart: null, handleVt: null, giggleVt: null,
     doorT: 0, door: 0, inDoor: false, face: 'turn',
@@ -407,7 +464,7 @@ function hjStartVisit() {
     // Walk-past: footsteps arrive, the shadow slides across, footsteps fade. Nobody looks.
     at(t0,       () => { v.phase = 'approach'; startSteps(); v.glowT = 0.3; say(V.tell); });
     at(t0 + 0.5, () => { v.shadowT = 1; v.passStart = v.vt; });
-    at(t0 + 1.3, () => { v.stepFade = true; v.glowT = 0; say('…FOOTSTEPS FADING AWAY'); });
+    at(t0 + 1.3, () => { v.stepFade = true; v.glowT = 0; say('…FOOTSTEPS FADING AWAY'); hjQueueCoach('walk'); });
     at(t0 + 2.1, () => { v.shadowT = 0; });
     at(t0 + 2.4, () => { v.stepping = false; });
     at(t0 + 3.0, () => { say(''); v.done = true; });
@@ -423,6 +480,7 @@ function hjStartVisit() {
     at(T(0), () => {
       v.phase = 'approach'; v.glowT = 0.3; say(V.tell);
       if (who === 'little') giggle(); else startSteps();
+      hjQueueCoach(who);
     });
     if (pause) {
       at(T(pauseAt),         () => { v.stepping = false; v.fridge = true; v.nextHum = v.vt; v.glowT = 0.15; say('…STOPPED AT THE FRIDGE?'); });
@@ -486,16 +544,38 @@ function hjLook(v) {
 }
 
 // How brave was the escape? Only the LAST time the hand came out during this visit counts.
+// A timid escape (well before the door) breaks the streak; a brave one builds it.
 function hjGradeEscape(v) {
-  if (v.outVt === null || v.appearAt === null) return;
+  if (v.outVt === null || v.appearAt === null) { hjBrave = 0; return; }
   let mins = 0, word = '';
   if (v.outVt >= v.appearAt)                       { mins = HJ_CLOSE_SHAVE_MINS; word = 'CLOSE SHAVE!'; HJ_SOUND.closeShave(); }
   else if (v.outVt >= v.appearAt - HJ_SNEAKY_LEAD) { mins = HJ_SNEAKY_MINS;      word = 'SNEAKY!';      HJ_SOUND.sneaky(); }
-  if (!mins) return;
+  if (!mins) { hjBrave = 0; return; }
   hjDinnerAt = Math.min(hjDinnerAt + mins, hjNow + HJ_DINNER_MAX_AHEAD);
   hjClockPop = 1;
-  hjFloat(word, 180, 412, { size: mins === HJ_CLOSE_SHAVE_MINS ? 30 : 24, color: HJ_GOLD, vy: -24, life: 1.3, outline: true });
-  hjFloat('DINNER +' + mins + ' MINS', 180, 92, { size: 15, color: HJ_CREAM, vy: 14, life: 1.4 });
+  const shave = mins === HJ_CLOSE_SHAVE_MINS;
+  hjFreeze = shave ? 0.14 : 0.07;                  // the frame holds its breath
+  hjFlash = shave ? 0.5 : 0.3; hjFlashCol = '255,183,3';
+  hjShake = Math.max(hjShake, shave ? 0.18 : 0.08);
+  hjConfetti(hjHandXY().x, 380, shave ? 26 : 12);
+  hjFloat(word, 180, 412, { size: shave ? 34 : 26, color: HJ_GOLD, vy: -24, life: 1.3, outline: true });
+  hjFloat('+' + mins + ' MIN TO DINNER', 180, 92, { size: 15, color: HJ_CREAM, vy: 14, life: 1.4 });
+  hjQueueCoach('brave');
+  hjBrave++;
+  if (hjBrave >= 2) {                              // NERVES OF STEEL: brave escapes in a row pay out
+    const bonus = (hjBrave - 1) * HJ_STREAK_BONUS;
+    hjScore += bonus; hjStashPop = 1;
+    hjLater(260, () => HJ_SOUND.streak());
+    hjFloat(`NERVES OF STEEL ×${hjBrave}  +${bonus}`, 180, 452, { size: 18, color: HJ_PINK, vy: -20, life: 1.4, outline: true });
+  }
+}
+
+function hjConfetti(x, y, n) {
+  for (let i = 0; i < n; i++) {
+    const a = -Math.PI / 2 + (Math.random() - 0.5) * 2.4, s = 120 + Math.random() * 220;
+    hjParts.push({ kind: 'confetti', x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, grav: 420,
+      life: 1.1, max: 1.1, rot: Math.random() * 6, spin: (Math.random() - 0.5) * 14, color: HJ_CONFETTI[i % HJ_CONFETTI.length] });
+  }
 }
 
 // The dinner clock: runs only while playing (not during the caught beat).
@@ -504,6 +584,7 @@ function hjUpdateDinner(dt) {
   const left = hjDinnerAt - hjNow;
   if (left <= HJ_HURRY_MINS && left > 0 && hjNow >= hjNextTick) {
     HJ_SOUND.tick(); hjNextTick = Math.floor(hjNow) + 1;
+    hjQueueCoach('hurry');
   }
   if (left <= 0) {
     hjNow = hjDinnerAt;
@@ -515,17 +596,14 @@ function hjUpdateDinner(dt) {
   }
 }
 
-function hjFmtClock(mins) {
-  const m = Math.floor(mins);
-  const h = 5 + Math.floor(m / 60);
-  return ((h - 1) % 12 + 1) + ':' + String(m % 60).padStart(2, '0');
-}
 
 function hjCaught(v) {
   v.face = 'caught';
   hjState = 'caught'; hjCaughtT = 0; hjCaughtWho = v.who;
   hjChances--;
   hjShake = 0.45;
+  hjFreeze = 0.12; hjFlash = 0.6; hjFlashCol = '230,57,70';
+  hjBrave = 0;
   HJ_SOUND.caught();
   // the haul spills on the counter
   const hp = hjHandXY();
@@ -570,14 +648,54 @@ function hjDraw() {
   if (hjShake > 0) g.translate((Math.random() - 0.5) * 8, (Math.random() - 0.5) * 8);
   if (hjState === 'attract') hjDrawAttract(g);
   else if (hjState === 'playing' || hjState === 'caught') {
+    const z = 1 + 0.035 * hjTension;               // the kitchen leans toward the door
+    g.save(); g.translate(180, 190); g.scale(z, z); g.translate(-180, -190);
     hjDrawKitchen(g, hjVisit);
+    g.restore();
+    hjDrawTension(g);
     hjDrawHud(g);
     hjDrawFx(g);
+    hjDrawCoach(g);
     if (hjState === 'caught') hjDrawCaught(g);
   } else if (hjState === 'over') hjDrawOver(g);
   else if (hjState === 'nameEntry') hjDrawNameEntry(g);
   else if (hjState === 'leaderboard') hjDrawLeaderboard(g);
   g.restore();
+  if (hjFlash > 0) { g.fillStyle = `rgba(${hjFlashCol},${(hjFlash * 0.45).toFixed(3)})`; g.fillRect(0, 0, HJ_W, HJ_H); }
+}
+
+// The room closes in: dark edges as someone gets near, a red throb on every
+// heartbeat once they're at the door.
+function hjDrawTension(g) {
+  const t = hjTension;
+  if (t < 0.02) return;
+  const vg = g.createRadialGradient(180, 330, 140, 180, 330, 430);
+  vg.addColorStop(0, 'rgba(10,5,2,0)');
+  vg.addColorStop(1, `rgba(10,5,2,${(0.75 * t).toFixed(3)})`);
+  g.fillStyle = vg; g.fillRect(0, 0, HJ_W, HJ_H);
+  const beat = Math.max(0, 1 - (hjClock - (hjNextHeart - 1000 * hjLerp(HJ_HEART_SLOW, HJ_HEART_FAST, t))) / 260);
+  if (t > 0.5 && beat > 0) {
+    const rg = g.createRadialGradient(180, 330, 160, 180, 330, 420);
+    rg.addColorStop(0, 'rgba(230,57,70,0)');
+    rg.addColorStop(1, `rgba(230,57,70,${(0.4 * beat * (t - 0.5) * 2).toFixed(3)})`);
+    g.fillStyle = rg; g.fillRect(0, 0, HJ_W, HJ_H);
+  }
+}
+
+// The coach box, in the prompt's place at the foot of the screen.
+function hjDrawCoach(g) {
+  if (!hjCoach || hjState !== 'playing') return;
+  g.font = 'bold 12px monospace';
+  const words = hjCoach.text.split(' '), lines = [];
+  let line = '';
+  words.forEach(w => { const t = line ? line + ' ' + w : w; if (g.measureText(t).width > 300 && line) { lines.push(line); line = w; } else line = t; });
+  if (line) lines.push(line);
+  const h = lines.length * 17 + 16, y = HJ_H - h - 8;
+  g.globalAlpha = Math.max(0, Math.min(1, (hjCoach.until - hjClock) / 400));
+  hjRoundRect(g, 14, y, 332, h, 12); g.fillStyle = 'rgba(255,244,224,0.96)'; g.fill();
+  g.strokeStyle = HJ_GOLD; g.lineWidth = 2.5; g.stroke();
+  lines.forEach((l, i) => hjText(l, 180, y + 16 + i * 17, 12, HJ_SIL, 'center', 320));
+  g.globalAlpha = 1;
 }
 
 // Text that shrinks to fit the width. align: 'center' | 'left' | 'right'.
@@ -953,7 +1071,11 @@ function hjDrawHaulBubble(g) {
   const p = hjArmPose();
   const s = 1 + hjHand.pop * 0.35;
   const val = hjHand.value > 99 ? '99+' : String(hjHand.value);
-  hjText('+' + val, Math.max(70, p.bx - 62), Math.max(360, p.by - 50), Math.round(26 * s), HJ_GOLD, 'center', 120, true);
+  // A big haul trembles (and goes red when it's really greedy) — there's a lot to lose.
+  const greed = Math.max(0, Math.min(1, (hjHand.value - 10) / 20));
+  const jx = (Math.random() - 0.5) * 5 * greed, jy = (Math.random() - 0.5) * 4 * greed;
+  const col = greed > 0.6 ? HJ_RED : HJ_GOLD;
+  hjText('+' + val, Math.max(70, p.bx - 62) + jx, Math.max(360, p.by - 50) + jy, Math.round((26 + 8 * greed) * s), col, 'center', 120, true);
 }
 
 // A cartoon arm: the upper arm runs off the right edge, the forearm runs elbow →
@@ -1016,6 +1138,7 @@ function hjDrawCookie(g, x, y, r, look = 'cookie') {
 }
 
 function hjDrawPrompt(g) {
+  if (hjCoach && hjState === 'playing') return;   // the coach box has the floor
   const y = HJ_COUNTER_Y;
   if (hjHand && hjHand.in) {
     hjText('LET GO TO SNEAK OUT', 180, y + 32, 18, HJ_CREAM);
@@ -1035,25 +1158,35 @@ function hjDrawHud(g) {
   hjDrawDinnerClock(g, 132, 30);
 }
 
-// Little wall clock + "5:42" + "DINNER 6:10". Goes red and pulses when time's nearly up.
+// The countdown to dinner: a steaming pot, "DINNER IN 47 MIN", and a bar that
+// drains towards it. Red and pulsing once it's under HJ_HURRY_MINS. (It used to
+// be a wall clock reading "5:42 · DINNER 6:10" — that made you do sums.)
 function hjDrawDinnerClock(g, cx, cy) {
-  const left = hjDinnerAt - hjNow;
+  const left = Math.max(0, hjDinnerAt - hjNow);
+  const mins = Math.ceil(left);
   const hurry = left <= HJ_HURRY_MINS;
   const pulse = hurry ? 0.5 + 0.5 * Math.sin(hjNow * Math.PI * 2) : 0;
   const col = hurry ? HJ_RED : HJ_CREAM;
-  const r = 17 * (1 + 0.18 * hjClockPop);
-  g.fillStyle = HJ_CREAM; hjCircle(g, cx, cy, r);
-  g.strokeStyle = hurry ? HJ_RED : HJ_WOOD; g.lineWidth = 3 + pulse * 2;
-  g.beginPath(); g.arc(cx, cy, r, 0, Math.PI * 2); g.stroke();
-  const m = hjNow % 60, hrs = 5 + hjNow / 60;
-  g.strokeStyle = HJ_SIL; g.lineCap = 'round';
-  const hand = (ang, len, w) => { g.lineWidth = w; g.beginPath(); g.moveTo(cx, cy);
-    g.lineTo(cx + Math.sin(ang) * len, cy - Math.cos(ang) * len); g.stroke(); };
-  hand((hrs % 12) / 12 * Math.PI * 2, r * 0.5, 3);
-  hand(m / 60 * Math.PI * 2, r * 0.8, 2);
+  const px = cx - 14, py = cy + 2, k = 1 + 0.2 * hjClockPop + 0.08 * pulse;
+  // the pot, its lid and the steam (more of it the closer dinner is)
+  g.save(); g.translate(px, py); g.scale(k, k);
+  g.fillStyle = hurry ? HJ_RED : '#B9C2C9'; hjRoundRect(g, -13, -6, 26, 16, 5); g.fill();
+  g.fillRect(-16, -4, 3, 4); g.fillRect(13, -4, 3, 4);
+  g.fillStyle = '#8E979E'; g.fillRect(-14, -9, 28, 4);
+  g.fillStyle = HJ_SIL; hjCircle(g, 0, -11, 2.5);
+  const steam = 1 - Math.min(1, left / 60);
+  g.strokeStyle = `rgba(255,244,224,${(0.25 + 0.6 * steam).toFixed(3)})`; g.lineWidth = 2; g.lineCap = 'round';
+  for (let s = -1; s <= 1; s++) {
+    const w = Math.sin(hjClock / 200 + s * 2) * 2;
+    g.beginPath(); g.moveTo(s * 6, -14); g.quadraticCurveTo(s * 6 + 4 + w, -20, s * 6 + w, -26); g.stroke();
+  }
   g.lineCap = 'butt';
-  hjText(hjFmtClock(hjNow), cx + 26, cy - 2, Math.round(20 * (1 + 0.15 * hjClockPop)), col, 'left');
-  hjText('DINNER ' + hjFmtClock(hjDinnerAt), cx + 26, cy + 18, 10, hurry ? HJ_RED : HJ_DIMTXT, 'left');
+  g.restore();
+  hjText('DINNER IN', cx + 6, cy - 14, 10, hurry ? HJ_RED : HJ_DIMTXT, 'left');
+  hjText(`${mins} MIN${hurry ? '!' : ''}`, cx + 6, cy + 6, Math.round(22 * (1 + 0.15 * hjClockPop + 0.1 * pulse)), col, 'left');
+  const bw = 86, bx = cx + 6, by = cy + 20;
+  g.fillStyle = 'rgba(255,244,224,0.14)'; g.fillRect(bx, by, bw, 4);
+  g.fillStyle = hurry ? HJ_RED : HJ_GOLD; g.fillRect(bx, by, bw * Math.min(1, left / HJ_DINNER_MAX_AHEAD), 4);
 }
 
 function hjDrawMiniHand(g, x, y, on) {
@@ -1284,7 +1417,8 @@ function resetArcadeCookieJar() {
   hjState = 'attract'; hjPress = null; hjPtrId = null;
   hjEvents = []; hjParts = []; hjFloats = []; hjShake = 0;
   hjVisit = null; hjResetHand(); hjHandPos = 0;
-  // hjScores is NOT cleared — session high scores survive the lobby.
+  hjTension = 0; hjFreeze = 0; hjFlash = 0; hjCoach = null; hjCoachQ = [];
+  // hjScores and hjCoachSeen are NOT cleared — session state survives the lobby.
 }
 
 // ── The Arcade Floor's preview (SW v259) ─────────────────────────────────────

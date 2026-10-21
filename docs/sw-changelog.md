@@ -3,6 +3,13 @@
 Historical SW release notes, moved out of `CLAUDE.md` (1 Aug 2026) so they stop loading into every session.
 The **current** version and its notes stay in `CLAUDE.md` § Current Focus — append the outgoing entry here on each bump.
 
+## v262 — the arcade cabinet, rebuilt the way a moulded toy is made (21 Oct 2026). Owner: a larger CRT, the deck lower,
+the ears seamless, the mock-ups' detail — "could double as a real physical object". `louBuildArcade` is side walls + a core set
+in all round (a parting line) + one bent faceplate in the front pocket: a 4:3 CRT (~44% more glass) in a sloped bezel, the deck
+at a quarter height, button collars, START/SELECT, a coin door with a heart lamp, speaker + S badge, back panel, feet, a pom
+tail; the ears sit in socket bosses. Geometry built once per lib (the Floor's ring builds in 40 ms, was 195). The Floor follows:
+`ARC_FACE_W/H` 480 × 360, `ARC_CAB_H` 0.230, the push-in fits the glass's height too. No packet. Detail: `shared-implementation-notes.md` DD-64.
+
 ## v261 — the Arcade Floor's keys, and the cabinet screens on a wide window (21 Oct 2026). Owner playtest of
 v260 (the live 3D ring, spec § 3.3): on desktop an arrow key or a tap could leave the number on the previous cabinet or jump it
 back — the centre observer named the row halfway through the room's own smooth glide, then ignored the row leaving. Fixed

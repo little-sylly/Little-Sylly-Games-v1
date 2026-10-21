@@ -293,14 +293,14 @@ On every bump the outgoing SW entry moves **verbatim** to `docs/sw-changelog.md`
 "keep the last three". **A second `**SW v…**` paragraph appearing here means that move didn't
 happen: do it before anything else.**
 
-**SW v262 — the arcade cabinet, rebuilt the way a moulded toy is made (21 Oct 2026).** Owner: a larger CRT, the deck lower,
-the ears seamless, the mock-ups' detail — "could double as a real physical object". `louBuildArcade` is side walls + a core set
-in all round (a parting line) + one bent faceplate in the front pocket: a 4:3 CRT (~44% more glass) in a sloped bezel, the deck
-at a quarter height, button collars, START/SELECT, a coin door with a heart lamp, speaker + S badge, back panel, feet, a pom
-tail; the ears sit in socket bosses. Geometry built once per lib (the Floor's ring builds in 40 ms, was 195). The Floor follows:
-`ARC_FACE_W/H` 480 × 360, `ARC_CAB_H` 0.230, the push-in fits the glass's height too. No packet. Detail: `shared-implementation-notes.md` DD-64.
+**SW v263 — six arcade cabinets get the arcade treatment (22 Oct 2026).** Owner review of cabinets 1–7 against the
+prompt's guidelines (variety, escalation, madness, teach in play). DEEP-SEA SWEEP is a dive (sectors, hull plates, pearls / air /
+sonar / reef / jammers one per sector); CHOP SALAD fills a salad bowl per course and wakes one Fruity Personality each course,
+then FRUIT FRENZY; BEYOND THE BLUFF climbs in pitches (a ledge every 100 m, one new element each, rockslides, gusts, two
+power-ups); COOKIE JAR counts down to dinner and builds tension; STACKING ORDER gets FEEDING FRENZY and HIGH WINDS; OTHER SIDE
+honks, near-misses, Speed Demons, Rush Hour — and its tab-away double loop is fixed. No packet. Detail: `shared-implementation-notes.md` DD-65.
 
-**Previous versions: `docs/sw-changelog.md`** — continuous, v261 back to v167.
+**Previous versions: `docs/sw-changelog.md`** — continuous, v262 back to v167.
 
 **Where the suite stands.** **20 games shipped**, all gold-master, plus multiplayer; newest are Honeycomb Hills (`comb`, MDLM-only, no Sylly Mode), Cold Shoulder (`cld`, first physics game) and Cookie Jar (`cjar`). Every game has an identity doc (`docs/game-identities/`). The Cartridge System (word packs + skin packs, `docs/cartridge-system-plan.md`) is complete; core art has rolled out to `pko`, `flw`, `frt`, `shp`, `comb` — PASS runs CSS defaults, DYB and CLD art are procedural and never need a pack (`docs/expansion-guide.md` § Core art packs). **Phase gates 37–39 and 41 are closed; phase 40 (Cold Shoulder) is open** — `docs/phase40-snapshot.md` names what is left (a live multi-device session and the offline install check).
 

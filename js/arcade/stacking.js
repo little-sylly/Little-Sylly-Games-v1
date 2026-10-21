@@ -10,6 +10,11 @@
 //    target, touch-action:none) wrapping #sto-canvas, plus #btn-sto-exit.
 //  - engine.js resetToLobby() should call resetArcadeStacking() beside resetArcade().
 //  - NO setTimeouts: every delayed effect is scheduled on stoClock via stoEvents.
+//  - Oct 2026 additions: FEEDING FRENZY (three PERFECTs in a row: the vine
+//    turns gold, PERFECTs pay double and the window widens until you miss
+//    centre); HIGH WINDS from floor 15 (a gust, warned by an arrow and blowing
+//    leaves, pushes whatever's FALLING sideways — drop upwind); hit-stop, a
+//    zoom punch and a shockwave on every landing; animal noises; coach lines.
 //
 // World coordinates (used for the tower, falling animals, debris, particles):
 //   x is logical px (180 = screen centre when the camera is at rest),
@@ -55,6 +60,27 @@ const STO_VINE_PIVOT_Y = -230, STO_VINE_LEN = 348;          // pendulum pivot si
 const STO_MILESTONES = { 10: 'THE WATERING HOLE', 25: 'THE HIERARCHY', 50: 'APEX PREDATOR' };
 const STO_BOTTOM_FEEDER = 5;     // under this many floors → BOTTOM FEEDER
 const STO_ROCK = { kind: 'rock', w: 160, h: 44 };
+const STO_FRENZY_AT = 3;          // PERFECTs in a row that start a FEEDING FRENZY
+const STO_FRENZY_PX = 8;          // the PERFECT window during a frenzy
+const STO_WIND_FROM = 15;         // HIGH WINDS from this floor
+const STO_WIND_WARN = 1.4, STO_WIND_S = 3.2, STO_WIND_GAP = [9, 14];   // seconds
+const STO_WIND_PUSH = [70, 120];  // px/s sideways on a falling animal, floor 15 → floor 40
+const STO_COACH_S = 4.6;
+const STO_COACH = {
+  start:   'Tap anywhere to drop the animal. Land it right in the middle of the one below!',
+  perfect: 'PERFECT! A dead-centre landing straightens the tower a little.',
+  lean:    'The tower is leaning! Land on the other side, or get a PERFECT to straighten it.',
+  climb:   'Predator on prey climbs the order: bonus points. The NEXT box shows a ▲ when it can.',
+  nervous: 'Prey on its predator gets nervous and makes the tower wobble.',
+  frenzy:  'Feeding Frenzy! Keep landing PERFECTs for double points.',
+  wind:    'Wind! It blows falling animals sideways. Drop a little upwind.',
+  alpha:   'An Alpha! A PERFECT with it halves the lean.',
+};
+const STO_NOISE = {
+  mouse: 'Squeak!', bee: 'Bzzz!', mongoose: 'Chirr!', eagle: 'Skree!', leopard: 'Rrrowr!', bear: 'Grr!',
+  elephant: 'Toot!', fish: 'Blub!', octopus: 'Splorp!', seal: 'Arf!', stingray: 'Swish!', polarbear: 'Brr!', orca: 'Squee!',
+};
+const STO_STREAK_SHOUT = { 5: 'UNSTOPPABLE!', 8: 'KING OF THE JUNGLE!', 12: 'TOP OF THE FOOD CHAIN!', 16: 'APEX OF APEXES!' };
 
 // ── The 13 animals (FIRM chain, SOFT sizes). w × h in px, weight scales lean.
 const STO_ANIMALS = {
@@ -101,6 +127,9 @@ const STO_SOUND = {
   leanWarn:     () => playSecretBeep(110),
   collapse:     () => stoJingle([392, 330, 262, 196, 147], 140),
   milestone:    () => stoJingle([523, 659, 784, 1046], 110),
+  frenzy:       () => stoJingle([784, 988, 1175, 1568, 1976], 70),
+  frenzyOver:   () => stoJingle([523, 392], 120),
+  wind:         () => stoJingle([392, 349, 330, 294], 110),
 };
 const STO_OVER_JINGLE = [523, 392, 330, 262];   // used when the last paw print goes
 
@@ -142,6 +171,14 @@ let stoCamX = 0, stoCamH = 0, stoZoom = 1;
 let stoCallouts = [], stoPopups = [], stoBanner = null;
 let stoCollapse = null, stoOverReason = '';
 let stoLastWarn = 0, stoPawLostAt = -9999;
+let stoFrenzy = false;
+let stoWind = null;         // { dir, warnUntil, until, push } — a gust, stoClock ms
+let stoNextWind = 0;
+let stoFreeze = 0, stoFlash = 0, stoPunch = 0;   // hit-stop, a white flash, the zoom punch
+let stoRings = [];          // landing shockwaves (world space): { x, y, w, age, life }
+let stoBubbles = [];        // animal noises (world space): { text, x, y, age }
+let stoCoach = null, stoCoachQ = [];
+let stoCoachSeen = {};      // session-only, like the scores
 
 // ── Scenery, generated once from a fixed seed so it's the same every run
 function stoMulberry(a) {
@@ -194,9 +231,14 @@ function stoNewGame() {
   stoCamX = 0; stoCamH = 0; stoZoom = 1;
   stoCallouts = []; stoPopups = []; stoBanner = null; stoCollapse = null; stoOverReason = '';
   stoLastWarn = 0; stoPawLostAt = -9999;
+  stoFrenzy = false; stoWind = null; stoNextWind = 0; stoFreeze = 0; stoFlash = 0; stoPunch = 0;
+  stoRings = []; stoBubbles = []; stoCoach = null; stoCoachQ = [];
   stoNext = stoPick(null, 1);
   stoSpawnSwing();
+  stoQueueCoach('start');
 }
+
+function stoQueueCoach(key) { if (stoCoachSeen[key]) return; stoCoachSeen[key] = true; stoCoachQ.push(key); }
 
 function stoLoop(now) {
   stoRafHandle = null;
@@ -214,8 +256,15 @@ function stoAt(ms, fn) { stoEvents.push({ at: stoClock + ms, fn }); }
 function stoJingle(freqs, gap) { freqs.forEach((f, k) => stoAt(k * gap, () => playSecretBeep(f))); }
 
 function stoUpdate(dt) {
-  stoClock += dt * 1000;
   if (stoShake > 0) stoShake = Math.max(0, stoShake - dt);
+  if (stoFlash > 0) stoFlash = Math.max(0, stoFlash - dt * 3);
+  if (stoPunch > 0) stoPunch = Math.max(0, stoPunch - dt * 4);
+  if (stoFreeze > 0) { stoFreeze -= dt; return; }   // hit-stop
+  stoClock += dt * 1000;
+  stoRings.forEach(r => { r.age += dt; }); stoRings = stoRings.filter(r => r.age < r.life);
+  stoBubbles.forEach(b => { b.age += dt; }); stoBubbles = stoBubbles.filter(b => b.age < 1.0);
+  if (stoCoach && stoClock > stoCoach.until) stoCoach = null;
+  if (!stoCoach && stoCoachQ.length && stoState === 'playing') stoCoach = { text: STO_COACH[stoCoachQ.shift()], until: stoClock + STO_COACH_S * 1000 };
   stoParts.forEach(p => { p.x += p.vx * dt; p.y += p.vy * dt; p.vy += (p.grav || 0) * dt; p.life -= dt; if (p.spin) p.rot += p.spin * dt; });
   stoParts = stoParts.filter(p => p.life > 0);
   if (stoEvents.length) {
@@ -304,7 +353,7 @@ function stoSpawnSwing() {
   const cur = stoNext;
   stoSwing = { kind: cur.kind, alpha: cur.alpha, enter: 0 };
   stoNext = stoPick(cur.kind, stoFloors() + 2);
-  if (cur.alpha) STO_SOUND.alphaAppear();
+  if (cur.alpha) { STO_SOUND.alphaAppear(); stoQueueCoach('alpha'); }
 }
 
 function stoDrop() {
@@ -330,7 +379,7 @@ function stoLand(f) {
   if (Math.abs(dx) > top.w / 2) { stoMiss(f, dx, top); return; }   // exactly on the edge lands: ties go to the kid
 
   const a = STO_ANIMALS[f.kind];
-  const perfect = Math.abs(dx) <= STO_PERFECT_PX;
+  const perfect = Math.abs(dx) <= (stoFrenzy ? STO_FRENZY_PX : STO_PERFECT_PX);
   const landX = perfect ? topX : f.x;
   const floor = { kind: f.kind, alpha: f.alpha, w: a.w, h: a.h, x: 0, cy: -stoTowerH - a.h / 2, age: 0, nervous: 0, seed: Math.random() * 5000 };
   stoTower.push(floor);
@@ -342,17 +391,24 @@ function stoLand(f) {
   const climbing = !!below && stoBeats(f.kind, below);              // predator dropped on its prey
   const nervous = !!below && !climbing && stoBeats(below, f.kind);  // prey dropped on its predator
 
-  let pts = 1, alphaPerfect = false;
+  let pts = 1, alphaPerfect = false, frenzyStart = false, frenzyEnd = false;
   if (perfect) {
     let rec = stoStreak >= 3 ? STO_RECOVER_STEADY : STO_RECOVER;
     if (f.alpha) { rec = Math.max(rec, STO_RECOVER_ALPHA); alphaPerfect = true; }
     stoLean *= 1 - rec;
     stoStreak++;
     pts += 2 + (alphaPerfect ? 5 : 0);
+    if (stoFrenzy) pts *= 2;
+    if (!stoFrenzy && stoStreak >= STO_FRENZY_AT) { stoFrenzy = true; frenzyStart = true; }
   } else {
     stoLean += dx * a.weight / STO_LEAN_DIV * (1 + floors / STO_LEAN_HEIGHT);
     stoStreak = 0;
+    if (stoFrenzy) { stoFrenzy = false; frenzyEnd = true; }
   }
+  // The impact: a shockwave, a zoom punch, and — on a PERFECT — the frame holds for a beat.
+  stoRings.push({ x: landX, y: floor.cy + a.h / 2, w: a.w, age: 0, life: perfect ? 0.45 : 0.32, gold: perfect });
+  stoPunch = Math.max(stoPunch, perfect ? 1 : 0.4 * a.weight);
+  if (perfect) { stoFreeze = alphaPerfect ? 0.1 : 0.05; stoFlash = alphaPerfect ? 0.5 : 0.22; }
   if (nervous) {
     const s = Math.sign(dx) || Math.sign(stoLean) || (Math.random() < 0.5 ? -1 : 1);
     stoLean += s * STO_FLINCH;
@@ -378,18 +434,32 @@ function stoLand(f) {
   if (perfect) {
     const sk = stoStreak;
     if (alphaPerfect) stoCallout('ALPHA!', 'PERFECT · LEAN HALVED', STO_GOLD, 28);
-    else stoCallout('PERFECT!' + (sk >= 2 ? ' ×' + sk : ''), sk >= 3 ? 'STEADY PAWS' : '', STO_YELLOW);
+    else if (frenzyStart) stoCallout('FEEDING FRENZY!', 'PERFECTS PAY DOUBLE', STO_GOLD, 26);
+    else if (STO_STREAK_SHOUT[sk]) stoCallout(STO_STREAK_SHOUT[sk], `PERFECT ×${sk}`, STO_GOLD, sk >= 12 ? 22 : 26);
+    else stoCallout('PERFECT!' + (sk >= 2 ? ' ×' + sk : ''), stoFrenzy ? `FRENZY · +${pts}` : sk >= 3 ? 'STEADY PAWS' : '', STO_YELLOW);
     stoAt(delay, () => (alphaPerfect ? STO_SOUND.alphaPerfect() : STO_SOUND.perfect(sk)));
+    if (frenzyStart) { stoAt(delay + 120, STO_SOUND.frenzy); stoConfetti(); stoQueueCoach('frenzy'); }
     stoSparkle(landX, floor.cy, alphaPerfect ? STO_GOLD : STO_YELLOW);
+    stoQueueCoach('perfect');
     delay += 140;
+  } else if (frenzyEnd) {
+    stoCallout('FRENZY OVER', 'LAND IT DEAD CENTRE', STO_CREAM, 18);
+    stoAt(delay, STO_SOUND.frenzyOver);
   }
   if (climbing) {
     stoCallout('CLIMBING THE ORDER!', `${a.name} beats ${STO_ANIMALS[below].name}`, STO_OCHRE, 21);
     stoAt(delay, STO_SOUND.climb); delay += 240;
+    stoQueueCoach('climb');
   } else if (nervous) {
     stoCallout('NERVOUS!', `${STO_ANIMALS[below].name} beats ${a.name}`, STO_TEAL);
     stoAt(delay, STO_SOUND.nervous); delay += 260;
+    stoQueueCoach('nervous');
   }
+  if (perfect || climbing || nervous || a.weight >= 1.3) {   // the animal has something to say about it
+    stoBubbles = stoBubbles.filter(b => b.age < 0.4).slice(-1);
+    stoBubbles.push({ text: nervous ? 'Eep!' : STO_NOISE[f.kind] || '!', x: landX + a.w / 2 - 6, y: floor.cy - a.h / 2 - 8, age: 0 });
+  }
+  if (Math.abs(stoLean) > 0.55) stoQueueCoach('lean');
   if (stampede) {
     stoCallout('STAMPEDE!', `${run} IN A ROW`, STO_RED, 28);
     stoAt(delay, STO_SOUND.stampede); delay += 340;
@@ -405,6 +475,7 @@ function stoLand(f) {
 
 function stoMiss(f, dx, top) {
   stoPaws--; stoStreak = 0; stoPawLostAt = stoClock;
+  stoFrenzy = false;
   STO_SOUND.miss();
   const touching = Math.abs(dx) <= top.w / 2 + f.w / 2;   // clipped the edge → tips off; else falls clean past
   const s = Math.sign(dx) || 1;
@@ -465,9 +536,11 @@ function stoUpdateWorld(dt) {
   for (const f of stoTower) { f.age += dt; if (f.nervous > 0) f.nervous = Math.max(0, f.nervous - dt); }
   if (stoSwing && stoSwing.enter < 1) stoSwing.enter = Math.min(1, stoSwing.enter + dt / STO_ENTER_S);
 
+  if (stoState === 'playing') stoUpdateWind();
   if (stoFall) {
     const f = stoFall;
     f.vy += STO_GRAVITY * dt; f.y += f.vy * dt; f.rot *= Math.exp(-10 * dt);
+    if (stoWind && stoClock >= stoWind.warnUntil) { f.x += stoWind.dir * stoWind.push * dt; f.rot += stoWind.dir * 0.6 * dt; }   // HIGH WINDS
     const topY = -stoTowerH;
     if (f.y + f.h / 2 >= topY) { f.y = topY - f.h / 2; stoLand(f); }
   }
@@ -505,6 +578,37 @@ function stoUpdateWorld(dt) {
       if (!d.landed) { d.landed = true; stoDust(d.x, 0, d.w); }
     }
     if (d.landed && d.y >= -d.h / 2 - 1) { d.vx *= Math.exp(-4 * dt); d.vr *= Math.exp(-4 * dt); }
+  }
+}
+
+// HIGH WINDS, from floor 15: an arrow and blowing leaves first, then a gust
+// that pushes whatever is falling. The swing and the tower are never pushed.
+function stoUpdateWind() {
+  const fl = stoFloors();
+  if (fl < STO_WIND_FROM) return;
+  if (!stoWind) {
+    if (!stoNextWind) {
+      stoNextWind = stoClock + 2500;
+      stoBanner = { text: 'HIGH WINDS', sub: 'WIND BLOWS FALLING ANIMALS', age: 0 };
+      stoAt(60, STO_SOUND.milestone);
+      stoQueueCoach('wind');
+    }
+    if (stoClock < stoNextWind) return;
+    const k = Math.min(1, (fl - STO_WIND_FROM) / 25);
+    stoWind = { dir: Math.random() < 0.5 ? -1 : 1, warnUntil: stoClock + STO_WIND_WARN * 1000,
+                until: stoClock + (STO_WIND_WARN + STO_WIND_S) * 1000,
+                push: STO_WIND_PUSH[0] + (STO_WIND_PUSH[1] - STO_WIND_PUSH[0]) * k };
+    STO_SOUND.wind();
+    return;
+  }
+  if (Math.random() < 0.35) {   // leaves on the wind, so you can see which way it blows
+    stoParts.push({ screen: true, x: stoWind.dir > 0 ? -8 : STO_W + 8, y: 120 + Math.random() * 360,
+      vx: stoWind.dir * (stoClock < stoWind.warnUntil ? 160 : 320) * (0.7 + Math.random() * 0.6), vy: (Math.random() - 0.5) * 40,
+      grav: 0, life: 1.6, max: 1.6, size: 5, color: Math.random() < 0.5 ? '#6FA046' : '#E2A63B', shape: 'rect', rot: Math.random() * 6, spin: 8 });
+  }
+  if (stoClock >= stoWind.until) {
+    stoWind = null;
+    stoNextWind = stoClock + (STO_WIND_GAP[0] + Math.random() * (STO_WIND_GAP[1] - STO_WIND_GAP[0])) * 1000;
   }
 }
 
@@ -914,15 +1018,61 @@ function stoDraw() {
   else if (stoState === 'nameEntry') stoDrawNameEntry(g);
   else if (stoState === 'leaderboard') stoDrawLeaderboard(g);
   else {
+    const pk = 1 + 0.03 * stoPunch;                // the zoom punch on a landing
+    g.save(); g.translate(180, 330); g.scale(pk, pk); g.translate(-180, -330);
     stoDrawWorld(g);
     stoDrawSwing(g);
+    g.restore();
+    stoDrawMoods(g);
     stoDrawBanner(g);
     stoDrawCallouts(g);
     stoDrawHud(g);
+    stoDrawCoach(g);
     if (stoState === 'over') stoDrawOver(g);
   }
   stoDrawParts(g, true);
   g.restore();
+  if (stoFlash > 0) { g.fillStyle = `rgba(255,247,214,${(stoFlash * 0.5).toFixed(3)})`; g.fillRect(0, 0, STO_W, STO_H); }
+}
+
+// FEEDING FRENZY's golden edges, and HIGH WINDS' arrows on the side the gust comes from.
+function stoDrawMoods(g) {
+  if (stoFrenzy && stoState === 'playing') {
+    const p = 0.5 + 0.5 * Math.sin(stoClock / 90);
+    g.lineWidth = 8 + 5 * p; g.strokeStyle = `rgba(255,213,74,${(0.35 + 0.3 * p).toFixed(3)})`;
+    g.strokeRect(0, 108, STO_W, STO_H - 108);
+  }
+  if (stoWind && stoState === 'playing') {
+    const warn = stoClock < stoWind.warnUntil, d = stoWind.dir, x0 = d > 0 ? 24 : STO_W - 24;
+    g.globalAlpha = warn ? 0.55 + 0.45 * Math.sin(stoClock / 70) : 0.75;
+    g.lineCap = 'round'; g.lineJoin = 'round';
+    for (let k = 0; k < 3; k++) {
+      const x = x0 + d * k * 18, s = ((stoClock / 240) % 1) * d * 6;
+      [[STO_INK, 8], [STO_CREAM, 4]].forEach(([col, w]) => {
+        g.strokeStyle = col; g.lineWidth = w;
+        g.beginPath(); g.moveTo(x - d * 7 + s, 196); g.lineTo(x + d * 6 + s, 210); g.lineTo(x - d * 7 + s, 224); g.stroke();
+      });
+    }
+    g.lineCap = 'butt';
+    stoText(g, warn ? 'WIND!' : 'WIND', x0 + d * 18, 242, 13, STO_CREAM);
+    g.globalAlpha = 1;
+  }
+}
+
+// The coach box: low on the screen, over the savanna floor, below the swing.
+function stoDrawCoach(g) {
+  if (!stoCoach || stoState !== 'playing') return;
+  g.font = 'bold 12px monospace';
+  const words = stoCoach.text.split(' '), lines = [];
+  let line = '';
+  words.forEach(w => { const t = line ? line + ' ' + w : w; if (g.measureText(t).width > 296 && line) { lines.push(line); line = w; } else line = t; });
+  if (line) lines.push(line);
+  const h = lines.length * 17 + 16, y = STO_H - h - 12;
+  g.globalAlpha = stoClamp((stoCoach.until - stoClock) / 400, 0, 1);
+  stoRR(g, 18, y, 324, h, 12); g.fillStyle = 'rgba(253,243,220,0.96)'; g.fill();
+  g.strokeStyle = STO_OCHRE; g.lineWidth = 2.5; g.stroke();
+  lines.forEach((l, i) => stoText(g, l, 180, y + 16 + i * 17, 12, STO_INK, 'center', false));
+  g.globalAlpha = 1;
 }
 
 function stoLevelAtScreenY(y) { return (stoCamH + (STO_GROUND_Y - y) / stoZoom) / STO_FLOOR_PX; }
@@ -955,6 +1105,24 @@ function stoDrawWorld(g) {
   for (const t of stoTumblers) drawBody(t, Math.min(1, t.life / 0.5));
   if (stoFall) drawBody(stoFall, 1);
   stoDrawParts(g, false);
+  for (const r of stoRings) {   // landing shockwaves
+    const k = r.age / r.life;
+    g.globalAlpha = (1 - k) * 0.8;
+    stoEllipse(g, r.x, r.y, r.w * (0.6 + k * 0.9), 6 + k * 10, 0, null, r.gold ? STO_GOLD : STO_CREAM, 4 * (1 - k) + 1);
+  }
+  g.globalAlpha = 1;
+  for (const b of stoBubbles) {  // what the animal had to say
+    const s = Math.min(1, b.age / 0.1);
+    g.save(); g.translate(b.x, b.y - b.age * 14); g.scale(s, s);
+    g.globalAlpha = stoClamp((1 - b.age) / 0.3, 0, 1);
+    g.font = 'bold 12px monospace';
+    const w = g.measureText(b.text).width + 14;
+    stoRR(g, -w / 2, -11, w, 22, 10); g.fillStyle = '#FFFFFF'; g.fill(); g.strokeStyle = STO_INK; g.lineWidth = 2; g.stroke();
+    g.beginPath(); g.moveTo(-w / 2 + 8, 10); g.lineTo(-w / 2 + 2, 18); g.lineTo(-w / 2 + 14, 10); g.fillStyle = '#FFFFFF'; g.fill();
+    stoText(g, b.text, 0, 1, 12, STO_INK, 'center', false);
+    g.restore();
+  }
+  g.globalAlpha = 1;
   for (const p of stoPopups) {
     g.globalAlpha = 1 - p.age / 0.9;
     stoText(g, p.text, p.x, p.y - p.age * 40, 15, STO_YELLOW);
@@ -999,8 +1167,8 @@ function stoDrawSwing(g) {
   // the vine (always swinging, even while empty)
   g.save(); g.lineCap = 'round';
   g.beginPath(); g.moveTo(180, p.pivotY); g.quadraticCurveTo((180 + p.endX) / 2 + 6, (p.pivotY + p.endY) / 2, p.endX, p.endY);
-  g.strokeStyle = '#2F5E28'; g.lineWidth = 6; g.stroke();
-  g.strokeStyle = '#4C8A3F'; g.lineWidth = 3.5; g.stroke();
+  g.strokeStyle = stoFrenzy ? '#8A6A12' : '#2F5E28'; g.lineWidth = 6; g.stroke();
+  g.strokeStyle = stoFrenzy ? STO_GOLD : '#4C8A3F'; g.lineWidth = 3.5; g.stroke();   // a FEEDING FRENZY turns the vine gold
   for (const t of [0.62, 0.74, 0.86]) {
     const x = 180 + (p.endX - 180) * t, y = p.pivotY + (p.endY - p.pivotY) * t;
     if (y < 0) continue;
@@ -1026,6 +1194,7 @@ function stoDrawHud(g) {
   g.fillStyle = 'rgba(226,166,59,0.55)'; g.fillRect(0, 106, STO_W, 2);
   stoText(g, `${stoScore} PTS`, 16, 34, 18, STO_CREAM, 'left', false);
   stoText(g, `FLOOR ${stoFloors()}`, 180, 34, 18, STO_YELLOW, 'center', false);
+  if (stoFrenzy) stoText(g, 'FRENZY ×2', 180, 54, 11, STO_GOLD, 'center', false);
   for (let k = 0; k < STO_LIVES; k++) {
     const alive = k < stoPaws, lostNow = k === stoPaws && stoClock - stoPawLostAt < 500;
     const s = lostNow ? 1.1 + 0.5 * (1 - (stoClock - stoPawLostAt) / 500) : 1.1;
@@ -1286,7 +1455,9 @@ function resetArcadeStacking() {
   stoEvents = []; stoParts = []; stoShake = 0;
   stoSwing = null; stoFall = null; stoTumblers = []; stoDebris = []; stoCollapse = null;
   stoCallouts = []; stoPopups = []; stoBanner = null;
-  // stoScores is NOT cleared — session high scores survive the lobby.
+  stoFreeze = 0; stoFlash = 0; stoPunch = 0; stoRings = []; stoBubbles = []; stoCoach = null; stoCoachQ = [];
+  stoWind = null; stoFrenzy = false;
+  // stoScores and stoCoachSeen are NOT cleared — session state survives the lobby.
 }
 
 // ── The Arcade Floor's preview (SW v259) ─────────────────────────────────────

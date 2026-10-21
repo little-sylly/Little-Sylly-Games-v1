@@ -125,6 +125,10 @@ better and skip it when it doesn't fit. A calm puzzle like DEEP-SEA SWEEP needs 
    quickly checks run length and score spread before a phone play-test. Aim for about 1.5–3 minutes
    for an average player. If the bot never runs out of time, the clock isn't a threat yet:
    TRACE ROUTE's windows came down by a third once the bot showed that.
+   When you're **changing** a cabinet, run the same bot on the old version too. Every bot is bad at
+   something a child isn't, so its raw numbers mislead, but the difference between the two runs shows
+   what your change did. The original STACKING ORDER never ended for a precise bot; the new high winds
+   are what end it.
 10. **Make a fairness promise and prove it.** If the game promises something (the exit is never
     sealed, nothing lands in front of you), write it as a rule in the code and have a bot run
     count violations over hundreds of events. A check made when something is placed isn't

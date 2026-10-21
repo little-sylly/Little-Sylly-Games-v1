@@ -28,6 +28,11 @@ Integration and registration are done and verified (`tools/verify-arcade.js`, 14
 
 1. **The owner's phone play-test — all nine cabinets** (TRACE ROUTE was phone-tested in the workshop; COLD SHOT's wave pacing and gull frequency were not) (the workshop notes flag six of them as
    "built, awaiting a phone play-test"; ASHERPLANE's revamp and DEEP-SEA SWEEP's reskin too).
+   **SW v263 reworked six of them** (`shared-implementation-notes.md` DD-65) — bot-tuned headless only. Watch for:
+   Deep-Sea Sweep's air drain past 600 m (`MS_AIR_DRAIN*`) and whether kids miss the old fixed boards; Chop Salad's
+   course pace (~12–15 s a salad for the bot — fast?) and whether the Sus Pear's tell reads in time; the Bluff's gust
+   push (`BB_GUST_PUSH`) and rockslide density; Stacking Order's wind (`STO_WIND_PUSH`) for a kid; the 9–10 px
+   secondary text added in this pass on a 320×452 Display Zoom screen.
    Per cabinet: every state (start, play, lose, score, high-score entry, exit), one-handed reach,
    and the drag feel on the ones steered by dragging (ASHERPLANE, BEYOND THE BLUFF).
 2. **Remove ASHERPLANE's play-test warp before it is called done** — tapping the title on the start

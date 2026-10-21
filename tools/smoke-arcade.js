@@ -65,8 +65,8 @@ const shown = pg => pg.evaluate(() => [...document.querySelectorAll('section[id^
   console.log(`\n══ Arcade smoke — ${cabs.length} cabinet(s), real path, 375×667 ══`);
 
   /* The Floor's screens (SW v259, spec § 3.2 4b): each cabinet's session board, so best() can be
-     seeded. Deep-Sea Sweep keeps one board per sea state, of times. */
-  const BOARDS = { asherplane: 'apLeaderboard', minesweeper: 'msBoards.hard', chicken: 'ckBoard', slice: 'slBoardScores',
+     seeded. Deep-Sea Sweep's board is scores since the dive (Oct 2026), like every other cabinet's. */
+  const BOARDS = { asherplane: 'apLeaderboard', minesweeper: 'msScores', chicken: 'ckBoard', slice: 'slBoardScores',
     cookiejar: 'hjScores', stacking: 'stoScores', bluff: 'bbScores', coldshot: 'cshScores', traceroute: 'trcScores' };
 
   for (const cab of cabs.filter(c => !only || c.id === only)) {
@@ -100,7 +100,7 @@ const shown = pg => pg.evaluate(() => [...document.querySelectorAll('section[id^
       out.handedBack = window.eval(px + 'Previewing') === false && window.eval(px + 'Canvas') === null;
       cv.remove();
       // best(): nothing on a fresh board, a string once someone has a score
-      const b = window.eval(board), seeded = id === 'minesweeper' ? { name: 'TST', time: 41234 } : { name: 'TST', score: 1234 };
+      const b = window.eval(board), seeded = { name: 'TST', score: 1234, depth: 300 };
       out.fresh = b.length ? 'board not fresh' : c.best();
       b.push(seeded); out.seeded = c.best(); b.splice(b.indexOf(seeded), 1);
       return out;

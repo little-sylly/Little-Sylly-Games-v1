@@ -38,16 +38,30 @@
 //    in both styles, so the toggle never changes how the game plays.
 //  - The words are Fruit Salad's: drop three and you're FRUIT LOOPED; slice
 //    the broccoli and it's VEGETABLES?! (the quit prompt is "Vegetables
-//    Instead?"); five in one swipe is a FRUIT SALAD; and the scores screen
-//    asks ORANGE YOU GLAD IT'S OVER?
+//    Instead?"); one of every fruit in the bowl is a FRUIT SALAD; and the
+//    scores screen asks ORANGE YOU GLAD IT'S OVER?
 //
-// How a run works (classic rules, nothing else)
+// How a run works (the courses, Oct 2026 — was plain Fruit Ninja)
 //  - Fruit is tossed up from below the board in waves. Swipe through a fruit
 //    to slice it: +1. Three or more in one swipe is a combo, worth +1 per
-//    fruit on top.
+//    fruit on top, with a pun to match (JUICY! … FRUIT-ASTIC!).
+//  - THE BOWL: every fruit you slice lands in the salad bowl at the top. Get
+//    one of each of the eight and it's a FRUIT SALAD — a course bonus, then a
+//    few seconds of FRUIT FRENZY (fruit everywhere, nothing counts as dropped),
+//    then the next course.
+//  - Each course from the second wakes up one of Fruit Salad's Fruity
+//    Personalities (SL_PERSONALITY — the one idea this cabinet borrows from its
+//    game: every fruit gets a rule-breaking quirk). Dramatic Grape bursts into
+//    little grapes, Charming Peach wins back a drop, Chill Watermelon slows
+//    time, Panicked Strawberry zig-zags, Sour Lemon doubles your points, Smug
+//    Banana swoops like a boomerang, Angry Apple takes two cuts, and a Sus Pear
+//    turns into broccoli if you don't catch it first. Each gets a banner and a
+//    coach line the first time. Course 10 on is the CHEF'S SPECIAL: all of them.
 //  - A whole fruit falling off the bottom is a strike. Three strikes ends the
-//    run. Every 100 points wins one strike back.
+//    run. Every SL_LIFE_EVERY points wins one strike back.
 //  - Slice the broccoli and the run ends on the spot.
+//  - Behaviours belong to the fruit, not the art: PLAIN and PERSONALITIES play
+//    exactly the same.
 // ═══════════════════════════════════════════════════════════════════════════
 
 // ── Logical canvas size — ALL drawing code works in these coordinates ────────
@@ -73,8 +87,7 @@ const SL_HIT_PAD         = 6;      // px of forgiveness round every fruit
 const SL_TRAIL_MS        = 120;    // how long a point of the blade trail lingers
 const SL_COMBO_GAP_MS    = 260;    // a swipe's combo closes once nothing's been cut for this long
 const SL_COMBO_MIN       = 3;
-const SL_SALAD_MIN       = 5;      // a combo this big is a FRUIT SALAD
-const SL_LIFE_EVERY      = 100;    // points per strike won back
+const SL_LIFE_EVERY      = 150;    // points per strike won back
 const SL_MAX_STRIKES     = 3;
 const SL_SPLAT_MS        = 3200;   // juice stays on the board this long
 const SL_MAX_SPLATS      = 14;
@@ -85,6 +98,49 @@ const SL_FRUIT_SIZE      = 1.3;    // every fruit in play is drawn (and hit-test
 const SL_LINEUP_SCALE    = 0.98;   // the attract screen's cast
 const SL_CHAR_K          = 0.86;   // character art units → fruit art units (keeps bodies inside the hit circle)
 const SL_CHAR_SPIN       = 0.45;   // personalities tumble slower, so you can see their faces
+const SL_FRENZY_MS       = 4500;   // FRUIT FRENZY after each salad
+const SL_FRENZY_EVERY_MS = 300;
+const SL_CHILL_MS        = 3500, SL_CHILL_SPEED = 0.42;   // Chill Watermelon
+const SL_SOUR_MS         = 6000;   // Sour Lemon: double points
+const SL_SUS_GRACE_MS    = 160;    // a cut this soon after a Sus Pear turns still counts as the pear
+const SL_BANNER_MS       = 2300;
+const SL_COACH_MS        = 4800;
+
+// ── The courses ──────────────────────────────────────────────────────────────
+// A course is one salad: one of every fruit in the bowl. From course 2 each
+// wakes up one Fruity Personality (it keeps its quirk for the rest of the run).
+const SL_COURSES = [
+  { name: 'THE ENTRÉE',         wakes: null },
+  { name: 'GRAPE EXPECTATIONS', wakes: 'grape' },
+  { name: 'PEACHY KEEN',        wakes: 'peach' },
+  { name: 'CHILL OUT',          wakes: 'watermelon' },
+  { name: 'BERRY PANICKED',     wakes: 'strawberry' },
+  { name: 'SOUR POWER',         wakes: 'lemon' },
+  { name: 'BANANARAMA',         wakes: 'banana' },
+  { name: 'THE APPLE OF YOUR EYE', wakes: 'apple' },
+  { name: 'SOMETHING SUS',      wakes: 'pear' },
+];
+const SL_CHEF_NAMES = ["CHEF'S SPECIAL", 'SECOND HELPINGS', 'ALL YOU CAN EAT', 'THE BIG TOSS', 'DESSERT FIRST'];
+const SL_PERSONALITY = {   // what each one does once awake
+  grape:      { name: 'DRAMATIC GRAPE',      coach: 'Dramatic Grape bursts into little grapes. Slice those too for extra points.' },
+  peach:      { name: 'CHARMING PEACH',      coach: 'Slice Charming Peach to win back a dropped fruit.' },
+  watermelon: { name: 'CHILL WATERMELON',    coach: 'Slice Chill Watermelon and everything slows right down for a few seconds.' },
+  strawberry: { name: 'PANICKED STRAWBERRY', coach: 'Panicked Strawberry zig-zags all over the place. Catch it for bonus points!' },
+  lemon:      { name: 'SOUR LEMON',          coach: 'Slice Sour Lemon for Sour Power: double points for a few seconds.' },
+  banana:     { name: 'SMUG BANANA',         coach: 'Smug Banana swoops out and back like a boomerang. Slice it mid-swoop!' },
+  apple:      { name: 'ANGRY APPLE',         coach: 'Angry Apple is tough. It takes two slices to split.' },
+  pear:       { name: 'SUS PEAR',            coach: 'A shifty Sus Pear turns into broccoli at the top of its throw. Slice it before it does!' },
+};
+const SL_COACH = {
+  start:  'Swipe through fruit to slice it. Slice one of every fruit to fill the bowl. Never slice the broccoli!',
+  frenzy: "Fruit Frenzy! Slice everything you can. Dropped fruit doesn't count.",
+};
+const SL_BUBBLES = {   // what they shout on the way up (personalities only once awake)
+  grape: ['Oh, the DRAMA!', 'How could you?!'], peach: ['Hey there~', 'Charmed!'], watermelon: ['Chiiill…', 'No worries.'],
+  strawberry: ['AAAAH!', 'Not the knife!'], lemon: ['Sour!', 'Pucker up!'], banana: ['Too easy.', 'Watch this.'],
+  apple: ['GRRR!', 'Try me!'], pear: ['Totally a pear.', 'Nothing to see…'], broccoli: ['Eat your greens!', 'Vegetables!'],
+};
+const SL_COMBO_WORDS = [null, null, null, 'JUICY!', 'BERRY NICE!', 'TUTTI FRUTTI!', 'UNBE-LEMON-ABLE!', 'FRUIT-ASTIC!'];
 
 // ── Palette ──────────────────────────────────────────────────────────────────
 // Fruit Salad's own: electric lemon and dark ink, on a deep-teal picnic
@@ -107,9 +163,18 @@ const SL_SOUND = {
   miss:      () => playSecretBeep(147),
   veg:       () => playSecretBeep(98),
   phew:      () => playSecretBeep(1175),   // a strike won back
+  grr:       () => { playSecretBeep(165); slLater(70, () => playSecretBeep(131)); },   // Angry Apple's first cut
+  chill:     () => [1568, 1319, 1047, 784].forEach((f, k) => slLater(k * 110, () => playSecretBeep(f))),
+  sour:      () => [880, 1175, 1760].forEach((f, k) => slLater(k * 70, () => playSecretBeep(f))),
+  charm:     () => [1047, 1319, 1568, 2093].forEach((f, k) => slLater(k * 80, () => playSecretBeep(f))),
+  sus:       () => { playSecretBeep(392); slLater(90, () => playSecretBeep(277)); },
+  caught:    () => [1319, 1568, 2093].forEach((f, k) => slLater(k * 60, () => playSecretBeep(f))),
+  salad:     () => [523, 659, 784, 1047, 784, 1047, 1319, 1568].forEach((f, k) => slLater(k * 85, () => playSecretBeep(f))),
+  banner:    () => { playSecretBeep(659); slLater(100, () => playSecretBeep(988)); },
   highScore: () => playSecretBeep(1046),
   select:    () => playSecretBeep(660),
 };
+function slLater(ms, fn) { slEvents.push({ at: slClock + ms, fn }); }
 const SL_SLICE_NOTES  = [659, 784, 880, 988, 1175, 1319, 1568, 1760];   // each cut in one swipe climbs the scale
 const SL_COMBO_JINGLE = [1047, 1319, 1568];
 const SL_PHEW_JINGLE  = [1175, 1568];
@@ -171,7 +236,24 @@ let slCombo    = { n: 0, at: 0, x: 0, y: 0 };
 let slDeath    = null;      // { kind, at, x, y }
 let slFlashAt  = -1e9;
 let slShake    = 0;         // seconds remaining
+let slFreeze   = 0;         // hit-stop, seconds remaining
 let slTitleCutAt = 0;       // the attract title's slash glint replays from here
+
+// The courses, the bowl and the personalities' effects
+let slCourse     = 1;
+let slBowl       = {};      // kind → true once it's in this course's salad
+let slBowlPopAt  = {};      // kind → when it landed (its slot pops)
+let slSaladAt    = -1e9;    // the FRUIT SALAD beat
+let slFrenzyUntil = 0, slNextFrenzyAt = 0;
+let slChillUntil = 0, slSourUntil = 0;
+let slWaveHold   = 0;       // no new wave before this (a banner is up)
+let slShout      = null;    // the announcer — one big line at a time: { text, col, at, life, loud, tilt }
+let slBanner     = null;    // { at, n, name, wakes }
+let slCoach      = null;    // { text, until, top }
+let slCoachQ     = [];
+let slCoachSeen  = {};      // session-only, like the scores
+let slBubbleList = [];      // speech bubbles riding on fruit: { it, text, at }
+let slBubbled    = {};      // kind → shouted already this run (the first of each always does)
 
 // Which art the fruit wear: 'fruity' (the Fruity Personalities) or 'plain'.
 // A session choice like the high scores — NOT reset by resetArcadeSlice().
@@ -197,7 +279,22 @@ function slRand(a, b) { return a + Math.random() * (b - a); }
 function slRandInt(a, b) { return a + Math.floor(Math.random() * (b - a + 1)); }
 function slClamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
 function slPick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
-function slDifficulty() { return slClamp(slScore / SL_RAMP_SCORE, 0, 1); }
+// How hard the throwing is: climbs over the courses, and a little within one.
+function slDifficulty() {
+  const inCourse = Object.keys(slBowl).length / 8;
+  return slClamp((slCourse - 1 + inCourse * 0.6) / 8 + slScore / (SL_RAMP_SCORE * 10), 0, 1);
+}
+function slAwake(kind) {   // is this fruit's personality awake yet?
+  const k = SL_COURSES.findIndex(c => c.wakes === kind);
+  return k >= 0 && slCourse >= k + 1;
+}
+function slCourseDef(n) {
+  return n <= SL_COURSES.length ? SL_COURSES[n - 1]
+    : { name: SL_CHEF_NAMES[(n - SL_COURSES.length - 1) % SL_CHEF_NAMES.length], wakes: null };
+}
+function slMult() { return slClock < slSourUntil ? 2 : 1; }
+function slFrenzy() { return slClock < slFrenzyUntil; }
+function slChilled() { return slClock < slChillUntil; }
 function slSpeedMul() { return 1 + SL_SPEED_RAMP * slDifficulty(); }
 
 function slEaseOutBack(t) {
@@ -1421,16 +1518,39 @@ const SL_FRUIT = {
                 skin: '#E53935', dark: '#A31A17', flesh: '#FFF4CC', rind: 2.5, juice: '#FFEFB0' },
   broccoli:   { r: 27, veg: true, path: slcBrocBody, whole: slWholeBroccoliPlain, half: slHalfGeneric,
                 skin: '#3E9A44', flesh: '#D7EBB5', rind: 3, juice: '#7CB342' },
+  // One of Dramatic Grape's little grapes: drawn here in both art styles, never halved, never a strike.
+  minigrape:  { r: 13, mini: true, skin: '#9B59B6', dark: '#6C3483', flesh: '#DCEDC8', juice: '#C77DFF' },
 };
 const SL_FRUIT_KINDS = ['banana', 'lemon', 'peach', 'grape', 'watermelon', 'pear', 'strawberry', 'apple'];
 
 // THE fruit-art seam (see the header): everything on screen that is a fruit
 // goes through these two, and they pick the art style.
-function slDrawWhole(kind, x, y, rot, scale, ph = 0) {
+function slDrawWhole(kind, x, y, rot, scale, ph = 0, it = null) {
   const g = slCtx, d = SL_FRUIT[kind];
   g.save();
   g.translate(x, y);
+  if (it && it.sus && !it.swapped) g.translate(Math.sin(slClock / 30) * 2.2, 0);   // the Sus Pear can't keep still
   g.scale(scale, scale);
+  if (d.mini) {
+    g.rotate(rot);
+    g.beginPath(); g.arc(0, 0, 11, 0, SL_TAU); g.fillStyle = d.dark; g.fill();
+    g.beginPath(); g.arc(-1.6, -1.8, 9.4, 0, SL_TAU); g.fillStyle = d.skin; g.fill();
+    g.fillStyle = 'rgba(255,255,255,0.6)'; slEllipse(g, -4, -4.5, 3, 1.7, -0.6); g.fill();
+    g.beginPath(); g.arc(0, 0, 11, 0, SL_TAU); slInk(g, 2);
+    g.restore();
+    return;
+  }
+  if (it && it.angry) {   // Angry Apple after the first cut: red-hot and steaming
+    const p = 0.5 + 0.5 * Math.sin(slClock / 60);
+    const rg = g.createRadialGradient(0, 0, 6, 0, 0, d.r + 20);
+    rg.addColorStop(0, `rgba(255,120,40,${(0.5 + 0.3 * p).toFixed(3)})`); rg.addColorStop(1, 'rgba(255,120,40,0)');
+    g.fillStyle = rg; g.beginPath(); g.arc(0, 0, d.r + 20, 0, SL_TAU); g.fill();
+  }
+  if (it && it.sus && !it.swapped) {   // a shifty purple haze: something's not right
+    const rg = g.createRadialGradient(0, 0, 8, 0, 0, d.r + 16);
+    rg.addColorStop(0, 'rgba(155,93,229,0.35)'); rg.addColorStop(1, 'rgba(155,93,229,0)');
+    g.fillStyle = rg; g.beginPath(); g.arc(0, 0, d.r + 16, 0, SL_TAU); g.fill();
+  }
   // a soft shadow on the cloth below, so the fruit reads as up in the air
   g.fillStyle = 'rgba(0,20,24,0.22)';
   slEllipse(g, 7, 12, d.r * 0.95, d.r * 0.8); g.fill();
@@ -1607,7 +1727,23 @@ function slNewRun(withLineup) {
   slCombo   = { n: 0, at: 0, x: 0, y: 0 };
   slDeath   = null;
   slFlashAt = -1e9;
+  slFreeze  = 0;
+  slCourse  = 1; slBowl = {}; slBowlPopAt = {}; slSaladAt = -1e9;
+  slFrenzyUntil = 0; slNextFrenzyAt = 0; slChillUntil = 0; slSourUntil = 0; slWaveHold = 0;
+  slShout = null; slBanner = null; slCoach = null; slCoachQ = []; slBubbleList = []; slBubbled = {};
   if (withLineup) SL_LINEUP.forEach(([kind, x, y], i) => slAddPinned(kind, x, y, slClock + 120 + i * 70));
+  else slStartCourse(1);
+}
+
+// A new course: the banner, the coach line for whoever just woke up, a breath before the first throw.
+function slStartCourse(n) {
+  slCourse = n; slBowl = {}; slBowlPopAt = {};
+  const c = slCourseDef(n);
+  slBanner = { at: slClock + 120, n, name: c.name, wakes: c.wakes };
+  slWaveHold = slClock + (n === 1 ? 900 : 1500);
+  slLater(120, SL_SOUND.banner);
+  if (n === 1) slQueueCoach('start', SL_COACH.start);
+  if (c.wakes) slQueueCoach(c.wakes, SL_PERSONALITY[c.wakes].coach);
 }
 
 // A lineup fruit on the attract screen: it bobs in place instead of flying,
@@ -1622,7 +1758,16 @@ function slAddPinned(kind, x, y, born) {
 // a beginner only ever has one wave to deal with; later, once everything in
 // the air has started falling, so waves overlap.
 function slUpdateWaves() {
-  if (slPending > 0) return;
+  if (slFrenzy()) {   // FRUIT FRENZY: a fruit every few hundred ms, no broccoli, nothing counts as dropped
+    if (slClock >= slNextFrenzyAt) {
+      slNextFrenzyAt = slClock + SL_FRENZY_EVERY_MS;
+      slLaunch(slPick(SL_FRUIT_KINDS), slRand(40, SL_W - 40));
+      if (Math.random() < 0.5) slLaunch(slPick(SL_FRUIT_KINDS), slRand(40, SL_W - 40));
+      SL_SOUND.toss();
+    }
+    return;
+  }
+  if (slPending > 0 || slClock < slWaveHold) return;
   const d = slDifficulty();
   const ready = d < SL_OVERLAP_D ? slItems.length === 0 : slItems.every(it => it.vy > 0);
   if (!ready) { slWaveAt = null; return; }
@@ -1638,8 +1783,15 @@ function slLaunchWave() {
   const n = w < EARLY.length ? EARLY[w] : slRandInt(d > 0.25 ? 2 : 1, 2 + Math.round(d * 4));
   let veg = 0;
   if (w >= EARLY.length && Math.random() < 0.22 + d * 0.33) veg = d > 0.6 && Math.random() < 0.3 ? 2 : 1;
+  // The bowl pulls: fruit still missing from this salad come up more often,
+  // and the personality that just woke up is in the first throws of its course.
+  const missing = SL_FRUIT_KINDS.filter(k => !slBowl[k]);
+  const wakes = slCourseDef(slCourse).wakes;
   const kinds = [];
-  for (let i = 0; i < n; i++) kinds.push(slPick(SL_FRUIT_KINDS));
+  for (let i = 0; i < n; i++) {
+    if (i === 0 && wakes && !slBowl[wakes] && Math.random() < 0.6) kinds.push(wakes);
+    else kinds.push(missing.length && Math.random() < 0.55 ? slPick(missing) : slPick(SL_FRUIT_KINDS));
+  }
   for (let i = 0; i < veg; i++) kinds.splice(slRandInt(0, kinds.length), 0, 'broccoli');
 
   const stagger = w >= EARLY.length && kinds.length >= 3 && Math.random() < 0.3 + d * 0.3;
@@ -1683,8 +1835,25 @@ function slLaunch(kind, x) {
   const xEnd = slClamp(SL_W / 2 + (SL_W / 2 - x) * slRand(0.1, 0.8) + slRand(-50, 50), 30, SL_W - 30);
   const spin = slRand(-3.5, 3.5) * (slArt === 'fruity' ? SL_CHAR_SPIN : 1);
   const rot = slArt === 'fruity' ? slRand(-0.6, 0.6) : Math.random() * SL_TAU;   // faces start roughly upright
-  slItems.push({ kind, x, y, vx: (xEnd - x) / T, vy, rot, spin, scale: SL_FRUIT_SIZE,
-                 pin: null, born: slClock, ph: Math.random() * 5000 });
+  const it = { kind, x, y, vx: (xEnd - x) / T, vy, rot, spin, scale: SL_FRUIT_SIZE,
+               pin: null, born: slClock, ph: Math.random() * 5000, free: slFrenzy() };
+  // The personalities' quirks, once they're awake
+  if (slAwake(kind)) {
+    if (kind === 'banana') {        // Smug Banana: out from one edge and back, like a boomerang
+      const side = x < SL_W / 2 ? -1 : 1;
+      it.x = side < 0 ? 46 : SL_W - 46; it.boom = it.x; it.vx = -side * slRand(250, 310);
+    }
+    if (kind === 'strawberry') it.zig = { amp: slRand(110, 150), f: slRand(6, 8) };   // Panicked Strawberry
+    if (kind === 'apple') it.hp = 2;                                                 // Angry Apple
+    if (kind === 'pear' && !slFrenzy() && Math.random() < 0.45) it.sus = true;       // Sus Pear
+  }
+  slItems.push(it);
+  const says = SL_BUBBLES[kind];
+  if (says && (kind === 'broccoli' || slAwake(kind)) && (!slBubbled[kind] || Math.random() < 0.22) && slBubbleList.length < 2) {
+    slBubbled[kind] = true;
+    slBubbleList.push({ it, text: it.sus ? 'Totally a pear.' : slPick(says), at: slClock + 120 });
+  }
+  return it;
 }
 
 // ── Loop ─────────────────────────────────────────────────────────────────────
@@ -1705,12 +1874,13 @@ function slLoop(now) {
 }
 
 function slUpdate(dt) {
-  slClock += dt * 1000;
   if (slShake > 0) slShake = Math.max(0, slShake - dt);
+  if (slFreeze > 0) { slFreeze -= dt; return; }   // hit-stop: the world holds its breath
+  slClock += dt * 1000;
 
   // Slicing the broccoli stops the clock on everything still whole.
   const frozen = slState === 'dying' && slDeath.kind === 'veg';
-  const pdt = dt * slSpeedMul();
+  const pdt = dt * slSpeedMul() * (slChilled() ? SL_CHILL_SPEED : 1);
 
   for (const it of slItems) {
     if (it.pin) {
@@ -1721,14 +1891,27 @@ function slUpdate(dt) {
     }
     if (frozen) continue;
     it.vy  += SL_GRAV * pdt;
+    if (it.boom !== undefined) it.vx += (it.boom - it.x) * 2.0 * pdt;   // the boomerang pulls back
     it.x   += it.vx * pdt;
     it.y   += it.vy * pdt;
     it.rot += it.spin * pdt;
+    if (it.zig) it.x = slClamp(it.x + Math.cos((slClock - it.born) / 1000 * it.zig.f) * it.zig.amp * pdt, 24, SL_W - 24);
+    if (it.sus && !it.swapped && it.vy >= 0 && slState === 'playing') slSusSwap(it);
   }
+  slBubbleList = slBubbleList.filter(b => slItems.includes(b.it) && slClock - b.at < 1100);
+  if (slShout && slClock - slShout.at > slShout.life) slShout = null;
+  if (slBanner && slClock - slBanner.at > SL_BANNER_MS) slBanner = null;
+  if (slCoach && slClock > slCoach.until) slCoach = null;
+  if (!slCoach && slCoachQ.length && slState === 'playing') slShowCoach(slCoachQ.shift());
   const gone = slItems.filter(it => !it.pin && it.vy > 0 && it.y - SL_FRUIT[it.kind].r * it.scale - 10 > SL_H);
   if (gone.length) {
     slItems = slItems.filter(it => !gone.includes(it));
     gone.forEach(slDropped);
+  }
+
+  if (slState === 'playing' && slFrenzyUntil && !slFrenzy() && slSaladAt > 0) {   // the frenzy just ended: next course
+    slFrenzyUntil = 0;
+    slStartCourse(slCourse + 1);
   }
 
   slHalves.forEach(h => {
@@ -1745,6 +1928,7 @@ function slUpdate(dt) {
     if (p.drag) { p.vx *= 1 - p.drag * dt; p.vy *= 1 - p.drag * dt; }
     if (p.spin) p.rot += p.spin * dt;
     if (p.grow) p.r += p.grow * dt;
+    if (p.home) { const k = Math.min(1, dt * 9); p.x += (p.home.x - p.x) * k; p.y += (p.home.y - p.y) * k; }
     p.life -= dt;
   });
   slParts  = slParts.filter(p => p.life > 0);
@@ -1788,9 +1972,24 @@ function slCut(ax, ay, bx, by) {
 }
 
 function slSlice(it, ang) {
+  // A Sus Pear caught in the very moment it turned still counts as the pear.
+  if (it.swapped && it.kind === 'broccoli' && slClock - it.swapAt < SL_SUS_GRACE_MS) { it.kind = 'pear'; it.swapped = false; }
+  // Angry Apple's first cut only makes it angrier: it flies back up, red-hot.
+  if (it.hp === 2 && !it.pin && slState === 'playing') {
+    if (slClock < (it.armour || 0)) return;
+    it.hp = 1; it.angry = true; it.armour = slClock + 140;
+    it.vy = Math.min(it.vy, -560); it.spin = -it.spin * 2;
+    slSlashFx(it, ang);
+    SL_SOUND.grr();
+    slShake = Math.max(slShake, 0.08);
+    slBubbleList = slBubbleList.filter(b => b.it !== it);
+    slBubbleList.push({ it, text: 'GRRR!', at: slClock });
+    slPopText('BONK!', it.x, it.y - 46, '#FF9F5A');
+    return;
+  }
   slItems = slItems.filter(o => o !== it);
   const d = SL_FRUIT[it.kind];
-  slSpawnHalves(it, ang);
+  if (!d.mini) slSpawnHalves(it, ang);
   slSlashFx(it, ang);
   if (d.veg) slVegBurst(it.x, it.y, it.pin ? 0.4 : 1);
   else { slJuice(it, ang); slSplat(it); }
@@ -1806,12 +2005,128 @@ function slSlice(it, ang) {
   if (d.veg) { slDie('veg', it.x, it.y); return; }
 
   slSliced++;
-  slAddScore(1);
+  let pts = 1;
+  if (!d.mini) slAddToBowl(it.kind, it.x, it.y);
+  if (!d.mini && slAwake(it.kind)) pts += slPersonality(it);
+  slAddScore(pts * slMult());
+  if (pts > 1) slPopText('+' + pts * slMult(), it.x, it.y - 20, SL_LEMON);
   slCombo.n++;
   slCombo.at = slClock;
   slCombo.x  = it.x;
   slCombo.y  = it.y;
   playSecretBeep(SL_SLICE_NOTES[Math.min(slCombo.n, SL_SLICE_NOTES.length) - 1]);
+}
+
+// What an awake personality does when it's sliced. Returns its bonus points.
+function slPersonality(it) {
+  const k = it.kind;
+  if (k === 'grape') {           // Dramatic Grape: bursts into little grapes
+    for (let i = 0; i < 4; i++) {
+      const a = -Math.PI / 2 + (i - 1.5) * 0.55;
+      slItems.push({ kind: 'minigrape', x: it.x, y: it.y, vx: Math.cos(a) * 170, vy: -420 - Math.random() * 160,
+                     rot: 0, spin: slRand(-4, 4), scale: 1, pin: null, born: slClock + 90, ph: 0, free: true });
+    }
+    slSay('THE DRAMA!', '#C77DFF', 900, false);
+    return 0;
+  }
+  if (k === 'peach') {           // Charming Peach: wins back a drop
+    SL_SOUND.charm();
+    slHearts(it.x, it.y);
+    if (slStrikes > 0) { slStrikes--; slPhewAt = slClock; slSay('CHARMED!', SL_PINK, 1000, true); return 0; }
+    slSay('CHARMING!', SL_PINK, 900, false);
+    return 3;
+  }
+  if (k === 'watermelon') {      // Chill Watermelon: everything slows down
+    slChillUntil = slClock + SL_CHILL_MS;
+    SL_SOUND.chill();
+    slSay('CHIIILL…', '#9EE7FF', 1200, true);
+    return 0;
+  }
+  if (k === 'strawberry') { slSay('GOTCHA!', '#FF7A8A', 800, false); return 2; }   // Panicked Strawberry
+  if (k === 'lemon') {           // Sour Lemon: double points for a while
+    slSourUntil = slClock + SL_SOUR_MS;
+    SL_SOUND.sour();
+    slSay('SOUR POWER ×2!', SL_LEMON, 1200, true);
+    return 0;
+  }
+  if (k === 'banana') { slSay('SMUGGED!', SL_LEMON, 800, false); return 3; }       // Smug Banana
+  if (k === 'apple' && it.angry) { slSay('CORE BLIMEY!', '#FF6B4A', 900, false); return 3; }   // Angry Apple, second cut
+  if (k === 'pear' && it.sus) {  // Sus Pear, caught before it turned
+    SL_SOUND.caught();
+    slSay('CAUGHT YOU!', '#B28DFF', 1000, true);
+    return 5;
+  }
+  return 0;
+}
+
+// One of each fruit in the bowl is a FRUIT SALAD.
+function slAddToBowl(kind, x, y) {
+  if (slBowl[kind] || slState !== 'playing') return;
+  slBowl[kind] = true;
+  slBowlPopAt[kind] = slClock;
+  const slot = slBowlSlot(kind);
+  for (let i = 0; i < 5; i++) {   // a few chunks fly up into its slot
+    slParts.push({ x, y, vx: slRand(-120, 120), vy: slRand(-260, -120), life: 0.55, max: 0.55, kind: 'bit',
+                   r: 3, rot: 0, spin: 8, colour: SL_FRUIT[kind].juice, home: slot });
+  }
+  if (SL_FRUIT_KINDS.every(f => slBowl[f])) slSalad();
+}
+
+function slSalad() {
+  const bonus = 20 * slCourse;
+  slSaladAt = slClock;
+  slAddScore(bonus * slMult());
+  SL_SOUND.salad();
+  slSay('FRUIT SALAD!', SL_LEMON, 1500, true);
+  slTexts.push({ x: SL_W / 2, y: 250, at: slClock, life: 1500, pop: true, lines: [
+    [`COURSE ${slCourse} SERVED`, 'bold 18px monospace', SL_CREAM], ['+' + bonus * slMult(), 'bold 34px monospace', SL_LEMON]] });
+  slConfetti(SL_W / 2, 140, 70);
+  slFreeze = 0.14;
+  slShake = Math.max(slShake, 0.18);
+  slFrenzyUntil = slClock + 900 + SL_FRENZY_MS;
+  slNextFrenzyAt = slClock + 900;
+  slWaveHold = slFrenzyUntil;
+  slLater(900, () => { if (slState === 'playing') { slSay('FRUIT FRENZY!', '#FF5367', 1300, true); slQueueCoach('frenzy', SL_COACH.frenzy); } });
+}
+
+function slSusSwap(it) {
+  it.swapped = true; it.swapAt = slClock; it.kind = 'broccoli'; it.sus = false;
+  SL_SOUND.sus();
+  slVegCue();
+  for (let i = 0; i < 8; i++) {
+    const a = Math.random() * SL_TAU, s = 20 + Math.random() * 50;
+    slParts.push({ x: it.x + Math.cos(a) * 10, y: it.y + Math.sin(a) * 10, vx: Math.cos(a) * s, vy: Math.sin(a) * s,
+                   life: 0.7, max: 0.7, kind: 'puff', r: 9, grow: 40, colour: '#B28DFF' });
+  }
+  slBubbleList = slBubbleList.filter(b => b.it !== it);
+  slBubbleList.push({ it, text: 'SURPRISE!', at: slClock });
+}
+
+// ── The announcer, little words and the coach ───────────────────────────────
+function slSay(text, col, life, loud) {
+  if (slShout && slShout.loud && !loud && slClock - slShout.at < 500) return;   // a loud line isn't cut off by a quiet one
+  slShout = { text, col, at: slClock, life, loud: !!loud, tilt: slRand(-0.08, 0.08) };
+}
+function slPopText(text, x, y, col) {
+  slTexts.push({ x: slClamp(x, 60, SL_W - 60), y: slClamp(y, 140, 560), at: slClock, life: 700,
+                 lines: [[text, 'bold 16px monospace', col]] });
+}
+function slQueueCoach(key, text) {
+  if (slCoachSeen[key]) return;
+  slCoachSeen[key] = true;
+  slCoachQ.push(text);
+}
+function slShowCoach(text) {
+  // away from the blade: the top of the board if it's working low, the bottom if high
+  const last = slTrail.length ? slTrail[slTrail.length - 1].y : SL_H;
+  slCoach = { text, until: slClock + SL_COACH_MS, top: last > SL_H / 2 };
+}
+function slHearts(x, y) {
+  for (let i = 0; i < 8; i++) {
+    const a = -Math.PI / 2 + slRand(-1, 1);
+    slParts.push({ x, y, vx: Math.cos(a) * slRand(60, 160), vy: Math.sin(a) * slRand(80, 200), grav: 120, life: 1, max: 1,
+                   kind: 'heart', r: 5 + Math.random() * 3, colour: SL_PINK });
+  }
 }
 
 function slAddScore(k) {
@@ -1831,23 +2146,27 @@ function slAddScore(k) {
 function slFinishCombo() {
   const c = slCombo;
   if (c.n >= SL_COMBO_MIN && slState === 'playing') {
-    slAddScore(c.n);
-    const salad = c.n >= SL_SALAD_MIN;
-    slTexts.push({ x: slClamp(c.x, 110, SL_W - 110), y: slClamp(c.y, 140, 500), at: slClock, life: 1100,
+    const bonus = c.n * slMult();
+    slAddScore(bonus);
+    const word = SL_COMBO_WORDS[Math.min(c.n, SL_COMBO_WORDS.length - 1)];
+    const big = c.n >= 5;
+    slTexts.push({ x: slClamp(c.x, 110, SL_W - 110), y: slClamp(c.y, 160, 500), at: slClock, life: 1100,
                    tilt: slRand(-0.12, 0.12), pop: true, lines: [
-      [salad ? 'FRUIT SALAD!' : `${c.n} FRUIT COMBO`, `bold ${salad ? 30 : 22}px monospace`, salad ? SL_LEMON : SL_CREAM],
-      ['+' + c.n, 'bold 34px monospace', SL_LEMON],
+      [word, `bold ${big ? 30 : 24}px monospace`, big ? SL_LEMON : SL_CREAM],
+      [`${c.n} FRUIT  +${bonus}`, 'bold 22px monospace', SL_LEMON],
     ] });
-    slConfetti(c.x, c.y, salad ? 46 : 18);
+    slConfetti(c.x, c.y, big ? 46 : 18);
+    if (c.n >= 4) { slFreeze = Math.max(slFreeze, 0.04 + 0.012 * c.n); slShake = Math.max(slShake, 0.05 + 0.02 * c.n); }
     SL_COMBO_JINGLE.forEach((f, i) => slEvents.push({ at: slClock + 60 + i * 80, fn: () => playSecretBeep(f) }));
   }
   slCombo = { n: 0, at: 0, x: 0, y: 0 };
 }
 
 // A whole item fell off the bottom. Only fruit counts — letting the broccoli
-// go is exactly right.
+// go is exactly right, little grapes don't count, and nothing thrown in a
+// FRUIT FRENZY does either.
 function slDropped(it) {
-  if (SL_FRUIT[it.kind].veg || slState !== 'playing') return;
+  if (SL_FRUIT[it.kind].veg || SL_FRUIT[it.kind].mini || it.free || slFrenzy() || slState !== 'playing') return;
   slStrikes++;
   slStrikeAt = slClock;
   slMarks.push({ x: slClamp(it.x, 20, SL_W - 20), at: slClock });
@@ -1858,6 +2177,8 @@ function slDropped(it) {
 function slDie(kind, x, y) {
   slFinishCombo();   // a combo that was mid-swipe still counts
   slDeath = { kind, at: slClock, x, y };
+  slCoach = null; slCoachQ = []; slBubbleList = []; slShout = null; slBanner = null;
+  slChillUntil = 0; slSourUntil = 0; slFrenzyUntil = 0;
   slLastScore = slScore;
   if (kind === 'veg') {
     SL_SOUND.veg();
@@ -2008,16 +2329,21 @@ function slDraw() {
       if (t <= 0) return;
       k = t < 1 ? slEaseOutBack(t) : 1;
     }
-    slDrawWhole(it.kind, it.x, it.y, it.rot, it.scale * k, it.ph);
+    slDrawWhole(it.kind, it.x, it.y, it.rot, it.scale * k, it.ph, it);
   });
   slDrawParts();
 
   if (slState === 'attract') {
     if (!slPreviewing) slDrawAttract();   // the Arcade Floor's preview shows the lineup, not the titles
   } else if (slState === 'playing' || slState === 'dying') {
+    slDrawMoods();
     slDrawMarks();
     slDrawHud();
+    slDrawBubbles();
     slDrawTexts();
+    slDrawShout();
+    slDrawBanner();
+    slDrawCoach();
     if (slState === 'dying') {
       const f = 1 - (slClock - slFlashAt) / 380;
       if (f > 0) {
@@ -2103,6 +2429,14 @@ function slDrawParts() {
     } else if (p.kind === 'spark') {
       g.globalAlpha = a;
       slSparkle(g, p.x, p.y, p.r * (0.5 + f * 0.5), p.rot);
+    } else if (p.kind === 'heart') {
+      g.globalAlpha = a;
+      const r = p.r;
+      g.beginPath();
+      g.moveTo(p.x, p.y + r * 0.9);
+      g.bezierCurveTo(p.x - r * 1.6, p.y - r * 0.2, p.x - r * 0.6, p.y - r * 1.4, p.x, p.y - r * 0.4);
+      g.bezierCurveTo(p.x + r * 0.6, p.y - r * 1.4, p.x + r * 1.6, p.y - r * 0.2, p.x, p.y + r * 0.9);
+      g.fill();
     } else {
       g.globalAlpha = a;
       g.beginPath(); g.arc(p.x, p.y, p.r, 0, SL_TAU); g.fill();
@@ -2222,6 +2556,16 @@ function slDrawHud() {
     slDrawX(xs[i], 36, sizes[i], on ? SL_RED : 'rgba(255,246,220,0.35)', pop2);
   }
 
+  slDrawBowl();
+  if (slMult() > 1) {   // Sour Power: a ×2 badge by the score, its ring running down
+    const k = (slSourUntil - slClock) / SL_SOUR_MS, bx = 150, by = 42, pulse = 1 + Math.sin(slClock / 90) * 0.06;
+    g.save(); g.translate(bx, by); g.scale(pulse, pulse);
+    g.beginPath(); g.arc(0, 0, 19, 0, SL_TAU); g.fillStyle = SL_LEMON; g.fill(); slInk(g, 3);
+    g.beginPath(); g.arc(0, 0, 23, -Math.PI / 2, -Math.PI / 2 + k * SL_TAU); g.lineWidth = 3; g.strokeStyle = SL_LEMON; g.stroke();
+    g.textBaseline = 'middle'; slLabel('×2', 0, 1, 17, SL_INK); g.textBaseline = 'alphabetic';
+    g.restore();
+  }
+
   if (slState === 'playing' && slSliced === 0) {   // a ghost swipe shows how
     const k = (slClock % 1400) / 1400;
     slOutlined('SWIPE TO SLICE', SL_W / 2, 596, 'bold 18px monospace', SL_LEMON, 'center', 6);
@@ -2236,6 +2580,136 @@ function slDrawHud() {
       g.restore();
     }
   }
+}
+
+// The salad bowl: eight slots, one per fruit, lighting up as they go in. The
+// course and its name sit underneath; a frenzy bar runs down under that.
+function slBowlSlot(kind) { return { x: 68 + SL_FRUIT_KINDS.indexOf(kind) * 32, y: 106 }; }
+function slDrawBowl() {
+  const g = slCtx;
+  const salad = slClock - slSaladAt < 1200;
+  slRR(g, 44, 88, 272, 36, 18);
+  g.fillStyle = salad ? 'rgba(255,229,0,0.28)' : 'rgba(2,24,28,0.6)'; g.fill();
+  g.lineWidth = 2; g.strokeStyle = salad ? SL_LEMON : 'rgba(255,246,220,0.35)'; g.stroke();
+  SL_FRUIT_KINDS.forEach((kind, i) => {
+    const { x, y } = slBowlSlot(kind);
+    const got = slBowl[kind];
+    const age = slClock - (slBowlPopAt[kind] || -1e9);
+    let k = got ? (age < 260 ? slEaseOutBack(age / 260) : 1) : 1;
+    if (salad) k *= 1 + 0.25 * Math.max(0, Math.sin((slClock - slSaladAt) / 90 - i * 0.6));   // a wave along the bowl
+    slDrawWhole(kind, x, y, 0, 0.4 * k, i * 300);
+    if (!got) {   // still to get: in shadow (a cover, not globalAlpha — some character art resets the alpha)
+      g.beginPath(); g.arc(x, y, 15, 0, SL_TAU); g.fillStyle = 'rgba(2,24,28,0.7)'; g.fill();
+    }
+  });
+  const c = slCourseDef(slCourse);
+  slOutlined(`COURSE ${slCourse} · ${c.name}`, SL_W / 2, 140, 'bold 11px monospace', SL_CREAM, 'center', 4);
+  if (slFrenzy()) {
+    const k = slClamp((slFrenzyUntil - slClock) / SL_FRENZY_MS, 0, 1);
+    slRR(g, 70, 148, 220, 7, 3.5); g.fillStyle = 'rgba(0,0,0,0.4)'; g.fill();
+    slRR(g, 70, 148, Math.max(7, 220 * k), 7, 3.5); g.fillStyle = Math.floor(slClock / 100) % 2 ? '#FF5367' : SL_LEMON; g.fill();
+  }
+}
+
+// Whole-screen moods: Chill Watermelon's frost, a FRUIT FRENZY's hot edges.
+function slDrawMoods() {
+  const g = slCtx;
+  if (slChilled()) {
+    const k = slClamp((slChillUntil - slClock) / 400, 0, 1);
+    g.fillStyle = `rgba(158,231,255,${(0.16 * k).toFixed(3)})`; g.fillRect(-30, -30, SL_W + 60, SL_H + 60);
+    const fg = g.createRadialGradient(SL_W / 2, SL_H / 2, SL_H * 0.3, SL_W / 2, SL_H / 2, SL_H * 0.7);
+    fg.addColorStop(0, 'rgba(230,250,255,0)'); fg.addColorStop(1, `rgba(230,250,255,${(0.45 * k).toFixed(3)})`);
+    g.fillStyle = fg; g.fillRect(-30, -30, SL_W + 60, SL_H + 60);
+  }
+  if (slFrenzy()) {
+    const p = 0.5 + 0.5 * Math.sin(slClock / 80);
+    g.lineWidth = 10 + 6 * p;
+    g.strokeStyle = `rgba(255,83,103,${(0.35 + 0.3 * p).toFixed(3)})`;
+    g.strokeRect(0, 0, SL_W, SL_H);
+  }
+}
+
+// Speech bubbles riding along over the fruit that's talking.
+function slDrawBubbles() {
+  const g = slCtx;
+  slBubbleList.forEach(b => {
+    const age = slClock - b.at;
+    if (age < 0) return;
+    const it = b.it, s = Math.min(1, age / 120);
+    g.font = 'bold 12px monospace';
+    const w = g.measureText(b.text).width + 16, h = 22;
+    const x = slClamp(it.x, w / 2 + 6, SL_W - w / 2 - 6), y = slClamp(it.y - SL_FRUIT[it.kind].r * it.scale - 30, 60, SL_H - 40);
+    g.save(); g.translate(x, y); g.scale(s, s);
+    g.globalAlpha = slClamp((1100 - age) / 250, 0, 1);
+    slRR(g, -w / 2, -h / 2, w, h, 10); g.fillStyle = '#FFFFFF'; g.fill(); slInk(g, 2);
+    g.beginPath(); g.moveTo(-5, h / 2 - 1); g.lineTo(0, h / 2 + 7); g.lineTo(5, h / 2 - 1); g.fillStyle = '#FFFFFF'; g.fill();
+    g.textBaseline = 'middle'; slLabel(b.text, 0, 1, 12, SL_INK); g.textBaseline = 'alphabetic';
+    g.restore();
+  });
+  g.globalAlpha = 1;
+}
+
+// The announcer: one big line at a time.
+function slDrawShout() {
+  const s = slShout;
+  if (!s || (slBanner && slClock >= slBanner.at)) return;
+  const g = slCtx, t = slClock - s.at;
+  const pop = t < 140 ? 1.6 - (t / 140) * 0.6 : 1 + Math.sin(t / 80) * 0.025;
+  g.save();
+  g.globalAlpha = t > s.life - 250 ? Math.max(0, (s.life - t) / 250) : 1;
+  g.translate(SL_W / 2, 210); g.rotate(s.tilt); g.scale(pop, pop);
+  const size = s.text.length > 12 ? 30 : 38;
+  g.font = `bold ${size}px monospace`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineJoin = 'round';
+  g.lineWidth = 12; g.strokeStyle = 'rgba(2,24,28,0.5)'; g.strokeText(s.text, 3, 5);
+  g.lineWidth = 9; g.strokeStyle = SL_INK; g.strokeText(s.text, 0, 0);
+  if (s.loud) {   // loud lines get the fruit-bowl rainbow
+    const cols = [SL_LEMON, '#FF5367', '#FFB07A', '#C77DFF', '#7FD67A', '#4FC3F7'];
+    const w = g.measureText(s.text).width;
+    let x = -w / 2;
+    g.textAlign = 'left';
+    [...s.text].forEach((ch, i) => { g.fillStyle = cols[(i + Math.floor(slClock / 90)) % cols.length]; g.fillText(ch, x, 0); x += g.measureText(ch).width; });
+  } else { g.fillStyle = s.col; g.fillText(s.text, 0, 0); }
+  g.restore();
+  g.textBaseline = 'alphabetic';
+}
+
+// "COURSE 2 · GRAPE EXPECTATIONS", sweeping across with whoever just woke up.
+function slDrawBanner() {
+  const b = slBanner;
+  if (!b || slClock < b.at) return;
+  const g = slCtx, t = (slClock - b.at) / 1000;
+  const inK = 1 - Math.pow(1 - Math.min(1, t / 0.3), 3), outK = t > 1.9 ? Math.min(1, (t - 1.9) / 0.4) : 0;
+  const x = (1 - inK) * -SL_W + outK * outK * SL_W;
+  g.save(); g.translate(x, 300); g.rotate(-0.05);
+  g.fillStyle = 'rgba(28,23,20,0.94)'; g.fillRect(-40, -54, SL_W + 80, 108);
+  g.fillStyle = SL_LEMON; g.fillRect(-40, -54, SL_W + 80, 5); g.fillRect(-40, 49, SL_W + 80, 5);
+  g.fillStyle = 'rgba(255,229,0,0.07)';
+  for (let k = 0; k < 13; k++) g.fillRect(-40 + k * 40 + ((t * 120) % 40), -49, 18, 98);
+  slOutlined(`COURSE ${b.n}`, SL_W / 2, -18, 'bold 30px monospace', '#FFFFFF', 'center', 7);
+  slOutlined(b.name, SL_W / 2, 12, `bold ${b.name.length > 18 ? 15 : 19}px monospace`, SL_LEMON, 'center', 5);
+  if (b.wakes) {
+    const label = 'WAKES UP: ' + SL_PERSONALITY[b.wakes].name;
+    slOutlined(label, SL_W / 2 + 14, 38, 'bold 12px monospace', SL_PINK, 'center', 4);
+    slDrawWhole(b.wakes, SL_W / 2 + 14 - g.measureText(label).width / 2 - 16, 33, 0, 0.36, 0);
+  } else if (b.n === 1) slOutlined('ONE OF EVERY FRUIT IN THE BOWL', SL_W / 2, 38, 'bold 12px monospace', SL_CREAM, 'center', 4);
+  g.restore();
+}
+
+// The coach box: one plain sentence or two, away from the blade.
+function slDrawCoach() {
+  if (!slCoach) return;
+  const g = slCtx;
+  g.font = 'bold 12px monospace';
+  const words = slCoach.text.split(' '), lines = [];
+  let line = '';
+  words.forEach(w => { const t = line ? line + ' ' + w : w; if (g.measureText(t).width > 290 && line) { lines.push(line); line = w; } else line = t; });
+  if (line) lines.push(line);
+  const h = lines.length * 17 + 18, y = slCoach.top ? 162 : SL_H - h - 64;
+  g.globalAlpha = slClamp((slCoach.until - slClock) / 400, 0, 1);
+  slRR(g, 22, y, 316, h, 14); g.fillStyle = 'rgba(255,246,220,0.96)'; g.fill();
+  g.lineWidth = 3; g.strokeStyle = SL_LEMON; g.stroke();
+  lines.forEach((l, i) => slLabel(l, SL_W / 2, y + 21 + i * 17, 12, SL_INK));
+  g.globalAlpha = 1;
 }
 
 function slDrawMarks() {
@@ -2413,7 +2887,8 @@ function slDrawAttract() {
 
   slOutlined('A FRUIT SALAD SIDE DISH', SL_W / 2, 46, 'bold 13px monospace', SL_CREAM, 'center', 5);
   slDrawTitle();
-  slOutlined("SWIPE TO SLICE · DON'T DROP THREE", SL_W / 2, 234, 'bold 12px monospace', SL_CREAM, 'center', 5);
+  slOutlined('SLICE ONE OF EVERY FRUIT · MAKE A SALAD', SL_W / 2, 234, 'bold 12px monospace', SL_CREAM, 'center', 5);
+  slOutlined("EVERY COURSE A FRUIT WAKES UP · DON'T DROP THREE", SL_W / 2, 252, 'bold 10px monospace', SL_LEMON, 'center', 4);
 
   const wob = Math.sin(slClock / 220) * 2;
   slOutlined('NOT THIS ONE!', 140 + wob, 457, 'bold 17px monospace', '#FF8A8A', 'left', 6);
@@ -2644,7 +3119,10 @@ function resetArcadeSlice() {
   slParts  = [];
   slTrail  = [];
   slShake  = 0;
-  // slBoardScores and slArt are NOT cleared — see their declarations above.
+  slFreeze = 0;
+  slShout = null; slBanner = null; slCoach = null; slCoachQ = []; slBubbleList = [];
+  slChillUntil = 0; slSourUntil = 0; slFrenzyUntil = 0;
+  // slBoardScores, slArt and slCoachSeen are NOT cleared — see their declarations above.
 }
 
 // ── The Arcade Floor's preview (SW v259) ─────────────────────────────────────

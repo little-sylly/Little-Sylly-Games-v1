@@ -25,6 +25,12 @@
 //  - The camera follows the chicken forward and also creeps on its own once
 //    the run starts. Dawdle until you drop off the bottom and the eagle gets you.
 //  - Score = the furthest row reached.
+//  - Louder since Oct 2026: cars about to reach you honk (BEEP BEEP!), a car
+//    that only just misses is a CLOSE ONE! (BAWK!), every 25 rows gets a shout,
+//    SPEED DEMON lanes (red sports cars, wider gaps) arrive at row 60, RUSH
+//    HOUR speeds every road up for a few seconds every 50 rows, a quick run
+//    of forward hops is a ZOOM streak, the eagle casts a shadow before it
+//    strikes, and each kind of lane gets a coach line the first time.
 // ═══════════════════════════════════════════════════════════════════════════
 
 // ── Logical canvas size — ALL drawing code works in these coordinates ────────
@@ -51,6 +57,24 @@ const CK_TRAIN_WARN_MS = 1350;
 const CK_DYING_MS      = 1600;   // death beat before scores
 const CK_TOP_N         = 5;
 const CK_CHICK_SCALE   = 1.15;   // the drawing is ~24px wide; this makes it fill its tile a bit more
+const CK_HONK_PX       = 72;     // a car this close behind you (and coming) honks
+const CK_NEAR_PX       = 9;      // a car this close without touching is a CLOSE ONE
+const CK_SPEEDSTER_FROM = 60;    // SPEED DEMON lanes from this row
+const CK_RUSH_EVERY    = 50, CK_RUSH_MS = 7000, CK_RUSH_K = 1.35;   // RUSH HOUR
+const CK_ZOOM_MS       = 420;    // forward hops this close together build a ZOOM streak
+const CK_COACH_MS      = 4500;
+const CK_COACH = {
+  road:  'Cars! Hop across when there is a gap. Swipe left or right to dodge.',
+  river: "Ride the logs and lily pads. Don't fall in the water!",
+  rail:  'Flashing red lights mean a train is coming. Get off the tracks!',
+  eagle: "Don't dawdle! If you fall too far behind, the eagle swoops in.",
+  sport: 'Speed Demons! Red sports cars are very fast. Wait for the big gap.',
+  rush:  'Rush Hour! All the traffic speeds up for a few seconds.',
+};
+const CK_MILESTONES = { 25: 'KEEP CLUCKING!', 50: 'CHICKEN RUN!', 75: 'FOWL PLAY!', 100: 'EGG-CELLENT!',
+  150: 'POULTRY IN MOTION!', 200: 'NEARLY THE OTHER SIDE!', 250: 'LEGEND-HEN-ARY!', 300: 'WINGING IT!' };
+const CK_NEAR_WORDS = ['CLOSE ONE!', 'WHOA!', 'TOO CLOSE!', 'PHEW!'];
+const CK_HONKS = ['BEEP BEEP!', 'HONK!', 'MOVE IT!', 'TOOT TOOT!'];
 
 // ── Palette ──────────────────────────────────────────────────────────────────
 // Menus use the arcade's dark screen and green phosphor (same as ms/ap); the
@@ -85,9 +109,17 @@ const CK_SOUND = {
   train:     () => playSecretBeep(82),
   ding:      () => playSecretBeep(1318),  // level-crossing bell
   eagle:     () => playSecretBeep(1568),
+  honk:      () => { playSecretBeep(587); ckLater(110, () => playSecretBeep(587)); },
+  sportHonk: () => { playSecretBeep(880); ckLater(80, () => playSecretBeep(988)); },
+  near:      () => { playSecretBeep(1175); ckLater(70, () => playSecretBeep(1568)); },
+  bawk:      () => { playSecretBeep(784); ckLater(60, () => playSecretBeep(659)); },
+  rush:      () => [880, 660, 880, 660].forEach((f, k) => ckLater(k * 150, () => playSecretBeep(f))),
+  cheer:     () => [784, 988, 1175, 1568].forEach((f, k) => ckLater(k * 80, () => playSecretBeep(f))),
+  screech:   () => { playSecretBeep(1760); ckLater(90, () => playSecretBeep(1568)); },
   highScore: () => playSecretBeep(1046),
   select:    () => playSecretBeep(660),
 };
+function ckLater(ms, fn) { ckEvents.push({ at: ckClock + ms, fn }); }
 const CK_OVER_JINGLE = [392, 330, 262];
 
 // What the big word says for each way to go
@@ -129,6 +161,14 @@ let ckDeath  = null;        // { kind, at, x, row }
 let ckParts  = [];
 let ckEvents = [];          // [{ at, fn }] — ckClock-scheduled effects (replaces setTimeout)
 let ckShake  = 0;           // seconds remaining
+let ckFreeze = 0, ckFlash = 0;   // hit-stop and a white flash for the big moments
+let ckBubbles = [];         // speech bubbles in the world: { text, x, row, at, col }
+let ckShout  = null;        // one big line at a time: { text, col, at, life }
+let ckCoach  = null, ckCoachQ = [];
+let ckCoachSeen = {};       // session-only, like the scores
+let ckRushUntil = 0, ckNextRush = CK_RUSH_EVERY;
+let ckLastHonk = -1e9, ckLastNear = -1e9, ckLastScreech = -1e9;
+let ckStreak = 0, ckLastFwd = -1e9;
 
 // The single pointer currently allowed to act on #ck-stage — null when free.
 // A second finger is ignored entirely (same rule as apPtrId / msPtrId).
@@ -211,8 +251,15 @@ function ckNewRun() {
   ckParts  = [];
   ckEvents = [];
   ckFresh  = true;
+  ckFreeze = 0; ckFlash = 0; ckBubbles = []; ckShout = null; ckCoach = null; ckCoachQ = [];
+  ckRushUntil = 0; ckNextRush = CK_RUSH_EVERY; ckLastHonk = -1e9; ckLastNear = -1e9; ckLastScreech = -1e9;
+  ckStreak = 0; ckLastFwd = -1e9;
   ckEnsureRows();
 }
+
+function ckQueueCoach(key) { if (ckCoachSeen[key]) return; ckCoachSeen[key] = true; ckCoachQ.push(key); }
+function ckSay(text, col, life) { ckShout = { text, col, at: ckClock, life }; }
+function ckRush() { return ckClock < ckRushUntil; }
 
 // ── World generation ─────────────────────────────────────────────────────────
 // Rows come in zones (a run of grass, a run of road…). Zones never repeat
@@ -323,6 +370,11 @@ function ckRingItems(make, minGap, avgGap) {
 function ckRoadRow(r) {
   const d = ckDifficulty(r);
   const dir = Math.random() < 0.5 ? -1 : 1;
+  if (r >= CK_SPEEDSTER_FROM && Math.random() < 0.25) {   // SPEED DEMONS: few cars, very fast, big gaps between
+    const speed = (150 + d * 70) * (0.9 + Math.random() * 0.25);
+    const items = ckRingItems(() => ({ w: 64, kind: 'sport', colour: '#E11D48', dark: '#9F1239', light: '#FB7185' }), 200, 330);
+    return { r, type: 'road', sport: true, dir, speed, items };
+  }
   const truckLane = Math.random() < 0.3;
   const speed = (45 + d * 95) * (0.8 + Math.random() * 0.5) * (truckLane ? 0.75 : 1);
   const items = ckRingItems(() => {
@@ -380,15 +432,22 @@ function ckLoop(now) {
 }
 
 function ckUpdate(dt) {
+  if (ckShake > 0) ckShake = Math.max(0, ckShake - dt);
+  if (ckFlash > 0) ckFlash = Math.max(0, ckFlash - dt * 2.5);
+  if (ckFreeze > 0) { ckFreeze -= dt; return; }   // hit-stop
   const ms = dt * 1000;
   ckClock += ms;
-  if (ckShake > 0) ckShake = Math.max(0, ckShake - dt);
+  ckBubbles = ckBubbles.filter(b => ckClock - b.at < 900);
+  if (ckShout && ckClock - ckShout.at > ckShout.life) ckShout = null;
+  if (ckCoach && ckClock > ckCoach.until) ckCoach = null;
+  if (!ckCoach && ckCoachQ.length && ckState === 'playing') ckCoach = { text: CK_COACH[ckCoachQ.shift()], until: ckClock + CK_COACH_MS };
 
   for (const row of ckRows.values()) ckUpdateRow(row, dt);
 
   if (ckState === 'playing') {
     ckUpdateChick(dt);
     if (ckState === 'playing') ckUpdateCamera(dt);
+    if (ckState === 'playing') ckUpdateLoud();
     ckEnsureRows();
   }
 
@@ -413,13 +472,69 @@ function ckUpdate(dt) {
 
 function ckRowVisible(r) { return r >= ckCam - 1 && r <= ckCam + CK_H / CK_T; }
 
+// The noisy bits: cars honking at you, lane coach lines, RUSH HOUR, the eagle's screech.
+function ckUpdateLoud() {
+  if (ckFresh) return;
+  const p = ckChickPos();
+  // a car about to reach the chicken's lane position honks — the lane you're in and the one ahead
+  for (const r of [p.row, p.row + 1]) {
+    const row = ckRows.get(r);
+    if (!row || row.type !== 'road') continue;
+    for (const it of row.items) {
+      const front = row.dir > 0 ? it.x + it.w : it.x;
+      const gap = row.dir > 0 ? (p.x - 11) - front : front - (p.x + 11);
+      if (gap > CK_HONK_PX + 60) it.honked = false;           // it's well back: it may honk again next time round
+      if (gap > 0 && gap < CK_HONK_PX && !it.honked && ckClock - ckLastHonk > 650) {
+        it.honked = true; ckLastHonk = ckClock;
+        (it.kind === 'sport' ? CK_SOUND.sportHonk : CK_SOUND.honk)();
+        ckBubbles.push({ text: ckPick(CK_HONKS), x: ckClamp(front + (row.dir > 0 ? -20 : 20), 50, CK_W - 50), row: r, at: ckClock, col: '#FFFFFF' });
+      }
+    }
+  }
+  // the first of each kind of lane on screen gets its coach line
+  for (let r = Math.floor(ckCam) + 1; r < Math.floor(ckCam) + 12; r++) {
+    const row = ckRows.get(r);
+    if (!row) continue;
+    if (row.type === 'road') ckQueueCoach(row.sport ? 'sport' : 'road');
+    else if (row.type === 'river') ckQueueCoach('river');
+    else if (row.type === 'rail') ckQueueCoach('rail');
+  }
+  // RUSH HOUR every CK_RUSH_EVERY rows
+  if (ckScore >= ckNextRush) {
+    ckNextRush += CK_RUSH_EVERY;
+    ckRushUntil = ckClock + CK_RUSH_MS;
+    CK_SOUND.rush();
+    ckSay('RUSH HOUR!', '#F87171', 1400);
+    ckQueueCoach('rush');
+  }
+  // the eagle's shadow and screech when you've fallen behind
+  if (p.vr - ckCam < 1.4 && ckCreeping) {
+    ckQueueCoach('eagle');
+    if (ckClock - ckLastScreech > 2500) {
+      ckLastScreech = ckClock;
+      CK_SOUND.screech();
+      ckBubbles.push({ text: 'SKRAAA!', x: ckClamp(p.x, 50, CK_W - 50), row: p.row + 2, at: ckClock, col: '#FDE68A' });
+    }
+  }
+}
+
+function ckNearMiss(x, row) {
+  if (ckClock - ckLastNear < 900) return;
+  ckLastNear = ckClock;
+  CK_SOUND.near();
+  ckLater(120, CK_SOUND.bawk);
+  ckSay(ckPick(CK_NEAR_WORDS), '#FDE68A', 800);
+  ckBubbles.push({ text: 'BAWK!', x: ckClamp(x, 50, CK_W - 50), row: row + 1, at: ckClock, col: '#FFFFFF' });
+  ckFeathers(x, ckRowTop(row) + CK_T / 2, 3);
+}
+
 // Sounds from the world (bells, trains) only play during a run — the attract
 // screen behind the menu should be seen, not heard.
 function ckWorldAudible() { return ckState === 'playing' || ckState === 'dying'; }
 
 function ckUpdateRow(row, dt) {
   if (row.items && row.speed) {
-    const v = row.dir * row.speed * dt;
+    const v = row.dir * row.speed * dt * (row.type === 'road' && ckRush() ? CK_RUSH_K : 1);
     for (const it of row.items) {
       it.x += v;
       if (it.x > CK_W + CK_WRAP) it.x -= CK_RING;
@@ -490,6 +605,15 @@ function ckTryHop(dir) {
   ckFresh = false;
   ckCreeping = true;
   CK_SOUND.hop();
+  // ZOOM: forward hops in quick succession
+  if (dir === 'up' && ckClock - ckLastFwd < CK_ZOOM_MS) ckStreak++;
+  else if (dir === 'up') ckStreak = 1;
+  else ckStreak = 0;
+  if (dir === 'up') ckLastFwd = ckClock;
+  if (ckStreak >= 8 && ckStreak % 8 === 0) {
+    ckSay(`ZOOM ×${ckStreak}!`, '#86CBFA', 900);
+    playSecretBeep(1175 + ckStreak * 20);
+  }
 }
 
 function ckBump() {
@@ -516,7 +640,13 @@ function ckLand() {
   if (c.row > ckScore) {
     ckScore = c.row;
     ckScorePopAt = ckClock;
-    if (ckScore % 25 === 0) CK_SOUND.milestone();
+    if (ckScore % 25 === 0) {   // every 25 rows: a shout and a burst of feathers
+      CK_SOUND.milestone();
+      ckLater(140, CK_SOUND.cheer);
+      ckSay(CK_MILESTONES[ckScore] || `${ckScore} ROWS!`, '#FDE68A', 1400);
+      ckFlash = 0.3;
+      ckFeathers(c.x, ckRowTop(c.row) + CK_T / 2, 14);
+    }
   }
   if (ckQueued) {
     const q = ckQueued;
@@ -546,6 +676,10 @@ function ckCheckHit() {
   if (row.type === 'road') {
     for (const it of row.items) {
       if (R > it.x + 3 && L < it.x + it.w - 3) { ckDie('squash'); return; }
+      // only just missed: the car has just gone past the chicken, and it was this close
+      const behind = row.dir > 0 ? (it.x + 3) - R : L - (it.x + it.w - 3);
+      if (behind >= 0 && behind < CK_NEAR_PX && !it.near && !ckFresh) { it.near = true; ckNearMiss(p.x, p.row); }
+      if (behind > 120) it.near = false;
     }
   } else if (row.type === 'rail' && row.phase === 'pass') {
     if (R > row.trainX && L < row.trainX + row.trainW) ckDie('train');
@@ -575,6 +709,8 @@ function ckDie(kind) {
   ckLastScore = ckScore;
   ckQueued = null;
   ckPress  = null;
+  ckCoach = null; ckCoachQ = []; ckShout = null; ckRushUntil = 0;
+  ckFreeze = kind === 'eagle' ? 0 : 0.1; ckFlash = 0.45;
 
   const cx = p.x, cy = ckRowTop(p.vr) + CK_T / 2;
   if (kind === 'squash') {
@@ -665,7 +801,11 @@ function ckDraw() {
   if (ckState === 'attract') {
     if (!ckPreviewing) ckDrawAttract();   // the Arcade Floor's preview shows the road, not the card
   } else if (ckState === 'playing' || ckState === 'dying') {
+    ckDrawDanger();
+    ckDrawBubbles();
     ckDrawHud();
+    ckDrawShout();
+    ckDrawCoach();
     if (ckState === 'dying') ckDrawDeathText();
   } else {
     g.fillStyle = 'rgba(5,7,13,0.86)';
@@ -674,6 +814,79 @@ function ckDraw() {
     else ckDrawLeaderboard();
   }
   g.restore();
+  if (ckFlash > 0) { g.fillStyle = `rgba(255,255,255,${(ckFlash * 0.5).toFixed(3)})`; g.fillRect(0, 0, CK_W, CK_H); }
+}
+
+// RUSH HOUR's amber edges, and the eagle's shadow growing over a chicken that's fallen behind.
+function ckDrawDanger() {
+  const g = ckCtx;
+  if (ckRush()) {
+    const p = 0.5 + 0.5 * Math.sin(ckClock / 90);
+    g.lineWidth = 8 + 4 * p; g.strokeStyle = `rgba(251,146,60,${(0.3 + 0.3 * p).toFixed(3)})`;
+    g.strokeRect(0, 0, CK_W, CK_H);
+  }
+  if (ckState !== 'playing' || ckFresh) return;
+  const pos = ckChickPos(), lag = pos.vr - ckCam;
+  if (lag < 1.6) {
+    const k = Math.max(0, Math.min(1, (1.6 - lag) / 1.6));
+    const y = ckRowTop(pos.vr) + CK_T / 2;
+    g.fillStyle = `rgba(20,10,5,${(0.35 * k).toFixed(3)})`;
+    g.beginPath(); g.ellipse(pos.x, y + 6, 18 + 40 * k, 7 + 14 * k, 0, 0, Math.PI * 2); g.fill();
+    const gr = g.createLinearGradient(0, CK_H, 0, CK_H - 160);
+    gr.addColorStop(0, `rgba(239,68,68,${(0.45 * k).toFixed(3)})`); gr.addColorStop(1, 'rgba(239,68,68,0)');
+    g.fillStyle = gr; g.fillRect(0, CK_H - 160, CK_W, 160);
+  }
+}
+
+// Speech bubbles out in the world (cars honking, the chicken squawking).
+function ckDrawBubbles() {
+  const g = ckCtx;
+  ckBubbles.forEach(b => {
+    const age = ckClock - b.at, s = Math.min(1, age / 100);
+    const y = ckRowTop(b.row) - 2 - age * 0.02;
+    g.save(); g.translate(b.x, y); g.scale(s, s);
+    g.globalAlpha = Math.max(0, Math.min(1, (900 - age) / 250));
+    g.font = 'bold 12px monospace';
+    const w = g.measureText(b.text).width + 14;
+    g.fillStyle = CK_BG; g.fillRect(-w / 2 - 2, -13, w + 4, 26);
+    g.fillStyle = b.col; g.fillRect(-w / 2, -11, w, 22);
+    g.beginPath(); g.moveTo(-5, 11); g.lineTo(0, 18); g.lineTo(5, 11); g.fill();
+    g.fillStyle = CK_BG; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(b.text, 0, 1);
+    g.textBaseline = 'alphabetic';
+    g.restore();
+  });
+  g.globalAlpha = 1;
+}
+
+// The announcer: one big line at a time, over the road ahead.
+function ckDrawShout() {
+  const s = ckShout;
+  if (!s) return;
+  const g = ckCtx, t = ckClock - s.at, pop = t < 140 ? 1.6 - (t / 140) * 0.6 : 1;
+  g.save();
+  g.globalAlpha = t > s.life - 250 ? Math.max(0, (s.life - t) / 250) : 1;
+  g.translate(CK_W / 2, 190); g.rotate(-0.05); g.scale(pop, pop);
+  g.textBaseline = 'middle';
+  ckOutlined(s.text, 0, 0, `bold ${s.text.length > 14 ? 26 : 34}px monospace`, s.col, 'center', 9);
+  g.restore();
+  g.textBaseline = 'alphabetic';
+}
+
+function ckDrawCoach() {
+  if (!ckCoach || ckState !== 'playing') return;
+  const g = ckCtx;
+  g.font = 'bold 12px monospace';
+  const words = ckCoach.text.split(' '), lines = [];
+  let line = '';
+  words.forEach(w => { const t = line ? line + ' ' + w : w; if (g.measureText(t).width > 300 && line) { lines.push(line); line = w; } else line = t; });
+  if (line) lines.push(line);
+  const h = lines.length * 17 + 16, y = CK_H - h - 10;
+  g.globalAlpha = Math.max(0, Math.min(1, (ckCoach.until - ckClock) / 400));
+  g.fillStyle = 'rgba(5,7,13,0.9)'; g.fillRect(14, y, 332, h);
+  g.strokeStyle = CK_GREEN; g.lineWidth = 2.5; g.strokeRect(14, y, 332, h);
+  g.fillStyle = '#FFFFFF'; g.textAlign = 'center';
+  lines.forEach((l, i) => g.fillText(l, CK_W / 2, y + 20 + i * 17));
+  g.globalAlpha = 1;
 }
 
 function ckDrawWorld() {
@@ -765,6 +978,7 @@ function ckDrawObjects(row, y) {
     row.items.forEach(it => {
       if (it.x > CK_W || it.x + it.w < 0) return;
       if (it.kind === 'truck') ckDrawTruck(it, y, row.dir);
+      else if (it.kind === 'sport') ckDrawSport(it, y, row.dir);
       else ckDrawCar(it, y, row.dir);
     });
   } else if (row.type === 'river') {
@@ -829,6 +1043,24 @@ function ckDrawCar(it, y, dir) {
   const fx = dir > 0 ? x + w - 3 : x, bx = dir > 0 ? x : x + w - 3;
   g.fillStyle = '#FEF08A'; g.fillRect(fx, y + 21, 3, 4); g.fillRect(fx, y + 9, 3, 4);
   g.fillStyle = '#EF4444'; g.fillRect(bx, y + 21, 3, 4);
+}
+
+// A Speed Demon: long, low and red, with a spoiler, racing stripes and speed lines.
+function ckDrawSport(it, y, dir) {
+  const g = ckCtx, x = Math.round(it.x), w = it.w;
+  g.fillStyle = 'rgba(255,255,255,0.35)';   // speed lines trailing behind it
+  for (let k = 0; k < 3; k++) g.fillRect(dir > 0 ? x - 18 - k * 6 : x + w + 6 + k * 6, y + 10 + k * 7, 12, 2);
+  g.fillStyle = 'rgba(0,0,0,0.22)'; g.fillRect(x + 3, y + 30, w - 6, 7);
+  g.fillStyle = '#111827';
+  g.fillRect(x + 8, y + 27, 12, 7); g.fillRect(x + w - 20, y + 27, 12, 7);
+  g.fillStyle = it.dark;   g.fillRect(x, y + 20, w, 10);
+  g.fillStyle = it.colour; g.fillRect(x, y + 11, w, 11);
+  const cw = Math.round(w * 0.36), cx = Math.round(x + (w - cw) / 2 - dir * 6);
+  g.fillStyle = '#1F2937'; g.fillRect(cx, y + 6, cw, 12);
+  g.fillStyle = '#93C5FD'; g.fillRect(dir > 0 ? cx + cw - 6 : cx, y + 7, 6, 9);
+  g.fillStyle = '#FDE68A'; g.fillRect(x + 6, y + 15, w - 12, 2);          // the stripe
+  g.fillStyle = it.dark;   g.fillRect(dir > 0 ? x : x + w - 8, y + 5, 8, 6); // the spoiler
+  g.fillStyle = '#FEF08A'; g.fillRect(dir > 0 ? x + w - 3 : x, y + 18, 3, 4);
 }
 
 function ckDrawTruck(it, y, dir) {
@@ -1302,7 +1534,9 @@ function ckStagePointer(e, phase) {
   document.addEventListener('visibilitychange', () => {
     if (!visible()) return;
     if (document.hidden) {
-      ckRaf = null;
+      // Cancel, don't just forget the handle: the pending frame still fires when the tab
+      // comes back, and a fresh loop started beside it would run the game at double speed.
+      if (ckRaf) { cancelAnimationFrame(ckRaf); ckRaf = null; }
       ckPress = null;
       ckPtrId = null;
     } else if (!ckRaf) {
@@ -1336,7 +1570,8 @@ function resetArcadeChicken() {
   ckEvents = [];
   ckParts  = [];
   ckShake  = 0;
-  // ckBoard is NOT cleared — see the declaration above.
+  ckFreeze = 0; ckFlash = 0; ckBubbles = []; ckShout = null; ckCoach = null; ckCoachQ = []; ckRushUntil = 0;
+  // ckBoard and ckCoachSeen are NOT cleared — see the declarations above.
 }
 
 // ── The Arcade Floor's preview (SW v259) ─────────────────────────────────────

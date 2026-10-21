@@ -19,6 +19,9 @@ Detail: pointer to the canonical doc (snapshot / impl note / spec / memory).
 ```
 
 
+## 2026-10-22 — The older cabinets get the arcade guidelines; Deep-Sea Sweep becomes a dive (Strategy)
+**Decision:** six of the first seven cabinets reworked to the prompt's soft guidelines (one new thing per stage, timed surges, power-ups, an announcer, coach lines); Deep-Sea Sweep's three fixed sea-state boards are replaced by one staged dive with three hull plates and a score board (not per-state times); Chop Salad's identity is a salad bowl per course plus Fruit Salad's Fruity Personalities as behaviours. **Why:** owner — the arcade should feel loud, escalating and replayable; several cabinets were faithful clones with no build-up. **Changed:** six `js/arcade/*.js`, two room blurbs in `js/lobby/arcade.js`, `tools/smoke-arcade.js` (board name), `tools/mutate-arcade.js` (anchored mutation), SW v263. **Detail:** `shared-implementation-notes.md` DD-65, BUG-28.
+
 ## 2026-10-21 — The Arcade Floor is one live 3D scene: the real cabinets on a ring (Architecture)
 **Decision:** the Floor draws every cabinet as the real `louBuildArcade` model in ONE Three.js scene on a ring (centred one steps out, neighbours show their sides), with the game previews and marquees as canvas textures; the invisible scroll-snap row stays the input; one loop; the renderer lives with the arcade and is released by `arcStop()`. Reverses § 3.2's rendered picture (and its "no RAF in the room"). **Why:** owner — a flat PNG turned by CSS distorted and showed no sides; the Floor should have the cabinets' own over-the-top energy. **Changed:** `js/lobby/arcade.js`, `css/arcade.css`, `lounge-props.js` (`blank` → `faces`), `tools/smoke-arcade.js`, `tools/verify-lounge-props.js`, SW v260. **Detail:** spec § 3.3; `shared-implementation-notes.md` DD-63.
 

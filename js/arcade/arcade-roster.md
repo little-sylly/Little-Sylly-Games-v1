@@ -46,17 +46,21 @@ provisional number (marked `*`) that can still change.
 
 - **ASHERPLANE**: drag to fly a chunky prop fighter with auto-fire through five skies, each ending in
   a boss. Parachute crates carry power-ups and a STAR CHAIN multiplier builds the score.
-- **DEEP-SEA SWEEP**: classic Minesweeper rules reskinned to sea mines, marker buoys for flags and a
-  sonar PING to dig, with sea states CALM / TURBULENT / TEMPEST for the board sizes.
-- **OTHER SIDE**: "Why did the chicken cross the road?" An endless hop across traffic lanes.
-- **CHOP SALAD**: swipe to slice fruit in combos and never the broccoli. A start-screen toggle swaps
-  plain fruit for the Fruity Personalities.
+- **DEEP-SEA SWEEP**: a Minesweeper dive. Sea mines, marker buoys and a sonar PING; sweep a sector
+  and dive 100 m deeper onto a bigger board. Three hull plates, and one new thing per sector (pearls,
+  an air gauge, sonar charges, the reef, jammers), then the Trench.
+- **OTHER SIDE**: "Why did the chicken cross the road?" An endless hop across traffic lanes. Cars
+  honk, near misses squawk, Speed Demon lanes and Rush Hour arrive as you go.
+- **CHOP SALAD**: swipe to slice fruit, never the broccoli. Each course is one salad (one of every
+  fruit in the bowl, then a Fruit Frenzy), and each course wakes one Fruity Personality's quirk. A
+  start-screen toggle swaps plain fruit for the Personalities' art.
 - **HAND IN THE COOKIE JAR**: hold to reach in and grab cookies, and let go before a family member
-  looks. Five visitors each have their own tell.
-- **STACKING ORDER**: drop swinging animals onto a tower. PERFECT landings keep it straight, and
-  stacking a predator on its prey earns a bonus.
+  looks. Five visitors each have their own tell; a countdown to dinner that only brave escapes push back.
+- **STACKING ORDER**: drop swinging animals onto a tower. PERFECT landings keep it straight (three in
+  a row is a Feeding Frenzy), predator on prey earns a bonus, and high winds arrive at floor 15.
 - **BEYOND THE BLUFF**: auto-hop up a sea cliff built from giant dice, where the pips are the holds.
-  Dice tumble down as rockfall and The Depths rise from below.
+  A ledge every 100 m, one new hazard per pitch (bluffs, slick holds, loaded dice, rockslides, the
+  Tempest, snake eyes), two power-ups, and The Depths rising from below.
 - **COLD SHOT**: you're the penguin in the Drink, snowballing smug penguins off a floe that sinks
   if too many pile on. It has waves of new penguin types (Sliders, Chonks, Frosties, Jumpies, conga
   lines), fish that bunch them up, and seagulls carrying timed power-ups (Double, Spread, Blizzard,
