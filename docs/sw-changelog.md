@@ -3,6 +3,13 @@
 Historical SW release notes, moved out of `CLAUDE.md` (1 Aug 2026) so they stop loading into every session.
 The **current** version and its notes stay in `CLAUDE.md` § Current Focus — append the outgoing entry here on each bump.
 
+## v261 — the Arcade Floor's keys, and the cabinet screens on a wide window (21 Oct 2026). Owner playtest of
+v260 (the live 3D ring, spec § 3.3): on desktop an arrow key or a tap could leave the number on the previous cabinet or jump it
+back — the centre observer named the row halfway through the room's own smooth glide, then ignored the row leaving. Fixed
+(`arcSyncCentre`: every crossing counts, a glide's destination is held in `arcSteerTo`, `scrollend` re-reads). On a wide
+window a cabinet's header now holds to its canvas's column, and the game's own edges spill out round it, blurred
+(`.arc-amb`, `arcAmbient`, 10 fps). No new file, no packet. Detail: `shared-implementation-notes.md` BUG-27.
+
 ## v260 — the Arcade Floor is a live 3D ring (21 Oct 2026). Spec § 3.3 (Stage 5, reverses § 3.2's rendered picture):
 ONE Three.js scene of the real `louBuildArcade` cabinets on a ring, backs to the middle — the centred one steps out toward
 you, neighbours show their sides (50° step on a phone, 30° on a wide floor). Glass + marquee are canvas textures

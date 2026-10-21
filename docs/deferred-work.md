@@ -19,8 +19,9 @@ Integration and registration are done and verified (`tools/verify-arcade.js`, 14
 `smLaunchArcade()` path — since SW v254 `arcLaunch()` in the Arcade room). What is left is the half no harness covers.
 
 0. **The Arcade Floor (SW v257; live screens SW v259; the 3D ring SW v260) wants its own phone pass** — the swipe/snap feel
-   (does a pitch of swipe per step feel right?) and the strip's drag; **time the first open** (`arcGl.ms`: build ~100 ms,
-   first frame ~0.3 s in software GL at 1×, unmeasured on a phone GPU — if slow, build only the cabinets within 3 steps) and watch
+   (does a pitch of swipe per step feel right?) and the strip's drag; **time the first open** (`arcGl.ms`: build ~40 ms since
+   SW v262 shares one geometry set across the nine, first frame ~0.3–0.4 s in software GL at 1×, unmeasured on a phone GPU — if
+   slow, build only the cabinets within 3 steps) and watch
    the live preview's battery/heat over a few minutes; check each screen's crop band (`fy`) reads on the real glass. (The spec's
    Stage 3, the Lounge prop, shipped SW v258 — moved to `deferred-work-log.md`.) The Lounge cabinet itself wants an
    owner look on a real widescreen: its x / z / turn were set from one SwiftShader render.
@@ -848,4 +849,11 @@ not in a batch at the end.
   and landed inside the noise band, so the flag is untouched. If a lever is ever needed the candidates
   are the scare-off's unconditional full-pool sweep and the Dob backfire severity — **not** the Treat
   rule, which a mechanism probe disconfirmed.
+
+**`visual-lounge.js`'s keyboard dial check is stale (found 21 Oct 2026, SW v262 — fails on committed code too).** It presses
+  → three times and Enter, expecting the dial; since SW v248 `LOU_TAB_ORDER` puts the two paintings ahead of it, so it lands
+  on the jukebox (heard `jukeboxWhistle`). Two checks fail (27/29); untouched since SW v231. **When picked up:** step to
+  `LOU_TAB_ORDER.indexOf('dial')` read from the page rather than a fixed count, and clear `__sfx` after the presses — the
+  heard list also caught a `phoneAlert` idle beat, so the "one sound" assertion needs the window narrowed, not just the stop.
+  The phone tap check after it flaked once on the same run.
 

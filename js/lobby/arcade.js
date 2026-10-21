@@ -106,8 +106,8 @@ const ARC_MACHINE_HTML =
    one pitch turns the ring one step. Its game's screen is drawn into the row's
    `.arc-crt-view` exactly as on the CSS cabinet — a fixed-size canvas of the
    glass's own aspect — and composited (arcPaintFace) onto the model's glass. */
-const ARC_FACE_W = 480, ARC_FACE_H = 260;   // the CRT glass, 86.4 × 46.8 mm (louBuildArcade GW × GH)
-const ARC_MARQ_W = 512, ARC_MARQ_H = 76;    // the marquee glass, 98 × 14.5 mm
+const ARC_FACE_W = 480, ARC_FACE_H = 360;   // the CRT glass, 88 × 66 mm — 4:3 (louBuildArcade GW × GH)
+const ARC_MARQ_W = 512, ARC_MARQ_H = 76;    // the marquee glass, 100 × 14.8 mm
 const ARC_GL_ROW_HTML =
   `<canvas class="arc-crt-view" width="${ARC_FACE_W}" height="${ARC_FACE_H}" aria-hidden="true"></canvas>` +
   '<span class="arc-sr"><b class="arc-m-num"></b> <span class="arc-m-name"></span> <span class="arc-crt-hi"></span></span>';
@@ -119,8 +119,8 @@ const ARC_GL_ROW_HTML =
    a review script can try another ring and call arcGlFit(). */
 const ARC_RING = { step: 50, stepWide: 30, gap: 0.006, lift: 20, fov: 44, fill: 0.52, cy: 0.6, out: 0.09 };
 const ARC_RING_SHOW = 3;          // cabinets drawn either side of the centred one
-const ARC_CAB_H = 0.234;          // the model ears to feet, metres
-const ARC_CAB_BACK = 0.066, ARC_CAB_HALF = 0.065;   // its back face behind its origin, and its half-width
+const ARC_CAB_H = 0.230;          // the model ears to feet, metres
+const ARC_CAB_BACK = 0.066, ARC_CAB_HALF = 0.065;   // its walls' back corners behind its origin, and its half-width (the back panel, tail and speaker sit inside the wedge these give)
 const ARC_SPIN_MS = 650;          // the ring spins in when the room opens
 const ARC_SPIN_FROM = 1.5;        // …from this many steps away
 const ARC_BEATS = { ghost: 0.3, hiscore: 0.3, twitch: 0.2, flicker: 0.2 };   // the arrival beat, never twice running
@@ -823,7 +823,8 @@ function arcLaunch(id) {
     c.api.press(reduced);
     if (!reduced) {
       arcGlPose(i); g.ring.updateMatrixWorld(true);
-      const f = c.api.focusPose(), d = c.faces.screen.w / (0.9 * 2 * Math.tan(g.cam.fov * Math.PI / 360) * g.cam.aspect);
+      // 90% of the view, whichever of the glass's width or height fills it first (a 4:3 CRT on a wide window is its height)
+      const f = c.api.focusPose(), t = 0.9 * 2 * Math.tan(g.cam.fov * Math.PI / 360), d = Math.max(c.faces.screen.w / (t * g.cam.aspect), c.faces.screen.h / t);
       g.push = { t0: null, to: f.point.clone().addScaledVector(f.normal, d), at: f.point.clone() };
     }
     arcPaintFace(i, performance.now());

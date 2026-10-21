@@ -1490,7 +1490,14 @@ section('arcade cabinet (SW v258)');
     const a = b.userData.api; let threw = false;
     try { ['ghost', 'twitch', 'flicker', 'hiscore'].forEach((n, k) => { a.startBeat(n); for (let t = 0; t <= 1700; t += 50) a.tick(200000 + k * 5000 + t, 0.05, false); }); } catch (_) { threw = true; }
     ok(!threw, 'faces: every beat runs on the Floor build');
-    ok(b.getObjectByName('coinLamp'), 'the coin lamp is findable'); }
+    ok(b.getObjectByName('coinLamp'), 'the coin lamp is findable');
+    /* SW v262: the geometry is built once per lib — the Floor stands nine cabinets, and building each
+       from scratch doubled the ring's open. A fresh lib (one per open) must get a fresh set. */
+    const b2 = P.louBuildArcade(lite, global.__prmCtx.design, [{ label: 'TWO', accent: '#7ad7ff' }], null, { faces: { screen: makeCanvas(480, 360), marquee: makeCanvas(512, 76) } });
+    ok(b2.getObjectByName('body').geometry === b.getObjectByName('body').geometry && b2.getObjectByName('screen').material !== b.getObjectByName('screen').material,
+      'one lib: the cabinets share their geometry, each with its own materials');
+    const lite2 = LouLib.louCreateLib(THREE, { makeCanvas, smoothNormals: CB.smoothNormals, lite: true });
+    ok(P.louBuildArcade(lite2, global.__prmCtx.design, null, null).getObjectByName('body').geometry !== b.getObjectByName('body').geometry, 'a fresh lib builds a fresh set'); }
   { const f = P.LOU_BUILDERS.arcade(Object.assign({}, global.__prmCtx, { sfx: undefined })); let threw = false;
     try { f.userData.api.press(false); f.userData.api.startBeat('ghost'); f.userData.api.tick(1, 0.02, false); } catch (_) { threw = true; }
     ok(!threw, 'a host with no sfx presses silently'); }

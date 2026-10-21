@@ -3194,48 +3194,108 @@
   }
   LOU_BUILDERS.shelfContents = (ctx) => louBuildShelf(ctx.lib, ctx.roomData && ctx.roomData.louShelf);
 
-  /* ── The arcade cabinet (spec 2026-10-18 § 3.1, SW v258) ──────────────────────
-     The Arcade Floor's own cabinet, in the bookshelf's bottom bay: the bear's
-     round ears on the panda's one-piece body. A tap pushes in on its CRT and the
-     host opens the Arcade (openArcade, optional — no host, and it answers with a
-     bop). The room's DOM cabinets (css/arcade.css .arc-m-*) are the reference,
-     and it wears the same four roles: body `shell`, marquee frame, bezel, deck
-     and inner ears `plate`, ears `ears`, stick ball and buttons `buttons`. The
-     coin door is the shell a shade darker; the glass is fixed black.
+  /* ── The arcade cabinet (spec 2026-10-18 § 3.1, SW v258; rebuilt SW v262) ──────
+     The Arcade's own cabinet — in the bookshelf's bottom bay, and nine of it on the Floor's ring —
+     the mock-ups' little desktop arcade (wip/arcade cabinet): the bear's round ears on the panda's
+     wrap-around body. A tap pushes in on its CRT and the host opens the Arcade (openArcade,
+     optional; no host and it answers with a bop). Four roles, as the room: body `shell`; faceplate,
+     feet, speaker, badge, coin boss and inner ears `plate`; ears and the START/SELECT pair `ears`;
+     stick ball and buttons `buttons`. The coin door and back panel are the shell a shade darker;
+     the glass, the bezel and every small dark part are fixed.
 
-     ONE extrusion makes the body: the classic side profile (hood, marquee, a
-     CRT tipped back under the hood, a control deck jutting out, the lower front)
-     swept across the cabinet's width. The plates are 2 cm narrower than it, so
-     the shell rims every one of them — the inset faceplate. ~22 meshes, a few
-     thousand triangles: it never needs skipProps.
+     Built the way a moulded toy is (owner: "could double as a real physical object"):
+       WALLS     two side panels, the full side profile, every edge rounded;
+       CORE      between them, set GAP in all round — so a fine parting line runs round each side,
+                 over the roof, down the back and under the base — and POCKET deep at the front;
+       FACEPLATE one bent plate filling that pocket: from under the brow, down the marquee, under
+                 the hood, down the CRT face, over the deck and down its lip. The walls stand proud
+                 round it like the panda's rim, and a dark gasket behind it makes the gap a seam.
+     Then what a real one carries: a sloped bezel round a bulged CRT, button collars and a dust
+     washer, a coin door with its boss and a heart lamp, a speaker and the S badge on the left flank,
+     a port on the right, a screwed back panel, four feet; each ear seated in a socket boss that
+     grows out of the roof. Static parts merge per material: ~21 draw calls, under 15k triangles.
 
-     The CRT repaints through the scene's 10 fps attract loop (api.attract), and
-     only when what it shows changes: the cabinet names in their accents, INSERT
-     COIN blinking. */
+     The CRT repaints through the scene's 10 fps attract loop (api.attract), and only when what it
+     shows changes. */
   /* Each cabinet's name holds this long on the CRT, and that is the ONLY idle repaint: INSERT COIN is
      steady, not blinking. Every repaint wakes a full room render (the telly's SW v252 lesson); a blink
      at 2 Hz kept the idle room rendering twice a second for a 60 px screen (found 21 Oct 2026). */
   const LOU_ARCADE_CYCLE_S = 3;
   const LOU_ARCADE_FALLBACK = [{ label: 'ARCADE', accent: '#3fa9ff' }];
-  /* A closed outline from [x, y, r] corners, each rounded by its own radius
-     (clamped to half of either edge). Any angle, unlike lib.roundPoly. */
-  function louRoundedOutline(THREE, pts) {
-    const s = new THREE.Shape(), n = pts.length;
+  /* Corners [x, y, r] of a CCW outline, edge i (corner i → i+1) moved inward by `off` — one number
+     for every edge, or one per edge. Each corner lands where its two moved edges cross; a convex
+     corner's radius shrinks by the inset and a concave one's grows, so the two stay concentric. */
+  function louInsetCorners(pts, off) {
+    const n = pts.length, o = (i) => (typeof off === 'number' ? off : off[(i + n) % n]);
+    const L = pts.map((a, i) => { const b = pts[(i + 1) % n], dx = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(dx, dy);
+      return { x: a[0] - dy / l * o(i), y: a[1] + dx / l * o(i), dx: dx / l, dy: dy / l }; });
+    return pts.map((c, i) => {
+      const A = L[(i + n - 1) % n], B = L[i], den = A.dx * B.dy - A.dy * B.dx;
+      const t = ((B.x - A.x) * B.dy - (B.y - A.y) * B.dx) / den, m = (o(i - 1) + o(i)) / 2;
+      return [A.x + A.dx * t, A.y + A.dy * t, Math.max(0.0003, c[2] + (den > 0 ? -m : m))];
+    });
+  }
+  /* How far corner i's fillet runs along its edges, and half the angle between them — its radius
+     clamped so two fillets never overlap one edge. */
+  function louFilletRun(pts, i) {
+    const n = pts.length, [x, y, r] = pts[i], p = pts[(i + n - 1) % n], q = pts[(i + 1) % n];
+    const la = Math.hypot(p[0] - x, p[1] - y), lb = Math.hypot(q[0] - x, q[1] - y);
+    const half = Math.acos(Math.max(-1, Math.min(1, ((p[0] - x) * (q[0] - x) + (p[1] - y) * (q[1] - y)) / (la * lb)))) / 2;
+    return { k: Math.min(r / Math.tan(half), la / 2, lb / 2), half, la, lb };
+  }
+  /* A closed outline's points from [x, y, r] corners, each a true circular arc of its radius — any
+     angle, convex or concave. Arc segments are never more than ~32° apart, so a crease-40 smoothing
+     rounds every corner, and a big radius gets more of them. */
+  function louFilletPoints(THREE, pts) {
+    const n = pts.length, out = [];
     for (let i = 0; i < n; i++) {
-      const [x, y, r] = pts[i], p = pts[(i + n - 1) % n], q = pts[(i + 1) % n];
-      const lp = Math.hypot(p[0] - x, p[1] - y), lq = Math.hypot(q[0] - x, q[1] - y), k = Math.min(r, lp / 2, lq / 2);
-      const a = [x + (p[0] - x) * k / lp, y + (p[1] - y) * k / lp], b = [x + (q[0] - x) * k / lq, y + (q[1] - y) * k / lq];
-      if (i === 0) s.moveTo(a[0], a[1]); else s.lineTo(a[0], a[1]);
-      s.quadraticCurveTo(x, y, b[0], b[1]);
+      const [x, y] = pts[i], p = pts[(i + n - 1) % n], q = pts[(i + 1) % n], { k, half, la, lb } = louFilletRun(pts, i);
+      const ua = [(p[0] - x) / la, (p[1] - y) / la], ub = [(q[0] - x) / lb, (q[1] - y) / lb];
+      const r = k * Math.tan(half), bl = Math.hypot(ua[0] + ub[0], ua[1] + ub[1]) || 1, dc = r / Math.sin(half);
+      const c = [x + (ua[0] + ub[0]) / bl * dc, y + (ua[1] + ub[1]) / bl * dc];
+      const a0 = Math.atan2(y + ua[1] * k - c[1], x + ua[0] * k - c[0]);
+      let da = Math.atan2(y + ub[1] * k - c[1], x + ub[0] * k - c[0]) - a0;
+      while (da > Math.PI) da -= 2 * Math.PI; while (da < -Math.PI) da += 2 * Math.PI;
+      const m = Math.min(12, Math.max(Math.ceil(Math.abs(da) / 0.55), Math.ceil(Math.abs(da) * r / 0.004)));
+      for (let j = 0; j <= m; j++) {
+        const a = a0 + da * j / m, v = new THREE.Vector2(c[0] + Math.cos(a) * r, c[1] + Math.sin(a) * r), last = out[out.length - 1];
+        if (!last || last.distanceTo(v) > 1e-6) out.push(v);   // a fully used edge: two arcs meet on one point
+      }
     }
-    s.closePath(); return s;
+    if (out.length > 1 && out[0].distanceTo(out[out.length - 1]) < 1e-6) out.pop();
+    return out;
+  }
+  /* Geometries already in place → one mesh's worth, keeping uv (the speckle bump reads it) as
+     lib.merge does not. Disposes its inputs. */
+  function louMergeUv(THREE, geos) {
+    const pos = [], nor = [], uv = [], idx = []; let off = 0;
+    geos.forEach(g => {
+      if (!g.attributes.normal) g.computeVertexNormals();
+      const a = g.attributes.position, nn = g.attributes.normal, u = g.attributes.uv;
+      for (let i = 0; i < a.count; i++) { pos.push(a.getX(i), a.getY(i), a.getZ(i)); nor.push(nn.getX(i), nn.getY(i), nn.getZ(i)); uv.push(u ? u.getX(i) : 0, u ? u.getY(i) : 0); }
+      if (g.index) g.index.array.forEach(v => idx.push(v + off)); else for (let i = 0; i < a.count; i++) idx.push(i + off);
+      off += a.count; g.dispose();
+    });
+    const out = new THREE.BufferGeometry();
+    out.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); out.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3)); out.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+    out.setIndex(idx); return out;
+  }
+  // A heart s wide, point down, centred: the coin lamp.
+  function louHeart(THREE, s) {
+    const h = new THREE.Shape();
+    h.moveTo(0, -0.46 * s);
+    h.bezierCurveTo(-0.3 * s, -0.2 * s, -0.56 * s, 0.02 * s, -0.5 * s, 0.24 * s);
+    h.bezierCurveTo(-0.44 * s, 0.46 * s, -0.12 * s, 0.5 * s, 0, 0.26 * s);
+    h.bezierCurveTo(0.12 * s, 0.5 * s, 0.44 * s, 0.46 * s, 0.5 * s, 0.24 * s);
+    h.bezierCurveTo(0.56 * s, 0.02 * s, 0.3 * s, -0.2 * s, 0, -0.46 * s);
+    return h;
   }
   /* The CRT. paint(state) draws only when the frame it would draw differs from
      the last one, and says whether it did. state: { t, reduced, score, hiscore,
      start } — the two flashes are 0 (off), 1 (lit) or 2 (between blinks), so the
-     beat that owns a flash also owns its rhythm. */
+     beat that owns a flash also owns its rhythm. 4:3, the glass's own shape. */
   function louArcadeScreen(makeCanvas, cabinets) {
-    const W = 384, H = 208, c = makeCanvas(W, H), x = c.getContext('2d');
+    const W = 384, H = 288, c = makeCanvas(W, H), x = c.getContext('2d');
     let lastKey = null, frames = 0;
     const at = (t) => Math.floor(t / LOU_ARCADE_CYCLE_S) % cabinets.length;
     /* Sized from the character count (Fredoka bold runs ~0.62 em a glyph), never measureText:
@@ -3248,23 +3308,23 @@
       lastKey = key; frames++;
       const cab = i < 0 ? null : cabinets[i], accent = cab ? cab.accent : '#ffe7a3';
       x.fillStyle = '#060609'; x.fillRect(0, 0, W, H);
-      const gr = x.createRadialGradient(W / 2, H / 2, 10, W / 2, H / 2, W * 0.55);
+      const gr = x.createRadialGradient(W / 2, H / 2, 10, W / 2, H / 2, W * 0.6);
       gr.addColorStop(0, accent + '40'); gr.addColorStop(1, accent + '00');
       x.fillStyle = gr; x.fillRect(0, 0, W, H);
       x.textAlign = 'center'; x.textBaseline = 'middle';
       if (!cab) {
         // reduced motion: one still title card
-        x.fillStyle = accent; fit('THE ARCADE', 48, W - 48); x.fillText('THE ARCADE', W / 2, 88);
-        x.fillStyle = '#f4efe6'; x.font = 'bold 20px Fredoka, sans-serif'; x.fillText('PRESS START', W / 2, 150);
+        x.fillStyle = accent; fit('THE ARCADE', 52, W - 48); x.fillText('THE ARCADE', W / 2, 122);
+        x.fillStyle = '#f4efe6'; x.font = 'bold 22px Fredoka, sans-serif'; x.fillText('PRESS START', W / 2, 198);
       } else {
-        x.fillStyle = '#9d97a8'; x.font = 'bold 16px Fredoka, sans-serif'; x.textAlign = 'left';
-        x.fillText(String(i + 1).padStart(2, '0') + ' / ' + String(cabinets.length).padStart(2, '0'), 18, 22);
-        if (st.score !== null) { x.textAlign = 'right'; x.fillStyle = '#f4efe6'; x.fillText('1UP ' + String(st.score).padStart(6, '0'), W - 18, 22); }
+        x.fillStyle = '#9d97a8'; x.font = 'bold 17px Fredoka, sans-serif'; x.textAlign = 'left';
+        x.fillText(String(i + 1).padStart(2, '0') + ' / ' + String(cabinets.length).padStart(2, '0'), 20, 28);
+        if (st.score !== null) { x.textAlign = 'right'; x.fillStyle = '#f4efe6'; x.fillText('1UP ' + String(st.score).padStart(6, '0'), W - 20, 28); }
         x.textAlign = 'center';
         const title = st.hiscore ? 'HI-SCORE!' : cab.label;
-        if (st.hiscore !== 2) { x.fillStyle = st.hiscore ? '#ffe7a3' : accent; fit(title, 46, W - 40); x.fillText(title, W / 2, 96); }
+        if (st.hiscore !== 2) { x.fillStyle = st.hiscore ? '#ffe7a3' : accent; fit(title, 50, W - 44); x.fillText(title, W / 2, 132); }
         const foot = st.start ? 'START' : 'INSERT COIN';
-        if (st.start !== 2) { x.fillStyle = '#f4efe6'; x.font = 'bold 20px Fredoka, sans-serif'; x.fillText(foot, W / 2, 162); }
+        if (st.start !== 2) { x.fillStyle = '#f4efe6'; x.font = 'bold 22px Fredoka, sans-serif'; x.fillText(foot, W / 2, 226); }
       }
       x.fillStyle = 'rgba(0,0,0,0.28)'; for (let y = 0; y < H; y += 4) x.fillRect(0, y, W, 2);   // light scanlines
       return true;
@@ -3278,6 +3338,194 @@
     x.shadowColor = '#ffd27a'; x.shadowBlur = 14; x.fillStyle = '#ffe7a3'; x.fillText('THE ARCADE', W / 2, H / 2 + 2);
     return c;
   }
+  /* The CRT's spill: white (the accent tints it), even over the glass and fading to nothing across the
+     bezel. Nested rounded rects, each a little more alpha, from the plane's edge in to the glass's —
+     mx, my are the glass's margin inside the plane, as a fraction of it. */
+  function louArcadeGlow(makeCanvas, mx, my) {
+    const S = 128, c = makeCanvas(S, S), x = c.getContext('2d');
+    const rr = (x0, y0, w, h, r) => { x.beginPath(); x.moveTo(x0 + r, y0); x.arcTo(x0 + w, y0, x0 + w, y0 + h, r); x.arcTo(x0 + w, y0 + h, x0, y0 + h, r); x.arcTo(x0, y0 + h, x0, y0, r); x.arcTo(x0, y0, x0 + w, y0, r); x.closePath(); x.fill(); };
+    x.clearRect(0, 0, S, S); x.fillStyle = 'rgba(255,255,255,0.12)';
+    for (let i = 0; i <= 8; i++) { const k = i / 8, ex = S * mx * (1 - k), ey = S * my * (1 - k); rr(ex, ey, S - 2 * ex, S - 2 * ey, S * 0.07); }
+    return c;
+  }
+
+  /* The cabinet's geometry depends on nothing but its measurements — not the design, not the screen
+     — so it is built once per lib and every cabinet shares it: the Floor stands nine, and building
+     each from scratch doubled the ring's open (measured, SW v262). A fresh lib (the Floor makes one
+     per open) is a fresh set, so disposing one ring never reaches another. Returns the merged parts,
+     the moving parts' geometry, and where each goes. */
+  const louArcadeShapes = new WeakMap();
+  function louArcadeShape(lib) {
+    if (louArcadeShapes.has(lib)) return louArcadeShapes.get(lib);
+    const { THREE } = lib;
+    const V3 = (x, y, z) => new THREE.Vector3(x, y, z);
+
+    /* ── the measurements, metres. x across, y up, z forward; the origin is the base's centre. */
+    const W = 0.130, T = 0.008, XI = W / 2 - T;      // width; each wall; the inner half-width
+    const BW = 0.003;                                  // the walls' rounded edges
+    const GAP = 0.0004, POCKET = 0.0045;               // the parting line's step; the front's set-back
+    const FACE_IN = 0.0015, FACE_BACK = POCKET + 0.0004, SEAM = 0.0006;   // the faceplate: its face behind the walls' edge, its back in the core, its gap all round
+    const FOOT = 0.004, LIP_Y = 0.046, BROW_Y = 0.188, ROOF = 0.200;
+    /* The side profile, [z, y, r], CCW from the back of the base: the lower front, the lip's underside
+       and front, the deck, the CRT face tipped back ~10°, the hood's underside, the marquee, the roof
+       (the brow is where the faceplate stops under it) and a big soft top-back. */
+    const OUT = [[-0.066, FOOT, 0.008], [0.066, FOOT, 0.006], [0.066, LIP_Y, 0.003], [0.080, LIP_Y, 0.003], [0.080, 0.058, 0.004],
+                 [0.048, 0.070, 0.004], [0.032, 0.160, 0.004], [0.060, 0.163, 0.003], [0.060, ROOF, 0.010], [-0.066, ROOF, 0.040]];
+    const LOWER_Z = OUT[1][0] - GAP, BACK_Z = OUT[0][0] + GAP, LIP_Z = OUT[3][0] - FACE_IN, MQ_Z = OUT[7][0] - FACE_IN;
+
+    // a geometry placed (and then carried by a group's matrix, if given), ready to merge
+    const put = (geo, pos, rot, mx) => {
+      geo.applyMatrix4(new THREE.Matrix4().compose(V3(...(pos || [0, 0, 0])), new THREE.Quaternion().setFromEuler(new THREE.Euler(...(rot || [0, 0, 0]))), V3(1, 1, 1)));
+      if (mx) geo.applyMatrix4(mx); return geo;
+    };
+    const lathe = (pts, segs) => new THREE.LatheGeometry(pts.map(([r, h]) => new THREE.Vector2(r, h)), segs);
+    const flatShape = (shape, segs) => new THREE.ShapeGeometry(shape, segs || 4);
+    const P = { shell: [], plate: [], trim: [], door: [] };   // the static parts, merged per material at the end
+
+    /* A slab of an outline swept across x from xa to xb (rotateY(−π/2) sends the shape's x to world z).
+       A bevel rounds its edges and grows the outline by itself, so a bevelled outline comes in inset. */
+    const slab = (corners, xa, xb, bevel, segs) => {
+      const geo = lib.extrude(new THREE.Shape(louFilletPoints(THREE, corners)), xb - xa, bevel, { center: false, bevelSegments: segs || 3, crease: 40 });
+      /* The flat sides keep flat normals. Smoothing blends the rounded rim into the cap rim's vertices,
+         and across a cap's long fan triangles that tilt showed as a diagonal streak down each wall. */
+      const pp = geo.attributes.position, nn = geo.attributes.normal, A = V3(0, 0, 0), B = V3(0, 0, 0), C = V3(0, 0, 0);
+      for (let i = 0; i < pp.count; i += 3) {
+        A.fromBufferAttribute(pp, i); B.fromBufferAttribute(pp, i + 1).sub(A); C.fromBufferAttribute(pp, i + 2).sub(A);
+        if (Math.abs(B.cross(C).normalize().z) > 0.9999) { const sz = Math.sign(nn.getZ(i)) || 1; for (let k = 0; k < 3; k++) nn.setXYZ(i + k, 0, 0, sz); }
+      }
+      geo.translate(0, 0, bevel); geo.rotateY(-Math.PI / 2); geo.translate(xb, 0, 0); return geo;
+    };
+
+    // ── the body: two walls, and the core between them (its ends buried 2 mm in each wall)
+    const wall = louInsetCorners(OUT, BW);
+    P.shell.push(slab(wall, XI, W / 2, BW), slab(wall, -W / 2, -XI, BW));
+    const offs = [GAP, GAP, GAP, POCKET, POCKET, POCKET, POCKET, POCKET, GAP, GAP];
+    const cA = louInsetCorners(OUT, offs), cB = louInsetCorners(OUT, offs.map((v, i) => (i === 7 ? GAP : v)));
+    const CORE = cA.slice(0, 8).concat([[OUT[7][0] - POCKET, BROW_Y, 0.0005], [OUT[7][0] - GAP, BROW_Y, 0.0005]], cB.slice(8));
+    P.shell.push(slab(CORE, -(XI + 0.002), XI + 0.002, 0));
+
+    /* ── the faceplate, and the dark gasket behind its edges. Each is the profile's front run inset
+       twice — its face and its back — joined at the brow and at the lip's underside. */
+    const strip = (fIn, fBack, yTop, yBot, r) => {
+      const a = louInsetCorners(OUT, fIn), b = louInsetCorners(OUT, fBack);
+      return [[OUT[3][0] - fIn, yBot, r], a[4], a[5], a[6], a[7], [OUT[7][0] - fIn, yTop, r],
+              [OUT[7][0] - fBack, yTop, r], b[7], b[6], b[5], b[4], [OUT[3][0] - fBack, yBot, r]];
+    };
+    const BF = 0.0012;
+    P.plate.push(slab(strip(FACE_IN + BF, FACE_BACK - BF, BROW_Y - SEAM - BF, LIP_Y + GAP + SEAM + BF, 0.0004), -(XI - SEAM), XI - SEAM, BF));
+    P.trim.push(slab(strip(FACE_IN + 0.0008, POCKET + 0.0002, BROW_Y - 0.0001, LIP_Y + GAP + 0.0001, 0.0003), -(XI + 0.001), XI + 0.001, 0));
+    // where the faceplate's face runs flat along its edge i → i+1: the middle, the outward normal, the length
+    const FACE = louInsetCorners(OUT, FACE_IN);
+    const onFace = (i) => {
+      const a = FACE[i], b = FACE[i + 1], L = Math.hypot(b[0] - a[0], b[1] - a[1]), u = [(b[0] - a[0]) / L, (b[1] - a[1]) / L];
+      const k0 = louFilletRun(FACE, i).k, k1 = louFilletRun(FACE, i + 1).k, s = k0 + (L - k0 - k1) / 2;
+      return { z: a[0] + u[0] * s, y: a[1] + u[1] * s, nz: u[1], ny: -u[0], flat: L - k0 - k1, lo: a[1] + u[1] * k0, hi: a[1] + u[1] * (L - k1) };
+    };
+
+    /* ── the marquee: lit glass in a dark gasket on the faceplate, between the hood and the brow */
+    const MQ_W = 0.100, MQ_H = 0.0148;
+    const mqLow = onFace(7).lo, MQ_Y = (mqLow + BROW_Y - SEAM - 0.0012) / 2;
+    const mqR = [[-MQ_W / 2, -MQ_H / 2, 0.002], [MQ_W / 2, -MQ_H / 2, 0.002], [MQ_W / 2, MQ_H / 2, 0.002], [-MQ_W / 2, MQ_H / 2, 0.002]];
+    { const gk = lib.ribbon(mqR, [[-0.0004, 0.0003], [0.0006, 0.0010], [0.0015, 0.0012], [0.0021, 0.0007], [0.0022, 0]], 0.05, 6); gk.computeVertexNormals();
+      P.trim.push(put(gk, [0, MQ_Y, MQ_Z])); }
+
+    /* ── the CRT, on the faceplate's tipped-back face. Its group's +z is the face's outward normal,
+       so everything on it is flat: a dark bezel sloping in to a bulged 4:3 glass, and its spill. */
+    const cf = onFace(5), TIP = Math.atan2(cf.ny, cf.nz);
+    const crtMx = new THREE.Matrix4().compose(V3(0, cf.y, cf.z), new THREE.Quaternion().setFromEuler(new THREE.Euler(-TIP, 0, 0)), V3(1, 1, 1));
+    const GW = 0.088, GH = 0.066, GR = 0.0055;
+    const gR = [[-GW / 2, -GH / 2, GR], [GW / 2, -GH / 2, GR], [GW / 2, GH / 2, GR], [-GW / 2, GH / 2, GR]];
+    { const bz = lib.ribbon(gR, [[-0.0007, 0.0004], [0.0004, 0.0012], [0.0022, 0.0020], [0.0040, 0.0025], [0.0050, 0.0024], [0.0057, 0.0017], [0.0060, 0.0006], [0.0060, 0]], 0.05, 6);
+      bz.computeVertexNormals(); P.trim.push(put(bz, null, null, crtMx)); }
+    const glassGeo = new THREE.PlaneGeometry(GW, GH, 12, 9), gp = glassGeo.attributes.position;
+    for (let i = 0; i < gp.count; i++) { const u = gp.getX(i) / (GW / 2), v = gp.getY(i) / (GH / 2); gp.setZ(i, 0.0003 + 0.0016 * (1 - 0.9 * u * u) * (1 - 0.9 * v * v)); }
+    glassGeo.computeVertexNormals();
+    const GLOW_M = 0.007;   // how far the spill reaches past the glass
+
+    /* ── the control deck: the stick on the left in its dust washer, six buttons in two staggered rows
+       of three on the right, each in a dark collar. Group +y is the deck's normal, +z its front. */
+    const df = onFace(4), DTIP = Math.atan2(df.nz, df.ny);
+    const deckMx = new THREE.Matrix4().compose(V3(0, df.y, df.z), new THREE.Quaternion().setFromEuler(new THREE.Euler(DTIP, 0, 0)), V3(1, 1, 1));
+    const STICK_X = -0.029, STICK_Z = 0.0012, BTN_Y = 0.0002;
+    P.trim.push(put(lathe([[0.0086, 0], [0.0084, 0.0005], [0.0072, 0.0010], [0.0035, 0.0013], [0, 0.0014]], 20), [STICK_X, 0, STICK_Z], null, deckMx));
+    const BTN = [[0.0115, -0.0052], [0.0245, -0.0068], [0.0375, -0.0052], [0.0085, 0.0062], [0.0215, 0.0046], [0.0345, 0.0062]];
+    const btnGeo = lathe([[0.0042, -0.0004], [0.0042, 0.0016], [0.0040, 0.0023], [0.0034, 0.0029], [0.0024, 0.0033], [0.0012, 0.00345], [0, 0.0035]], 16);
+    BTN.forEach(([bx, bz]) => P.trim.push(put(lathe([[0.0059, 0], [0.0058, 0.0009], [0.0054, 0.0013], [0.0049, 0.0013], [0.0046, 0.0010], [0.0046, -0.0004]], 16), [bx, 0, bz], null, deckMx)));
+    // START and SELECT, on the lip's face under the deck
+    const lipY = (LIP_Y + GAP + SEAM + 0.0012 + onFace(3).hi) / 2;   // onFace(3) runs up the lip to the deck
+    const pills = lib.merge([-1, 1].map(s => [lib.moulded(0.0085, 0.0034, 0.0018, 0.0017, { curveSegments: 4, bevelSegments: 2 }), [s * 0.0068, 0, 0]]));
+
+    /* ── the coin door on the lower front: a slot in a raised boss, a heart lamp, a keyhole */
+    const DOOR_Y = 0.0265, DOOR_Z = LOWER_Z + 0.0010;
+    P.door.push(put(lib.moulded(0.058, 0.026, 0.0024, 0.004, { curveSegments: 6 }), [0, DOOR_Y, DOOR_Z]));
+    const DF = DOOR_Z + 0.0012;   // the door's face
+    P.plate.push(put(lib.moulded(0.0080, 0.0165, 0.0022, 0.0035, { curveSegments: 4, bevelSegments: 2 }), [-0.011, DOOR_Y, DF + 0.0009]));
+    P.trim.push(put(flatShape(lib.roundedRect(0.0017, 0.0112, 0.00085)), [-0.011, DOOR_Y, DF + 0.00202]));
+    P.trim.push(put(new THREE.CircleGeometry(0.0016, 12), [0.011, DOOR_Y - 0.0074, DF + 0.00005]), put(flatShape(lib.roundedRect(0.0006, 0.0018, 0.0002)), [0.011, DOOR_Y - 0.0081, DF + 0.0001]));
+
+    /* ── the flanks. Left (the side the room's camera sees): a round speaker low at the back, and
+       the Little Sylly S, embossed. Right: a USB port and a headphone jack by the front foot. */
+    const SPK = [-W / 2, 0.050, -0.030];
+    P.plate.push(put(lathe([[0.0180, -0.0003], [0.0180, 0.0007], [0.0173, 0.0013], [0.0152, 0.0016], [0, 0.0016]], 24), SPK, [0, 0, Math.PI / 2]));
+    [[0, 1], [0.0041, 6], [0.0082, 12], [0.0123, 18]].forEach(([rr, n]) => { for (let k = 0; k < n; k++) {
+      const a = k / n * Math.PI * 2 + (n === 12 ? Math.PI / 12 : 0);
+      P.trim.push(put(new THREE.CircleGeometry(0.00105, 8), [SPK[0] - 0.00166, SPK[1] + Math.sin(a) * rr, SPK[2] + Math.cos(a) * rr], [0, -Math.PI / 2, 0]));
+    } });
+    { const s = louSylShape(THREE, 0.0058, 0.0030), pts = s.getPoints().filter((p, i) => i % 3 === 0);   // every third point: the S at a fraction of its triangles
+      P.plate.push(put(lib.extrude(new THREE.Shape(pts), 0.0014, 0.0004, { bevelSegments: 1, crease: 60 }), [-W / 2 - 0.0005, 0.134, -0.021], [0, -Math.PI / 2, 0])); }
+    P.trim.push(put(flatShape(lib.roundedRect(0.0080, 0.0030, 0.0014)), [W / 2 + 0.00008, 0.018, 0.046], [0, Math.PI / 2, 0]),
+                put(new THREE.CircleGeometry(0.0019, 12), [W / 2 + 0.00008, 0.018, 0.033], [0, Math.PI / 2, 0]));
+
+    /* ── the back: a panel held by four screws, a vent, the power jack — and under it, a tail */
+    const BP_Y = 0.095;
+    P.door.push(put(lib.moulded(0.090, 0.116, 0.0014, 0.008, { curveSegments: 6, bevelSegments: 2 }), [0, BP_Y, BACK_Z - 0.0005]));
+    const BF0 = BACK_Z - 0.0012;   // the panel's face
+    const screw = () => lathe([[0.0022, 0], [0.0021, 0.0004], [0.0014, 0.0007], [0, 0.0008]], 10);
+    [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([sx, sy]) => P.trim.push(put(screw(), [sx * 0.037, BP_Y + sy * 0.050, BF0], [-Math.PI / 2, 0, 0])));
+    for (let k = 0; k < 6; k++) P.trim.push(put(flatShape(lib.roundedRect(0.040, 0.0022, 0.0011)), [0, 0.122 + k * 0.0048, BF0 - 0.00005], [0, Math.PI, 0]));
+    P.trim.push(put(new THREE.RingGeometry(0.0012, 0.0030, 14), [0, 0.048, BF0 - 0.00005], [0, Math.PI, 0]));
+    /* A bear's pom tail, low on the back: lumpy, so it reads as fluff rather than a ball. The lumps are a
+       function of position, so the sphere's seam vertices move together and it stays closed. */
+    { const tg = new THREE.SphereGeometry(0.0082, 14, 10), tp = tg.attributes.position, R0 = 0.0082;
+      for (let i = 0; i < tp.count; i++) { const x = tp.getX(i) / R0, y = tp.getY(i) / R0, z = tp.getZ(i) / R0, k = 1 + 0.09 * Math.sin(9 * x + 1) * Math.sin(8 * y + 2) * Math.sin(7 * z); tp.setXYZ(i, tp.getX(i) * k, tp.getY(i) * k, tp.getZ(i) * k); }
+      tg.computeVertexNormals(); tg.scale(1, 1, 0.8); P.tail = tg; }
+
+    // ── four feet, at the walls' corners
+    [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([sx, sz]) => P.plate.push(put(lathe([[0, 0], [0.0042, 0], [0.0052, 0.0006], [0.0056, 0.0017], [0.0056, FOOT + 0.0012]], 12), [sx * 0.050, 0, sz * 0.053])));
+
+    /* ── the ears: thick round bear ears with a dished middle, each on a pivot at its root so a twitch
+       turns it about where it meets the roof — seated in a soft socket boss that grows out of the
+       roof (shell, so the body receives the ear rather than the ear sitting on it), splayed a little. */
+    const EAR_X = 0.034, EAR_Z = 0.022, EAR_H = 0.0125, SPLAY = 0.10, LIFT = 0.10;
+    const earGeo = lathe([[0, -0.0072], [0.0060, -0.0070], [0.0105, -0.0062], [0.0138, -0.0050], [0.0158, -0.0033], [0.0168, -0.0014], [0.0170, 0.0006], [0.0166, 0.0026],
+                          [0.0155, 0.0043], [0.0138, 0.0055], [0.0122, 0.0059], [0.0110, 0.0052], [0.0105, 0.0042], [0.0103, 0.0034], [0.0060, 0.0030], [0, 0.0029]], 24);
+    earGeo.rotateX(Math.PI / 2);   // the lathe's axis → +z: the ear faces out of the cabinet
+    const dishGeo = lathe([[0.0107, 0.0044], [0.0086, 0.0036], [0.0050, 0.0032], [0, 0.0031]], 24); dishGeo.rotateX(Math.PI / 2);
+    const earPose = [-1, 1].map(s => {
+      const boss = lathe([[0.0175, 0], [0.0155, 0.0004], [0.0125, 0.0015], [0.0085, 0.0030], [0.0045, 0.0039], [0, 0.0042]], 24); boss.scale(1, 1, 0.70);
+      P.shell.push(put(boss, [s * EAR_X, ROOF - GAP + 0.00003, EAR_Z]));
+      // the pivot at the root; the ear on it splayed out, its face tipped up a little
+      return { pivot: [s * EAR_X, ROOF - 0.0015, EAR_Z], at: [s * EAR_H * Math.sin(SPLAY), EAR_H * Math.cos(SPLAY), 0], tilt: [-LIFT, 0, -s * SPLAY] };
+    });
+
+    const shape = {
+      // the static parts, one geometry per material
+      body: louMergeUv(THREE, P.shell), faceplate: louMergeUv(THREE, P.plate), door: louMergeUv(THREE, P.door), trim: louMergeUv(THREE, P.trim),
+      // the parts that move or light, and where they go
+      marquee: new THREE.PlaneGeometry(MQ_W, MQ_H), mqAt: [0, MQ_Y, MQ_Z + 0.0004], MQ_W, MQ_H,
+      crt: { y: cf.y, z: cf.z, tip: TIP }, glass: glassGeo, GW, GH, glow: new THREE.PlaneGeometry(GW + 2 * GLOW_M, GH + 2 * GLOW_M),
+      glowCanvas: louArcadeGlow(lib.makeCanvas, GLOW_M / (GW + 2 * GLOW_M), GLOW_M / (GH + 2 * GLOW_M)),
+      deck: { y: df.y, z: df.z, tip: DTIP }, stickAt: [STICK_X, 0.0006, STICK_Z], BTN, BTN_Y, button: btnGeo,
+      /* A short stick, toward the front of the deck: the CRT is tipped back above it, and a tall ball
+         drawn from the front of the cabinet (the Floor's portrait) stood up IN FRONT of the glass. */
+      shaft: new THREE.CylinderGeometry(0.0012, 0.0012, 0.0106, 8, 1, true), ball: new THREE.SphereGeometry(0.0058, 16, 12),
+      pills, pillsAt: [0, lipY, LIP_Z + 0.0006],
+      heart: lib.extrude(louHeart(THREE, 0.0078), 0.0018, 0.0005, { curveSegments: 5, bevelSegments: 2, crease: 50 }), lampAt: [0.011, DOOR_Y + 0.0028, DF + 0.0007],
+      tail: P.tail, tailAt: [0, 0.022, BACK_Z - 0.0030],
+      ear: earGeo, dish: dishGeo, earPose,
+    };
+    louArcadeShapes.set(lib, shape); return shape;
+  }
 
   /* opts.faces = { screen, marquee } (the Arcade Floor, SW v260): two canvases the Floor owns and
      paints — the game's live screen, its number and name — worn as the CRT's and the marquee's lit
@@ -3285,97 +3533,61 @@
      (userData.louArcadeFaces.*.tex) when it has drawn. Every beat still runs on them. */
   function louBuildArcade(lib, design, cabinets, sfx, opts = {}) {
     const { THREE, mats } = lib; const g = new THREE.Group(); louTag(g, 'arcade');
-    const faces = opts.faces || null;
+    const faces = opts.faces || null, S = louArcadeShape(lib);
     const say = name => { if (typeof sfx === 'function') { try { sfx(name); } catch (_) {} } };
     const cabs = Array.isArray(cabinets) && cabinets.length ? cabinets : LOU_ARCADE_FALLBACK;
-    const W = 0.13, B = 0.004;   // width; the body's bevel, which also grows its outline by B all round
-    /* The side profile as [z, y, r], pre-bevel: back, bottom, the lower front,
-       the deck's lip and top, the CRT tipped back, the hood's underside, the
-       marquee, the roof. After the bevel and a lift of B, a front face at z0
-       sits at z0 + B and the roof at 0.196 + 2B. */
-    const PROFILE = [[-0.062, 0, 0.006], [0.054, 0, 0.006], [0.054, 0.078, 0.006], [0.076, 0.090, 0.004], [0.076, 0.099, 0.004],
-                     [0.044, 0.106, 0.006], [0.028, 0.166, 0.004], [0.052, 0.170, 0.004], [0.052, 0.196, 0.008], [-0.062, 0.196, 0.022]];
-    const ROOF = 0.196 + 2 * B;
+    const { GW, GH, BTN_Y } = S, MQ_GLOW = 0.95, GLOW = 0.12;
+
     const BUMP = faces ? null : lib.tex.plasticBump(11, 11, 41);   // the Floor's close view reads the speckle as blotches
     const shell = lib.role('shell', design.shell, { bumpMap: BUMP, bumpScale: 0.0004 });
     const plate = lib.role('plate', design.plate, { bumpMap: BUMP, bumpScale: 0.0003 });
     const door  = lib.role('shell', design.shell, { roughness: .6 }, 0.74);
     const ears  = lib.role('ears', design.ears, { roughness: .45 });
     const earIn = lib.role('plate', design.plate, { roughness: .5 }, 0.9);
+    const pillM = lib.role('ears', design.ears, { roughness: .4, emissive: design.ears, emissiveIntensity: 0 });
     const ball  = lib.role('buttons', design.buttons, { roughness: .3 });
     const btnM  = lib.role('buttons', design.buttons, { roughness: .34, emissive: design.buttons, emissiveIntensity: 0 });
-    btnM.userData.louEmissive = true;   // a lit button glows in the player's own colour
+    btnM.userData.louEmissive = pillM.userData.louEmissive = true;   // lit, they glow in the player's own colour
     const lampM = new THREE.MeshStandardMaterial({ color: '#34333b', emissive: '#000000', roughness: .3 });
 
     const rig = new THREE.Group(); rig.name = 'rig'; g.add(rig);
     const add = (parent, geo, mat, name, pos, rot, cast) => { const m = louMesh(THREE, geo, mat, name, pos || [0, 0, 0], rot, cast); parent.add(m); return m; };
-    const flat = (geo) => { geo.rotateX(-Math.PI / 2); return geo; };
+    add(rig, S.body, shell, 'body');
+    add(rig, S.faceplate, plate, 'faceplate');
+    add(rig, S.door, door, 'coinDoor', null, null, false);
+    add(rig, S.trim, mats.black, 'trim', null, null, false);
 
-    // ── the body: the profile swept across x (rotateY(−π/2) sends the shape's x to world z)
-    const bodyGeo = lib.extrude(louRoundedOutline(THREE, PROFILE), W, B, { center: false, curveSegments: 6, bevelSegments: 4, crease: 40 });
-    bodyGeo.translate(0, B, -(W / 2 - B)); bodyGeo.rotateY(-Math.PI / 2);
-    add(rig, bodyGeo, shell, 'body');
-
-    // ── the marquee: a plate frame on the hood's face, lit glass in it
-    const MQ_Y = 0.187, MQ_Z = 0.052 + B;
-    add(rig, lib.moulded(0.110, 0.023, 0.0035, 0.006), plate, 'marquee', [0, MQ_Y, MQ_Z + 0.0013]);
-    const MQ_GLOW = 0.95, MQ_W = 0.098, MQ_H = 0.0145;
+    // the marquee's lit glass
     const marqTex = new THREE.CanvasTexture(faces ? faces.marquee : louArcadeMarquee(lib.makeCanvas)); marqTex.encoding = THREE.sRGBEncoding;
     const marqM = new THREE.MeshStandardMaterial({ color: '#000000', map: marqTex, emissiveMap: marqTex, emissive: '#ffffff', emissiveIntensity: MQ_GLOW, roughness: .25, envMapIntensity: .3 });
-    const marqGlass = add(rig, new THREE.PlaneGeometry(MQ_W, MQ_H), marqM, 'marqueeGlass', [0, MQ_Y, MQ_Z + 0.0032], null, false);
+    const marqGlass = add(rig, S.marquee, marqM, 'marqueeGlass', S.mqAt, null, false);
 
-    /* ── the CRT on the tipped-back face (profile edge [0.044, 0.106] → [0.028, 0.166]).
-       Its group's +z is the face's outward normal, so everything on it is flat. */
-    const TIP = Math.atan2(0.016, 0.060), NZ = Math.cos(TIP), NY = Math.sin(TIP);
-    const crt = new THREE.Group(); crt.name = 'crt'; crt.position.set(0, 0.136 + B * NY + B, 0.036 + B * NZ); crt.rotation.x = -TIP; rig.add(crt);
-    add(crt, lib.moulded(0.110, 0.056, 0.003, 0.009), plate, 'bezel', [0, 0, 0.001]);
-    const GW = 0.0864, GH = 0.0468;
+    // the CRT: its group's +z is the glass's outward normal
+    const crt = new THREE.Group(); crt.name = 'crt'; crt.position.set(0, S.crt.y, S.crt.z); crt.rotation.x = -S.crt.tip; rig.add(crt);
     const scr = louArcadeScreen(lib.makeCanvas, cabs), scrTex = new THREE.CanvasTexture(faces ? faces.screen : scr.canvas);
     scrTex.encoding = THREE.sRGBEncoding; scrTex.anisotropy = 4;
     const glassM = new THREE.MeshStandardMaterial({ color: '#000000', map: scrTex, emissiveMap: scrTex, emissive: '#ffffff', emissiveIntensity: 0.9, roughness: .18, metalness: 0, envMapIntensity: .3 });
-    const glass = add(crt, new THREE.PlaneGeometry(GW, GH), glassM, 'screen', [0, 0, 0.0027], null, false);
-    const GLOW = 0.10;
-    const glowM = new THREE.MeshBasicMaterial({ color: cabs[0].accent, transparent: true, opacity: GLOW, blending: THREE.AdditiveBlending, depthWrite: false });
-    const glow = add(crt, new THREE.PlaneGeometry(GW + 0.008, GH + 0.008), glowM, 'screenGlow', [0, 0, 0.0034], null, false);
-    g.userData.louArcadeFaces = { screen: { mesh: glass, w: GW, h: GH, tex: scrTex }, marquee: { mesh: marqGlass, w: MQ_W, h: MQ_H, tex: marqTex } };
+    const glass = add(crt, S.glass, glassM, 'screen', [0, 0, 0], null, false);
+    const glowM = new THREE.MeshBasicMaterial({ color: cabs[0].accent, map: new THREE.CanvasTexture(S.glowCanvas), transparent: true, opacity: GLOW, blending: THREE.AdditiveBlending, depthWrite: false });
+    add(crt, S.glow, glowM, 'screenGlow', [0, 0, 0.0028], null, false);
+    g.userData.louArcadeFaces = { screen: { mesh: glass, w: GW, h: GH, tex: scrTex }, marquee: { mesh: marqGlass, w: S.MQ_W, h: S.MQ_H, tex: marqTex } };
 
-    /* ── the control deck (profile edge [0.076, 0.099] → [0.044, 0.106]): the stick
-       on the left, four buttons in a tilted 2×2 on the right, as the room draws them */
-    const DTIP = Math.atan2(0.007, 0.032), DY = Math.cos(DTIP), DZ = Math.sin(DTIP);
-    const deck = new THREE.Group(); deck.name = 'deck'; deck.position.set(0, 0.1025 + B * DY + B, 0.060 + B * DZ); deck.rotation.x = DTIP; rig.add(deck);
-    const DT = 0.0025, TOP = DT - 0.0004;
-    add(deck, flat(lib.moulded(0.110, 0.027, DT, 0.005)), plate, 'deckPlate', [0, DT / 2 - 0.0004, 0], null, false);
-    /* A short stick, set toward the front of the deck: the CRT is tipped back above it, and a tall ball
-       drawn from the front of the cabinet (the Floor's portrait) stood up IN FRONT of the glass. */
-    const STICK_Z = 0.005;
-    add(deck, new THREE.CylinderGeometry(0.0072, 0.0072, 0.0012, 24), mats.black, 'stickWell', [-0.030, TOP + 0.0004, STICK_Z], null, false);
-    const stick = new THREE.Group(); stick.name = 'stick'; stick.position.set(-0.030, TOP, STICK_Z); deck.add(stick);
-    add(stick, new THREE.CylinderGeometry(0.0013, 0.0013, 0.009, 10), mats.black, 'stickShaft', [0, 0.0045, 0], null, false);
-    add(stick, new THREE.SphereGeometry(0.0062, 20, 14), ball, 'stickBall', [0, 0.0098, 0]);
-    const btnGeo = louDome(THREE, 0.0042, 0.0032, 0.55, 20), buttons = [];
-    [[0.013, -0.0045], [0.029, -0.0073], [0.0145, 0.0062], [0.0305, 0.0034]].forEach(([bx, bz], i) => buttons.push(add(deck, btnGeo, btnM, 'button' + i, [bx, TOP - 0.0003, bz], null, false)));
-
-    // ── the coin door on the lower front: one slot and its lamp, as in the room
-    const DOOR_Z = 0.054 + B;
-    add(rig, lib.moulded(0.064, 0.034, 0.003, 0.006), door, 'coinDoor', [0, 0.044, DOOR_Z + 0.001], null, false);
-    add(rig, new THREE.BoxGeometry(0.0024, 0.012, 0.0012), mats.black, 'coinSlot', [-0.009, 0.045, DOOR_Z + 0.0027], null, false);
-    const lamp = add(rig, new THREE.SphereGeometry(0.0034, 16, 10), lampM, 'coinLamp', [0.010, 0.045, DOOR_Z + 0.0024], null, false);
-    lamp.scale.set(1, 1, 0.55);
-
-    // ── the side grille: slots on the left flank, the one the room's camera sees
-    add(rig, lib.merge([0, 1, 2, 3, 4].map(i => [new THREE.BoxGeometry(0.0016, 0.003, 0.044), [-W / 2 - 0.0002, 0.040 + i * 0.008, -0.010]])), mats.black, 'grille', null, null, false);
-
-    /* ── the ears: round bear ears (the room's), each on a pivot at its root so a
-       twitch turns it about where it meets the roof. Outer disc ears, inner plate. */
-    const earPivots = [];
-    [-1, 1].forEach(s => {
-      const pv = new THREE.Group(); pv.name = 'earPivot' + (s < 0 ? 'L' : 'R'); pv.position.set(s * 0.040, ROOF - 0.004, -0.030); rig.add(pv);
-      const eg = new THREE.SphereGeometry(0.0165, 28, 18); eg.scale(1, 1, 0.42);
-      add(pv, eg, ears, s < 0 ? 'earL' : 'earR', [0, 0.013, 0]);
-      const ig = new THREE.SphereGeometry(0.0105, 22, 14); ig.scale(1, 1, 0.3);
-      add(pv, ig, earIn, s < 0 ? 'earInL' : 'earInR', [0, 0.0135, 0.0046], null, false);
-      earPivots.push(pv);
+    // the deck: its group's +y is the deck's normal, +z its front edge
+    const deck = new THREE.Group(); deck.name = 'deck'; deck.position.set(0, S.deck.y, S.deck.z); deck.rotation.x = S.deck.tip; rig.add(deck);
+    const stick = new THREE.Group(); stick.name = 'stick'; stick.position.set(...S.stickAt); deck.add(stick);
+    add(stick, S.shaft, mats.black, 'stickShaft', [0, 0.0053, 0], null, false);
+    add(stick, S.ball, ball, 'stickBall', [0, 0.0112, 0]);
+    const buttons = S.BTN.map(([bx, bz], i) => add(deck, S.button, btnM, 'button' + i, [bx, BTN_Y, bz], null, false));
+    add(rig, S.pills, pillM, 'startSelect', S.pillsAt, null, false);
+    add(rig, S.heart, lampM, 'coinLamp', S.lampAt, null, false);
+    add(rig, S.tail, ears, 'tail', S.tailAt, null, false);
+    const earPivots = S.earPose.map((ep, k) => {
+      const pv = new THREE.Group(); pv.name = 'earPivot' + (k ? 'R' : 'L'); pv.position.set(...ep.pivot); rig.add(pv);
+      add(pv, S.ear, ears, k ? 'earR' : 'earL', ep.at, ep.tilt);
+      add(pv, S.dish, earIn, k ? 'earInR' : 'earInL', ep.at, ep.tilt, false);
+      return pv;
     });
+
 
     /* ── THE IDLE (spec § 3.1): four beats, weighted, never the same one twice
        running, on a 9–15 s gap — seeded, like every prop here (DD-20).
@@ -3405,7 +3617,7 @@
       return painted;
     }
     function rest() {
-      stick.rotation.set(0, 0, 0); buttons.forEach(b => { b.position.y = TOP - 0.0003; }); btnM.emissiveIntensity = 0;
+      stick.rotation.set(0, 0, 0); buttons.forEach(b => { b.position.y = BTN_Y; }); btnM.emissiveIntensity = 0; pillM.emissiveIntensity = 0;
       earPivots.forEach(p => { p.rotation.z = 0; }); marqM.emissiveIntensity = MQ_GLOW; glowM.opacity = GLOW;
       lampM.emissive.set('#000000'); lampM.emissiveIntensity = 0; hop = 0; rig.position.y = 0; score = null; flashHi = 0; flashStart = 0;
     }
@@ -3414,7 +3626,8 @@
         stick.rotation.z = 0.32 * Math.sin(e * 0.012) * Math.sin(Math.PI * e / BEAT_MS.ghost);
         stick.rotation.x = 0.22 * Math.sin(e * 0.007 + 1) * Math.sin(Math.PI * e / BEAT_MS.ghost);
         let lit = 0;
-        buttons.forEach((b, i) => { const k = Math.max(bump(e, 180 + i * 260, 160), bump(e, 900 + ((i * 3) % 4) * 140, 130)); b.position.y = TOP - 0.0003 - 0.0012 * k; lit = Math.max(lit, k); });
+        // a run across the six, then a mash out of order — each press sinks the button into its collar
+        buttons.forEach((b, i) => { const k = Math.max(bump(e, 160 + i * 190, 150), bump(e, 860 + ((i * 5) % 6) * 105, 125)); b.position.y = BTN_Y - 0.0014 * k; lit = Math.max(lit, k); });
         btnM.emissiveIntensity = 0.9 * lit;
         score = 250 * Math.floor(e / 160);
       } else if (name === 'twitch') {
@@ -3426,7 +3639,7 @@
       } else {
         const k = Math.floor(e / 125) % 2 === 0;
         flashHi = k ? 1 : 2;
-        lampM.emissive.set(scr.accentAt(tSec)); lampM.emissiveIntensity = k ? 1.8 : 0.6;
+        lampM.emissive.set(faces ? cabs[0].accent : scr.accentAt(tSec)); lampM.emissiveIntensity = k ? 1.8 : 0.6;
         glowM.opacity = GLOW + 0.12 * (k ? 1 : 0);
         hop = HOP_H * bump(e, 420, 260); rig.position.y = hop;
       }
@@ -3435,7 +3648,7 @@
       screen: glass,
       /* The scene's 10 fps attract loop. Paints only when the frame changes; says whether it did. */
       attract(t, reduced) { tSec = t; reducedNow = !!reduced; return repaint(); },
-      /* A tap: START flashes, the stick snaps, the coin drops — then the scene pushes in. */
+      /* A tap: START flashes (on the glass and on its button), the stick snaps, the coin drops — then the scene pushes in. */
       press(reduced) {
         say('arcadeCoin');
         beat = null; beatT0 = null; beatAt = null; rest();
@@ -3464,6 +3677,7 @@
           btnM.emissiveIntensity = 1.2 * bump(e, 0, 360);
           if (press.hop) { hop = HOP_H * bump(e, 80, 280); rig.position.y = hop; }
           flashStart = Math.floor(e / 100) % 2 === 0 ? 1 : 2;
+          pillM.emissiveIntensity = flashStart === 1 ? 1.1 : 0.15;
           if (e >= PRESS_MS) { press = null; rest(); repaint(); beatAt = now + gap(); return true; }
           repaint();
           return true;

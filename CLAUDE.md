@@ -293,14 +293,14 @@ On every bump the outgoing SW entry moves **verbatim** to `docs/sw-changelog.md`
 "keep the last three". **A second `**SW v…**` paragraph appearing here means that move didn't
 happen: do it before anything else.**
 
-**SW v261 — the Arcade Floor's keys, and the cabinet screens on a wide window (21 Oct 2026).** Owner playtest of
-v260 (the live 3D ring, spec § 3.3): on desktop an arrow key or a tap could leave the number on the previous cabinet or jump it
-back — the centre observer named the row halfway through the room's own smooth glide, then ignored the row leaving. Fixed
-(`arcSyncCentre`: every crossing counts, a glide's destination is held in `arcSteerTo`, `scrollend` re-reads). On a wide
-window a cabinet's header now holds to its canvas's column, and the game's own edges spill out round it, blurred
-(`.arc-amb`, `arcAmbient`, 10 fps). No new file, no packet. Detail: `shared-implementation-notes.md` BUG-27.
+**SW v262 — the arcade cabinet, rebuilt the way a moulded toy is made (21 Oct 2026).** Owner: a larger CRT, the deck lower,
+the ears seamless, the mock-ups' detail — "could double as a real physical object". `louBuildArcade` is side walls + a core set
+in all round (a parting line) + one bent faceplate in the front pocket: a 4:3 CRT (~44% more glass) in a sloped bezel, the deck
+at a quarter height, button collars, START/SELECT, a coin door with a heart lamp, speaker + S badge, back panel, feet, a pom
+tail; the ears sit in socket bosses. Geometry built once per lib (the Floor's ring builds in 40 ms, was 195). The Floor follows:
+`ARC_FACE_W/H` 480 × 360, `ARC_CAB_H` 0.230, the push-in fits the glass's height too. No packet. Detail: `shared-implementation-notes.md` DD-64.
 
-**Previous versions: `docs/sw-changelog.md`** — continuous, v260 back to v167.
+**Previous versions: `docs/sw-changelog.md`** — continuous, v261 back to v167.
 
 **Where the suite stands.** **20 games shipped**, all gold-master, plus multiplayer; newest are Honeycomb Hills (`comb`, MDLM-only, no Sylly Mode), Cold Shoulder (`cld`, first physics game) and Cookie Jar (`cjar`). Every game has an identity doc (`docs/game-identities/`). The Cartridge System (word packs + skin packs, `docs/cartridge-system-plan.md`) is complete; core art has rolled out to `pko`, `flw`, `frt`, `shp`, `comb` — PASS runs CSS defaults, DYB and CLD art are procedural and never need a pack (`docs/expansion-guide.md` § Core art packs). **Phase gates 37–39 and 41 are closed; phase 40 (Cold Shoulder) is open** — `docs/phase40-snapshot.md` names what is left (a live multi-device session and the offline install check).
 
