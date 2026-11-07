@@ -5,3 +5,6 @@ data/sticker-masters/
 # worked on and move to the owner's external archive when it ships. Only the README is tracked.
 wip/*
 !wip/README.md
+
+# Raw skill zips/.skill files dropped here for review (4 Nov 2026) — installed copies live in .claude/skills/ or the account
+skills/

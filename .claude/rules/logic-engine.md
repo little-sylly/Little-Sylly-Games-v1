@@ -76,96 +76,9 @@ proof, and its mutation pass (revert any site → red) is what keeps it honest. 
 ---
 
 ## Audio Function Catalogue
-All sound **effects** are synthesised via Web Audio API — no files, and that will not change. Background *music* is the single exception and lives in its own module — see § Background music below.
 
-| Function | Semantic meaning | Notes |
-|----------|-----------------|-------|
-| `playSuccess()` | Correct / match | Bright ascending chime: C5→E5→G5, triangle wave |
-| `playBoing()` | Wrong / taboo hit | Cartoon descending sweep 280→120 Hz, square wave |
-| `playLaunch()` | Big CTAs | — |
-| `playExit()` | Destructive confirm | — |
-| `playPillClick()` | Settings pill toggle | — |
-| `playDone()` | Close / confirm overlays | — |
-| `playTick()` | Countdown tick | — |
-| `playSliderTick(value)` | Volume slider feedback | Bypasses mute check |
-| `playSyllyOn()` / `playSyllyOff()` | Sylly Mode toggle | — |
-| `playWhoosh()` | Skip / swish | — |
-| `playResume()` | Resume from pause | — |
-| `playAlarm()` | Timer expiry | 3-pulse radar blip |
-| `playSonarPing()` | DSD: Sonar Ping transmit (captain only) | Dual sine 880→440Hz + 1760Hz harmonic, lowpass filter, 1.2s decay |
-| `playHullThud()` | DSD: Pressure Mine / Urchin / Jammer hit | White noise + resonant lowpass (80Hz Q8) + triangle sub 70Hz, 0.4s |
-| `playAbyssThud()` | DSD: Nuclear Mine hit | `playHullThud()` + 35Hz sawtooth rumble through lowpass, 2.5s decay |
-| `playStampede()` | PKO: Stampede confirmed — **and a Swarm** (the same gesture at smaller scale) | Sub-bass sawtooth swell 38→55Hz + noise through a rising lowpass 120→900Hz, ~1.2s |
-| `playUnchallenged()` | PKO: winning an Encounter | Rising three-note sting G3–D4–G4, sawtooth through lowpass |
-| `playPoacher()` | PKO: Poacher played | Dry highpassed click + two detuned square partials — deliberately out-of-ecosystem |
-| `playClashWin()` | PKO: emptying your Hoard | Deepened, slower `playSuccess()` (C4–E4–G4) over a sine sub |
-| `playSplash()` | CLD: a penguin goes into the Drink | Highpassed noise slap (~40 ms) + sine sub 70→48 Hz + a three-blip bubble tail. Comic weight, not horror. **Never throttled** — it is one of the beats CLD's collision throttle exists to protect |
-
-**Force of Nature adds NO new audio functions.** PKO's nine events announce themselves by **reusing** the catalogue above, mapped in one place — `PKO_EVENT_SOUND` in `js/games/pko.js`: `playPoacher` (Invasive Mimicry — out-of-ecosystem, like the Poacher itself), `playAbyssThud` (The Culling, Extinction Event), `playWhoosh` (The Great Reversal, Migration), `playSonarPing` (Alpha, Carrion), `playDone` (The Deluge, The Dry Season). Keeping the map beside the registry is deliberate: an event's identity (data) and its voice (audio) cannot drift apart, and a new event needs no new synthesised sound.
-
-**Cookie Jar adds NO new audio functions either** — same pattern, one map: `CJAR_SOUND` in `js/games/cjar.js` names a *moment* (`cookie`, `caughtFirst`, `busted`, `reveal`, `soloSneak`, `treatSpecial`/`treatSuper`, `raidLost`, `highAlert`, `dobBackfire`, `matchEnd`) and points it at an existing `play*()`. Two games now use this shape; treat it as the default for a new game rather than synthesising more tones. The Bluff joins them: `DYB_SOUND` in `js/games/dyb.js` (SW v241).
-
-Global audio state: `isMuted` (bool), `masterVolume` (0–1), `audioCtx` (Web Audio context),
-`sfxEnabled` (bool, 28 Aug 2026 — System Sounds toggle, independent of `isMuted`; every `play*()`
-guard is `if (isMuted || !sfxEnabled) return;` except `playSliderTick`, which deliberately bypasses
-both so slider/mute-hold feedback is always audible).
-
-**Mute All still outranks everything.** `sfxEnabled` and `Music`'s own `enabled` flag are each a
-*channel* toggle; `isMuted` silences both regardless of their individual state — the effects and
-music guards both check `isMuted` first. Tap-**hold** (500 ms) on any `.btn-open-sound` icon toggles
-`isMuted` directly without opening `#sound-overlay` — wired via `bindCardHold` at the bottom of
-`engine.js`'s boot block, with a per-button flag suppressing the click that follows a fired hold (a
-normal tap still opens the overlay).
-
-### Background music (`js/lib/music.js`, 28 Aug 2026)
-
-**Effects stay synthesised — forever. Music is the one thing that is a file.** Everything above is
-generated at runtime and no `play*()` will ever load an asset; `Music` is a separate layer with its
-own state, its own level and its own caching contract.
-
-| Call | Purpose |
-|------|---------|
-| `Music.init()` | Loads `data/music/manifest.json`, arms the first-gesture unlock. Called once from `engine.js`'s boot block |
-| `Music.playFor(gameId)` | Resolves and crossfades to that game's track. **Already called for you** — see the seam below |
-| `Music.setEnabled(b)` / `Music.isEnabled()` | The Music toggle in `#sound-overlay` |
-| `Music.setVolume(v)` / `Music.getVolume()` | Music level, independent of `masterVolume` |
-| `Music.syncMute()` | Called by `toggleMute()` — global mute outranks the music toggle |
-| `Music.nowPlaying()` | `{ key, title, artist }` or `null`; for a future credits surface |
-
-**One seam, all games — do NOT add music calls to a plugin.** `showScreen()` calls
-`Music.playFor(activeGameId)` on every navigation. Every plugin already sets `activeGameId` before
-navigating and `resetToLobby()` clears it before its own `showScreen`, so both directions are
-covered. Resolving to the track already playing is a no-op, so moving between screens inside one
-game never restarts it.
-
-**Lobby places (SW v253):** with no game active, `showScreen()` passes `lobbyMusicKey()` (`lobby-host.js`) — `'lobby:lounge'` while the router's `view` is the Lounge, else null → the `lobby` fallback. `playFor` treats any key starting `lobby` as the lobby for the held-song rule.
-
-**Two-tier fallback:** `tracks[activeGameId]`, else `tracks[fallback]` (`'lobby'`). A game with no
-track of its own plays the lobby theme rather than falling silent, and **a new game needs no music
-work at all** — it inherits the fallback until someone writes it one.
-
-**Adding a track:** drop `data/music/<activeGameId>.mp3` in and add one line to the manifest. That
-is the whole procedure — no `sw.js` edit, no `CACHE_NAME` bump, no JS change. Ceiling **~1.5 MB
-per track** (128 kbps, 60–120 s loop).
-
-**Two things that are load-bearing and easy to undo:**
-- **Tracks are decoded into an `AudioBufferSourceNode` with `loop = true`**, never played through
-  `<audio loop>` — the latter inserts an audible gap at the wrap point on every engine.
-- **Nothing can start before a user gesture.** Browsers refuse audio until then, so `init()` queues
-  the lobby theme and starts it on the first `pointerdown`/`keydown`. A track requested while music
-  is off is not started at all (a silent looping source still decodes and mixes — real battery cost
-  on a phone).
-
-Every failure path is silent by design: no manifest, no file, a corrupt file or offline-before-first-
-fetch all mean "no music", never a thrown error on a game screen.
-
-**Hold — one chosen song (the jukebox, SW v233).** `Music.hold(track)` puts a whole song on through
-Music's **one** media element (never a second `<audio>` anywhere else), routed through the shared
-AudioContext with an AnalyserNode. It is kept through lobby navigation (`playFor(null)` leaves it) and
-let go by `playFor(gameId)` — **a game's theme always wins**. Two load-bearing details: the element is
-fed a **Blob**, because a streamed element's 206 Range replies cannot be cached (no offline); and
-`hold()` runs only from a tap, because `createMediaElementSource` hands the element's output to the
-context — a suspended context silences the song, not just the equaliser. Detail: `shared-implementation-notes.md` DD-44.
+> **Moved (4 Nov 2026) → `docs/rules/audio.md`** — read it when adding/choosing a sound, or touching background music. Includes the former `§ Background music` (`js/lib/music.js`) subsection that other docs cite.
+> **Headline rule:** Effects are synthesised `play*()` in `engine.js` (never files) and a new game reuses existing ones via an `[ABBR]_SOUND` map; music is the one file type, driven only from `showScreen()` — a plugin never calls `Music`.
 
 ---
 
@@ -486,31 +399,8 @@ if (window.syllyMultiplayerMode !== 'single') {
 
 ### Bots (SW v247)
 
-**A bot is an `mpPlayerSlots` entry held only in the host's memory** — `{ uid: 'bot:N', nickname, bot:
-{ difficulty } }` — and **never written to `/players`** (keyed by slot index; the watcher rebuilds from
-it). `mpIsBotUid` is the only test. Humans first, bots after; **a human always outranks a bot** for the
-last seat (the newest bot steps aside) and a bot gives up a name a human arrives with. Presence, Away,
-rejoin and `mpSendPrivate` all skip bots. Print names through **`mpSeatLabel(idx)`** (a bot's carries 🤖).
-
-**The game says when; the engine owns the timers.** Call `mpBotsPrompt(tag)` as bot seats must act: each
-bot's **view is captured at once**, `decide` runs after `thinkMs`, then `submit(idx, move, tag)` through
-the game's own host record path — never a self-sent ACTION. `mpBotTimers` pauses while any human is Away
-and is cleared by `mpEndMatchLocal()` and `resetToLobby()`.
-
-**Fairness is the view.** `view(idx)` holds only what that seat's device would see (the
-`reconnect.sendState` stripping rule); `decide` is pure in effect and takes randomness only from `rng`.
-Every adopter's bots harness proves it: junk in the other seats' hidden state → byte-identical view and
-decision.
-
-**Solo** is the host path on a null wire: `mpSolo`, `mpActiveRoomCode = null` (every send already
-no-ops), Firebase never loaded, `'local:host'` borrowed as the uid when there is none and handed back by
-`resetToLobby()`. Its setup is the host lobby itself. A game needs no Solo branch.
-
-**Adopting bots in a new game:** a `bots` entry; a `view` that strips like `sendState`; a pure `decide`;
-`submit` through the host's own record function (lift it out of the envelope handler, as CLD's
-`cldHostTakeCommit`); one `mpBotsPrompt` at the single place a phase opens on the host; names through
-`mpSeatLabel`; a bots harness with the fairness check; `'solo'` in `supportedModes` if a lone phone can
-play. Reference: CLD. Detail: `shared-implementation-notes.md` DD-52.
+> **Moved (4 Nov 2026) → `docs/rules/mp-bots-reconnect.md`** — read it when adopting or changing bot seats, Solo mode, or the reconnect hook.
+> **Headline rule:** A bot is an `mpPlayerSlots` entry held only in host memory (never written to `/players`); `view()` strips like `sendState`, `decide` is pure, `submit` goes through the host's own record path.
 
 ### Mid-Game Quit Contract
 
@@ -562,51 +452,8 @@ other. A new game that forgets it fails that check.
 
 ### Client Reconnect (SW v236)
 
-**A drop is not a quit.** At `GAME_START`, `mpConfirmRoster()` freezes `rooms/{code}/seats` (uids in
-seat order) and the host watches `rooms/{code}/presence` for the length of the match. Each **client**
-writes **one presence child per connection** (`push` + its own `onDisconnect().remove()`), re-written
-on every `.info/connected === true` — so a blip heals itself, and a stale socket's LATE onDisconnect
-after a fast reload removes only its own child, never the new one. A seat with no children for
-`MP_AWAY_DEBOUNCE_MS` (3 s) is **Away**: one `LOBBY MP_AWAY_STATE { seats, graceEndsAt }` carries the
-whole set (`seats: []` is Firebase-erased — rebuild with `|| []`), and every device shows
-`#mp-away-overlay`. The host is skipped **by uid**, never by index (a `'teams'` roster reorders slots).
-**Only a match is watched, and only drops count.** A client leaving on purpose after the game (the
-podium ✕, "Leave Session") sends `MP_SEAT_RELEASED` from `mpReconnectTeardown()` and its seat is
-never Away; and reaching a game's final screen (`MP_END_SCREENS`, via `mpNoteScreen()` in
-`showScreen()`) ends the match for reconnect — the room lives on for Play Again. **A new game adds
-its final screen to `MP_END_SCREENS`** (GM and NT are absent on purpose: per-round result screens).
-
-**The opt-in hook** — `MP_GAME_CONFIGS[abbr].reconnect = { sendState(idx), pause(), resume() }`, all
-host-only; `verify-mp-configs.js` § 7 pins the adopter list (`['flw', 'pko', 'cjar', 'comb']`). `pause()` runs on the FIRST
-seat to go and `resume()` on the LAST back, never twice. An adopter's client `onPassThePhone` must be
-safe to re-run on a rejoining device (standby, never a new match) **and must start any data load the
-game's lobby button would have** — a rejoiner never tapped it (`cjarLoadData()`, `pkoLoadChain()`); the
-applier waits for it. The full-state applier must take
-standby → live and be idempotent — **re-arming phase-scoped UI** (COMB: the Overflow, the Wasp; FLW: the Deep Vault; PKO: Carrion), since that is never carried; `sendState` strips every other seat's private state — including anything that *implies* it (FLW's spent Counterfeit token, CJAR's mid-window choices).
-**Pause scope:** the Away overlay covers every device, so nobody can act — pause stops only what acts
-**for** a seat: a clock that auto-plays (FLW's, even when a *non*-active seat drops), an auto-resolve
-(CJAR's window, PKO's Carrion), and anything that would open the next one (CJAR holds its flip loop).
-Resume re-arms through a **clock-only** packet (`COMB_DAYLIGHT`, `FLW_CLOCK`, `CJAR_CLOCK`), never the
-phase-start packet, whose applier resets half-made input. In a loopback, build the rejoining device
-**after** resume — that public broadcast may be lost to it in reality. **A game
-without the hook** still gets detection: a 60 s grace (`MP_AWAY_GRACE_MS`), then the **host is asked**
-— Keep waiting (another grace) or End session (`HOST_END_GAME { reason: 'dropped', name }`). **Nothing
-ends on its own** (owner, SW v240). `MP_AWAY_STATE` carries `asking` so clients read "the host is deciding".
-
-**`MP_PROTOCOL_VERSION`** (`engine.js`, SW v240 — was `SYLLY_VERSION`) gates `HANDSHAKE` and `MP_REJOIN`.
-It is the **wire** version, not the app version: bump it only when a packet changes shape or meaning,
-to the SW version that ships the change. A release that touches no packet leaves it alone.
-
-**Rejoin.** A client of an adopting game writes `sylly_rejoin` at `GAME_START`; on reload the boot
-prompt (`#mp-rejoin-overlay`) sends `ACTION MP_REJOIN { version }`, checked by `originId` against
-`seats`; it carries a **nonce** the host echoes, so the reply passes the rejoiner's timestamp filter
-however far its clock runs ahead (the ACCEPT then rebases `mpJoinListenFrom` to the host's stamp).
-The host answers privately — `MP_REJOIN_ACCEPT` (the `GAME_START` + settings context,
-applied through the shared `mpApplySettings()`), then **`mpMarkBack()` → `resume()` BEFORE
-`sendState()`**, so the snapshot carries the live clock: a public resume SYNC can beat the private
-ACCEPT to the rejoiner and is dropped there (no game is routed until the ACCEPT). A mid-match stranger
-is refused. Harness: `tools/verify-mp-reconnect.js` (+ `mutate-mp-reconnect.js`). Detail:
-`shared-implementation-notes.md` DD-47.
+> **Moved (4 Nov 2026) → `docs/rules/mp-bots-reconnect.md`** — read it when touching seats, presence, Away, rejoin, `MP_END_SCREENS` or a `reconnect` hook.
+> **Headline rule:** A drop is not a quit: seats freeze at `GAME_START`, presence is per connection, a new game adds its final screen to `MP_END_SCREENS`; adopters are pinned in `verify-mp-configs.js` § 7.
 
 ### localStorage Exception
 

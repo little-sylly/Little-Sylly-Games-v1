@@ -18,46 +18,8 @@ Every screen must have:
 
 ## Round/Night Intro Screen (default for the start of every match round)
 
-**Every game where the same phase (a Night, a Raid, a Round) repeats several times per match should
-show a short, auto-advancing intro screen at the start of each repetition — not jump the player
-straight from "deal" into an already-live table.** This is the interstitial exception (rule 5 above)
-used as a *beat*, not just a result flash. References: `screen-cjar-raid-intro`, `screen-shp-night-intro`.
-
-**Job of the screen — flavour AND orientation, not just flavour.** In one or two short lines: set
-the scene in the game's voice, and restate lightly (not a rules dump) what the player is about to do
-or watch for. SHP's *"Don't go over 99 or you might really just fall asleep"* is both in one
-sentence. A pure mood line with no practical content wastes the same five seconds.
-
-**Shape:**
-```html
-<section id="screen-[abbr]-[phase]-intro" style="display:none"
-  class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
-  <div class="flex flex-col w-full max-w-sm gap-4 text-center">
-    <div class="text-6xl" role="img" aria-label="...">[emoji]</div>
-    <h2 id="[abbr]-intro-heading" class="text-3xl font-bold text-stone-800"></h2>
-    <p id="[abbr]-intro-sub" class="text-stone-500 text-base"></p>
-    <!-- optional third element: a Sylly-Mode-only note, a per-player private hint (CJAR's
-         Favourite/Watcher box), anything conditional — style="display:none" until populated -->
-  </div>
-</section>
-```
-No `[?]`/🔊/✕ — the rule-5 interstitial exemption applies (nothing is tappable for the ~5 s it's up).
-Emoji should differ from the game's main menu emoji where reasonable, so the intro reads as its own
-beat rather than a repeat of the menu (SHP uses 🌙 for "Night begins", distinct from the menu's 🐑).
-
-**Rotate the flavour line if the phase repeats many times a match** — the same sentence every time
-reads as filler by the third showing. Keep a small array (`SHP_NIGHT_FLAVOUR`, 4–6 lines) and pick
-one per repetition, **host-picked and synced** in MDLM (ride the index in whatever SYNC packet
-already carries the deal). Picked independently per device, players sitting together see different
-text for the same moment.
-
-**Wire it in at the SAME point on host and client** — called from **both** the host's deal path and
-the client's `SYNC` applier for that deal (SHP: `shpDealNight()` and the `SHP_DEAL` applier). Miss
-either half and one class of device skips straight past the intro. Auto-advance via `setTimeout` to
-the real table-show function, clearing any prior handle first (a rapid redeal must never stack two
-pending timers) and clearing it in teardown per § Timer Lifecycle (`logic-engine.md`).
-
-**Not yet retrofitted** beyond CJAR/SHP — suite sweep tracked in `docs/deferred-work.md`.
+> **Moved (4 Nov 2026) → `docs/rules/ui-screen-patterns.md`** — read it when adding or retrofitting a per-round intro screen.
+> **Headline rule:** A repeated phase (Night, Raid, Round) opens with a short auto-advancing interstitial that sets the scene AND restates what to do; flavour line host-picked and synced in MDLM.
 
 ---
 
@@ -196,31 +158,8 @@ Not `bg-white`, not `shadow-xl`, not `p-8`, not `rounded-2xl`, not `border-2`.
 
 ### Pattern 2a — Art Viewer (engine-owned, global)
 
-**Not a third pattern.** It is Pattern 2's geometry (`overlay-modal-backdrop`, centred, one
-interactive element) with an image where the card would be. Documented separately only because it
-is the one overlay that is **deliberately unbranded** — it belongs to `engine.js` and is opened
-from six games' galleries, so any one game's colour would be wrong five times out of six.
-
-**Never build a per-game copy of this.** `#art-viewer-overlay` is the only one.
-
-```js
-openArtViewer(src, caption)   // no-ops when src is falsy — see below
-closeArtViewer()
-artMakeZoomable(el, src, caption)   // returns el, for use inline
-```
-
-- **`src` is a resolved URL from `assetFace`/`assetBack`/`assetExtra`** (`js/lib/art.js`). A game
-  still on its emoji/CSS fallback resolves to `null`, and both functions no-op — so a tile with no
-  artwork behind it gets **neither the zoom cursor nor a handler**. The affordance and the artwork
-  appear together or not at all. That is also what keeps the offline install check honest: if the
-  art didn't precache, the gallery visibly stops offering to enlarge it.
-- **Resolve the URL at the call site, not inside the render seam.** The seam returns an element;
-  the gallery needs the URL separately to decide whether the tile is zoomable at all.
-- Closes on the ✕ and on the **backdrop only** (`e.target === backdrop`) — a tap landing on the
-  image or caption must not dismiss, or a pinch/pan loses the picture mid-gesture.
-- Backdrop is `bg-black/80`, darker than the standard `bg-black/40`: the point is to take the lit
-  surface away from the UI and give it to the artwork.
-- Teardown is already in `resetToLobby()` via `closeArtViewer()` — a new game needs nothing.
+> **Moved (4 Nov 2026) → `docs/rules/ui-howto-extras.md`** — read it when building or editing a How-to gallery tile or zoomable art.
+> **Headline rule:** `#art-viewer-overlay` is the only art viewer (engine-owned, unbranded) — never build a per-game copy; `openArtViewer(src, caption)` no-ops on a falsy src.
 
 ### Backdrop tap-to-dismiss (universal, engine-owned, added 14 Aug 2026)
 
@@ -342,66 +281,18 @@ Add `pointer-events-none` to the layer unless the animation is interactive. *[El
 
 ### Motion Standard — timing, easing, and what may be animated
 
-Applies to every transition and `@keyframes` in `css/styles.css` and every inline Tailwind transition. The reference skill is `.claude/skills/emil-design-eng/` (on-demand — invoke it for a deeper animation review; it is not auto-loaded).
-
-**Duration — match the distance travelled.** A small thing moving a short way should be quick; only a full-width panel earns the long end.
-
-| Element | Duration |
-|---------|----------|
-| Button press / tap feedback | 100–160 ms |
-| Contextual tip, small popover | 125–200 ms |
-| Dropdown, pill group, inline reveal | 150–250 ms |
-| Decision modal, data slide-up overlay | 200–500 ms |
-| Stagger between list items | 30–80 ms |
-
-**Hard ceiling: 300 ms** for anything that is not a full overlay. Past that a phone UI feels laggy rather than smooth. The Stack's overlays (`settings-slide-up`) are the documented exception at up to 500 ms.
-
-**A second, narrow exception: a blocking choreography beat.** A sequenced animation the player cannot act through — where the duration itself *is* the pacing budget, not decoration on an already-actionable UI — may exceed 300 ms, provided it still animates only `transform`/`opacity`. The ceiling protects ordinary chrome feedback (button press, pill toggle), where input is available the whole time. Reference: CJAR's flip/hold/payout beat (`CJAR_FLIP_ANIM_MS`, `js/games/cjar.js`), 3200 ms because no decision can be made until the card's outcome is seen.
-
-**Easing — pick by what the element is doing, not by taste:**
-- Entering or exiting the screen → `ease-out`
-- Moving around on-screen → `ease-in-out`
-- Hover / colour change → `ease`
-- Continuous motion (a spinner, a timer sweep) → `linear`
-- **Never `ease-in` for UI.** It starts slow and reads as unresponsive — the tap feels dropped.
-
-**Only animate `transform` and `opacity`.** Both are GPU-composited; anything else (width, height, top/left, margin, padding) triggers layout on every frame and janks on a mid-range phone — which is most of this suite's audience.
-- Never scale from `scale(0)` — it pops. Use `scale(0.95)` plus an opacity fade.
-- Use `translateY(100%)` to move an element by its own height rather than a hardcoded pixel value.
-- Tap feedback is `transform: scale(0.97)` on `:active` — this is what `active:scale-95` already gives us across the suite.
-
-**`transition-all` is known debt — do not add more.** It animates *every* animatable property including layout ones, so it is the transform-only rule's blind spot. The ~487 existing uses in `index.html` are left alone (a sweep there is off-limits — see the encoding warning). For new markup name the property: `transition-transform`, `transition-opacity`, `transition-colors`.
-
-**Reduced motion is mandatory and already global.** `css/styles.css` ends with a `@media (prefers-reduced-motion: reduce)` block collapsing every duration to `0.01ms`. Two rules follow from *how* it is written:
-- It sets `animation-duration`/`transition-duration` to near-zero — **never `animation: none`**. `js/games/li5.js` has four `animationend` listeners doing the *cleanup*; killing the animation outright means the event never fires and the class and its text stay stranded on screen. New `animationend`-driven cleanup inherits this protection — but only while the block stays duration-based.
-- Because it is global, a new **CSS** animation needs no per-feature handling. Do not add a second `prefers-reduced-motion` block.
-- **⚠️ A `requestAnimationFrame` loop is the exception, and it is invisible.** The block zeroes CSS `animation-duration`/`transition-duration` — it reaches nothing about a loop writing `transform` by hand, which keeps travelling at full speed with the setting on and no error anywhere. Any RAF animation must check `prefers-reduced-motion` **itself**, in JS, and honour what the standard actually asks: *nothing travels*. Show the end state and skip the journey — do not simply drop the feature, or reduced motion becomes reduced information. Reference: `combReducedMotion()` in `js/games/comb.js` (the Sun Compass still appears and still reveals its number; it just never moves). The one place a per-feature check is required rather than forbidden.
-
-**Test it:** DevTools → Rendering → Emulate `prefers-reduced-motion: reduce`, then exercise the animation. Nothing should travel, and nothing should be left behind.
+> **Moved (4 Nov 2026) → `docs/rules/ui-motion.md`** — read it when writing or reviewing any transition, @keyframes or RAF animation.
+> **Headline rule:** Animate only `transform`/`opacity`; ≤300 ms unless a full overlay or a blocking choreography beat; never `ease-in`; no new `transition-all`; reduced motion is global for CSS but a RAF loop must check it itself in JS.
 
 ### Legacy sticky-footer pattern — do NOT use for new screens
 
-Some older screens use `h-screen overflow-hidden` with a `flex-1 overflow-y-auto min-h-0` Stage between `flex-shrink-0` Header/Controls. **Deprecated for new work** — it is the single largest source of "not together, not centred" screens, because a screen can be technically correct (button visible, content reachable) while looking sparse and edge-pinned. New games use the Stack for *every* screen. Migrate existing ones opportunistically; log each migration in the game's impl notes.
-
-If you think a screen *needs* it, you almost certainly don't: the only real trigger is a Stage that must scroll **independently** while the Controls stay frozen, and the project decision (June 2026) prefers whole-Stack scrolling even for long card hands.
+> **Moved (4 Nov 2026) → `docs/rules/ui-screen-patterns.md`** — read it when touching a screen on the `h-screen` whitelist, or tempted to use the sticky-footer layout.
+> **Headline rule:** New screens use the Stack; the `h-screen` sticky-footer is legacy and only the whitelisted screens keep it.
 
 ### Legacy `h-screen` whitelist (baseline sweep, 26 June 2026)
 
-These are the **only** remaining legacy sticky-footer screens — each a deliberate exception. If one of these looks sparse/edge-pinned that's expected; if any **other** screen does, it's a new bug.
-
-| Screen(s) | Why it keeps the sticky footer |
-|-----------|-------------------------------|
-| `screen-gth-canvas` | Freehand drawing surface — the canvas must **not** scroll while drawing (a page-scroll would hijack the stroke). Fixed Stage is mandatory. |
-| `screen-gth-case` | Rendered drawing + answer cards + live countdown — fixed Stage with the diagnosis action always visible. |
-| `screen-dsd-captain`, `screen-dsd-crew`, `screen-dsd-execution`, `screen-dsd-sabotage`, `screen-dsd-spectator` | 5×5 grid + legend with an always-visible Sonar/sequence/disarm CTA while tapping tiles. |
-| `screen-cld-floe` | Drag-to-aim canvas — a page-scroll during a drag would hijack the aim. Power bar, commit tally and Lock It In must stay fixed beneath a stage the player is dragging on. |
-| `screen-nt-allocation` | DNP captain huddle — cluster bridge + rebalance controls + Lock CTA + huddle timer; controls must stay put while scanning legs. |
-| `screen-comb-meadow` | Fit-to-view board the player taps to place on. The hand row and action bar must stay put while the board is read, and no page-scroll may carry a legal target off screen. Zoom lives in `comb-map-overlay`, not here. |
-| `screen-lounge`, `screen-tv`, `screen-jukebox`, `screen-arcade` | The lobby's full-window stages (SW v231; the jukebox SW v233 — its cat is drag-to-turn, and below 860 px the screen scrolls itself as one column). A page-scroll would hijack a drag in the Lounge's room; TV is a fixed rail + pane layout. `screen-shelves` scrolls as a column and is not an exception. |
-| `screen-workshop` | The 3D controller stage — since SW v234 a full room like the jukebox (`css/workshop.css`: paint \| stage \| stickers, no tabs). A page-scroll during a rotate-drag would hijack the drag (the same ground as `screen-cld-floe`), and the preview must stay visible while colours and stickers are picked — the choice depends on what the Stage is showing. Below 1100 px the room scrolls itself with the stage **pinned** (sticky) on top, for the same reason. |
-| `screen-mp-mode`, `screen-mp-lobby-host`, `screen-mp-lobby-join`, `screen-mp-roster` | Shared multiplayer infrastructure (all 4 MDLM games) — roster lists with a frozen primary CTA. High blast radius; migrate only if visibly broken. |
-
-Every other content/results screen in the suite has already been migrated to the Stack — a few carry a residual nested wrapper or uneven per-zone padding from the scoped class-transform used to do it; polish opportunistically, don't re-sweep.
+> **Moved (4 Nov 2026) → `docs/rules/ui-screen-patterns.md`** — read it when checking whether a screen is a sanctioned `h-screen` exception.
+> **Headline rule:** If a screen NOT on the whitelist looks edge-pinned or sparse, that is a new bug.
 
 ---
 
@@ -476,119 +367,18 @@ Every other content/results screen in the suite has already been migrated to the
 
 ### Optional tab bar — N tabs
 
-A game with **reference content that is itself part of learning the game** — every card in the
-deck, a chain diagram, a role roster — may add a tab bar rather than pushing that content into a
-second overlay. No cap at two: PKO runs three (Rules | Diagram | Animals). Sits directly under the
-sticky title block, sticky with it, never scrolling:
-
-```html
-<div class="px-5 pt-3 pb-3 border-b border-stone-200 flex-shrink-0 flex gap-2">
-  <button class="pill pill-active-[colour]" data-[abbr]-howto-tab="rules">The Rules</button>
-  <button class="pill" data-[abbr]-howto-tab="cards">The Cards</button>
-  <!-- a third (or Nth) tab is the same button + body pair, no structural change -->
-</div>
-```
-
-**Rollout:** seven games carry one — CJAR, PKO, FRT, SHP, FLW, DYB, CLD. **PASS** is deliberately open (54 faces make a tile grid a poster, not a reference — `docs/deferred-work.md`). CLD's is **The Rules | Practice | The Cast**; DYB's gallery shows its five Tempest forms. **Procedural galleries (CLD, DYB) are not `artMakeZoomable` and are not an install check** — nothing precached backs them. DYB and CLD also carry a **Practice** tab (below).
-
-**A gallery tab must render through the game's own render seam** (`[abbr]RenderCard`, `dybDieHTML`),
-never hand-built markup. Two load-bearing consequences: the gallery can never drift from the live
-deck, and it is **skinnable**, which is what makes it double as the offline install check
-(`docs/art-authoring-guide.md` § 7). Hand-built markup silently locks skins out of the gallery.
-
-**Every gallery tile is tappable-to-enlarge** via `artMakeZoomable` — see § Pattern 2a above.
-
-**Rules:**
-- The **first tab is always the Step cards** — the canonical How-to structure above is unchanged
-  and still mandatory. A tab bar adds sibling bodies; it never reorders or removes the Steps.
-- Each tab body is its **own** `overflow-y-auto` region with its **own** close button, so each
-  scrolls independently and "Got it" is always reachable from the bottom of what you are reading.
-- Bodies are **siblings toggled by display**, not one body repainted — flicking across and back
-  must not lose another tab's scroll position.
-- Tab buttons use the standard `.pill` / `pill-active-[colour]` classes and the same toggle rule
-  (never remove `.pill`).
-- **Reference content that is part of learning the game belongs in the tab bar — including a
-  mid-play reference a player returns to later.** A tab is not disqualified for *also* being useful
-  mid-round (PKO's Diagram/Animals tabs open from How to Play *and* from the table's `[?] The Chain`
-  and a tap-held card — same overlay, pre-selected via `pkoOpenHowTo(tab, highlightId)`). Excluded
-  is content that is **not** teaching material at all — Settings, a match/score log, or any *live*
-  running state a static tab can't represent. Not a licence to fold those into How to Play.
-
-**Why:** a separate reference overlay is one overlay further away than the thing it explains, plus
-a z-index entry and a `resetToLobby()` teardown entry — and the real cost is duplicating content
-across two overlays instead of giving one overlay more entry points. Knowing what cards exist *is*
-learning the game. Full rationale: `docs/decision-log.md` 2026-08-03.
+> **Moved (4 Nov 2026) → `docs/rules/ui-howto-extras.md`** — read it when adding or editing a How-to tab bar (Rules | Practice | gallery).
+> **Headline rule:** First tab is always the Step cards; each tab body is its own scroll region with its own "Got it"; gallery tiles render through the game's own render seam, never hand-built markup.
 
 ### Tap-Hold Reference (default for a card's long-press, added 12 Aug 2026 — SHP, generalising PKO)
 
-**When a game has a How-to gallery tab (above), tap-and-hold on any real card — in a hand, on the
-table, in a locked-slot placeholder — jumps to that card's row in the gallery: the tab opens (or
-switches) to The Cards, scrolls it into view, and rings it briefly.** This is the *default*
-long-press behaviour for any card with real artwork. Build a standalone inspect popup only if the
-game has a specific reason a shared gallery entry can't serve (none has needed one yet).
-
-**Why the default, not a per-game choice:** a standalone popup is a second place a card's rules text
-can drift from the gallery's, a second z-index entry and a second `resetToLobby()` teardown entry —
-for information the gallery already holds. Detail: `shp-implementation-notes.md`.
-
-**Shape — the touch/mouse mechanics and the scroll-and-ring are shared `engine.js` globals, not a
-per-game copy.** `bindCardHold(el, onHold, ms=500)` and `refHighlightRow(box, attr, id, pingClass,
-ms=1600)` — see `logic-engine.md` § Shared Library Modules. A game's own bind function is a
-one-line wrapper:
-```js
-function [abbr]BindCardHold(el, cardId) { bindCardHold(el, () => [abbr]OpenHowTo('[gallery-tab]', cardId)); }
-```
-`shpBindCardHold`, `pkoBindChainHold` and `flwBindCardHold` are the three reference call sites.
-`[gallery-tab]` is whatever this game already calls its card-gallery tab (`'cards'` for SHP/FLW,
-`'animals'` for PKO — not a new naming convention). `[abbr]OpenHowTo(tab, highlightId)` forces that
-tab whenever `highlightId` is set (skip the "open to Rules" default), and the gallery's render
-function tags each row/tile with `data-[abbr]-card-id` (FLW: `data-flw-gem-id`) and calls
-`refHighlightRow(box, 'data-[abbr]-card-id', highlightId, '[abbr]-ref-row-ping')` when a
-`highlightId` is passed. The ring class is a `box-shadow` transition, never `animation`
-(reduced-motion already zeroes transition durations globally — see § Motion Standard — so this
-needs no separate guard).
-
-**A placeholder with no card id of its own points at the real card that explains it.** SHP's
-Big Bad Wolf hand-slot (a locked-slot indicator, not the Wolf card itself — see § Pattern 2a's
-sibling rule for `assetFace`) has no `cardId`; its hold targets card **12** (The Big Bad Wolf),
-whose gallery row is what actually explains the locked slot. Generalise this whenever a game has
-a non-card placeholder standing in for a mechanic that a real card's row already documents —
-point the hold at that card's id rather than inventing a third explanation surface.
-
-**Exception — don't apply this where tap-hold already does something else.** PASS's 54-face grid
-(the documented exception to the gallery tab itself) and any game where a long-press is bound to a
-drag-start, a multi-select, or another mechanic keeps its own behaviour; this default only fills
-the gap when tap-hold is otherwise idle.
+> **Moved (4 Nov 2026) → `docs/rules/ui-howto-extras.md`** — read it when wiring a card long-press to the How-to gallery.
+> **Headline rule:** Default long-press on a real card jumps to its row in the gallery via the shared `bindCardHold` + `refHighlightRow` — no standalone inspect popup.
 
 ### Practice tab — the suite's tutorial standard (SW v241, DYB is the reference)
 
-A How to Play overlay may carry a **Practice** tab: a hand the player plays with the real controls
-before a real game. It is the named pattern for every game's future tutorial rework
-(`docs/practice-rollout.md` tracks the retrofit — priority, effort and a definition of done per game).
-
-- **Pick the form that fits the game** (owner, 28 Sep 2026):
-  - **Scripted hand** (the default; DYB) — deterministic, 60–90 s, fixed hands so every coach line is
-    true, **both branches** at the key decision.
-  - **Arena** (CLD) — a sandbox for games whose skill is *feel*, not rules: the other players' moves
-    are fixed (CLD: each target's aim and strength), the player's are free, and the player practises
-    counters against moves they know are coming. The coach sets up the drill; it does not script the result. Reference: CLD (SW v244) — three drills, the rivals' shoves drawn before you move. A game whose rules read module globals may run them through a **swap** (`cldArenaRun`) rather than threading state, provided a harness classifies every top-level `let` and proves the live state untouched.
-  - **Lessons** — a game too big for 90 s (COMB, LTTP) gets a **lesson picker**, one short lesson per
-    key action a player takes. The fallback, if a lesson can't be interactive, is a step-through slideshow.
-  - **Autopilot** — for typed input (LI5, GM, SS, JEC, NAT, YGI): the answers type themselves and the
-    other players' responses are scripted (LI5: the call-out when a No-No word is said), or the game uses
-    lesson cards instead. Decided per game.
-- **Role games:** "You" take the role with the most to learn; other roles get a short explanation.
-- Built from the game's **real renderers fed a model** (`dybRenderTable` / `dybPlayThrow` /
-  `dybPlayReveal`), never a hand-built imitation. Build a new game's renderers model-fed from day one.
-- **Beats gated on the player doing the thing**, with a coach caption, a step counter ("3 / 7") and a
-  soft ring (a `box-shadow` transition) on the control being taught. A new coach line scrolls back into view.
-- Ends with **Practice again** / **Got it**.
-- **The Practice cast:** scripted players are drawn, in order, from **Sylvia, Sam, Shirley, Jeff**;
-  the player is always "You".
-- **No multiplayer** (never `mpSendEnvelope`, never live match state); its timers live in their own
-  bag, stopped on tab-away, on close and in `resetToLobby()`; reduced motion checked **in JS**.
-- Tab order: **Rules | Practice | gallery** — or just **Rules | Practice** for a game with no gallery.
-  Don't invent a gallery to fill the slot.
+> **Moved (4 Nov 2026) → `docs/rules/ui-howto-extras.md`** — read it when building or retrofitting a Practice tab / tutorial.
+> **Headline rule:** Built from the game's real renderers fed a model, beats gated on the player acting, no multiplayer, JS reduced-motion check; see docs/practice-rollout.md for the tracker.
 
 ### Per-game reference
 
@@ -905,12 +695,9 @@ Look for ONE opportunity to inject playfulness — cheeky button labels, Austral
 ---
 
 ## Lobby layouts (SW v231)
-Four ways to view the lobby — **the Lounge** (the 3D room, first on launch), **TV**, **the Board** and
-**Classic** (`screen-lobby`). Every switcher (TV's mode buttons, `#lobby-switcher-overlay` — Classic's
-button and the Board's dock open it) renders from **`LobbyRouter.LOBBY_LAYOUTS`** and hides a layout this
-device may not use — absent, not dimmed. The **Arcade** (SW v254) is a place like the jukebox — `#screen-arcade`, `css/arcade.css`, its 🕹️ door in every menu layout; since SW v257 the **Arcade Floor** — fixed `100dvh`, only its row of cabinets scrolls (scroll-snap; the centred one is selected), classic black CRTs in each game's accent, cabinet bodies in the saved controller's colours. Since SW v260 the cabinets are the Lounge's real model in ONE Three.js scene (`.arc-gl`, behind the row), standing on a ring with their backs to the middle — the centred one steps out toward you, its neighbours show their sides — its marquee the number + name and its glass the game's own live attract scene (canvas textures; one loop); the row stays the invisible scroll-snap input (`#arc-list.is-gl`), and the CSS cabinet is the flat no-WebGL fallback — and the cabinet screens wear the room's chrome (`.arc-cab-head`; on a wide window it holds to the canvas's column and the game's own edges spill out round it, blurred — `.arc-amb`, SW v261). A scoped exception to DESIGN.md's "no dark-mode neon gaming". The **jukebox** (SW v233) is not a layout: a screen behind the Lounge's cat, dark plum, styled in `css/jukebox.css` under `#screen-jukebox` — never in `LOBBY_LAYOUTS`. The **Workshop** (SW v234) joins that room: same plum, glass and warm pool, in `css/workshop.css` under `#screen-workshop`; its Save/Remove borrow the controller's own face-button colours. **The Board, Classic and TV (SW v238)** carry the title as live text (`.sylly-wordmark` — never the PNG lockup, which is the stickerbook's), the 🎵/📒 places (Classic a labelled row, the Board two dock buttons, TV an icon pair in its tools pill — the rooms' doors for a device without the Lounge, through the router), and no visible scrollbars on any lobby scroller. **The Board** (SW v250, the phone's layout; id `shelves`) is the games as die-cut stickers on one sheet — washi-tape shelf tabs, a peel-off held card on a swipe rail whose back is `lbSheetBodyInner`, and a glass **dock** (🎵 · 📒 · the Random die · 🕹️ Arcade · Layout — 🔊 moved to the header, right of the controller, SW v254). Its ghosts (games that don't fit the group) stay on the sheet with their reason and only wobble when tapped — inert but answerable — and are never on the rail. **The dock is full at four doors + the die**: a fifth needs a decision (a "More" sheet or a swap), not a sixth slot. Its styles are `css/board.css`, scoped under `#screen-shelves`. TV's middle panel lays itself out off its **own** width (`@container tvpanel`), never the window's — it is the column that varies ~3×. "Classic" is display copy only (SW v232, was "Original");
-code keys on the id `original`. The lobby's own styles live in `css/lobby.css`, scoped under each layout's root — it
-may never style `html`, `body` or a bare element. Routing rule: `logic-engine.md` § Lobby Router Seam.
+
+> **Moved (4 Nov 2026) → `docs/rules/ui-lobby-layouts.md`** — read it when touching any lobby layout (Lounge, TV, Board, Classic), the Arcade room or the switcher.
+> **Headline rule:** Every switcher renders from `LobbyRouter.LOBBY_LAYOUTS`; only `js/lobby/` may show a layout screen (logic-engine.md § Lobby Router Seam).
 
 ## Universal Menu Standard (All Games)
 Every game's main menu screen must have exactly these 4 buttons, in this order: **Play CTA** → **How to Play** → **Settings** → **← Back to the Box**. Only the Play CTA label is game-voiced — the other three are identical across all games (see Rules below).
@@ -955,169 +742,22 @@ action, neutral stone for a secondary one). The gel treatment is menu-only — d
 
 ### Menu Title Treatment (all 20 games, 8 Sep 2026)
 
-The game-name heading above the emoji/subtitle is `text-5xl font-bold leading-tight`, split into
-a neutral (`text-stone-800`) part and a brand-coloured part — never one flat-coloured string.
-Eight games shipped this from the start; the other twelve (BLD, GTH, DYB, PASS, NT, FRT, SHP, FLW,
-PKO, CJAR, CLD, COMB) were smaller and single-toned until this pass brought them level.
-
-**Multi-word titles** stack as two sibling `<h1>` lines inside the same wrapper `<div>` — first
-word(s) neutral, last word coloured (`Pecking` / `Order`, `Honeycomb` / `Hills`, `Cold` /
-`Shoulder`). A hyphenated compound with no second word (`Net-Trace`) does **not** split across two
-lines — a mid-word line break reads as a hyphenation accident, not a design choice. Keep it on one
-line instead (see single-word treatment below).
-
-**Single-word titles (and hyphenated one-word titles) split inline, same line, at the natural
-suffix** — two `<span>`s inside one `<h1>`, root neutral and suffix coloured: `Flaw` + `less`,
-`Bail` + `ed`, `Net-` + `Trace`. For a short word with no real suffix, split wherever reads most
-natural (`Pa` + `ss`). This is a judgement call per title, not a formula — there is no algorithm
-for "natural suffix", just read the word.
-
-**The coloured half is usually the game's already-established *label/accent* colour, not its raw
-CTA fill hex** — a brand fill chosen for a solid button background is frequently unreadable as thin
-text on the page's off-white ground. Several custom-hex brands already carry a separate darkened
-`-label` class for exactly this reason — reuse it: `bld-label`, `dyb-label`, `shp-label`,
-`flw-step-label`, `pko-label`, `cjar-label`, `cld-label`, `comb-label`. Games on stock Tailwind
-colours use a **darkened** shade of the same hue, not the literal button shade — YGI's CTA is
-`amber-500` but its heading half is plain `amber-500` text (already borderline on contrast,
-consistent with its pre-existing How-to step-label convention).
-
-**FRT is the one sanctioned exception:** its heading half (and `FRT_ACCENT = FRT_FILL`, used for its
-How-to label, "Call TRUE" and selection outline too) is the literal brand fill `#FFE500`, at owner
-insistence, contrast cost accepted. **Don't read it as "the fill hex is always right"** — the default for
-every other game is the darkened label colour above. Two traps to avoid: reaching for an existing accent
-constant without checking it is actually the game's colour, and trusting hue-angle + contrast without
-looking at the swatch (darkened yellow reads as brown). Story: `frt-implementation-notes.md`.
-
-> This section is about **heading and label _text_** on the off-white page — where a darkened
-> rung is still the default. **Button and pill _ink_** is a separate axis, settled 10 Sep 2026:
-> every game's standard buttons + settings pills use **brand fill + white ink**, matching that
-> game's locked menu Play CTA, contrast cost accepted suite-wide. See § Action Button Standard
-> → "Locked per-game button scheme" below. FRT/YGI/COMB/CLD went from dark ink to white in that
-> pass; their `-label` text colours were untouched.
-
-**A colour needs *some* legible resting shade before it can be text** — CTA, heading or label. Reach for the darkened partner (CJAR honey-gold, CLD `#123B4C`); FRT is the one place that default was knowingly traded away.
+> **Moved (4 Nov 2026) → `docs/rules/ui-menu-extras.md`** — read it when editing a game menu's title heading.
+> **Headline rule:** Title is `text-5xl font-bold`, split into a neutral `text-stone-800` part and a brand-coloured part (usually the darkened `-label` colour, FRT excepted).
 
 ---
 
 ## Gel Button Treatment (`.gel-btn` / `.gel-btn-light`)
 
-The moulded "keycap / Frutiger-Aero gel pill" look. Shipped for the lobby buttons (SW v214 →
-v216), then extracted into a badge-agnostic pair (SW v218) so the **game menus' four buttons**
-share it. Classes live in `css/styles.css` (grep `.gel-btn`).
-
-**Where it is used — and only here:**
-- The 18 lobby game buttons (`gel-btn lobby-btn` — `.lobby-btn` now adds *only* the left-badge
-  layout; all the moulding is `.gel-btn`).
-- Every game menu's four buttons: Play CTA + How to Play take `gel-btn`; Settings + ← Back to the
-  Box take `gel-btn gel-btn-light`.
-
-**Do NOT extend it further.** Gameover buttons, Decision Modal confirm/cancel, in-game submit
-buttons, pills and toggles stay flat. The gel is the *menu shelf* signature — putting it on
-gameplay chrome dilutes that and fights the Motion Standard's transform-only tap feedback.
-
-**How it works (all four layers colour-AGNOSTIC — translucent white/black only, zero per-game
-values, so it sits over any Tailwind fill, `bg-[#hex]`, custom `*-cta` class or inline style):**
-1. body `background-image` gradient — crown light, deepening to the base
-2. `::before` — the specular cap: an inset pseudo-element with an elliptical bottom edge (a
-   gradient *stop* can only paint a flat stripe; the curved cap is what reads as a dome)
-3. `::after` — bounce-light off the base
-4. `box-shadow` — outer bezel + inner rims + the keycap 3-D drop
-
-`.gel-btn` sets `isolation: isolate` and paints `::before`/`::after` at `z-index: -1`, so the
-gloss sits **over the fill but under the button's own text** — menu buttons need no label-span
-wrapper (lobby buttons keep their `.lobby-btn-label` span for the badge layout + text-shadow).
-
-**`:active`** sinks `translateY(3px)` and **redeclares the full `box-shadow`** — an
-equal-specificity `:active` rule earlier in the file would otherwise strip the bezel mid-press.
-Press animates `transform` only (composited), so it needs no `transition-all` and nothing for the
-reduced-motion block to catch.
-
-**`.gel-btn-light`** overrides the body gradient + `::before` to a low-alpha gloss, keeping the
-colour-agnostic bezel/drop. Use it wherever a `gel-btn` sits on a **pale fill** (light brand tint,
-`bg-stone-200`) — at full strength the white cap blows the button out and the dark base gradient
-muddies it.
+> **Moved (4 Nov 2026) → `docs/rules/ui-menu-extras.md`** — read it when editing the four game-menu buttons.
+> **Headline rule:** `.gel-btn` (+ `.gel-btn-light` on pale fills) is for the menu shelf ONLY — never on gameover, Decision Modal or in-game buttons.
 
 ---
 
 ## Team Setup Screen Standard
-**Applies to:** Any game where two teams compete (2-team games only). Single-player or co-op games skip this.
 
-### Screen count
-- **Single-screen** (team names only, no individual player tracking): Screen 1 only. Example: LI5.
-- **Two-screen** (team names + individual player names / captain assignment): both screens. Example: SS, DSD.
-
----
-
-### Screen 1 — Team Names (`screen-[abbr]-setup`)
-
-**Section class:**
-```
-relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6
-```
-
-**Required structure:**
-```
-[absolute top-4 right-4 flex items-center gap-2: btn-open-sound 🔊 + ✕ exit button]
-[div.text-5xl role="img": game emoji]
-[div: h2.text-3xl.font-bold.text-stone-800 + p.text-stone-400.text-base.mt-1 hint]
-[div.flex.flex-col.gap-4.w-full.text-left:
-  [div: label + input]
-  [div: label + input]
-]
-[CTA button]
-```
-
-**Label style:** `text-stone-500 text-sm font-semibold uppercase tracking-widest block mb-1`
-Label text is game-specific ("Team 1", "Team A name", etc.) — structure matters, not exact wording.
-
-**Input style:**
-```
-w-full rounded-xl border-2 border-stone-200 bg-white px-4 py-3 text-lg text-stone-800
-placeholder-stone-300 focus:border-[brand-colour] focus:outline-none transition-colors
-```
-
-**Rules:**
-- No card wrapper around the inputs — bare `div.flex.flex-col.gap-4` only
-- Hint subtext MUST name the actual defaults — e.g. "Leave blank to use Alpha Echo & Bravo Zulu"
-- Placeholder text = the default name (e.g. `placeholder="e.g. Crayon Crew"`)
-- No team size pills on this screen
-- **Pre-fill rule:** only pre-fill if the user previously set a *custom* name — leave blank (show placeholder) if the value is still the default. Check: `value = teamNames[0] !== 'DefaultA' ? teamNames[0] : ''`
-
----
-
-### Screen 2 — Player Names (`screen-[abbr]-players`)
-**Only for games with individual player name inputs.** Omit entirely for games like LI5 that don't track per-player names.
-
-**Section class:**
-```
-relative flex flex-col items-start px-6 py-10 w-full max-w-sm mx-auto gap-5
-```
-
-**Required structure:**
-```
-[div.flex.justify-between.items-center.w-full: ← back / eyebrow label / btn-open-sound 🔊]
-[div: h2.text-2xl.font-bold.text-stone-800 heading + p.text-stone-400.text-sm.mt-1 subtitle]
-[div.w-full: "Team size" label + pills — NO card wrapper]
-[div.w-full: team-A coloured label + input container]
-[div.w-full: team-B coloured label + input container]
-[p error text — hidden by default]
-[CTA button]
-```
-
-**Team size label style:** `text-stone-600 text-sm font-semibold mb-2` (no card wrapper)
-**Team label style:** `text-xs font-semibold uppercase tracking-widest text-[brand-colour] mb-2`
-**Player input style:** same as Screen 1 input style above (use `text-base` instead of `text-lg`)
-
-**Rule:** Team size pills belong on Screen 2 — NOT on Screen 1.
-
----
-
-### Per-game reference
-| Game | Screen 1 heading | Default names | Input focus colour | Screen 2? |
-|------|-----------------|--------------|-------------------|-----------|
-| LI5 | "Name your Playgroups!" | Crayon Crew / Glue Stick Gang | `focus:border-pink-400` | No |
-| SS | "Establish Cover Identities" | Alpha Echo / Bravo Zulu | `focus:border-teal-400` | Yes |
-| DSD | "Name Your Task Forces" | SS Kraken / SS Leviathan | `focus:border-cyan-600` | Yes |
+> **Moved (4 Nov 2026) → `docs/rules/ui-screen-patterns.md`** — read it when building or editing a two-team game's setup / players screens.
+> **Headline rule:** Screen 1 = team names (no size pills); Screen 2 = player names (size pills live here); defaults named in the hint; pre-fill only custom names.
 
 ---
 
@@ -1144,11 +784,9 @@ All 18 games conform as of the 7 Aug 2026 sweep (`docs/deferred-work.md`).
 ---
 
 ## Vocab Lock Reuse Pattern
-The vocab lock is game-agnostic and available to any future game:
-- **Vocabulary check:** `window.activeExpansionData.vocab.has(normaliseWord(input))`  — covers primary words AND all `nono_list` terms
-- **Open vocab overlay:** `smOpenVocabOverlay()` — opens the terminal-style `#gm-vocab-overlay`
-- **"VIEW WORD LIST" button:** show `#gm-vocab-list-btn` reactively on vocab-lock failure; reset (hide) at the start of each turn's input setup
-- Any future game can wire a "VIEW WORD LIST" button to `smOpenVocabOverlay()` with zero changes to `secret-mode.js`
+
+> **Moved (4 Nov 2026) → `docs/rules/ui-screen-patterns.md`** — read it when wiring a vocab lock or word-list button in a game.
+> **Headline rule:** Check `window.activeExpansionData.vocab.has(normaliseWord(input))`; open the list with `smOpenVocabOverlay()` — no `secret-mode.js` change needed.
 
 ---
 ## Per-Game Reference

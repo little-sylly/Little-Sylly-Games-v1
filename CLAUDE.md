@@ -12,6 +12,14 @@
 > ⚠️ These live in `docs/rules/`, NOT `.claude/rules/`, **on purpose** — that folder is auto-loaded wholesale. Never move them back.
 - `docs/game-identities/[abbr].md` — the game's **identity doc**: pitch, premise, how to play, theme + flavour, terminology, settings, the player's journey (beat map + every UI string), Sylly Mode, art, table shape. **15–25 KB — read it WHOLE**, it is written to be read end to end. **Read when:** any non-technical work on one game — review, copy, an art brief, a game review, or just learning what the game is. Each section is tagged **free** / **paired** / **derived** — see the change contract in `docs/superpowers/specs/2026-08-22-game-identity-docs-design.md` § 5 before editing one. Copy blocks are machine-verified by `tools/verify-identity-docs.js`.
 - `docs/rules/per-game-classes.md` — the per-game class strings: brand colour, range/toggle/pill classes, Play CTA + how-to emoji + Sylly Mode name, `accentBtnClass`, step label, Settings tint. **Read when:** building or editing any game's UI and you need its exact class strings.
+- **Split out of the always-loaded rule files (4 Nov 2026)** — each leaves a stub with its headline rule in `ui-style.md` / `logic-engine.md`; **read the file only when the trigger applies** (every file ≤11 KB, read whole):
+  - `docs/rules/ui-motion.md` — Motion Standard (timing, easing, what may animate, RAF reduced-motion). **Read when:** writing/reviewing any transition, keyframe or RAF animation.
+  - `docs/rules/ui-howto-extras.md` — Art viewer (Pattern 2a), How-to tab bar, Tap-Hold, Practice tab. **Read when:** editing a How-to gallery/tab or Practice.
+  - `docs/rules/ui-menu-extras.md` — Menu Title Treatment, Gel Button Treatment. **Read when:** editing a game menu's title or its four buttons.
+  - `docs/rules/ui-lobby-layouts.md` — the four lobby layouts, Arcade room, jukebox, Workshop. **Read when:** touching any lobby layout.
+  - `docs/rules/ui-screen-patterns.md` — Round/Night intro, Team Setup screens, legacy sticky-footer + `h-screen` whitelist, Vocab Lock. **Read when:** building/editing those screens.
+  - `docs/rules/audio.md` — audio function catalogue + background music. **Read when:** adding/choosing a sound or touching music.
+  - `docs/rules/mp-bots-reconnect.md` — Bots/Solo and Client Reconnect. **Read when:** adopting bots or a `reconnect` hook, or touching seats/presence/rejoin.
 - `docs/art-authoring-guide.md` — the standalone (no-Claude-Code) artwork guide: skin pack vs core art, exact dimensions/aspect per game, the inventory for all seven render seams, `tools/make-skin-pack.ps1`, the offline install check. **Read when:** authoring/converting art, or answering "what art does game X need". Written for the owner to use alone — point them at it rather than re-deriving dimensions from CSS.
 - `docs/rules/word-expansion.md` — `data/words.json` content rules: difficulty tiers, Great Minds categories, the animals Broad Shield protocol, the `nono_list` Dual-Use Contract. **Read when:** editing words in `data/words.json` or a pack manifest's inline `words`.
 - `docs/rules/new-game-process.md` — three-stage protocol (brief → tech spec → implementation). **Read when:** starting a new game.
@@ -156,7 +164,7 @@ All symbols are global (no ES modules). Forward references work at runtime.
 2. `docs/game-identities/[abbr].md` — terminology, settings, the player's journey + UI copy, Sylly Mode, art. **Screen and overlay reference tables are step 1's job, not this one.** Respect the section's **free / paired / derived** tag — a paired change is not done until the code ships too.
 3. `CLAUDE.md` — SW version, Current Focus, key references
 4. `logic-engine.md` / `ui-style.md` — any new universal rule, audio function or engine/UI pattern
-5. `docs/implementation-notes/[abbr]-…md` (or `shared-…md` — see § Skill: Implementation Notes for which) — design decisions, bugs resolved, lessons
+5. `docs/implementation-notes/[abbr]-…md` (or `shared-…md` — see the `sylly-implementation-notes` skill for which) — design decisions, bugs resolved, lessons
 6. `docs/deferred-work.md` — grep it for what you just touched (file, function, screen ID, game
    abbreviation). If an entry describes something this fix already resolves, mark it
    `RESOLVED [date]` with a one-line note **in this same response**, then move it to
@@ -178,110 +186,24 @@ All symbols are global (no ES modules). Forward references work at runtime.
 - **Lean Context:** Avoid repetitive explanations. Assume technical competence.
 - **Australian English:** Use Australian spelling (e.g., "colour", "synthesised"). Metric units only.
 - **Session Cleanup:** If a sub-task is complete, suggest running /compact to clear history.
-- **End every response with "what's next":** 1–2 sentences naming what was just completed AND what comes next (name upcoming phases for multi-phase work). Applies even to short responses — the owner may return after a gap with no context. The closing line must carry **all three** explicitly, never implied: the next task, the **model + effort** it warrants (from the table below), and the **session call** — `same session` / `/compact then continue` / `fresh session` (second table).
-
-**Model & effort picker (for the "what's next" line):**
-
-| Task shape | Model | Effort | Why |
-|-----------|-------|--------|-----|
-| Single known fix, exact file/line already identified | Sonnet | low–medium | Mechanical edit, no design judgement needed |
-| Bug/polish following `task-bug-polish.md` intake | Sonnet | medium | Bounded scope, established pattern to follow |
-| Doc-only updates (code-map, impl-notes, decision-log) | Sonnet or Haiku | low | Pure transcription/summarising, no logic risk |
-| Content authoring (words.json, categories, copy) | Sonnet | medium | Needs the Consistent Word Expansion rules applied, not novel reasoning |
-| New game implementation (Stage 3 build) | Opus or Fable | high | Multi-file, cross-cutting (MP handlers, render seam, checklist) — mistakes compound silently |
-| Architecture/strategic decision (spec write, MP pattern design, refactor plan) | Opus or Fable | high–xhigh | Wrong call here becomes a decision-log entry and future rework |
-| Phase-gate audit (Protocol A/B/C, studio sweep) | Opus or Fable | high | Needs to catch subtle drift across many files, not just pattern-match |
-| Large exploratory search ("find every place X happens") | dispatch to Explore/general-purpose subagent | medium | Keeps the fan-out out of the main context window regardless of which model runs it |
-| Quick lookup / "what does X do" | Haiku or Sonnet | low | No edit risk, cost matters more than depth |
-
-Default when unsure: **Sonnet, medium** — escalate to Opus/Fable + high only when the task is architectural, touches 3+ files with cross-cutting rules (MP sync, render seams), or is a phase-gate audit. Escalating "just in case" burns budget for no benefit on mechanical tasks; under-calling it on an architectural task risks a silent rule violation that surfaces as a bug days later.
-
-**Session picker (same session / compact / fresh):**
-
-One trade: a fresh session re-pays the **baseline** but starts clean; continuing pays the **entire transcript every turn** whether or not it still matters. The test is not "how long have we been going" — it is **how much of what's loaded is still relevant to the next task**.
-
-| Signal | Call | Why |
-|--------|------|-----|
-| Next task is the **same game / same files** already read into context | **same session** | Re-reading those slices in a fresh session costs more than carrying them |
-| Next task is a **direct follow-on** (fix → test it, build → document it) | **same session** | The reasoning behind the change is the context |
-| Sub-task done, next task is **adjacent but narrower** (e.g. finished a PKO fix, now writing PKO impl-notes) | **/compact then continue** | Keeps the conclusions, drops the exploration that produced them |
-| **Switching games** (PKO work → FRT bug) | **fresh session** | Nothing loaded transfers; you're paying rent on dead context |
-| **Switching mode of work** (build → doc-only, code → design/spec) | **fresh session** | Different rule files, different reading pattern |
-| **Auto-compact has already fired once** | **fresh session** | The cheap context is gone. A summary-of-a-summary is worse than a clean start with a pointer to the impl-notes |
-| A **big file slice was read** and is now irrelevant (a 3k-line `index.html` window, a `code-map.md` section) | **fresh session** | That slice re-costs on every turn forever |
-| Escalating model **up** for the next task (Sonnet → Opus) | **fresh session** | Opus turns are the expensive ones — don't feed them a transcript of Sonnet's exploration |
-| Dropping model **down** for the next task (Opus → Sonnet/Haiku) | **same session** ok | Cheap turns can afford the carried context |
-
-Default when unsure: **fresh session, with an explicit pointer** — name the file(s) and doc the new session should read first. **Never start fresh without one.** If writing that pointer surfaces something not recorded anywhere, that's a Documentation Integrity Protocol miss — stay put and finish the docs first.
-
-### 🤝 Handoff Prompt (mandatory whenever the session call is `fresh session`)
-
-**Rule:** Any response closing with **fresh session** MUST end with a ready-to-paste handoff prompt in a fenced code block — no exceptions, no "let me know if you want one". A `fresh session` call without a handoff block is an incomplete response.
-
-**The handoff is a pointer, not a summary** — where to read, not what was read. Past ~15 lines it is smuggling facts that belong in a doc; put them in the impl-notes and link there instead.
-
-**Template:**
-
-````markdown
-```
-**Task:** [one sentence — the single next action, not the whole roadmap]
-
-**Read first:** [1–3 files max, with the Grep term or offset if it's a big file]
-- `docs/implementation-notes/[abbr]-implementation-notes.md` — [why: which entry matters]
-- `js/games/[abbr].js` — Grep `[functionName]`
-
-**State:** [what is already done + what is verifiably true right now — SW version, which
-verification harnesses pass, what shipped. One or two lines.]
-
-**Constraints / gotchas:** [only the ones that would cause a wrong turn — e.g. "host-as-participant
-means the host path proves nothing about clients"; "re-run tools/verify-pko-loop.js after any
-applier change". Omit the section entirely if there are none.]
-
-**Model + effort:** [from the picker table]
-```
-````
-
-**Read first** and **Constraints / gotchas** are the two fields that pay for the handoff — the first
-(file *plus* Grep term, 3 files ceiling) stops the new session full-reading `index.html` or
-`code-map.md`; the second stops it repeating the last one's dead end. Keep
-**Task** to one action, and **State** to what a fresh session cannot infer (SW version, which
-harnesses pass, what shipped).
-
-**Do NOT include:** what was tried and rejected (impl-notes), code snippets (it reads the real file), or anything already in CLAUDE.md / the three rule files — those load automatically.
+- **End every response with "what's next":** 1–2 sentences naming what was just completed AND what comes next (name upcoming phases for multi-phase work). Applies even to short responses — the owner may return after a gap with no context. The closing line must carry **all three** explicitly, never implied: the next task, the **model + effort** it warrants, and the **session call** — `same session` / `/compact then continue` / `fresh session`.
+  - **Defaults:** model **Sonnet, medium** — Opus/Fable + high only for architectural work, 3+ files under cross-cutting rules (MP sync, render seams) or a phase-gate audit. Session call **fresh session with an explicit pointer** when unsure (never start fresh without one); a direct follow-on or the same game's files already loaded stays `same session`.
+  - **`fresh session` ⇒ a ready-to-paste handoff block is mandatory** (a fenced pointer, not a summary, ≤15 lines: Task · Read first · State · Constraints · Model + effort). The full picker tables and the handoff template live in the **`sylly-whats-next` skill** — invoke it when choosing a non-default model/session call or writing a handoff.
 
 ---
 
-## 🎯 Skills
+## 🎯 Triggers (on-demand procedures)
 
-### 🎯 Skill: PWA Guardian
-**Trigger:** Any new feature that fetches data, loads assets, or changes app state.
-See `@logic-engine.md` for the full checklist and SW asset list.
+One line each — open the doc when the trigger applies; none of these is loaded by default.
 
-### 🎯 Skill: Consistent Word Expansion
-**Trigger:** Adding or editing words in `data/words.json`, or a pack manifest's inline `words`.
-**Action:** Read `docs/rules/word-expansion.md` (on-demand) and follow it. Note the `nono_list`
-**Dual-Use Contract** — each slot means something different in Like I'm Five vs Natural Selection,
-so a careless edit silently degrades one of the two games.
-
-### 🎯 Skill: Add New Expansion Pack
-**Trigger:** Adding a new secret mode expansion (new theme/word bank).
-**Action:** Follow `docs/expansion-guide.md` — 4-step checklist. Do NOT patch plugin files (the proxy architecture handles everything).
-
-### 🎯 Skill: Implementation Notes
-**Trigger:** Any non-trivial bug fix, design decision, or architectural lesson — in a new game build, maintenance, or an audit of any game **or of shared/engine code**.
-**Action:**
-1. **Pick the right file first — by where the root cause lives, not where it was found.** A single game's own code → `docs/implementation-notes/[abbr]-implementation-notes.md` (create if missing; four sections: Design Decisions / Bug Index / Multiplayer Lessons / Template Gaps). `engine.js`, `engine-multiplayer.js`, `secret-mode.js`, `js/lib/*`, `sw.js`, or a cross-cutting rule → `shared-implementation-notes.md`, **even when found while testing one game**. A fix spanning both gets the writeup in exactly one file (whichever owns the bug) and at most a one-line pointer in the other.
-2. Entry shape: **What happened → Root cause → Lesson**.
-3. At the end of an audit/testing session, review Template Gaps and flag anything that should fold into `logic-engine.md`, `ui-style.md`, or the tech template.
-**When:** in the **same response** that completes the fix — never a follow-on session. If the fix is done and this hasn't run, the session isn't complete.
-**Cross-reference:** before a new game's tech spec, read Template Gaps in *all* impl-notes files (including shared) and resolve what applies.
-
-### 🎯 Skill: Phase Gate — Studio Audit
-**Trigger:** After completing a game or entering a new phase; before writing a phase snapshot; before a new game's first line of JS.
-**Action:** Read `docs/rules/phase-audit.md` (on-demand) and run the protocol that applies —
-**A** Phase Gate (after a completed game/phase, and before its snapshot), **B** Skeleton-First
-(before a new game's first line of code), **C** Studio Sweep (before a new game's Phase 1 brief;
-must pass before B Step 1). Each gates the step named beside it.
+| Trigger | Do this |
+|---------|---------|
+| New feature that fetches data, loads assets or changes app state | **PWA Guardian** — `logic-engine.md` § PWA Guardian (checklist + SW asset list) |
+| Adding/editing words in `data/words.json` or a pack manifest's inline `words` | **Consistent Word Expansion** — read `docs/rules/word-expansion.md`. The `nono_list` **Dual-Use Contract** means each slot does something different in Like I'm Five vs Natural Selection; a careless edit silently degrades one of them |
+| New Secret Mode expansion (theme/word bank) | **Add New Expansion Pack** — `docs/expansion-guide.md`, 4 steps. Do NOT patch plugin files (the proxy architecture handles everything) |
+| Any non-trivial bug fix, design decision or architectural lesson (any game **or** shared/engine code) | **Implementation notes** — invoke the **`sylly-implementation-notes` skill**; runs in the **same response** that finishes the fix (the file is chosen by where the root cause lives) |
+| After a completed game/phase, before a phase snapshot, before a new game's first line of JS | **Phase Gate — Studio Audit** — read `docs/rules/phase-audit.md`, run Protocol **A** (phase gate), **B** (skeleton-first) or **C** (studio sweep, before a new game's Phase 1 brief; must pass before B Step 1) |
+| The owner asks to journal / reflect on the project | **`sylly-journey` skill** — writes only to git-ignored `wip/journey/` |
 
 ---
 
