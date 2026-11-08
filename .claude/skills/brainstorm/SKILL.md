@@ -15,6 +15,13 @@ knows **how**. The safety net is the harness set (`docs/rules/harnesses.md`), no
 
 1. **Explore context** — read-only. The relevant identity doc, `docs/code-map.md` slice (Grep, never whole),
    `docs/deferred-work.md` hits, and Template Gaps in the impl-notes. New game: also `docs/rules/new-game-process.md`.
+1b. **World before mechanics (new game or any game's UI pass).** A Sylly game is a *world*, not a
+   ruleset with a skin — that is what makes it distinct within the suite and what keeps a familiar
+   mechanic from reading as a clone. Before specifying screens: is the world brief done (narrator,
+   setting, mood) and have **three action-screen directions** been designed (Opus, a Design canvas) and
+   one picked? If not, stop and do that first (`new-game-process.md` § Stage 1b, revamp spec § 17). Let
+   the chosen world **revise brand colour, terminology and the brief** — never spec on day-1 identity
+   choices the visuals will outgrow. One game per session.
 2. **Write back your understanding** — a short note: intended outcome, who it is for, constraints, success
    criteria. Separate what the owner said from your assumptions. Wait for correction.
 3. **Ask clarifying questions** — one at a time, only the ones the code can't answer. Prefer multiple choice.

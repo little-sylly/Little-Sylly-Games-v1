@@ -38,7 +38,7 @@ Played in living rooms, cars, cafes and on calls, often one-handed on a phone, s
 
 ## Product Principles
 1. Seconds to play: nothing between opening the app and a round beginning.
-2. Each game is its own world, but the shelf is unmistakably one family.
+2. Each game is its own world, but the shelf is unmistakably one family. The world is the point: setting, narrator, voice and visuals carry a game's identity, so a familiar mechanic still feels like nothing else out there. Design the world (and pick a visual direction) before building screens; let it reshape brand colour and terminology when it earns it.
 3. Phone in one hand: reachable controls, big targets, readable at a glance mid-round.
 4. Works offline and stays light: no dependencies, small installs.
 5. Playful, never forced: personality lives in the words and details.

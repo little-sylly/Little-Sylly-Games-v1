@@ -143,6 +143,14 @@ All symbols are global (no ES modules). Forward references work at runtime.
 
 ---
 
+## 🌍 North Star — every game is a world (9 Nov 2026)
+Distinctness comes from **world-building**, not mechanics. Several of our games use familiar
+mechanics; a rich world with matching visuals is what makes each one *ours* and unlike the others on
+the shelf. So: **world first → three visual directions (Opus) → owner picks → the world may revise
+brand colour, terminology and the brief → only then build** (Sonnet builds from board + plan). Applies
+to new games (`new-game-process.md` § Stage 1b) and every revamp pass (UI revamp spec § 17). One game
+per session. A screen that could belong to any game is not done.
+
 ## 🧠 How to Work
 - **Visualise first.** Describe the logic/flow in plain English before writing code. For a genuinely
   new pattern, lead with a real-world analogy and one sentence on why this way over the alternative.

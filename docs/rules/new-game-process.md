@@ -50,6 +50,14 @@ STAGE 1 — Design Brief        STAGE 2 — Technical Spec       STAGE 3 — Imp
 
 **Do not hand the brief to Claude Code until all gate items are checked.**
 
+### Stage 1b — World + Directions (added 9 Nov 2026)
+
+Before the tech spec, **Opus** designs the game's world and **three directions** for its action
+screens (a Design canvas of phone-size boards). The owner picks or mixes. A strong visual world may
+change the **brand colour, terminology or the brief itself** — revise them now, in the brief, not
+after the build. One game per session. Why: LI5's pink and GM's radio language were day-1 choices
+the revamp outgrew (`docs/superpowers/specs/2026-11-08-ui-revamp-design.md` § 17).
+
 ---
 
 ## Stage 2 — Technical Spec

@@ -422,6 +422,52 @@ universal rule; seats-freeze wording), `ui-style.md` (one-brand rewording; stubs
 - **Settings Card Standard → on-demand** — after the revamp reworks it.
 - **Recurring characters / mascots** across games — not now; per-game worlds first.
 
+## 17. Addendum (9 Nov 2026) — the Directions step, and the first two picks
+
+### 17.1 Process change — world first, then directions, then build
+
+Each game's pass gains a **Directions** step between R2 and R4, and the model split changes:
+
+1. **Opus** writes the world brief (R2) and produces **three directions** for the action screens as a
+   Design canvas (phone-size 375×667 boards, tweakable states, inline values). **One game per
+   session** — doing LI5 and GM together (9 Nov) left neither room to explore.
+2. **Owner picks** (or mixes). A strong world can **reopen identity decisions**: brand colour,
+   terminology, Intro copy, even the brief. That review is **in scope** for the pass, not a
+   follow-up; changes land in the identity doc (paired sections) before building.
+3. **Opus** writes a short build plan from the chosen board (screen inventory mapping, states, motion).
+4. **Sonnet** builds R4–R10 from board + plan.
+
+Same rule for a **new game**: a visual-world/directions step before the tech spec, so a game is never
+built on a day-1 identity the design later outgrows (`docs/rules/new-game-process.md` § Stage 1b).
+
+Canvases: LI5 https://claude.ai/artifact/8YuBcu4fLveMY4XtF9RbJz ·
+GM https://claude.ai/artifact/XbfGxB5hXCRPbJU7z4b9x6 · local copies (git-ignored)
+`wip/revamp/mockups/{li5,gm}/` — `.dc.html` boards, every value inline.
+
+### 17.2 LI5 — picked: **B · Chalkboard**, with **A's passed-note buzz**
+
+- The chalkboard establishes classroom + teacher on its own; the Intro's teacher lives in the same room.
+- Keep from the shared moves: tap the clock to pause (End turn inside Time Out); buzz names the word
+  and lights it in the list; describer answers Nay / Wave off; numbered first-turn coaching.
+- Buzz = A's folded note (single → note; crowd → stacked notes + wiggle), not B's pinned slip.
+- **Scope added at R2:** (1) **brand colour** — pink was never chosen against a world; chalkboard
+  green (or a classroom palette) is a candidate. Changing it touches every brand surface (CSS
+  classes, `per-game-classes.md`, `DESIGN.md`, `getMuteToggleOnClass`/`updateSliderTheme` maps).
+  (2) **terminology** — re-voice the game's terms to the stronger classroom world (identity doc T5–T7b,
+  paired copy; `verify-identity-docs.js`).
+
+### 17.3 GM — picked: **B's concept, re-skinned as thought bubbles**; C's history as a **word cloud**
+
+- Each word is a **thought bubble**; your clue goes in the **overlap**; a sync **merges** the bubbles.
+  Replaces the radio/frequency look (A was lovely but drifted from the concept).
+- History: not a ladder — a **word cloud** of every earlier word, the current pair largest and
+  "loudest", older words smaller and fainter, placed loosely. Hard to mock statically — prototype it.
+- **Terminology:** drop radio/frequency/station language; keep **mind / wavelength / sync /
+  connection** (Neural Link, Mind Meld stay candidates). Settings title, gates, Sever Link, Session
+  Terminal etc. all reviewed at R2.
+- Brand colour: purple stays (mind-reading fits); a better purple shade may be chosen, and the
+  violet/purple split (gm.md T7c) is resolved in the same move.
+
 ## 16. Owner decisions (this brainstorm, 8 Nov 2026)
 
 Revamp before Practice; Practice folds into How to Play · structure C (extract on the second use) ·

@@ -19,6 +19,9 @@ Detail: pointer to the canonical doc (snapshot / impl note / spec / memory).
 ```
 
 
+## 2026-11-09 — World first: a Directions step before building any game's screens (Process)
+**Decision:** every revamp pass and every new game gets an Opus "Directions" step (world brief → three action-screen directions on a Design canvas → owner picks → build plan); Sonnet builds from board + plan. A strong world may reopen brand colour, terminology and the brief, and that is in scope. One game per session. First picks: LI5 → Chalkboard + passed-note buzz (brand colour and terms under review); GM → thought bubbles with a word-cloud history, radio language dropped. **Why:** owner — the chalkboard alone established LI5's classroom; building on day-1 identity choices gives half-built worlds. **Changed:** UI revamp spec § 17, `new-game-process.md` § Stage 1b. Nothing built. **Detail:** spec § 17; boards in `wip/revamp/mockups/`.
+
 ## 2026-10-22 — The older cabinets get the arcade guidelines; Deep-Sea Sweep becomes a dive (Strategy)
 **Decision:** six of the first seven cabinets reworked to the prompt's soft guidelines (one new thing per stage, timed surges, power-ups, an announcer, coach lines); Deep-Sea Sweep's three fixed sea-state boards are replaced by one staged dive with three hull plates and a score board (not per-state times); Chop Salad's identity is a salad bowl per course plus Fruit Salad's Fruity Personalities as behaviours. **Why:** owner — the arcade should feel loud, escalating and replayable; several cabinets were faithful clones with no build-up. **Changed:** six `js/arcade/*.js`, two room blurbs in `js/lobby/arcade.js`, `tools/smoke-arcade.js` (board name), `tools/mutate-arcade.js` (anchored mutation), SW v263. **Detail:** `shared-implementation-notes.md` DD-65, BUG-28.
 
