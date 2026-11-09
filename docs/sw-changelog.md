@@ -3,6 +3,13 @@
 Historical SW release notes, moved out of `CLAUDE.md` (1 Aug 2026) so they stop loading into every session.
 The **current** version and its notes stay in `CLAUDE.md` § Current Focus — append the outgoing entry here on each bump.
 
+## v264 — UI revamp Stage 0: the Intro, the entry seam, the tooling (9 Nov 2026). Every route into a game now goes through
+`mpEnterGame()`; a game that opts in with `MP_GAME_CONFIGS[abbr].intro` opens the engine-owned `screen-game-intro` (`js/engine-intro.js`):
+narrator beats → brief → Line-up (teams + Unassigned, host powers, balance gate) → Ready, then one settled `MP_INTRO_DONE`. Four
+engine-generic packets; seats re-freeze at DONE; Play again skips the beats. **No game has an intro yet** — every unrevamped game passes
+through unchanged. New: `verify-game-intro.js` (142) + `mutate-game-intro.js` (22/22), `verify-tv-labels.js`, `capture-screens.js`, `?fps`.
+Rules `docs/rules/ui-revamp.md`; tracker `docs/ui-revamp-rollout.md`. Detail: `shared-implementation-notes.md` DD-66.
+
 ## v263 — six arcade cabinets get the arcade treatment (22 Oct 2026). Owner review of cabinets 1–7 against the
 prompt's guidelines (variety, escalation, madness, teach in play). DEEP-SEA SWEEP is a dive (sectors, hull plates, pearls / air /
 sonar / reef / jammers one per sector); CHOP SALAD fills a salad bowl per course and wakes one Fruity Personality each course,

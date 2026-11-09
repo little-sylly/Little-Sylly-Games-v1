@@ -1,0 +1,94 @@
+/* ═══ Like I'm Five — the chalkboard world (UI revamp pilot S2) ═══════════════
+   Scene palette, not brand and not dark mode: matte slate, timber, cream, and pink as
+   the one coloured chalk. transform / opacity / clip-path only; no RAF anywhere (the
+   motion lives in WAAPI inside js/games/li5-scene.js). Reduced motion is handled in
+   JS (instant writes) and by the global block for the CSS keyframes below. */
+
+.li5-board {
+  --li5-slate: #2f4a3c;
+  --li5-timber: #a9733f;
+  --li5-timber-dark: #7d5229;
+  --li5-chalk: #f4f1e8;
+  --li5-pink: #f9a8d4;
+  position: relative;
+  width: 100%; height: 100%;
+  box-sizing: border-box;
+  container-type: inline-size;
+  display: flex; flex-direction: column; justify-content: center;
+  padding: 1.1rem 1rem 1.6rem;
+  background-color: var(--li5-slate);
+  background-size: 128px 128px;
+  border: 0.6rem solid var(--li5-timber);
+  border-radius: 1.25rem;
+  box-shadow: inset 0 0 0 2px var(--li5-timber-dark), inset 0 4px 14px rgba(0,0,0,.35);
+  overflow: hidden;
+  color: var(--li5-chalk);
+}
+
+.li5-tag {
+  position: absolute; top: 0.5rem; left: 0.75rem;
+  margin: 0;
+  font-size: 0.7rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--li5-pink);
+  opacity: 0.9;
+}
+
+.li5-chalk {
+  position: relative;
+  margin: 0;
+  font-size: clamp(1rem, 6cqw, 1.5rem);
+  font-weight: 600;
+  line-height: 1.25;
+  text-wrap: balance;
+  text-shadow: 0 0 1px rgba(244,241,232,.55);
+  /* the chalk grain: a faint tooth over the lettering */
+  -webkit-font-smoothing: antialiased;
+}
+.li5-chalk-word { display: inline-block; }
+
+/* Chalk tray along the bottom edge. */
+.li5-tray {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  height: 0.9rem;
+  background: linear-gradient(var(--li5-timber), var(--li5-timber-dark));
+  border-top: 1px solid rgba(0,0,0,.3);
+  display: flex; align-items: flex-start; gap: 0.35rem; padding-left: 0.9rem;
+}
+.li5-stick {
+  width: 1.4rem; height: 0.45rem; margin-top: -0.3rem;
+  border-radius: 0.2rem; background: var(--li5-chalk);
+  transform: rotate(-3deg);
+}
+.li5-stick-pink { background: var(--li5-pink); width: 1.1rem; transform: rotate(2deg); }
+.li5-eraser {
+  margin-left: auto; margin-right: 0.9rem; margin-top: -0.4rem;
+  width: 2rem; height: 0.55rem; border-radius: 0.15rem;
+  background: linear-gradient(#e5d3b0 45%, #3b3b3b 45%);
+}
+
+/* The duster: a felt block sweeping across the board while a line is rubbed out. */
+.li5-duster {
+  position: absolute; left: 0; top: 18%;
+  width: 34%; height: 5.5rem; max-height: 60%;
+  border-radius: 0.5rem;
+  background: linear-gradient(#e5d3b0 55%, #3b3b3b 55%);
+  box-shadow: 0 4px 10px rgba(0,0,0,.35);
+  transform: translateX(-130%);
+  pointer-events: none;
+  will-change: transform;
+}
+
+.li5-dust {
+  position: absolute; width: 5px; height: 5px; border-radius: 9999px;
+  background: var(--li5-chalk); opacity: 0;
+  pointer-events: none;
+}
+
+/* Tally marks (li5TallySvg): strokes draw in; static when reduced motion is on. */
+.li5-tally { display: inline-block; vertical-align: middle; }
+.li5-tally path {
+  fill: none; stroke: var(--li5-chalk, #f4f1e8); stroke-width: 2.4; stroke-linecap: round;
+  stroke-dasharray: 1; stroke-dashoffset: 0;
+}
+.li5-tally-draw path { animation: li5TallyDraw 200ms ease-out both; }
+@keyframes li5TallyDraw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }

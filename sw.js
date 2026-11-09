@@ -1,7 +1,7 @@
 // Little Sylly Games — Service Worker v236
 // All assets are local — no external CDN URLs, no opaque response issues.
 
-const CACHE_NAME = 'sylly-games-v264';
+const CACHE_NAME = 'sylly-games-v265';
 
 const PRECACHE_URLS = [
   './',
@@ -11,6 +11,7 @@ const PRECACHE_URLS = [
   'fonts/fredoka-latin.woff2',
   'fonts/fredoka-latin-ext.woff2',
   'js/engine.js',
+  'js/games/li5-scene.js',
   'js/games/li5.js',
   'js/games/great-minds.js',
   'js/games/secret-signals.js',
@@ -54,6 +55,7 @@ const PRECACHE_URLS = [
   // below — a phone that never opens the jukebox never downloads a byte of it.
   'css/jukebox.css',
   'css/arcade.css',
+  'css/li5.css',
   'js/lobby/jukebox.js',
   'js/lobby/arcade.js',
   // The Workshop as a full room (SW v234) — design B, ported from wip/workshop-lab/.

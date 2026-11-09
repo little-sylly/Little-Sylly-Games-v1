@@ -57,6 +57,8 @@ function addLi5(d, seed) {
   d.S.document.getElementById = function (id) { const e = orig.call(this, id); els.set(id, e); return e; };
   d.els = els;
   d.domText = () => [...els.values()].map(e => [e.textContent, e.innerHTML, e.value].join(' ')).join('\n');
+  // li5-scene.js draws on a real DOM; the mock has none, so the Intro gets a no-op board here.
+  d.run('const Li5Scene = { mount() {}, beat() {}, stop() {} };');
   d.run(li5Src);
   d.run('mpWireIntro();');                 // engine-intro.js wires on DOMContentLoaded, which a vm never fires
   // engine.js resetToLobby()/resetToMenu() call stopTimer() + li5Teardown() — mirrored here.

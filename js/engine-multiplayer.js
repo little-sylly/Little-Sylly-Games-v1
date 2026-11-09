@@ -87,7 +87,8 @@ const MP_GAME_CONFIGS = {
     // intro restates them (pilot spec § 2.5). No Line-up in a Team Lobby (engine rule).
     intro: {
       template: 'intro-li5',
-      brief:    () => window.syllyMultiplayerMode === 'single' ? 'ptp' : window.mpLobbyStyle === 'team' ? 'tlm' : 'default',
+      scene:    () => Li5Scene,
+      brief:   () => window.syllyMultiplayerMode === 'single' ? 'ptp' : window.mpLobbyStyle === 'team' ? 'tlm' : 'default',
       lineup:   { type: 'teams', teamNames: ['Crayon Crew', 'Glue Stick Gang'], minPerTeam: 2, balanced: false },
     },
     reconnect: {
