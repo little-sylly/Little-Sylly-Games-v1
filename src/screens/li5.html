@@ -428,38 +428,51 @@ Let's Go Already!
     </div>
   </div>
 
-  <!-- ⑥ GAME OVER screen — final scores, winner announcement -->
-  <section id="screen-gameover" style="display:none" class="relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6">
-    <div class="absolute top-4 right-4 flex items-center gap-2">
-      <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
-      <button id="btn-gameover-exit" class="text-xl text-stone-500 font-bold active:scale-90 transition-transform duration-100">✕</button>
-    </div>
-    <div class="text-6xl" role="img" aria-label="Trophy">🏆</div>
-    <h2 class="text-3xl font-bold text-stone-800">Class Dismissed!</h2>
-
-    <!-- Final scoreboard -->
-    <div class="flex gap-4 w-full">
-      <div id="gameover-card-team1" class="team-box flex-1 rounded-2xl bg-white shadow-sm p-4 cursor-pointer active:opacity-75 transition-opacity">
-        <p id="gameover-name-team1" class="text-stone-500 text-sm font-semibold truncate">Team 1</p>
-        <p id="gameover-pts-team1" class="text-5xl font-bold text-stone-800">0</p>
-        <p class="text-stone-300 text-xs mt-1">View History ›</p>
-      </div>
-      <div id="gameover-card-team2" class="team-box flex-1 rounded-2xl bg-white shadow-sm p-4 cursor-pointer active:opacity-75 transition-opacity">
-        <p id="gameover-name-team2" class="text-stone-500 text-sm font-semibold truncate">Team 2</p>
-        <p id="gameover-pts-team2" class="text-5xl font-bold text-stone-800">0</p>
-        <p class="text-stone-300 text-xs mt-1">View History ›</p>
-      </div>
+  <!-- ⑥ GAME OVER — Class Dismissed (LI5 pilot S6). The bell, the chalked heading, a card per group
+       (tally + total + a gold star on the winner, on both in a tie), Report cards ›, One More Go?.
+       showGameOver() owns EVERY element here. data-tv public: nothing private on it. -->
+  <section id="screen-gameover" data-tv="public" style="display:none"
+    class="li5-desc-screen flex flex-col w-full max-w-sm mx-auto px-3 py-1 gap-1 text-center">
+    <div class="flex items-center justify-end gap-1">
+      <button class="btn-open-sound text-xl leading-none min-h-11 min-w-11 flex items-center justify-center" aria-label="Sound">🔊</button>
+      <button id="btn-gameover-exit" class="text-xl leading-none text-stone-500 font-bold active:scale-90 transition-transform duration-100 min-h-11 min-w-11" aria-label="Leave">✕</button>
     </div>
 
-    <!-- Winner line -->
-    <p id="gameover-result" class="text-2xl font-bold text-pink-500"></p>
+    <div id="li5-go-board" class="li5-board li5-desc-board li5-go-board" data-result="">
+      <div class="li5-go-head">
+        <svg class="li5-go-bell" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5a1.4 1.4 0 0 1 1.4 1.4v.6c3 .7 4.8 3.2 4.8 6.3v3.3l1.8 2.7v1H4v-1l1.8-2.7v-3.3c0-3.1 1.8-5.6 4.8-6.3v-.6A1.4 1.4 0 0 1 12 2.5zM9.7 19.5h4.6a2.3 2.3 0 0 1-4.6 0z"/></svg>
+        <h2 id="li5-go-title" class="li5-chalk li5-go-title">Class Dismissed!</h2>
+        <p id="gameover-result" class="li5-chalk li5-go-result"></p>
+        <p id="gameover-early-end" style="display:none" class="li5-go-early"></p>
+      </div>
 
-    <!-- Early end message (word exhaustion) -->
-    <p id="gameover-early-end" style="display:none" class="text-stone-400 text-sm italic"></p>
+      <div class="li5-go-groups">
+        <div id="li5-go-row-0" class="li5-go-row">
+          <button id="gameover-card-team1" class="li5-go-card">
+            <span id="gameover-name-team1" class="li5-go-name">Team 1</span>
+            <span id="li5-go-tally-0" class="li5-gate-marks"></span>
+            <span id="gameover-pts-team1" class="li5-go-pts">0</span>
+            <span class="li5-go-rc">Report cards ›</span>
+          </button>
+          <svg id="li5-go-star-0" class="li5-go-star" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.3 5.9 20.8l1.4-6.8L2.2 9.3l6.9-.8z"/></svg>
+        </div>
+        <div id="li5-go-row-1" class="li5-go-row">
+          <button id="gameover-card-team2" class="li5-go-card">
+            <span id="gameover-name-team2" class="li5-go-name">Team 2</span>
+            <span id="li5-go-tally-1" class="li5-gate-marks"></span>
+            <span id="gameover-pts-team2" class="li5-go-pts">0</span>
+            <span class="li5-go-rc">Report cards ›</span>
+          </button>
+          <svg id="li5-go-star-1" class="li5-go-star" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.3 5.9 20.8l1.4-6.8L2.2 9.3l6.9-.8z"/></svg>
+        </div>
+      </div>
 
-    <button id="btn-play-again" class="min-h-14 w-full rounded-2xl bg-pink-500 hover:bg-pink-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
-      One More Go?
-    </button>
+      <div class="li5-desc-tray li5-tray-slim">
+        <button id="btn-play-again" class="min-h-14 w-full rounded-2xl bg-pink-500 hover:bg-pink-600 active:scale-95 text-white text-xl font-semibold transition-transform duration-100">
+          One More Go?
+        </button>
+      </div>
+    </div>
   </section>
 
   <!-- Custom Deck sub-panel -->
@@ -530,39 +543,34 @@ Let's Go Already!
 
   <!-- Play-again confirmation overlay -->
   <div id="li5-play-again-overlay" style="display:none" class="fixed inset-0 bg-black/60 z-[90] flex items-center justify-center px-6">
-    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-pink-300">
-      <div class="text-4xl">📚</div>
-      <h3 class="text-xl font-bold text-stone-800">New Playgroup?</h3>
-      <p class="text-stone-400 text-sm">Your stars and word pile will be packed away.</p>
+    <div class="overlay-modal-inner li5-modal w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center">
+      <div class="text-4xl">🧽</div>
+      <h3 class="li5-modal-head text-xl font-bold">Wipe the board?</h3>
+      <p class="li5-modal-sub text-sm">Every tally and word gets rubbed out.</p>
       <button id="btn-li5-confirm-new-game" class="min-h-14 w-full rounded-2xl bg-pink-500 hover:bg-pink-600 active:scale-95 text-white text-lg font-semibold transition-all duration-150">
-Let's do it!
-</button>
-      <button id="btn-li5-cancel-new-game" class="min-h-11 w-full rounded-2xl bg-stone-100 hover:bg-stone-200 active:scale-95 text-stone-500 text-base font-semibold transition-all duration-150">
+        Wipe it!
+      </button>
+      <button id="btn-li5-cancel-new-game" class="min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 text-lg font-semibold transition-all duration-150">
         Not yet!
       </button>
     </div>
   </div>
 
-  <!-- Round Review overlay — slide-up sheet, appears after each turn -->
-  <div id="review-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[90] flex items-end justify-center">
-    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl px-5 pt-5 pb-5 flex flex-col">
-
-      <!-- Header -->
-      <div class="text-center mb-1">
-        <p id="review-team-label" class="text-stone-400 text-xs font-semibold uppercase tracking-widest"></p>
-        <h3 class="text-xl font-bold text-stone-800 mt-0.5">Report Card</h3>
-        <p id="review-score-delta" class="text-pink-500 font-semibold text-sm mt-0.5"></p>
+  <!-- Report Card — the board slides up after each turn (LI5 pilot S6). The rows are chalk ticks and
+       crosses; Pinky Swear rows flip for the describer and the host only (renderReviewList). -->
+  <div id="review-overlay" style="display:none" class="fixed inset-0 bg-black/50 z-[90] flex items-end justify-center">
+    <div class="overlay-data-inner settings-slide-up li5-sheet li5-board w-full max-w-sm rounded-t-3xl flex flex-col">
+      <div class="li5-sheet-head">
+        <p id="review-team-label" class="li5-tag li5-sheet-tag"></p>
+        <h3 class="li5-chalk li5-sheet-title">Report Card</h3>
+        <p id="review-score-delta" class="li5-sheet-delta"></p>
+        <p id="review-streak" style="display:none" class="li5-sheet-streak">Hot streak!</p>
       </div>
 
-      <!-- Streak callout (hidden unless 3+ consecutive correct) -->
-      <p id="review-streak" style="display:none" class="text-center text-orange-500 font-bold text-sm mb-2">🔥 Hot streak!</p>
+      <ul id="review-list" class="li5-sheet-list"></ul>
 
-      <!-- Scrollable word list -->
-      <ul id="review-list" class="flex-1 overflow-y-auto flex flex-col gap-2 py-3 min-h-0"></ul>
-
-      <!-- Next button (Lobby Mode: the describer and the host only — everyone else waits) -->
-      <div class="pt-3">
-        <p id="li5-review-wait" style="display:none" class="text-stone-400 text-sm text-center py-4"></p>
+      <div class="li5-sheet-foot">
+        <p id="li5-review-wait" style="display:none" class="li5-gate-wait"></p>
         <button id="btn-review-next" class="min-h-14 w-full rounded-2xl bg-pink-500 hover:bg-pink-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
           Your Turn →
         </button>
@@ -570,15 +578,15 @@ Let's do it!
     </div>
   </div>
 
-  <!-- Match History overlay -->
-  <div id="history-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[90] flex items-end justify-center">
-    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl px-5 pt-5 pb-5 flex flex-col">
-      <div class="text-center mb-3">
-        <p id="history-subtitle" class="text-stone-400 text-xs font-semibold uppercase tracking-widest mb-0.5">Report Card</p>
-        <h3 id="history-title" class="text-xl font-bold text-stone-800"></h3>
+  <!-- Match History — lined paper, one sheet per group (LI5 pilot S6) -->
+  <div id="history-overlay" style="display:none" class="fixed inset-0 bg-black/50 z-[90] flex items-end justify-center">
+    <div class="overlay-data-inner settings-slide-up li5-paper w-full max-w-sm rounded-t-3xl flex flex-col">
+      <div class="li5-paper-head">
+        <p id="history-subtitle" class="li5-paper-sub">Report cards</p>
+        <h3 id="history-title" class="li5-paper-title"></h3>
       </div>
-      <div id="history-body" class="flex-1 overflow-y-auto flex flex-col gap-4 pb-2 min-h-0"></div>
-      <div class="pt-3">
+      <div id="history-body" class="li5-paper-body"></div>
+      <div class="li5-paper-foot">
         <button id="btn-history-close" class="min-h-14 w-full rounded-2xl bg-stone-700 hover:bg-stone-800 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
           Close
         </button>

@@ -355,3 +355,110 @@
   .li5-qmark { font-size: 2.6rem; }
   .li5-shout { font-size: 1rem; }
 }
+
+/* ═══ Report Card, Class Dismissed, history, play-again (pilot S6) ═══════════
+   The Report Card slides up as the board (.li5-board) with chalk ticks and crosses; the history is
+   lined paper; the gameover is the board with a bell, a card per group and a gold star. */
+.li5-mark { display: inline-block; width: 1.2rem; text-align: center; font-weight: 700; flex: none; }
+.li5-mark-ok { color: #86efac; }
+.li5-mark-no { color: #fca5a5; }
+.li5-mark-skip { color: rgba(244,241,232,.7); }
+.li5-delta-pos { color: #86efac; }
+.li5-delta-neg { color: #fca5a5; }
+.li5-delta-zero { color: rgba(244,241,232,.65); }
+.li5-xc { color: #d8b4fe; }
+.li5-best { color: #fcd34d; }
+.li5-edited { margin-right: 0.35rem; font-size: 0.65rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; opacity: 0.7; }
+.li5-sheet-word { display: flex; align-items: center; gap: 0.4rem; min-width: 0; overflow-wrap: anywhere; }
+.li5-sheet-pts { flex: none; font-weight: 700; }
+
+/* Report Card */
+.li5-sheet { height: auto; max-height: 85vh; max-height: 85dvh; padding: 1rem 1rem 1rem; border-bottom: 0; border-radius: 1.5rem 1.5rem 0 0; justify-content: flex-start; gap: 0.4rem; }
+.li5-sheet-head { text-align: center; flex: none; }
+.li5-sheet-tag { position: static; margin: 0 0 0.1rem; }
+.li5-sheet-title { font-size: 1.5rem; font-weight: 700; }
+.li5-sheet-delta { margin: 0.1rem 0 0; font-size: 0.9rem; font-weight: 600; }
+.li5-sheet-streak { margin: 0.15rem 0 0; font-size: 0.9rem; font-weight: 700; color: var(--li5-pink); }
+.li5-sheet-list { list-style: none; margin: 0.3rem 0; padding: 0; flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 0.3rem; }
+.li5-sheet-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; width: 100%;
+  padding: 0.5rem 0.7rem; min-height: 2.5rem; border-radius: 0.6rem; text-align: left;
+  border: 1.5px dashed rgba(244,241,232,.3); background: rgba(244,241,232,.05);
+  color: var(--li5-chalk); font: inherit; font-size: 1rem; font-weight: 600;
+}
+button.li5-sheet-flip { cursor: pointer; touch-action: manipulation; min-height: 2.75rem; border-style: solid; }
+button.li5-sheet-flip:active { transform: scale(0.98); }
+.li5-sheet-row.row-edited { border-color: var(--li5-pink); }
+.li5-sheet-empty { padding: 1rem 0; text-align: center; font-size: 0.9rem; opacity: 0.7; }
+.li5-sheet-foot { flex: none; padding-top: 0.2rem; }
+
+/* Match history: lined paper */
+.li5-paper { max-height: 85vh; max-height: 85dvh; padding: 1.1rem 1.1rem 1rem; color: #3b3a36; border-radius: 1.5rem 1.5rem 0 0;
+  background: #f6f1e4 repeating-linear-gradient(transparent 0 1.9rem, rgba(60,90,160,.16) 1.9rem calc(1.9rem + 1px)); }
+.li5-paper-head { flex: none; text-align: center; padding-bottom: 0.4rem; margin-left: 2rem; border-left: 2px solid rgba(220,80,100,.35); }
+.li5-paper-sub { margin: 0; font-size: 0.7rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: #78716c; }
+.li5-paper-title { margin: 0.1rem 0 0; font-size: 1.4rem; font-weight: 700; color: #44403c; }
+.li5-paper-title.li5-paper-winner::before { content: "\2605\FE0E "; color: #d99a00; }
+.li5-paper-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 0.9rem; padding: 0.4rem 0 0.5rem 2.4rem; border-left: 2px solid rgba(220,80,100,.35); margin-left: 2rem; }
+.li5-paper-round { margin: 0 0 0.15rem; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #78716c; }
+.li5-paper-list { list-style: none; margin: 0; padding: 0; }
+.li5-paper-row { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; padding: 0.25rem 0; font-size: 0.95rem; font-weight: 600; }
+.li5-paper .li5-mark-ok, .li5-paper .li5-delta-pos { color: #15803d; }
+.li5-paper .li5-mark-no, .li5-paper .li5-delta-neg { color: #b91c1c; }
+.li5-paper .li5-mark-skip, .li5-paper .li5-delta-zero { color: #78716c; }
+.li5-paper .li5-xc { color: #7e22ce; }
+.li5-paper-empty { padding: 0.3rem 0; font-size: 0.85rem; color: #78716c; text-align: center; list-style: none; }
+.li5-paper-foot { flex: none; padding-top: 0.5rem; }
+
+/* Play-again: the board in a Decision Modal */
+.li5-modal { background: var(--li5-slate, #2f4a3c); border: 0.4rem solid #a9733f; color: #f4f1e8; box-shadow: inset 0 0 0 2px #7d5229; }
+.li5-modal-head { color: #f4f1e8; }
+.li5-modal-sub { color: rgba(244,241,232,.8); }
+
+/* Class Dismissed */
+.li5-go-board { justify-content: flex-start; gap: 0.6rem; padding-top: 0.9rem; }
+.li5-go-head { display: flex; flex-direction: column; align-items: center; gap: 0.2rem; }
+.li5-go-bell { width: 2.2rem; height: 2.2rem; fill: #fcd34d; transform-origin: 50% 8%; }
+[data-result] .li5-go-bell { animation: li5BellSwing 1.2s ease-out 1; }
+@keyframes li5BellSwing { 0%, 100% { transform: rotate(0); } 20% { transform: rotate(14deg); } 45% { transform: rotate(-10deg); } 70% { transform: rotate(5deg); } }
+.li5-go-title { font-size: clamp(1.7rem, 11cqw, 2.4rem); font-weight: 700; line-height: 1.1; color: var(--li5-pink); }
+.li5-go-result { font-size: 1.15rem; font-weight: 600; }
+.li5-go-early { margin: 0; font-size: 0.9rem; font-style: italic; opacity: 0.85; }
+.li5-go-groups { flex: 1 1 auto; display: flex; flex-direction: column; justify-content: center; gap: 0.6rem; min-height: 0; }
+.li5-go-row { position: relative; }
+.li5-go-card {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "name pts" "marks pts" "rc rc";
+  align-items: center; column-gap: 0.6rem; width: 100%; padding: 0.55rem 0.8rem; text-align: left;
+  border: 1.5px dashed rgba(244,241,232,.4); border-radius: 0.8rem; background: rgba(244,241,232,.05);
+  color: var(--li5-chalk); font: inherit; cursor: pointer; touch-action: manipulation;
+}
+.li5-go-card:active { transform: scale(0.98); }
+.li5-go-win .li5-go-card { border-color: var(--li5-pink); border-style: solid; }
+.li5-go-card > :nth-child(1) { grid-area: name; }
+.li5-go-card > :nth-child(2) { grid-area: marks; min-width: 0; overflow: hidden; }
+.li5-go-card > :nth-child(3) { grid-area: pts; }
+.li5-go-card > :nth-child(4) { grid-area: rc; }
+.li5-go-name { font-size: 1rem; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.li5-go-pts { font-size: 2.2rem; font-weight: 700; line-height: 1; min-width: 1.5ch; text-align: right; }
+.li5-go-card .li5-tally { height: 20px; width: auto; max-width: 100%; }
+.li5-go-rc { margin-top: 0.15rem; font-size: 0.75rem; font-weight: 600; color: var(--li5-pink); }
+/* The gold star: top-right corner of the card, clear of the total */
+.li5-go-star { position: absolute; top: -0.55rem; right: -0.35rem; width: 2rem; height: 2rem; fill: #fcd34d; stroke: #b8860b; stroke-width: 1; transform: rotate(10deg); pointer-events: none; filter: drop-shadow(0 2px 2px rgba(0,0,0,.35)); }
+@media (max-height: 600px) {
+  .li5-go-board { gap: 0.35rem; padding-top: 0.5rem; }
+  .li5-go-bell { width: 1.6rem; height: 1.6rem; }
+  .li5-go-title { font-size: 1.6rem; }
+  .li5-go-result { font-size: 1rem; }
+  .li5-go-card { padding: 0.35rem 0.7rem; }
+  .li5-go-pts { font-size: 1.7rem; }
+  .li5-go-groups { gap: 0.5rem; }
+  .li5-sheet-row { min-height: 2.1rem; padding: 0.3rem 0.6rem; font-size: 0.9rem; }
+  button.li5-sheet-flip { min-height: 2.5rem; }
+  .li5-sheet-title { font-size: 1.25rem; }
+}
+@media (max-height: 500px) {
+  .li5-go-bell { display: none; }
+  .li5-go-early { font-size: 0.8rem; }
+  .li5-go-rc { display: none; }
+  .li5-go-card .li5-tally { height: 14px; }
+}

@@ -78,12 +78,6 @@ let isPaused     = false;
 let wordsExhausted = false;
 
 // ── UI helpers ────────────────────────────────────────────────────────────────
-function setTeamBoxState(id, state) {
-  const el = document.getElementById(id);
-  el.classList.remove('team-box-active', 'team-box-inactive', 'team-box-pulse', 'team-box-winner');
-  if (state) el.classList.add(...state.split(' '));
-}
-
 function flashBackground(colour) {
   document.body.classList.remove('flash-green', 'flash-red');
   document.body.classList.add(colour === 'green' ? 'flash-green' : 'flash-red');
@@ -453,30 +447,30 @@ function endTurn() {
   });
 }
 
-// ── Round Review ──────────────────────────────────────────────────────────────
-const REVIEW_ICONS = { correct: '✅', taboo: '❌', skip: '⏩' };
+// ── Round Review — the Report Card (LI5 pilot S6) ─────────────────────────────
+// Chalk glyphs, not emoji: a tick, a cross, a skip arrow. ︎ pins the text presentation.
+const REVIEW_MARKS = {
+  correct: ['li5-mark-ok',   '✓︎', 'Yay'],
+  taboo:   ['li5-mark-no',   '✗︎', 'Nay'],
+  skip:    ['li5-mark-skip', '»',       'Skip'],
+};
+function li5EscHtml(t) {
+  return String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+}
+function li5PtsLabel(p) { return p > 0 ? '+' + p : String(p); }
 
 function renderReviewHeader() {
   document.getElementById('review-team-label').textContent = teamNames[currentTeam];
   const turnPts = roundLog.reduce((sum, e) => sum + e.points, 0);
   const deltaEl = document.getElementById('review-score-delta');
-  deltaEl.textContent = turnPts > 0 ? `+${turnPts} pts this turn` : turnPts < 0 ? `${turnPts} pts this turn` : 'No points scored';
-  deltaEl.className   = turnPts > 0 ? 'text-emerald-500 font-semibold text-sm mt-0.5'
-                      : turnPts < 0 ? 'text-red-400 font-semibold text-sm mt-0.5'
-                      :               'text-stone-400 font-semibold text-sm mt-0.5';
+  deltaEl.textContent = turnPts > 0 ? `+${turnPts} this turn` : turnPts < 0 ? `${turnPts} this turn` : 'Nothing on the board';
+  deltaEl.className   = 'li5-sheet-delta ' + (turnPts > 0 ? 'li5-delta-pos' : turnPts < 0 ? 'li5-delta-neg' : 'li5-delta-zero');
 
   let maxStreak = 0, cur = 0;
   roundLog.forEach(e => { cur = e.action === 'correct' ? cur + 1 : 0; maxStreak = Math.max(maxStreak, cur); });
   const streakEl = document.getElementById('review-streak');
-  streakEl.classList.remove('streak-glow');
-  if (maxStreak >= 3) {
-    streakEl.textContent = `🔥 ${maxStreak} in a row!`;
-    streakEl.style.display = 'block';
-    void streakEl.offsetWidth;
-    streakEl.classList.add('streak-glow');
-  } else {
-    streakEl.style.display = 'none';
-  }
+  streakEl.textContent   = maxStreak >= 3 ? `${maxStreak} in a row!` : 'Hot streak!';
+  streakEl.style.display = maxStreak >= 3 ? 'block' : 'none';
 }
 
 function renderReviewList() {
@@ -490,25 +484,22 @@ function renderReviewList() {
   // the describer and the host — pilot spec § 5.3).
   const editable = settingCorrections && li5CanControlReview();
   if (roundLog.length === 0) {
-    list.innerHTML = '<li class="text-center text-stone-400 text-sm py-4">No words played this turn.</li>';
+    list.innerHTML = '<li class="li5-sheet-empty">No words played this turn.</li>';
     return;
   }
 
   list.innerHTML = roundLog.map((e, i) => {
-    const ptLabel = e.points > 0 ? `+${e.points}` : e.points < 0 ? `${e.points}` : '0';
-    const ptClass = e.points > 0 ? 'text-emerald-500' : e.points < 0 ? 'text-red-400' : 'text-stone-400';
-    const sylly   = e.isSylly ? ' <span class="text-purple-400">✨</span>' : '';
-    const star    = e.word === starWord ? ' <span class="text-yellow-400">🌟</span>' : '';
-    const edited  = e.action !== e.originalAction ? ' <span class="text-stone-400 text-xs">🔄</span>' : '';
-    const inner   = `<span class="flex items-center gap-1.5">
-        <span>${REVIEW_ICONS[e.action]}</span>
-        <span class="font-semibold text-stone-800">${e.word}</span>${sylly}${star}
-      </span>
-      <span class="font-bold ${ptClass}">${ptLabel}${edited}</span>`;
+    const m       = REVIEW_MARKS[e.action] || REVIEW_MARKS.skip;
+    const ptClass = e.points > 0 ? 'li5-delta-pos' : e.points < 0 ? 'li5-delta-neg' : 'li5-delta-zero';
+    const sylly   = e.isSylly ? ' <span class="li5-xc" title="Extra Credit">✦</span>' : '';
+    const star    = e.word === starWord ? ' <span class="li5-best" title="Best word">★︎</span>' : '';
+    const edited  = e.action !== e.originalAction ? '<span class="li5-edited">changed</span>' : '';
+    const inner   = `<span class="li5-sheet-word"><span class="li5-mark ${m[0]}" aria-label="${m[2]}">${m[1]}</span><span>${li5EscHtml(e.word)}</span>${sylly}${star}</span>
+      <span class="li5-sheet-pts ${ptClass}">${edited}${li5PtsLabel(e.points)}</span>`;
     const ringClass = (editable && e.action !== e.originalAction) ? ' row-edited' : '';
     return editable
-      ? `<li><button onclick="flipEntry(${i})" class="w-full flex items-center justify-between bg-white rounded-xl px-4 py-2.5 shadow-sm text-sm active:opacity-60 transition-opacity${ringClass}">${inner}</button></li>`
-      : `<li class="flex items-center justify-between bg-white rounded-xl px-4 py-2.5 shadow-sm text-sm">${inner}</li>`;
+      ? `<li><button onclick="flipEntry(${i})" class="li5-sheet-row li5-sheet-flip${ringClass}">${inner}</button></li>`
+      : `<li class="li5-sheet-row">${inner}</li>`;
   }).join('');
 }
 
@@ -533,34 +524,34 @@ function flipEntry(idx) {
   renderReviewHeader();
 }
 
-// ── Match History ─────────────────────────────────────────────────────────────
+// ── Match History — lined paper, one sheet per group ──────────────────────────
 function showMatchHistory(teamIdx) {
   const isWinner  = teamScores[teamIdx] > teamScores[1 - teamIdx];
   const titleEl   = document.getElementById('history-title');
-  titleEl.textContent = isWinner ? `🏆 ${teamNames[teamIdx]}'s Journey` : `📊 ${teamNames[teamIdx]}'s Journey`;
-  titleEl.className   = isWinner ? 'text-xl font-bold text-amber-500' : 'text-xl font-bold text-stone-700';
+  titleEl.textContent = teamNames[teamIdx];
+  titleEl.classList.toggle('li5-paper-winner', isWinner);
 
   const turns = matchLog.filter(t => t.team === teamIdx);
   const body  = document.getElementById('history-body');
 
   if (turns.length === 0) {
-    body.innerHTML = '<p class="text-stone-400 text-sm text-center py-4">No turns played.</p>';
+    body.innerHTML = '<p class="li5-paper-empty">No turns played.</p>';
   } else {
     body.innerHTML = turns.map(t => {
       const rows = t.entries.length
         ? t.entries.map(e => {
-            const pt      = e.points > 0 ? `+${e.points}` : `${e.points}`;
-            const ptClass = e.points > 0 ? 'text-emerald-500' : e.points < 0 ? 'text-red-400' : 'text-stone-400';
-            const sylly   = e.isSylly ? ' <span class="text-purple-400">✨</span>' : '';
-            return `<li class="flex items-center justify-between py-1.5 text-sm border-b border-stone-100 last:border-0">
-              <span class="flex items-center gap-1.5">${REVIEW_ICONS[e.action]} <span class="font-medium text-stone-800">${e.word}</span>${sylly}</span>
-              <span class="font-bold ${ptClass}">${pt}</span>
+            const m       = REVIEW_MARKS[e.action] || REVIEW_MARKS.skip;
+            const ptClass = e.points > 0 ? 'li5-delta-pos' : e.points < 0 ? 'li5-delta-neg' : 'li5-delta-zero';
+            const sylly   = e.isSylly ? ' <span class="li5-xc">✦</span>' : '';
+            return `<li class="li5-paper-row">
+              <span class="li5-sheet-word"><span class="li5-mark ${m[0]}" aria-label="${m[2]}">${m[1]}</span><span>${li5EscHtml(e.word)}</span>${sylly}</span>
+              <span class="li5-sheet-pts ${ptClass}">${li5PtsLabel(e.points)}</span>
             </li>`;
           }).join('')
-        : '<li class="text-stone-400 text-sm py-1">No words played.</li>';
+        : '<li class="li5-paper-empty">No words played.</li>';
       return `<div>
-        <p class="text-stone-400 text-xs font-semibold uppercase tracking-widest mb-1.5">Round ${t.round}</p>
-        <ul class="bg-white rounded-xl px-4 py-1 shadow-sm">${rows}</ul>
+        <p class="li5-paper-round">Round ${t.round}</p>
+        <ul class="li5-paper-list">${rows}</ul>
       </div>`;
     }).join('');
   }
@@ -568,35 +559,46 @@ function showMatchHistory(teamIdx) {
   document.getElementById('history-overlay').style.display = 'flex';
 }
 
-// ── Screen: GAME OVER ─────────────────────────────────────────────────────────
+// ── Screen: GAME OVER — Class Dismissed (LI5 pilot S6) ────────────────────────
+// One render fn owns every element; the final state is written synchronously and the chalk /
+// star-slap passes are cosmetic (reduced motion = nothing to wait for).
 function showGameOver() {
-  document.getElementById('gameover-name-team1').textContent = teamNames[0];
-  document.getElementById('gameover-pts-team1').textContent  = teamScores[0];
-  document.getElementById('gameover-name-team2').textContent = teamNames[1];
-  document.getElementById('gameover-pts-team2').textContent  = teamScores[1];
-
+  const $ = id => document.getElementById(id);
   const [s0, s1] = teamScores;
-  let result;
-  if (s0 > s1) {
-    result = `🎉 ${teamNames[0]} wins!`;
-    setTeamBoxState('gameover-card-team1', 'team-box-active team-box-winner');
-    setTeamBoxState('gameover-card-team2', 'team-box-inactive');
-  } else if (s1 > s0) {
-    result = `🎉 ${teamNames[1]} wins!`;
-    setTeamBoxState('gameover-card-team1', 'team-box-inactive');
-    setTeamBoxState('gameover-card-team2', 'team-box-active team-box-winner');
-  } else {
-    result = `🤝 It's a draw!`;
-    setTeamBoxState('gameover-card-team1', 'team-box-active');
-    setTeamBoxState('gameover-card-team2', 'team-box-active');
-  }
-  document.getElementById('gameover-result').textContent = result;
+  const tie = s0 === s1;
+  const win = s0 > s1 ? 0 : 1;
 
-  const earlyEnd = document.getElementById('gameover-early-end');
-  earlyEnd.textContent   = wordsExhausted ? 'Extraordinary! You used all our words. Game ended early!' : '';
+  $('gameover-name-team1').textContent = teamNames[0];
+  $('gameover-pts-team1').textContent  = s0;
+  $('gameover-name-team2').textContent = teamNames[1];
+  $('gameover-pts-team2').textContent  = s1;
+  $('li5-go-tally-0').innerHTML = li5TallySvg(s0);
+  $('li5-go-tally-1').innerHTML = li5TallySvg(s1);
+  [0, 1].forEach(i => {
+    $('li5-go-star-' + i).style.display = (tie || win === i) ? '' : 'none';
+    $('li5-go-row-' + i).classList.toggle('li5-go-win', tie || win === i);
+  });
+  $('li5-go-board').dataset.result = wordsExhausted ? 'exhausted' : tie ? 'tie' : 'win';
+  $('li5-go-title').textContent    = 'Class Dismissed!';
+  $('gameover-result').textContent = tie ? "It's a draw!" : `${teamNames[win]} wins!`;
+
+  const earlyEnd = $('gameover-early-end');
+  earlyEnd.textContent   = wordsExhausted ? 'You used every word in the box!' : '';
   earlyEnd.style.display = wordsExhausted ? 'block' : 'none';
 
   showScreen('screen-gameover');
+
+  if (li5ReducedMotion() || typeof li5Chalk !== 'function') return;
+  li5Chalk($('li5-go-title'), 'Class Dismissed!', {});
+  [0, 1].forEach(i => {
+    const st = $('li5-go-star-' + i);
+    if (st.style.display === 'none' || typeof st.animate !== 'function') return;
+    st.animate([
+      { opacity: 0, transform: 'scale(1.8) rotate(-30deg)' },
+      { opacity: 1, transform: 'scale(0.92) rotate(6deg)', offset: 0.7 },
+      { opacity: 1, transform: 'scale(1) rotate(0deg)' }],
+      { duration: 450, delay: 500, easing: 'cubic-bezier(0.22, 1, 0.36, 1)', fill: 'backwards' });
+  });
 }
 
 // ── Quit / Skip Turn / Pause ──────────────────────────────────────────────────
@@ -1883,7 +1885,7 @@ document.getElementById('btn-play-again').addEventListener('click', () => {
   } else if (window.syllyMultiplayerMode === 'client') {
     confirmBtn.textContent = 'Leave Session';
   } else {
-    confirmBtn.textContent = 'New Playgroup!';
+    confirmBtn.textContent = 'Wipe it!';
   }
   document.getElementById('li5-play-again-overlay').style.display = 'flex';
 });
