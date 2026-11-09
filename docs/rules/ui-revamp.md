@@ -135,7 +135,12 @@ earns it (vendored — zero added download). Gameplay screens share the Intro's 
 scene is **game-owned and pure** (`[abbr]-scene.js`: inputs in, DOM out, no game state) until a second
 game needs a piece — then it moves to `js/lib/scene-kit.js` (after pilot 2, never pre-built).
 
-`mount(el, { reducedMotion, seat, mode })` / `stop()`. **No new binaries.** 60 fps on the iPhone SE,
+`mount(el, { reducedMotion, seat, mode })` / `stop()` / optional **`beat(i, text)`** (LI5 pilot S0):
+the engine calls `beat(i, line)` per narrator line and `beat(-1, '')` once when the beats end — state,
+not an event (sent only on change, re-sent after a re-mount; a throw warns). With `beat` the narrator
+line goes sr-only (`data-scene-beats`) and a tap on the scene advances. Template copy
+`<p data-intro-unassigned>` names the Line-up's third column; a **Team Lobby gets no Line-up** (a
+device is a team) — a roll call instead. **No new binaries.** 60 fps on the iPhone SE,
 with an **automatic static tier** after ~1 s of slow frames; reduced motion → static always; **one
 WebGL context at a time**; timer lifecycle; sound = engine `play*()`. A new scene file goes in `sw.js`,
 the `CLAUDE.md` load order and `_scripts-*.html`, with a `CACHE_NAME` bump. No size caps yet.

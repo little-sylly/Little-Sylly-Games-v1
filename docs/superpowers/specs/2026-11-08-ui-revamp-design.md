@@ -350,7 +350,8 @@ LI5's MP code moves out of `engine-multiplayer.js` (~2272–2312, ~3878–3924) 
 **`li5HandleEnvelope`** in `js/games/li5.js`, the suite's shape. **Intro:** the teacher; **Line-up:**
 Crayon Crew / Glue Stick Gang.
 
-**Stage 1 spec:** `docs/superpowers/specs/YYYY-MM-DD-li5-mdlm-design.md` — packet table, the
+**Stage 1 spec:** `docs/superpowers/specs/2026-11-09-li5-pilot-design.md` (world brief → directions →
+build plan → § 5 network) — packet table, the
 missing-handler audit, and a new `tools/verify-li5-loopback.js` (wire + real-DOM mocks + a broken-copy
 run). LI5 has no harness today.
 

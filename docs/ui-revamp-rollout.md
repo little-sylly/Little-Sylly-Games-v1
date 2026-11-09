@@ -34,7 +34,7 @@ Status column** — a row turns ✅ only when R12 is really done. The Game cell 
 
 | Order | Game | Stage | Status | R1–R16 | Practice (R10) | Next action |
 |---:|------|------|:---:|------|------|------|
-| 1 | **LI5** Like I'm Five | 1 · pilot | ⏳ | 0/16 | ☐ | R2 world brief; brand colour + terminology review (spec § 17.2); refine the Chalkboard boards; build plan |
+| 1 | **LI5** Like I'm Five | 1 · pilot | 🔨 | 3/16 | ☐ | R1, R2, R2b signed off 9 Nov (`specs/2026-11-09-li5-pilot-design.md` §§ 1–3). R2c + § 5 network spec written 9 Nov — owner to answer § 5.13, then build S0 → S9 (§ 5.12) |
 | 2 | **GM** Great Minds | 2 · pilot | ☐ | 0/16 | ☐ | After LI5 — thought bubbles + word-cloud history (spec § 17.3); then extract `scene-kit.js`, write `sylly-ui-pass` |
 | 3 | *TBD* — an N-player MDLM game | 3 · Sonnet proof | ☐ | — | — | Chosen at Stage 2's end; not a heavily-iterated one (not CJAR) |
 | — | **SS** Secret Signals | batch | ☐ | 0/16 | ☐ | Line-up candidate (`teams`, balanced) — retires a lobby-roster user |
@@ -76,7 +76,9 @@ Batch order and grouping (by shape) are set at Stage 2's departures review.
 Each card: **shape** (modes · players · roster today) · **Line-up** (the R2 candidate) · **Practice**
 (the `practice-rollout.md` card R10 builds from) · **pain points** (filled at R1) · **notes**.
 
-### LI5 — Like I'm Five · Stage 1 pilot · ⏳
+### LI5 — Like I'm Five · Stage 1 pilot · 🔨
+- **Pilot spec:** `docs/superpowers/specs/2026-11-09-li5-pilot-design.md` — R1 intake, R2 world brief
+  (Show-and-tell; narrator *Miss*; pink kept as the pink chalk), then R2b/R2c/MDLM network stubs.
 - **Shape:** PTP + TLM today, 2 devices, `'none'` (pre-lobby team names). **Pilot adds an MDLM mode,
   4–12 players, two teams, min 2 per team, no bots** (spec § 10).
 - **Line-up:** `teams` — Crayon Crew / Glue Stick Gang (names under review, § 17.2), `minPerTeam: 2`.
@@ -88,7 +90,7 @@ Each card: **shape** (modes · players · roster today) · **Line-up** (the R2 c
   `tools/verify-li5-loopback.js` (wire + real DOM + broken copy). Stage 1 spec owns the packet table.
 - **Practice:** `practice-rollout.md` § 6.19 (Autopilot ✔).
 - **Boards:** https://claude.ai/artifact/8YuBcu4fLveMY4XtF9RbJz · `wip/revamp/mockups/li5/`.
-- **Pain points:** —
+- **Pain points:** none (owner, 9 Nov).
 
 ### GM — Great Minds · Stage 2 pilot · ☐
 - **Shape:** PTP + MDLM, 2 players, `individual` roster.

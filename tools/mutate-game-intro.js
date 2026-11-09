@@ -41,6 +41,13 @@ const MUTANTS = [
   ['a returning game with no Line-up goes straight in', 'intro',
    '    if (returning && !lineup) { mpIntroFinishHost(); return; }\n', ''],
   ['the brief may vary by team', 'intro', 'key = cfg.intro.brief(mpMyPlayerIdx, myTeam)', 'key = cfg.intro.brief(mpMyPlayerIdx, -1)'],
+  // ── the scene beat hook + TLM (LI5 pilot S0, spec § 4.4) ──
+  ['the beats end with beat(-1) — the board settles', 'intro',
+   '    if (it.sceneBeat !== want) {', '    if (it.sceneBeat !== want && want >= 0) {'],
+  ['beat is state, not an event — sent only on change', 'intro',
+   '    if (it.sceneBeat !== want) {', '    if (true) {'],
+  ['no Line-up in a Team Lobby', 'intro',
+   "(mode !== 'ptp' && window.mpLobbyStyle !== 'team' && cfg.intro.lineup", "(mode !== 'ptp' && cfg.intro.lineup"],
   // ── the seam, in engine-multiplayer.js ──
   ['a client enters through the seam on GAME_START', 'mp',
    '      // first, for a game that has one)\n      mpEnterGame(mpActiveGameConfig);',

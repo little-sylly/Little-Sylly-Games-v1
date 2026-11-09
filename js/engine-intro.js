@@ -80,6 +80,7 @@ function mpIntroEsc(s) {
 //   <p data-intro-line>…</p> ×N
 //   <ul data-intro-brief="default"><li>…</li> ≤3</ul>  (+ more variants by key)
 //   <p data-intro-lineup>…</p>       the narrator's Line-up prompt (optional)
+//   <p data-intro-unassigned>…</p>   the Line-up's third column (optional — "Unassigned")
 function mpIntroReadTemplate(id) {
   const tpl  = id ? document.getElementById(id) : null;
   const root = tpl ? (tpl.content || tpl) : null;
@@ -98,6 +99,7 @@ function mpIntroReadTemplate(id) {
     lines:        qa('[data-intro-line]').map(txt).filter(Boolean),
     briefs,
     lineupPrompt: txt(q('[data-intro-lineup]')),
+    unassigned:   txt(q('[data-intro-unassigned]')),
   };
 }
 
@@ -144,11 +146,13 @@ function mpIntroOpen(cfg) {
   mpIntroStop();
   const mode = window.syllyMultiplayerMode === 'single' ? 'ptp' : window.syllyMultiplayerMode;
   const copy = mpIntroReadTemplate(cfg.intro.template);
-  const lineup = (mode !== 'ptp' && cfg.intro.lineup && cfg.intro.lineup.type === 'teams') ? cfg.intro.lineup : null;
+  // No Line-up in a Team Lobby: there a device IS a team, so a minPerTeam could never
+  // be met by two devices (LI5 pilot § 4.4). A roll call instead — generic.
+  const lineup = (mode !== 'ptp' && window.mpLobbyStyle !== 'team' && cfg.intro.lineup && cfg.intro.lineup.type === 'teams') ? cfg.intro.lineup : null;
   mpIntro = {
     cfg, abbr: mpActiveGame, mode, copy, lineup,
     beat: 0, waiting: mode === 'client', shown: false,
-    scene: null, beatTimer: null, anyway: false, readySent: false,
+    scene: null, sceneBeat: null, beatTimer: null, anyway: false, readySent: false,
     state: null,
   };
 
@@ -208,7 +212,11 @@ function mpIntroNoteReturning(abbr) {
   if (abbr && MP_GAME_CONFIGS[abbr] && MP_GAME_CONFIGS[abbr].intro) mpIntroSeen = abbr;
 }
 
-// ── Scene: game-owned { mount(el, opts), stop() } ────────────────────────────
+// ── Scene: game-owned { mount(el, opts), stop(), beat?(i, text) } ────────────
+// beat is optional (LI5 pilot § 4.4). It means "show this line", not "advance":
+// beat(i, line) per narrator line, then beat(-1, '') exactly once when the beats end
+// (last line, Skip, or a returning Intro). mpIntroRender() sends it, deduped by
+// mpIntro.sceneBeat; a (re-)mount clears that so the board is never left blank.
 function mpIntroReducedMotion() {
   try { return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); }
   catch (_) { return false; }
@@ -217,6 +225,9 @@ function mpIntroReducedMotion() {
 function mpIntroMountScene() {
   const el = document.getElementById('game-intro-scene');
   if (!el || !mpIntro) return;
+  mpIntro.sceneBeat = null;
+  const scr = document.getElementById('screen-game-intro');
+  if (scr && scr.dataset) delete scr.dataset.sceneBeats;
   const make = mpIntro.cfg.intro.scene;
   if (typeof make !== 'function') { el.style.display = 'none'; return; }
   try {
@@ -225,6 +236,9 @@ function mpIntroMountScene() {
     el.style.display = '';
     sc.mount(el, { reducedMotion: mpIntroReducedMotion(), seat: mpMyPlayerIdx, mode: mpIntro.mode });
     mpIntro.scene = sc;
+    // The scene writes the lines itself: the narrator card keeps the tap target, the
+    // count and the accessible text (#game-intro-line goes sr-only — styles.css).
+    if (typeof sc.beat === 'function' && scr && scr.dataset) scr.dataset.sceneBeats = '';
   } catch (e) {
     console.warn('[intro] scene.mount', e);
     el.style.display = 'none';
@@ -517,6 +531,14 @@ function mpIntroRender() {
     void line.offsetWidth;
     line.classList.add('intro-line-enter');
   }
+  const sc = it.scene;
+  if (sc && typeof sc.beat === 'function') {
+    const want = beats ? it.beat : -1;
+    if (it.sceneBeat !== want) {
+      it.sceneBeat = want;                          // set first: a throwing scene is told once, not every render
+      try { sc.beat(want, want >= 0 ? copy.lines[want] : ''); } catch (e) { console.warn('[intro] scene.beat', e); }
+    }
+  }
 
   // Brief — may vary by seat and (once picked) team
   const myTeam = s && s.team ? s.team[mpMyPlayerIdx] : -1;
@@ -590,7 +612,7 @@ function mpIntroLineupHtml() {
   const col = t => {
     const seats = s.team.map((x, i) => (x === t ? i : -1)).filter(i => i >= 0);
     const head = t < 0
-      ? '<p class="intro-col-name">Unassigned</p>'
+      ? `<p class="intro-col-name">${mpIntroEsc(it.copy.unassigned || 'Unassigned')}</p>`
       : host
         ? `<input class="intro-col-input" data-intro-rename="${t}" maxlength="${MP_INTRO_NAME_MAX}" value="${mpIntroEsc(s.names[t])}" aria-label="Team name">`
         : `<p class="intro-col-name">${mpIntroEsc(s.names[t])}</p>`;
@@ -619,6 +641,7 @@ function mpIntroRollHtml() {
 function mpWireIntro() {
   const $ = id => document.getElementById(id);
   $('game-intro-narrator').addEventListener('click', () => { mpIntroAdvance(); });
+  $('game-intro-scene').addEventListener('click', () => { mpIntroAdvance(); });   // a tap on the board advances too
   $('btn-game-intro-skip').addEventListener('click', () => { playPillClick(); mpIntroSkip(); });
   $('btn-game-intro-ready').addEventListener('click', () => { playSuccess(); mpIntroReady(); });
   $('btn-game-intro-shuffle').addEventListener('click', () => { playPillClick(); mpIntroHostRandomise(); });
@@ -671,7 +694,7 @@ function mpWireIntro() {
   document.addEventListener('visibilitychange', () => {
     if (!mpIntro || !mpIntro.shown) return;
     if (document.hidden) mpIntroStopScene();
-    else if (!mpIntro.scene) mpIntroMountScene();
+    else if (!mpIntro.scene) { mpIntroMountScene(); mpIntroRender(); }   // re-sends the beat
   });
 }
 

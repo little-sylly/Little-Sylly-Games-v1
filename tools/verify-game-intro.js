@@ -23,7 +23,7 @@ const { ROOT, fbWrite, fbRead, flush, server, makePhone, devices, boot, advance,
 // ── The stub games ───────────────────────────────────────────────────────────
 // The template is the <template id="intro-test"> a game's partial would carry:
 // plain text nodes only, read through content.querySelector(All).
-function tplContent() {
+function tplContent(opts) {
   const node = (attr, text, dataset) => ({ attr, textContent: text, dataset: dataset || {}, querySelectorAll: () => [] });
   const brief = (key, items) => ({ attr: 'brief', textContent: '', dataset: { introBrief: key },
     querySelectorAll: s => (s === 'li' ? items.map(t => ({ textContent: t })) : []) });
@@ -36,17 +36,25 @@ function tplContent() {
     brief('red', ['Describe the word', 'Dodge the No-No words']),
     node('lineup', 'Into your groups, please.'),
   ];
+  if (opts && opts.unassigned) nodes.push(node('unassigned', opts.unassigned));
   const hit = (sel, n) => sel === '[data-intro-' + n.attr + ']';
   return { querySelector: s => nodes.find(n => hit(s, n)) || null, querySelectorAll: s => nodes.filter(n => hit(s, n)) };
 }
 
 function addIntroGames(d) {
   d.el('intro-test').content = tplContent();
+  d.el('intro-beats').content = tplContent({ unassigned: 'Not in a <group>' });
   d.S.__scene = { mounts: 0, stops: 0, last: null };
+  d.S.__beats = []; d.S.__beatText = [];
   d.run(`
     const __mkScene = () => ({
       mount(el, o) { __scene.mounts++; __scene.last = { id: el.id, reducedMotion: o.reducedMotion, mode: o.mode }; },
       stop() { __scene.stops++; },
+    });
+    // A scene WITH the optional beat(i, text) hook (LI5 pilot § 4.4) — it records.
+    let __beatThrows = false;
+    const __beatScene = () => Object.assign(__mkScene(), {
+      beat(i, t) { __beats.push(i); __beatText.push(t); if (__beatThrows) throw new Error('chalk snapped'); },
     });
     const __intro = extra => Object.assign({ template: 'intro-test', scene: __mkScene,
       brief: (seat, team) => (team === 0 ? 'red' : 'default') }, extra || {});
@@ -62,6 +70,8 @@ function addIntroGames(d) {
       getMaxPlayers: () => 6, intro: __intro({ lineup: __teams }) });
     MP_GAME_CONFIGS.introbalanced = Object.assign({}, MP_GAME_CONFIGS.plain, { gameName: 'Balanced',
       getMaxPlayers: () => 6, intro: __intro({ lineup: { type: 'teams', teamNames: ['Ups', 'Downs'], balanced: true } }) });
+    MP_GAME_CONFIGS.introbeats = Object.assign({}, MP_GAME_CONFIGS.introgame, { gameName: 'Beats',
+      intro: Object.assign(__intro({ lineup: __teams }), { template: 'intro-beats', scene: __beatScene }) });
     mpWireIntro();
   `);
 }
@@ -76,6 +86,7 @@ async function startIntro(game, names, opts) {
   addIntroGames(host);
   host.S.localStorage.setItem('sylly_nickname', names[0]);
   useGame(host, game);
+  if (opts.style) host.run(`window.mpLobbyStyle = '${opts.style}'`);
   host.run('mpHostCreateRoom()');
   await flush();
   const code = host.run('mpActiveRoomCode');
@@ -456,6 +467,96 @@ const tap      = (d, id) => d.el(id).click();
       const seam = (W.mpSrc.match(/function mpEnterGame[\s\S]*?\n\}/) || [''])[0];
       check('the engine calls onPassThePhone() only inside mpEnterGame',
             [(W.mpSrc.match(/\.onPassThePhone\(\)/g) || []).length, (seam.match(/\.onPassThePhone\(\)/g) || []).length], [2, 2]);
+    }
+
+    // ── LI5 pilot S0 (spec 2026-11-09-li5-pilot-design.md § 4.4) ──────────────
+    const fireVis = (d, hidden) => { d.S.document.hidden = hidden; (d.S.document._l.visibilitychange || []).forEach(fn => fn()); };
+    const ptpOn = (name, game) => { const d = boot(name, 'u' + name, makePhone()); addIntroGames(d); useGame(d, game); d.run('mpEnterGame(mpActiveGameConfig)'); return d; };
+
+    section('17. The scene beat(i, text) hook — state, not an event');
+    {
+      const d = ptpOn('beatA', 'introbeats');
+      check('after mount the scene is told the first line', [d.S.__beats, d.S.__beatText], [[0], ['Right, class — eyes up here.']]);
+      ok('the screen is flagged data-scene-beats', d.el('screen-game-intro').dataset.sceneBeats !== undefined);
+      check('  …and the narrator line is still in the DOM (sr-only, still read)', d.el('game-intro-line').textContent, 'Right, class — eyes up here.');
+      tap(d, 'game-intro-narrator');
+      tap(d, 'game-intro-scene');
+      check('a tap on the narrator OR the scene advances a beat', d.run('mpIntro.beat'), 2);
+      tap(d, 'game-intro-narrator');
+      check('tapping through: 0 … n−1, then −1 exactly once', d.S.__beats, [0, 1, 2, -1]);
+      check('  …the settle call carries no text', d.S.__beatText[3], '');
+      d.run('mpIntroRender(); mpIntroRender();');
+      check('re-rendering sends nothing new', d.S.__beats, [0, 1, 2, -1]);
+      fireVis(d, true);
+      check('tab-away stops the scene', d.S.__scene.stops, 1);
+      fireVis(d, false);
+      check('coming back re-mounts and re-sends the current state', [d.S.__scene.mounts, d.S.__beats], [2, [0, 1, 2, -1, -1]]);
+      tap(d, 'btn-game-intro-go');
+      check('  …and the Intro still finishes', d.S.__rc, ['onPassThePhone:single']);
+    }
+    {
+      const d = ptpOn('beatB', 'introbeats');
+      d.run('mpIntroSkip()');
+      check('Skip after one beat: [0, −1]', d.S.__beats, [0, -1]);
+      advance(20000);
+      check('  …and no beat timer fires after it', d.S.__beats, [0, -1]);
+    }
+    {
+      const d = ptpOn('beatC', 'introgame');
+      ok('a scene WITHOUT beat: no data-scene-beats, the narrator shows as before',
+         d.el('screen-game-intro').dataset.sceneBeats === undefined && d.el('game-intro-narrator').style.display === '');
+      tap(d, 'game-intro-narrator'); tap(d, 'game-intro-narrator'); tap(d, 'game-intro-narrator');
+      tap(d, 'btn-game-intro-go');
+      check('  …and the whole Intro runs unchanged', d.S.__rc, ['onPassThePhone:single']);
+    }
+    {
+      const d = boot('beatD', 'uD', makePhone()); addIntroGames(d);
+      d.run('__beatThrows = true;');
+      useGame(d, 'introbeats');
+      d.run('mpEnterGame(mpActiveGameConfig)');
+      tap(d, 'game-intro-narrator'); tap(d, 'game-intro-narrator'); tap(d, 'game-intro-narrator');
+      ok('a throwing beat warns, not silence', d.errors.some(e => /\[intro\] scene\.beat/.test(e)));
+      check('  …each beat still went to the scene once', d.S.__beats, [0, 1, 2, -1]);
+      tap(d, 'btn-game-intro-go');
+      check('  …and the Intro still reaches the game', d.S.__rc, ['onPassThePhone:single']);
+    }
+    {
+      const R = await startIntro('introbeats', ['Ali', 'Bec', 'Cam', 'Dee']);
+      const [h, c1, c2, c3] = R.all;
+      check('MDLM: every device starts on beat 0', R.all.map(d => d.S.__beats), [[0], [0], [0], [0]]);
+      h.run('mpIntroSkip()'); await flush();
+      check('a host Skip settles every board once', R.all.map(d => d.S.__beats), [[0, -1], [0, -1], [0, -1], [0, -1]]);
+      ok('the Line-up\'s third column uses the template\'s own word (escaped)',
+         h.el('game-intro-lineup').innerHTML.includes('>Not in a &lt;group&gt;<') && !h.el('game-intro-lineup').innerHTML.includes('>Unassigned<'));
+      h.run('mpIntroPick(0)'); c1.run('mpIntroPick(0)'); c2.run('mpIntroPick(1)'); c3.run('mpIntroPick(1)');
+      R.all.forEach(d => d.run('mpIntroReady()')); await flush();
+      h.run('mpIntroStart(false)'); await flush();
+      h.run('mpReturnToLobby()'); await flush();
+      R.all.forEach(d => { d.S.__beats.length = 0; });
+      h.run('mpConfirmRoster()'); await flush();
+      check('a returning Intro sees only beat(−1)', R.all.map(d => d.S.__beats), [[-1], [-1], [-1], [-1]]);
+      h.run('mpIntroPick(1)'); c1.run('mpIntroPick(1)'); h.run('mpIntroHostMove(2)'); R.all.forEach(d => d.run('mpIntroReady()')); await flush();
+      check('  …and Line-up picks and readiness never re-send it', R.all.map(d => d.S.__beats), [[-1], [-1], [-1], [-1]]);
+      check('no errors', errorsOf(R.all), []);
+    }
+    {
+      const R = await startIntro('introgame', ['Ali', 'Bec']);
+      R.host.run('mpIntroSkip()'); await flush();
+      ok('without data-intro-unassigned the column falls back to "Unassigned"', R.host.el('game-intro-lineup').innerHTML.includes('>Unassigned<'));
+    }
+
+    section('18. No Line-up in a Team Lobby — a device IS a team');
+    {
+      const R = await startIntro('introbeats', ['Crayons', 'Glue'], { style: 'team' });
+      check('both devices know it is a Team Lobby', R.all.map(d => d.run('window.mpLobbyStyle')), ['team', 'team']);
+      check('a lineup config gives no Line-up in TLM', R.all.map(d => d.run('mpIntro.lineup')), [null, null]);
+      R.host.run('mpIntroSkip()'); await flush();
+      check('  …a roll call instead', R.all.map(d => [d.el('game-intro-roll').style.display, d.el('game-intro-lineup-wrap').style.display]),
+            [['', 'none'], ['', 'none']]);
+      R.all.forEach(d => d.run('mpIntroReady()')); await flush();
+      check('  …and Start goes without a minPerTeam it could never meet', R.host.run('mpIntroStart(false)'), true);
+      await flush();
+      check('both devices entered the game', R.all.map(passes), [1, 1]);
     }
 
   } catch (e) {
