@@ -179,8 +179,11 @@ Let's Go Already!
 
 ```copy
 # screen-gatekeeper
-Ready up,
-My Turn!
+Ready, Miss!
+Miss:
+Settle down, please.
+Explain it like they're five. Don't say the No-No words.
+Listen for No-No words. Hear one? Dob.
 ```
 
 #### Active play

@@ -62,40 +62,42 @@ Let's Go Already!
 </button>
   </section>
 
-  <!-- ③ INTERMISSION screen — round info, scores, hype, blind start -->
-  <section id="screen-gatekeeper" style="display:none" class="relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6">
-    <div class="absolute top-4 right-4 flex items-center gap-2">
-      <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
-      <button id="btn-gatekeeper-exit" class="text-xl text-stone-500 font-bold active:scale-90 transition-transform duration-100">✕</button>
+  <!-- ③ ROUND INTRO — "wipe and write" (LI5 pilot S3). The board fills the Stage; the Controls sit on
+       the chalk tray (departure D1). li5RenderGate() owns EVERY element here (Stack rule 4). -->
+  <section id="screen-gatekeeper" style="display:none" class="li5-gate-screen flex flex-col w-full max-w-sm mx-auto px-3 py-1 gap-1 text-center">
+    <div class="flex items-center justify-end gap-2">
+      <button class="btn-open-sound text-xl text-stone-400 active:scale-90 transition-transform duration-100 min-h-11 min-w-11">🔊</button>
+      <button id="btn-gatekeeper-exit" class="text-xl text-stone-500 font-bold active:scale-90 transition-transform duration-100 min-h-11 min-w-11">✕</button>
     </div>
-    <p id="gatekeeper-round-label" class="text-stone-400 text-sm font-semibold uppercase tracking-widest">Round 1 of 5</p>
 
-    <!-- Mini scoreboard -->
-    <div class="flex gap-4 w-full">
-      <div id="gatekeeper-score-team1" class="team-box flex-1 rounded-2xl bg-white shadow-sm p-4">
-        <p id="gatekeeper-name-team1" class="text-stone-500 text-sm font-semibold truncate">Team 1</p>
-        <p id="gatekeeper-pts-team1" class="text-4xl font-bold text-stone-800">0</p>
+    <div id="li5-gate-board" class="li5-board li5-gate-board">
+      <p id="gatekeeper-round-label" class="li5-tag"></p>
+      <div id="li5-gate-text" class="li5-gate-text">
+        <h2 id="gatekeeper-team-name" class="li5-chalk li5-gate-head"></h2>
+        <p id="li5-gate-role" style="display:none" class="li5-chalk li5-gate-role"></p>
+        <p id="li5-gate-aside" class="li5-gate-aside"><span class="li5-gate-aside-who">Miss:</span> <span id="gatekeeper-hype"></span></p>
       </div>
-      <div id="gatekeeper-score-team2" class="team-box flex-1 rounded-2xl bg-white shadow-sm p-4">
-        <p id="gatekeeper-name-team2" class="text-stone-500 text-sm font-semibold truncate">Team 2</p>
-        <p id="gatekeeper-pts-team2" class="text-4xl font-bold text-stone-800">0</p>
+      <!-- Tallies: one row per group; the number is for screen readers and the habit of counting -->
+      <div class="li5-gate-tallies">
+        <div id="gatekeeper-score-team1" class="li5-gate-row">
+          <span id="gatekeeper-name-team1" class="li5-gate-name"></span>
+          <span id="gatekeeper-tally-team1" class="li5-gate-marks"></span>
+          <span id="gatekeeper-pts-team1" class="li5-gate-pts">0</span>
+        </div>
+        <div id="gatekeeper-score-team2" class="li5-gate-row">
+          <span id="gatekeeper-name-team2" class="li5-gate-name"></span>
+          <span id="gatekeeper-tally-team2" class="li5-gate-marks"></span>
+          <span id="gatekeeper-pts-team2" class="li5-gate-pts">0</span>
+        </div>
+      </div>
+      <!-- Controls on the chalk tray -->
+      <div class="li5-gate-tray">
+        <p id="li5-gate-wait" style="display:none" class="li5-gate-wait"></p>
+        <button id="btn-start-turn" class="min-h-14 w-full rounded-2xl bg-pink-500 hover:bg-pink-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
+          Ready, Miss!
+        </button>
       </div>
     </div>
-
-    <!-- Team name + hype -->
-    <div>
-      <p id="li5-gate-eyebrow" class="text-stone-400 text-base">Ready up,</p>
-      <h2 id="gatekeeper-team-name" class="text-4xl font-bold text-stone-800 mt-1"></h2>
-      <p id="gatekeeper-hype" class="text-stone-500 text-lg mt-3 italic"></p>
-      <!-- Lobby Mode (LI5 pilot S1): this seat's role this turn, and who we're waiting on.
-           li5RenderGate() owns every element on this screen (Stack rule 4). -->
-      <p id="li5-gate-role" style="display:none" class="text-stone-700 text-base font-semibold mt-3"></p>
-      <p id="li5-gate-wait" style="display:none" class="text-stone-400 text-sm mt-2"></p>
-    </div>
-
-    <button id="btn-start-turn" class="min-h-14 w-full rounded-2xl bg-pink-500 hover:bg-pink-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
-      My Turn!
-    </button>
   </section>
 
   <!-- ⑤ ACTIVE PLAY screen — timer, word, taboo list, score buttons -->

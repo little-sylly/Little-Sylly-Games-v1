@@ -3,6 +3,11 @@
 Historical SW release notes, moved out of `CLAUDE.md` (1 Aug 2026) so they stop loading into every session.
 The **current** version and its notes stay in `CLAUDE.md` § Current Focus — append the outgoing entry here on each bump.
 
+## v265 — LI5 pilot S2: the chalkboard world kit + Intro scene (9 Nov 2026). `js/games/li5-scene.js` (`Li5Scene` mount/beat/stop +
+`li5Chalk/Duster/Dust/TallySvg/SlateTexture`, WAAPI only, no RAF, slate made in code) and `css/li5.css`; `MP_GAME_CONFIGS.li5.intro.scene` is live,
+so LI5's Intro now chalks Miss's beats on the board. Reduced motion = instant writes. Load order `canvas-draw.js` → `li5-scene.js` → `li5.js`.
+`MP_PROTOCOL_VERSION` = v265 (S1's packets). Role screens are still plain markup (S3–S6). Spec `docs/superpowers/specs/2026-11-09-li5-pilot-design.md`.
+
 ## v264 — UI revamp Stage 0: the Intro, the entry seam, the tooling (9 Nov 2026). Every route into a game now goes through
 `mpEnterGame()`; a game that opts in with `MP_GAME_CONFIGS[abbr].intro` opens the engine-owned `screen-game-intro` (`js/engine-intro.js`):
 narrator beats → brief → Line-up (teams + Unassigned, host powers, balance gate) → Ready, then one settled `MP_INTRO_DONE`. Four

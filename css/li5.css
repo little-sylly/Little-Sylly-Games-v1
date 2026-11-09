@@ -92,3 +92,47 @@
 }
 .li5-tally-draw path { animation: li5TallyDraw 200ms ease-out both; }
 @keyframes li5TallyDraw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+
+/* ═══ Round intro — wipe and write (pilot S3) ═══════════════════════════════
+   The gate board fills the Stage edge to edge (departure D1); the Controls sit on the
+   tray at its foot. Content is centred in the free height. */
+.li5-gate-screen { min-height: 100vh; min-height: 100dvh; }
+.li5-gate-board {
+  flex: 1 1 auto; height: auto; min-height: 16rem;
+  justify-content: space-between; gap: 0.75rem;
+  padding: 1.5rem 0.9rem 0.9rem;
+}
+.li5-gate-text {
+  position: relative;
+  flex: 1 1 auto; display: flex; flex-direction: column; justify-content: center; gap: 0.6rem;
+}
+.li5-gate-head { font-size: clamp(1.45rem, 9cqw, 2.1rem); font-weight: 700; line-height: 1.15; }
+.li5-gate-role { font-size: clamp(0.95rem, 5.2cqw, 1.2rem); font-weight: 500; opacity: 0.92; }
+.li5-gate-aside { margin: 0.4rem 0 0; font-size: 0.95rem; font-style: italic; color: var(--li5-chalk); opacity: 0.8; }
+.li5-gate-aside-who { color: var(--li5-pink); font-style: normal; font-weight: 600; }
+
+.li5-gate-tallies { display: flex; flex-direction: column; gap: 0.35rem; }
+.li5-gate-row {
+  display: grid; grid-template-columns: minmax(0, 7.5rem) minmax(0, 1fr) auto; align-items: center; gap: 0.5rem;
+  padding: 0.3rem 0.5rem; border-radius: 0.6rem; text-align: left;
+  border: 1.5px dashed transparent;
+}
+.li5-gate-row.li5-gate-active { border-color: var(--li5-pink); }
+.li5-gate-name { font-size: 0.85rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.li5-gate-active .li5-gate-name { color: var(--li5-pink); }
+.li5-gate-marks { min-width: 0; overflow: hidden; }
+.li5-gate-marks .li5-tally { max-width: 100%; height: auto; }
+.li5-gate-pts { font-size: 1.25rem; font-weight: 700; min-width: 1.5ch; text-align: right; }
+
+.li5-gate-tray {
+  margin: 0 -0.9rem -0.9rem; padding: 0.7rem 0.9rem 0.9rem;
+  background: linear-gradient(var(--li5-timber), var(--li5-timber-dark));
+  border-top: 1px solid rgba(0,0,0,.3);
+  display: flex; flex-direction: column; gap: 0.4rem; justify-content: center; min-height: 4.6rem;
+}
+.li5-gate-wait { margin: 0; color: var(--li5-chalk); font-size: 1rem; font-weight: 600; }
+@media (max-height: 520px) {
+  .li5-gate-board { min-height: 14rem; padding-top: 1.4rem; }
+  .li5-gate-text { gap: 0.35rem; }
+  .li5-gate-tray { min-height: 4rem; }
+}

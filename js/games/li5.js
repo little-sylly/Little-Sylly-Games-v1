@@ -317,7 +317,8 @@ function showGatekeeper() {
 
 // The ONE render function for screen-gatekeeper — Pass-the-Phone, and every Lobby Mode
 // role (up / guess / tattle / standby). It sets every element, even to '' (Stack rule 4).
-// Copy: pilot spec § 4.3 (signed off). S3 dresses it as the wipe and write.
+// Copy: pilot spec § 4.3 (signed off). Content lands in its FINAL state synchronously; the
+// wipe-and-write (li5GateWrite) is a cosmetic pass over it, so a harness never sees it half-built.
 function li5RenderGate(aside) {
   const $  = id => document.getElementById(id);
   const mp = window.syllyMultiplayerMode !== 'single';
@@ -326,36 +327,73 @@ function li5RenderGate(aside) {
   const tlm  = window.mpLobbyStyle === 'team';
   const team = t ? t.team : currentTeam;
   const name = t ? li5SeatName(t.upSeat) : '';
-  $('gatekeeper-round-label').textContent = (!mp || t) ? `Round ${currentRound} of ${totalRounds}` : '';
-  $('gatekeeper-name-team1').textContent  = teamNames[0];
-  $('gatekeeper-pts-team1').textContent   = teamScores[0];
-  $('gatekeeper-name-team2').textContent  = teamNames[1];
-  $('gatekeeper-pts-team2').textContent   = teamScores[1];
-  setTeamBoxState('gatekeeper-score-team1', team === 0 ? 'team-box-active team-box-pulse' : 'team-box-inactive');
-  setTeamBoxState('gatekeeper-score-team2', team === 1 ? 'team-box-active team-box-pulse' : 'team-box-inactive');
-  let head = teamNames[team], line = '', wait = '';
-  if (mp && !t) {                                     // standby: before the first LI5_TURN
+  const standby = mp && !t;
+  $('gatekeeper-round-label').textContent = standby ? '' : `Round ${currentRound} of ${totalRounds} · ${teamNames[team]}`;
+  [0, 1].forEach(i => {
+    const n = i + 1;
+    $('gatekeeper-name-team' + n).textContent = teamNames[i];
+    $('gatekeeper-pts-team' + n).textContent  = teamScores[i];
+    $('gatekeeper-tally-team' + n).innerHTML  = li5TallySvg(teamScores[i]);
+    $('gatekeeper-score-team' + n).classList.toggle('li5-gate-active', !standby && team === i);
+  });
+  let head = '', line = '', wait = '';
+  if (standby) {                                      // before the first LI5_TURN
     head = 'Settle down, please.';
-  } else if (mp && tlm) {
-    head = role === 'up' ? `Pass it to ${teamNames[team]}.` : `${teamNames[team]} is up.`;
-    line = role === 'up' ? "Whoever's up the front takes the phone. Everyone else, eyes off the screen."
-                         : 'Listen for No-No words. Hear one? Dob.';
-    wait = role === 'up' ? '' : `Waiting for ${teamNames[team]}…`;
-  } else if (mp) {
+  } else if (!mp || tlm) {                            // PTP, and the TLM device that is up
+    const pass = !mp || role === 'up';
+    head = pass ? `Pass it to ${teamNames[team]}.` : `${teamNames[team]} is up.`;
+    line = pass ? "Whoever's up the front takes the phone. Everyone else, eyes off the screen."
+                : 'Listen for No-No words. Hear one? Dob.';
+    wait = pass ? '' : `Waiting for ${teamNames[team]}…`;
+  } else {
     head = `${name}, up the front.`;
     line = role === 'up'    ? "Explain it like they're five. Don't say the No-No words."
          : role === 'guess' ? `Shout it out. ${name} can't show you the word.`
          :                    'Listen for No-No words. Hear one? Dob.';
     wait = role === 'up' ? '' : `Waiting for ${name}…`;
   }
-  $('li5-gate-eyebrow').style.display     = mp ? 'none' : '';
   $('gatekeeper-team-name').textContent   = head;
-  $('gatekeeper-hype').textContent        = aside || '';
+  $('gatekeeper-hype').textContent        = standby ? '' : (aside || '');
+  $('li5-gate-aside').style.display = (!standby && aside) ? '' : 'none';
   $('li5-gate-role').textContent          = line;
   $('li5-gate-role').style.display        = line ? '' : 'none';
   $('li5-gate-wait').textContent          = wait;
   $('li5-gate-wait').style.display        = wait ? '' : 'none';
   $('btn-start-turn').style.display       = (!mp || (t && role === 'up')) ? '' : 'none';
+  li5GateWrite();
+}
+
+// Wipe and write: a duster pass over the board's text, then Miss chalks the headline and the role
+// line. Cosmetic only — reduced motion (or no WAAPI) leaves the final state untouched. A newer
+// render cancels this one and restores the lines.
+let li5GateAnim = null, li5GateTok = 0;
+function li5GateWrite() {
+  const my = ++li5GateTok;
+  if (li5GateAnim) { try { li5GateAnim.cancel(); } catch (_) {} li5GateAnim = null; }
+  const box = document.getElementById('li5-gate-text');
+  const els = ['gatekeeper-team-name', 'li5-gate-role'].map(id => document.getElementById(id));
+  els.forEach(el => { el.style.opacity = ''; });
+  let reduced = false;
+  try { reduced = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); } catch (_) {}
+  if (reduced || typeof Li5Scene === 'undefined' || !box || typeof box.animate !== 'function') return;
+  const texts = els.map(el => el.textContent);
+  els.forEach(el => { el.style.opacity = '0'; });
+  const dummy = document.createElement('span');          // the duster needs something to rub out
+  dummy.setAttribute('aria-hidden', 'true');
+  box.appendChild(dummy);
+  const wipe = li5Duster(dummy, { duration: 450 });
+  li5GateAnim = wipe;
+  wipe.finished.then(() => {
+    if (my !== li5GateTok) return;
+    els.forEach((el, i) => {
+      el.style.opacity = '';
+      if (!texts[i]) return;
+      li5GateAnim = li5Chalk(el, texts[i], {});
+    });
+    const hd = els[0].getBoundingClientRect(), bx = box.getBoundingClientRect();
+    li5Dust(box, Math.min(bx.width - 24, 24 + Math.min(hd.width, 200)), Math.max(8, hd.bottom - bx.top), {});
+  });
+  if (dummy.parentNode) wipe.finished.then(() => { if (dummy.parentNode) dummy.parentNode.removeChild(dummy); });
 }
 
 // ── Screen: ACTIVE PLAY ───────────────────────────────────────────────────────

@@ -131,3 +131,10 @@ If a future team game has a "spectator" or "watcher" screen on one device, model
 
 **isClientTurn pattern for alternating 2-device roles** *(RETIRED 9 Nov 2026 — superseded by `li5RoleOf(seat, turn, groups)`; TLM is MDLM with one device per group)*
 When both devices in TLM need to swap active/passive roles per round, add a boolean flag (e.g., `isClientTurn`) to the SYNC round-start packet. Each device branches on this flag to show the appropriate screen. This is cleaner than maintaining separate state on each device.
+
+## S3 — the gatekeeper as the wipe-and-write round intro (9 Nov 2026, SW v266)
+
+- **Design:** `li5RenderGate()` sets every element to its FINAL state synchronously; `li5GateWrite()` is a cosmetic pass after it (duster over a throwaway span, then `li5Chalk` on the headline + role line, token-guarded so a newer render cancels it). A harness or a late `LI5_TURN` therefore never sees a half-written gate; reduced motion / no WAAPI leaves the final state alone.
+- **PTP head** is now *Pass it to [group].* (same as the TLM describing device) — it was the bare group name under *Ready up,*.
+- **Harness lesson:** the loopback's mock DOM has no `parentNode` and no WAAPI; render code reads only ids it can see (`li5-gate-aside` got its own id rather than `.parentNode`), and the pure `li5TallySvg` is loaded for real from `li5-scene.js` (the animating kit stays out).
+- **Identity doc:** gatekeeper copy block re-pointed at the new strings (`Ready up,` / `My Turn!` are gone).

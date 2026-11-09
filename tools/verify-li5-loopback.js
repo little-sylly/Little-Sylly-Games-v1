@@ -59,6 +59,8 @@ function addLi5(d, seed) {
   d.domText = () => [...els.values()].map(e => [e.textContent, e.innerHTML, e.value].join(' ')).join('\n');
   // li5-scene.js draws on a real DOM; the mock has none, so the Intro gets a no-op board here.
   d.run('const Li5Scene = { mount() {}, beat() {}, stop() {} };');
+  // The pure kit helper the gate uses is loaded for real (S3); the animating ones need a real DOM.
+  d.run(/function li5TallySvg[\s\S]*?\n\}\n/.exec(fs.readFileSync(path.join(ROOT, 'js/games/li5-scene.js'), 'utf8'))[0]);
   d.run(li5Src);
   d.run('mpWireIntro();');                 // engine-intro.js wires on DOMContentLoaded, which a vm never fires
   // engine.js resetToLobby()/resetToMenu() call stopTimer() + li5Teardown() — mirrored here.
