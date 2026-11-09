@@ -325,6 +325,28 @@ function mpIntroHostMove(seat) {
   mpIntroRender();
 }
 
+// Auto-assign: seat everyone still Unassigned, one at a time, into whichever team is smallest
+// (random among ties). Players who already picked a side stay put.
+function mpIntroHostAutoAssign() {
+  if (!mpIntro || mpIntro.mode !== 'host' || !mpIntro.lineup) return;
+  const s = mpIntro.state, n = s.names.length;
+  const counts = Array(n).fill(0);
+  s.team.forEach(t => { if (t >= 0 && t < n) counts[t]++; });
+  const open = s.team.map((t, i) => (t >= 0 && t < n) ? -1 : i).filter(i => i >= 0);
+  for (let i = open.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [open[i], open[j]] = [open[j], open[i]];
+  }
+  open.forEach(seat => {
+    const low = Math.min(...counts);
+    const pool = counts.map((c, t) => c === low ? t : -1).filter(t => t >= 0);
+    const t = pool[Math.floor(Math.random() * pool.length)];
+    s.team[seat] = t; counts[t]++;
+  });
+  mpIntroBroadcast();
+  mpIntroRender();
+}
+
 function mpIntroHostRandomise() {
   if (!mpIntro || mpIntro.mode !== 'host' || !mpIntro.lineup) return;
   const s = mpIntro.state, n = s.names.length;
@@ -574,6 +596,7 @@ function mpIntroRender() {
     ? 'min-h-14 w-full rounded-2xl bg-stone-200 text-stone-500 text-xl font-semibold'
     : `min-h-14 w-full rounded-2xl ${brand} active:scale-95 text-white text-xl font-semibold transition-transform duration-150`;
   show('btn-game-intro-shuffle', !beats && host && !!it.lineup);
+  show('btn-game-intro-autoassign', !beats && host && !!it.lineup && !!s && s.team.some(t => !(t >= 0)));
   const canStart = allReady && !problem;
   show('btn-game-intro-start', !beats && host);
   const sb = $('btn-game-intro-start');
@@ -645,6 +668,7 @@ function mpWireIntro() {
   $('btn-game-intro-skip').addEventListener('click', () => { playPillClick(); mpIntroSkip(); });
   $('btn-game-intro-ready').addEventListener('click', () => { playSuccess(); mpIntroReady(); });
   $('btn-game-intro-shuffle').addEventListener('click', () => { playPillClick(); mpIntroHostRandomise(); });
+  $('btn-game-intro-autoassign').addEventListener('click', () => { playPillClick(); mpIntroHostAutoAssign(); });
   $('btn-game-intro-start').addEventListener('click', () => { if (mpIntroStart(false)) playLaunch(); });
   $('btn-game-intro-anyway').addEventListener('click', () => { if (mpIntroStart(true)) playLaunch(); });
   $('btn-game-intro-go').addEventListener('click', () => {

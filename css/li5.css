@@ -180,11 +180,22 @@
 .li5-nono li.li5-ringed, .li5-desc-word.li5-ringed { outline: 2px solid var(--li5-pink); outline-offset: 1px; }
 
 /* Extra Credit */
-.li5-sylly-hint { margin: 0; font-size: 0.8rem; font-weight: 600; color: #d8b4fe; }
-.li5-sylly .li5-desc-word { color: #d8b4fe; }
-.li5-sylly .li5-desc-group { outline: 2px dashed #c084fc; outline-offset: -2px; }
-.li5-sylly .li5-btn-nay, .li5-sylly .li5-btn-nay:hover,
-.li5-sylly .li5-btn-skip, .li5-sylly .li5-btn-skip:hover { background: #a855f7; color: #fff; }
+.li5-sylly-hint { margin: 0; font-size: 0.8rem; font-weight: 600; color: #fcd34d; }
+/* Extra Credit stays pink — the chalk gets gold sparkles instead of a second colour */
+.li5-sylly .li5-desc-word { color: var(--li5-pink); text-shadow: 0 0 8px rgba(252,211,77,.55); }
+.li5-sylly .li5-desc-group { position: relative; outline: 2px dashed #fcd34d; outline-offset: -2px; }
+.li5-sylly .li5-desc-group::before, .li5-sylly .li5-desc-group::after {
+  content: "\2726\FE0E"; position: absolute; color: #fcd34d; pointer-events: none; text-shadow: 0 0 6px rgba(252,211,77,.8);
+  animation: li5Twinkle 1.8s ease-in-out infinite;
+}
+.li5-sylly .li5-desc-group::before { top: 0.15rem; left: 0.5rem; font-size: 0.95rem; }
+.li5-sylly .li5-desc-group::after { bottom: 0.15rem; right: 0.5rem; font-size: 0.7rem; animation-delay: 0.9s; }
+@keyframes li5Twinkle { 0%, 100% { opacity: 0.25; transform: scale(0.7) rotate(0deg); } 50% { opacity: 1; transform: scale(1.15) rotate(20deg); } }
+/* Double Yay!: the pink button with a gold ring and glints */
+.li5-sylly .li5-btn-yay {
+  box-shadow: 0 0 0 2px #fcd34d, 0 0 10px rgba(252,211,77,.55);
+  background-image: radial-gradient(circle at 18% 28%, rgba(252,211,77,.9) 0 2px, transparent 3px), radial-gradient(circle at 82% 68%, rgba(252,211,77,.9) 0 2px, transparent 3px), radial-gradient(circle at 56% 20%, rgba(255,255,255,.8) 0 1.5px, transparent 2.5px);
+}
 
 /* Time Out: the word is rubbed off, the clock stopped */
 .li5-timeout { flex: 1 1 auto; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.4rem; }
@@ -366,7 +377,7 @@
 .li5-delta-pos { color: #86efac; }
 .li5-delta-neg { color: #fca5a5; }
 .li5-delta-zero { color: rgba(244,241,232,.65); }
-.li5-xc { color: #d8b4fe; }
+.li5-xc { color: #fcd34d; }
 .li5-best { color: #fcd34d; }
 .li5-edited { margin-right: 0.35rem; font-size: 0.65rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; opacity: 0.7; }
 .li5-sheet-word { display: flex; align-items: center; gap: 0.4rem; min-width: 0; overflow-wrap: anywhere; }
@@ -462,3 +473,29 @@ button.li5-sheet-flip:active { transform: scale(0.98); }
   .li5-go-rc { display: none; }
   .li5-go-card .li5-tally { height: 14px; }
 }
+
+/* ═══ Round-2 playthrough fixes (SW v270) ═══════════════════════════════════
+   Yay is the big pink one, Nay is black; the action colours are the same everywhere a word is
+   listed: pink = Yay, yellow = Skip, grey = Nay (guess feed, Report Card, history). */
+.li5-btn-yay { flex: 1.7 1 0; font-size: 1.5rem !important; font-weight: 700 !important; }
+.li5-btn-nay { flex: 1 1 0; }
+
+.li5-sticky { background: #f9a8d4; }
+.li5-sticky-skip { background: #fde68a; }
+.li5-sticky-nay { background: #6b7280; color: #e5e7eb; text-decoration: line-through; text-decoration-thickness: 1.5px; opacity: 0.85; }
+.li5-sticky small { text-decoration: none; display: inline-block; }
+
+.li5-mark-ok, .li5-delta-pos.li5-pts-ok { color: var(--li5-pink); }
+.li5-mark-skip, .li5-pts-skip { color: #fcd34d; }
+.li5-mark-no, .li5-pts-no { color: #9ca3af; }
+.li5-sheet-pts.li5-pts-ok { color: var(--li5-pink); }
+.li5-sheet-pts.li5-pts-skip { color: #fcd34d; }
+.li5-sheet-pts.li5-pts-no { color: #9ca3af; }
+.li5-paper .li5-mark-ok, .li5-paper .li5-sheet-pts.li5-pts-ok { color: #be185d; }
+.li5-paper .li5-mark-skip, .li5-paper .li5-sheet-pts.li5-pts-skip { color: #a16207; }
+.li5-paper .li5-mark-no, .li5-paper .li5-sheet-pts.li5-pts-no { color: #6b7280; }
+.li5-paper .li5-xc { color: #b8860b; }
+
+/* Scrolling lists keep a gutter so the points never hug the scrollbar */
+.li5-sheet-list { scrollbar-gutter: stable; padding-right: 0.5rem; }
+.li5-paper-body { scrollbar-gutter: stable; padding-right: 0.9rem; }

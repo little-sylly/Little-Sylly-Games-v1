@@ -449,6 +449,7 @@ function endTurn() {
 
 // ── Round Review — the Report Card (LI5 pilot S6) ─────────────────────────────
 // Chalk glyphs, not emoji: a tick, a cross, a skip arrow. ︎ pins the text presentation.
+const LI5_PTS_CLASS = { correct: 'li5-pts-ok', taboo: 'li5-pts-no', skip: 'li5-pts-skip' };
 const REVIEW_MARKS = {
   correct: ['li5-mark-ok',   '✓︎', 'Yay'],
   taboo:   ['li5-mark-no',   '✗︎', 'Nay'],
@@ -490,7 +491,7 @@ function renderReviewList() {
 
   list.innerHTML = roundLog.map((e, i) => {
     const m       = REVIEW_MARKS[e.action] || REVIEW_MARKS.skip;
-    const ptClass = e.points > 0 ? 'li5-delta-pos' : e.points < 0 ? 'li5-delta-neg' : 'li5-delta-zero';
+    const ptClass = LI5_PTS_CLASS[e.action] || 'li5-pts-skip';
     const sylly   = e.isSylly ? ' <span class="li5-xc" title="Extra Credit">✦</span>' : '';
     const star    = e.word === starWord ? ' <span class="li5-best" title="Best word">★︎</span>' : '';
     const edited  = e.action !== e.originalAction ? '<span class="li5-edited">changed</span>' : '';
@@ -541,7 +542,7 @@ function showMatchHistory(teamIdx) {
       const rows = t.entries.length
         ? t.entries.map(e => {
             const m       = REVIEW_MARKS[e.action] || REVIEW_MARKS.skip;
-            const ptClass = e.points > 0 ? 'li5-delta-pos' : e.points < 0 ? 'li5-delta-neg' : 'li5-delta-zero';
+            const ptClass = LI5_PTS_CLASS[e.action] || 'li5-pts-skip';
             const sylly   = e.isSylly ? ' <span class="li5-xc">✦</span>' : '';
             return `<li class="li5-paper-row">
               <span class="li5-sheet-word"><span class="li5-mark ${m[0]}" aria-label="${m[2]}">${m[1]}</span><span>${li5EscHtml(e.word)}</span>${sylly}</span>
@@ -965,7 +966,7 @@ function li5HostMark(cardNo, mark) {
   H.log.push({ word: card.word, action: mark, originalAction: mark, isSylly: card.isSylly, points: r.points });
   H.streak = mark === 'correct' ? H.streak + 1 : 0;
   const last = { action: mark, isSylly: card.isSylly, points: r.points };
-  if (mark === 'correct') last.word = card.word;         // a Yay is the only word a guesser may see mid-turn
+  last.word = card.word;                                  // every resolved word shows on the guessers' feed (a Yay pink, a Skip yellow, a Nay grey)
   H.feed.push(Object.assign({ cardNo }, last));
   let ended = false, shifted = false;
   if (inGrace) {
@@ -1566,8 +1567,11 @@ function li5RenderGuess() {
   // The feed, newest first: a sticky note per Yay'd word, a blank slip for a Skip or a Dob.
   $('li5-guess-feed').innerHTML = li5V.feed.slice().reverse().map(f => {
     const rot = ((f.cardNo * 37) % 7 - 3) * 1.1;
-    if (f.action === 'correct' && f.word) {
-      return `<li class="li5-sticky" style="--r:${rot}deg">${li5Esc(f.word)}${f.points > 1 ? `<small>+${f.points}</small>` : ''}</li>`;
+    if (f.word) {
+      const kind = f.action === 'correct' ? '' : f.action === 'skip' ? ' li5-sticky-skip' : ' li5-sticky-nay';
+      const note = f.action === 'correct' ? (f.points > 1 ? `+${f.points}` : '')
+                 : f.action === 'skip' ? 'skipped' : (f.points < 0 ? `\u2212${Math.abs(f.points)}` : 'dobbed');
+      return `<li class="li5-sticky${kind}" style="--r:${rot}deg">${li5Esc(f.word)}${note ? `<small>${note}</small>` : ''}</li>`;
     }
     const txt = f.action === 'skip' ? 'Skipped' : `Dobbed${f.points < 0 ? ` \u2212${Math.abs(f.points)}` : ''}`;
     return `<li class="li5-slip" style="--r:${rot}deg">${txt}</li>`;

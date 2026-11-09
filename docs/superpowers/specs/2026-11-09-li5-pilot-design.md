@@ -480,7 +480,7 @@ drops self-sent ACTIONs.
 | `LI5_MATCH` | `{ teamNames[2], playerTeamIdx[n], rules: { timer, rounds, penaltyMode, skipFree, timePenalty, corrections, sylly } }` | once, from `onPassThePhone` (host) | stores roster + rules; no screen change |
 | `LI5_TURN` | `{ turnId, round, totalRounds, team, upSeat, scores[2], aside }` | each turn's wipe-and-write | **rebuilds every turn-scoped accumulator from nothing** (feed, notes, dobs, cooldown, review, voice dedupe), then shows `screen-gatekeeper` in this seat's role state |
 | `LI5_CLOCK` | `{ turnId, endTimestamp, paused, remainingMs }` | turn start, Time Out, resume, a time penalty, reconnect resume | **clock only**. The first one of a turn also moves each seat to its role screen |
-| `LI5_CARD` | `{ turnId, cardNo, last: { action, word, isSylly, points } \| absent, scores[2], streak }` | after every mark | feed + tallies + voice. `last.word` **only when `action === 'correct'`** |
+| `LI5_CARD` | `{ turnId, cardNo, last: { action, word, isSylly, points } \| absent, scores[2], streak }` | after every mark | feed + tallies + voice. `last.word` for every outcome (SW v270 — a resolved word; the current card never travels) |
 | `LI5_TIME_UP` | `{ turnId }` | host clock hits 0 | *Time!* on every screen; buttons dim |
 | `LI5_REVIEW` | `{ turnId, log[], scores[2], upSeat }` | turn end (after the grace), after each flip | Report Card on every device. The turn is over, so every word may show |
 | `LI5_GAMEOVER` | `{ scores[2], matchLog[], wordsExhausted }` | last review closed, or deck empty | `screen-gameover` on **every** device (an `MP_END_SCREENS` member) |
@@ -519,7 +519,7 @@ and an index can't be spoofed into a word the card doesn't have.
 |---|---|
 | **Who opens the clock** | The describer's **Ready, Miss!** is `LI5_READY`; the host stamps `endTimestamp` on receipt and sends `LI5_CLOCK`. The host still owns the clock — departure D5 |
 | **Time Out** | Describer only: `LI5_TIMEOUT`. The host stores `remainingMs` and broadcasts `paused`; on resume `endTimestamp = now + remainingMs`. Every screen rubs off its word (tattletales too) |
-| **Resolved words to guessers** | `LI5_CARD.last.word` only for a Yay; Skip / Nay travel as blanks; the Report Card reveals all once the turn ends. The current word: never |
+| **Resolved words to guessers** | `LI5_CARD.last.word` for every outcome since SW v270 (owner playtest): Yay pink, Skip yellow, Nay grey on the feed. The current word: never |
 | **Report Card + Pinky Swear** | Everyone sees it. **The describer flips and taps *Your Turn →*; the host can too** (an override for a describer who wanders off). Everyone else reads *Waiting for Jack…* |
 | **Dob cooldown** | **5 s per player, host-enforced**, mirrored locally for the dimming. A crowd = **distinct dobbers on one slot**; the same player twice counts once |
 | **A drop up the front** | **Adopt `reconnect`** (§ 5.7). Note: the brief's "a drop ends the session after 20 s" is out of date — since SW v240 a non-adopter gets a 60 s grace and then the host is *asked*; nothing ends on its own. Skipping the dropped describer's turn was rejected: the engine's Away overlay already freezes every device, so the game can't act round it — the hook is the right tool, and LI5's state is small |

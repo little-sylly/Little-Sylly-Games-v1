@@ -189,11 +189,11 @@ function privacyProblems(M) {
     const p = fbRead(e.payload), a = p.action;
     if (a === 'LI5_REVIEW' || a === 'LI5_GAMEOVER') continue;
     let s = JSON.stringify(p);
-    if (a === 'LI5_CARD' && p.last && p.last.action === 'correct' && p.last.word) s = s.split('"' + p.last.word + '"').join('""');
+    if (a === 'LI5_CARD' && p.last && p.last.word) s = s.split('"' + p.last.word + '"').join('""');
     const toks = s.match(TOKEN_RE);
     if (toks) out.push(`public ${a} carries ${toks.join(',')}`);
     ['nonoList', 'next', 'category', 'isSylly'].forEach(k => { if (k in p) out.push(`public ${a} has a "${k}" key`); });
-    if (a === 'LI5_CARD' && p.last && p.last.action !== 'correct' && 'word' in p.last) out.push('public LI5_CARD names a word that was not a Yay');
+    // a RESOLVED word (Yay, Skip or Nay) is on the guessers' feed from SW v270; the current and next card never are
   }
   const seatByUid = Object.fromEntries(M.host.run('mpPlayerSlots.map(s => s.uid)').map((u, i) => [u, i]));
   for (const [uid, q] of priv(M.code)) {

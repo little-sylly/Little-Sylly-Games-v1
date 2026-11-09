@@ -166,3 +166,10 @@ When both devices in TLM need to swap active/passive roles per round, add a bool
 - **Dead code removed:** `setTeamBoxState` and the `team-box-*` use on this screen. `li5PaintDescTallies` was not reused for gameover — its ids are `prefix-name/pts-i` and the gameover keeps the legacy `gameover-name/pts-teamN` ids.
 - **Harness note:** in the headless page the *first* `showGameOver()` after load leaves the screen `display:none` (boot-time lobby race, seeding artefact — the second call shows it); seed twice. Screenshots measured at 320×452 / 375×548 / 375×667: board and tray inside the viewport, no sideways scroll, Report Card list scrolls with the CTA pinned.
 - **Identity doc:** copy blocks updated (*Hot streak!*, *Report cards ›*, *Wipe the board?* …); `verify-identity-docs` green.
+
+## S7 — owner playthrough fixes (10 Nov 2026, SW v270)
+
+- **Action colours are one palette everywhere a word is listed:** pink = Yay, yellow = Skip, grey = Nay (`.li5-sticky*`, `.li5-pts-*`; the paper history uses darker rungs). Replaces green/red ticks on the Report Card.
+- **Privacy rule relaxed on purpose:** a *resolved* word (any outcome) rides `LI5_CARD.last.word`; the current and next card still never travel. The loopback's privacy check now strips `last.word` for any outcome. Risk to watch: if the deck ever re-circulates a skipped word inside a match, guessers have seen it.
+- **Extra Credit is pink + gold,** not purple: `.li5-sylly` sparkles are ::before/::after glyphs (opacity/transform only; reduced motion handled by the global block).
+- **Auto-assign** (`mpIntroHostAutoAssign`, engine-generic) complements Shuffle: only the Unassigned move, into the smallest team (random among ties).
