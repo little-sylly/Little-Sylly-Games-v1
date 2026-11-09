@@ -38,7 +38,7 @@ const partials = fs.readdirSync(path.join(ROOT, 'src/screens'))
 if (!partials.length) { console.log(`no partial for "${abbr}" in src/screens/`); process.exit(1); }
 const markup  = partials.map(f => fs.readFileSync(path.join(ROOT, 'src/screens', f), 'utf8')).join('\n');
 // Any tag (LI5's menu is a <main>), plus screen-<abbr>-… living in a shared partial
-// (screen-li5-monitor is in _mp.html).
+// (none today — LI5's monitor in _mp.html retired at the LI5 pilot S1).
 const SCREEN_RE = /<(?:section|main|div)\b[^>]*\bid="(screen-[^"]+)"/g;
 const shared  = fs.readdirSync(path.join(ROOT, 'src/screens')).filter(f => f.startsWith('_'))
   .map(f => fs.readFileSync(path.join(ROOT, 'src/screens', f), 'utf8')).join('\n');

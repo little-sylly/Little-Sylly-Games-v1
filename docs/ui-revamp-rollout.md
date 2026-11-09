@@ -34,7 +34,7 @@ Status column** — a row turns ✅ only when R12 is really done. The Game cell 
 
 | Order | Game | Stage | Status | R1–R16 | Practice (R10) | Next action |
 |---:|------|------|:---:|------|------|------|
-| 1 | **LI5** Like I'm Five | 1 · pilot | 🔨 | 3/16 | ☐ | R1, R2, R2b signed off 9 Nov (`specs/2026-11-09-li5-pilot-design.md` §§ 1–3). R2c + § 5 network spec written 9 Nov — owner to answer § 5.13, then build S0 → S9 (§ 5.12) |
+| 1 | **LI5** Like I'm Five | 1 · pilot | 🔨 | 3/16 | ☐ | R1, R2, R2b, R2c + § 5 signed off 9 Nov (`specs/2026-11-09-li5-pilot-design.md`). **S0 (scene `beat` hook) + S1 (MDLM network, `verify-li5-loopback` 182 + 5/5 mutants) built 9 Nov.** Next S2 (world kit + Intro scene) → S9 (§ 5.12) |
 | 2 | **GM** Great Minds | 2 · pilot | ☐ | 0/16 | ☐ | After LI5 — thought bubbles + word-cloud history (spec § 17.3); then extract `scene-kit.js`, write `sylly-ui-pass` |
 | 3 | *TBD* — an N-player MDLM game | 3 · Sonnet proof | ☐ | — | — | Chosen at Stage 2's end; not a heavily-iterated one (not CJAR) |
 | — | **SS** Secret Signals | batch | ☐ | 0/16 | ☐ | Line-up candidate (`teams`, balanced) — retires a lobby-roster user |
@@ -86,8 +86,13 @@ Each card: **shape** (modes · players · roster today) · **Line-up** (the R2 c
   stacked notes + wiggle). Tap the clock to pause; buzz names the word and lights it; Nay / Wave off.
 - **Scope added at R2:** brand colour (pink was never chosen against a world — chalkboard green is a
   candidate; touches every brand surface) and terminology (T5–T7b, paired copy).
-- **Network:** LI5's MP code moves out of `engine-multiplayer.js` into `li5HandleEnvelope`; new
-  `tools/verify-li5-loopback.js` (wire + real DOM + broken copy). Stage 1 spec owns the packet table.
+- **Network — BUILT (S1, 9 Nov):** LI5's MP code moved out of `engine-multiplayer.js` into
+  `li5.js` § Lobby Mode / `li5HandleEnvelope`; TLM folded into the MDLM path; `reconnect` adopted;
+  the monitor deleted. `tools/verify-li5-loopback.js` (182, on `mp-world`) + `mutate-li5-loopback.js`
+  (5/5). Role screens are plain markup until S3–S6. Found + fixed on the way: PTP turn order when the
+  second group won the toss (L9), the describer's optimistic advance (L10).
+- **Engine (S0, 9 Nov):** the scene `beat(i, text)` hook, `data-intro-unassigned`, no Line-up in TLM
+  (`shared-implementation-notes.md` DD-67). The `<template id="intro-li5">` copy is in; the scene is S2.
 - **Practice:** `practice-rollout.md` § 6.19 (Autopilot ✔).
 - **Boards:** https://claude.ai/artifact/8YuBcu4fLveMY4XtF9RbJz · `wip/revamp/mockups/li5/`.
 - **Pain points:** none (owner, 9 Nov).

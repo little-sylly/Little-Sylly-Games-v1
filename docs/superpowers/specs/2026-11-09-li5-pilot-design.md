@@ -2,7 +2,8 @@
 
 **Status (9 Nov 2026):** R1 done · **R2 world brief signed off** (9 Nov, § 2.11) · **R2b signed off**
 (9 Nov, § 3) · **R2c (§ 4) and the MDLM network spec (§ 5) signed off** (§ 5.13, all five as
-recommended) · **S0 built** (the scene `beat` hook).
+recommended) · **S0 built** (the scene `beat` hook) · **S1 built** (the MDLM network —
+`verify-li5-loopback.js` 182 checks, `mutate-li5-loopback.js` 5/5). Next: S2.
 
 Programme spec: `2026-11-08-ui-revamp-design.md` §§ 10, 17.2 · tracker: `docs/ui-revamp-rollout.md`
 § 5 LI5 card · identity doc: `docs/game-identities/li5.md` · boards:

@@ -97,7 +97,7 @@ section('3. Every revamped game (the tracker\'s ✅ rows)');
       const bad = unlabelled(read(f));
       ok(abbr + ': every screen in ' + path.basename(f) + ' carries data-tv', bad.length === 0, bad.map(s => s.id).join(', '));
     }
-    // …and its screens that live in a shared partial (screen-li5-monitor is in _mp.html).
+    // …and its screens that live in a shared partial (none today — LI5's monitor in _mp.html retired at the LI5 pilot S1).
     const elsewhere = fs.readdirSync(path.join(ROOT, 'src/screens')).filter(f => f.startsWith('_'))
       .flatMap(f => unlabelled(read('src/screens/' + f)).filter(s => s.id.startsWith('screen-' + abbr + '-')));
     ok(abbr + ': its screens in shared partials carry data-tv too', elsewhere.length === 0, elsewhere.map(s => s.id).join(', '));

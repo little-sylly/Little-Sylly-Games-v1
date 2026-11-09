@@ -747,7 +747,8 @@ Rock Paper Scissors
   <!-- ═══════════════════════════════════════════════════════════════
        LIKE I'M FIVE (LI5)
        Screens : #screen-menu, #screen-setup, #screen-gatekeeper,
-                 #screen-active-play, #screen-gameover
+                 #screen-active-play, #screen-li5-tattle, #screen-li5-guess (Lobby Mode),
+                 #screen-gameover · <template id="intro-li5">
        Overlays: #settings-overlay, #li5-how-to-overlay, #quit-overlay,
                  #li5-play-again-overlay, #skip-turn-overlay, #review-overlay,
                  #history-overlay, #pause-overlay (inline), #deck-panel,
@@ -829,9 +830,13 @@ Let's Go Already!
 
     <!-- Team name + hype -->
     <div>
-      <p class="text-stone-400 text-base">Ready up,</p>
+      <p id="li5-gate-eyebrow" class="text-stone-400 text-base">Ready up,</p>
       <h2 id="gatekeeper-team-name" class="text-4xl font-bold text-stone-800 mt-1"></h2>
       <p id="gatekeeper-hype" class="text-stone-500 text-lg mt-3 italic"></p>
+      <!-- Lobby Mode (LI5 pilot S1): this seat's role this turn, and who we're waiting on.
+           li5RenderGate() owns every element on this screen (Stack rule 4). -->
+      <p id="li5-gate-role" style="display:none" class="text-stone-700 text-base font-semibold mt-3"></p>
+      <p id="li5-gate-wait" style="display:none" class="text-stone-400 text-sm mt-2"></p>
     </div>
 
     <button id="btn-start-turn" class="min-h-14 w-full rounded-2xl bg-pink-500 hover:bg-pink-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
@@ -866,6 +871,9 @@ Let's Go Already!
       <button id="btn-resume" class="min-h-14 w-full rounded-2xl bg-pink-500 hover:bg-pink-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
         ▶ Let's Continue Playing!
       </button>
+      <button id="btn-li5-end-my-turn" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 text-base font-semibold transition-all duration-150">
+        End my turn
+      </button>
     </div>
 
     <!-- Game content — hidden while paused -->
@@ -883,6 +891,16 @@ Let's Go Already!
       <!-- Live score + Sylly scoring hint -->
       <p class="text-stone-500 text-base mb-1">Score: <span id="score-display" class="font-bold text-stone-800">0</span></p>
       <p id="sylly-scoring-hint" style="display:none" class="text-purple-500 text-sm font-semibold">✨ Sylly word x2 🔥</p>
+      <p id="li5-timeup" style="display:none" class="text-stone-800 text-2xl font-bold"></p>
+
+      <!-- Lobby Mode: a dob arrives as a note (LI5 pilot S1 — plain; S4 dresses it) -->
+      <div id="li5-note" style="display:none" class="w-full bg-white rounded-2xl p-3 shadow-sm flex flex-col gap-2">
+        <p id="li5-note-text" class="text-stone-800 text-base font-semibold"></p>
+        <div class="flex gap-3">
+          <button id="btn-li5-said-it" class="min-h-11 flex-1 rounded-xl bg-red-500 hover:bg-red-600 active:scale-95 text-white text-base font-semibold transition-all duration-150">I said it</button>
+          <button id="btn-li5-didnt" class="min-h-11 flex-1 rounded-xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 text-base font-semibold transition-all duration-150">I didn't</button>
+        </div>
+      </div>
 
       <!-- Action buttons -->
       <div class="flex gap-3 w-full mb-3">
@@ -898,6 +916,90 @@ Let's Go Already!
       </button>
     </div>
   </section>
+
+  <!-- ⑤b TATTLETALES — Lobby Mode, the other group (LI5 pilot S1: plain markup, S5 dresses it).
+       Sees the word + No-No List; taps a row to dob. data-tv private: it shows the word. -->
+  <section id="screen-li5-tattle" data-tv="private" style="display:none"
+    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-4">
+      <div class="flex items-center justify-between">
+        <p class="text-stone-400 text-xs font-semibold uppercase tracking-widest">Tattletales</p>
+        <div class="flex items-center gap-2">
+          <button class="btn-li5-help-open text-stone-400 font-bold text-sm min-h-11 w-11">[?]</button>
+          <button class="btn-open-sound text-2xl leading-none min-h-11 w-11 flex items-center justify-center">🔊</button>
+          <button id="btn-li5-tattle-quit" class="text-stone-500 font-bold text-xl leading-none min-h-11 w-11 flex items-center justify-center" aria-label="Quit game">✕</button>
+        </div>
+      </div>
+      <div class="flex items-center justify-between">
+        <p id="li5-tattle-scores" class="text-stone-500 text-sm font-semibold"></p>
+        <p id="li5-tattle-clock" class="text-3xl font-bold text-stone-800 tabular-nums"></p>
+      </div>
+      <div class="bg-white rounded-2xl p-5 shadow-sm text-center">
+        <p id="li5-tattle-up" class="text-stone-400 text-xs font-semibold uppercase tracking-widest mb-2"></p>
+        <p id="li5-tattle-word" class="text-3xl font-bold text-stone-800"></p>
+      </div>
+      <ul id="li5-tattle-list" class="flex flex-col gap-2"></ul>
+      <button id="btn-li5-dob-word" class="min-h-12 w-full rounded-2xl bg-pink-500 hover:bg-pink-600 active:scale-95 text-white text-base font-semibold transition-all duration-150">They said the word itself</button>
+      <p id="li5-tattle-status" class="text-stone-400 text-sm text-center"></p>
+    </div>
+  </section>
+
+  <!-- ⑤c GUESSING — Lobby Mode, the describer's own group (LI5 pilot S1: plain, S5 dresses it).
+       NO word slot in this markup, on purpose: there is nothing a stale render could leave
+       behind. data-tv public: safe for anyone in the room to see. -->
+  <section id="screen-li5-guess" data-tv="public" style="display:none"
+    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-4">
+      <div class="flex items-center justify-between">
+        <p class="text-stone-400 text-xs font-semibold uppercase tracking-widest">Guessing</p>
+        <div class="flex items-center gap-2">
+          <button class="btn-li5-help-open text-stone-400 font-bold text-sm min-h-11 w-11">[?]</button>
+          <button class="btn-open-sound text-2xl leading-none min-h-11 w-11 flex items-center justify-center">🔊</button>
+          <button id="btn-li5-guess-quit" class="text-stone-500 font-bold text-xl leading-none min-h-11 w-11 flex items-center justify-center" aria-label="Quit game">✕</button>
+        </div>
+      </div>
+      <div class="flex items-center justify-between">
+        <p id="li5-guess-scores" class="text-stone-500 text-sm font-semibold"></p>
+        <p id="li5-guess-clock" class="text-3xl font-bold text-stone-800 tabular-nums"></p>
+      </div>
+      <div class="bg-white rounded-2xl p-6 shadow-sm text-center flex flex-col gap-2">
+        <p class="text-7xl font-bold text-stone-300" aria-hidden="true">?</p>
+        <p id="li5-guess-up" class="text-stone-700 text-lg font-semibold"></p>
+        <p id="li5-guess-streak" class="text-stone-500 text-sm"></p>
+      </div>
+      <ul id="li5-guess-feed" class="flex flex-wrap gap-2 justify-center"></ul>
+      <p id="li5-guess-status" class="text-stone-400 text-sm text-center"></p>
+    </div>
+  </section>
+
+  <!-- The Intro's copy (docs/rules/ui-revamp.md § 3; pilot spec § 2.5, signed off 9 Nov).
+       Plain text nodes only — the engine reads them; Li5Scene (S2) writes them on the board. -->
+  <template id="intro-li5">
+    <p data-intro-narrator>Miss</p>
+    <p data-intro-role>Your teacher</p>
+    <p data-intro-line>Morning, class. Settle down, please.</p>
+    <p data-intro-line>Today: explaining things so simply a five-year-old would get it.</p>
+    <p data-intro-line>One of you comes up the front with a secret word. Your group shouts out guesses.</p>
+    <p data-intro-line>Say anything on the No-No List and the other group will dob you in.</p>
+    <p data-intro-line>Into your groups, please.</p>
+    <ul data-intro-brief="default">
+      <li>Up the front: explain the word. Never say it — or anything on the No-No List.</li>
+      <li>Your group's up: shout out guesses. You won't see the word.</li>
+      <li>Their group's up: you'll see the word and its No-No List. Hear one? Dob.</li>
+    </ul>
+    <ul data-intro-brief="ptp">
+      <li>Up the front: hold the phone and explain. No No-No words.</li>
+      <li>Your group: shout guesses — no peeking at the screen.</li>
+      <li>The other group: listen hard. Hear a No-No word? Call it.</li>
+    </ul>
+    <ul data-intro-brief="tlm">
+      <li>Up the front: hold the phone and explain. No No-No words.</li>
+      <li>Your group: shout guesses — no peeking at the screen.</li>
+      <li>The other group: your phone shows the No-No List. Hear one? Dob.</li>
+    </ul>
+    <p data-intro-lineup>Into your groups, please.</p>
+    <p data-intro-unassigned>Not in a group</p>
+  </template>
 
   <!-- ⑦ SETTINGS MODAL — slide-up overlay -->
   <div id="settings-overlay" style="display:none" class="fixed inset-0 bg-black/40 z-[80] flex items-end justify-center">
@@ -1171,8 +1273,9 @@ Let's do it!
       <!-- Scrollable word list -->
       <ul id="review-list" class="flex-1 overflow-y-auto flex flex-col gap-2 py-3 min-h-0"></ul>
 
-      <!-- Next button -->
+      <!-- Next button (Lobby Mode: the describer and the host only — everyone else waits) -->
       <div class="pt-3">
+        <p id="li5-review-wait" style="display:none" class="text-stone-400 text-sm text-center py-4"></p>
         <button id="btn-review-next" class="min-h-14 w-full rounded-2xl bg-pink-500 hover:bg-pink-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
           Your Turn →
         </button>
@@ -5722,7 +5825,6 @@ Launch Sequence
        Screens : screen-mp-mode (shared, parameterised by mpShowModeScreen)
                  screen-mp-lobby-host (shared, parameterised by mpShowLobbyHost)
                  screen-mp-lobby-join (shared, parameterised by mpShowLobbyJoin)
-                 screen-li5-monitor (LI5-specific opposing team view),
                  screen-mp-roster (host lobby roster assignment — conditional)
        Overlays: mp-version-mismatch-overlay, mp-host-disconnected-overlay,
                  mp-lttp-message-interrupt-overlay, mp-network-error-overlay,
@@ -5913,49 +6015,6 @@ Launch Sequence
         disabled>
         Start Game →
       </button>
-    </div>
-  </section>
-
-  <!-- ── screen-li5-monitor: LI5 Opposing Team View (Tattletale Sheet) ── -->
-  <section id="screen-li5-monitor" style="display:none"
-    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
-    <div class="flex flex-col w-full max-w-sm gap-6">
-
-      <!-- Header -->
-      <div class="flex items-center justify-between">
-        <button id="btn-li5-monitor-exit" class="text-stone-500 font-bold text-xl leading-none min-h-11 flex items-center">✕</button>
-        <button class="btn-open-sound text-2xl leading-none">🔊</button>
-      </div>
-
-      <!-- Title -->
-      <div class="text-center">
-        <p class="text-5xl mb-2">👀</p>
-        <h2 class="text-3xl font-bold text-stone-800">Tattletale Sheet</h2>
-        <p class="text-stone-400 text-sm mt-1">Watch for rule breaks — tap CATCH! to alert them.</p>
-      </div>
-
-      <!-- Word display (populated by Sprint 4 Firebase SYNC) -->
-      <div class="bg-white rounded-2xl p-5 shadow-sm text-center">
-        <p id="li5-monitor-describing-label" class="text-stone-400 text-xs font-semibold uppercase tracking-widest mb-2">They're describing</p>
-        <p id="li5-monitor-word" class="text-3xl font-bold text-stone-800">—</p>
-      </div>
-
-      <!-- No-No List (populated by Sprint 4) -->
-      <div id="li5-monitor-nono-section" class="bg-white rounded-2xl p-4 shadow-sm">
-        <p class="text-stone-400 text-xs font-semibold uppercase tracking-widest mb-3 text-center">No-No List</p>
-        <ul id="li5-monitor-nono-list" class="flex flex-col gap-2">
-          <li class="text-stone-400 text-sm italic text-center">Waiting for round to start…</li>
-        </ul>
-      </div>
-
-      <!-- CATCH! button -->
-      <div id="li5-monitor-catch-section">
-      <button id="btn-li5-catch"
-        class="btn-mp-action min-h-16 w-full rounded-2xl bg-pink-500 hover:bg-pink-600 active:scale-95 text-white text-2xl font-bold transition-all duration-150">
-        CATCH! 🚨
-      </button>
-      </div>
-
     </div>
   </section>
 

@@ -260,7 +260,8 @@ for (const id of IDS) {
 section('7. Client reconnect — adopters and hook shape');
 const ADOPTERS = IDS.filter(id => CONFIGS[id].reconnect !== undefined);
 // SW v237: flw, pko, cjar — each proven in its own loopback's Reconnect sections.
-check('the adopters are exactly the reviewed list', ADOPTERS, ['flw', 'pko', 'cjar', 'comb']);
+// LI5 pilot S1: li5 — proven in verify-li5-loopback.js § 13.
+check('the adopters are exactly the reviewed list', ADOPTERS, ['li5', 'flw', 'pko', 'cjar', 'comb']);
 for (const id of ADOPTERS) {
   const rc = CONFIGS[id].reconnect;
   ok(id + ': reconnect has sendState, pause and resume',
@@ -319,7 +320,7 @@ function introProblems(c, html) {
   return p;
 }
 const INTRO_GAMES = IDS.filter(id => CONFIGS[id].intro !== undefined);
-check('the intro adopters are exactly the reviewed list', INTRO_GAMES, []);
+check('the intro adopters are exactly the reviewed list', INTRO_GAMES, ['li5']);   // LI5 pilot S1
 for (const id of INTRO_GAMES) {
   const pr = introProblems(CONFIGS[id], indexSrc);
   ok(id + ': intro is whole', pr.length === 0, pr.join('; '));

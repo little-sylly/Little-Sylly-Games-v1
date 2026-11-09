@@ -71,33 +71,30 @@ const MP_GAME_CONFIGS = {
     brandBtnClass:   'bg-pink-500 hover:bg-pink-600',
     ptpLabel:        'Play Time!',
     menuScreen:      'screen-menu',
-    onPassThePhone: () => {
-      if (window.syllyMultiplayerMode === 'client') {
-        // Client (opposing team): show monitor standby until word arrives via SYNC
-        document.getElementById('li5-monitor-word').textContent = '—';
-        document.getElementById('li5-monitor-nono-list').innerHTML =
-          '<li class="text-stone-400 text-sm italic text-center">Waiting for round to start…</li>';
-        // Apply team names from roster if provided
-        if (window.mpLobbyRoster?.teamNames && typeof teamNames !== 'undefined') {
-          teamNames[0] = window.mpLobbyRoster.teamNames[0];
-          teamNames[1] = window.mpLobbyRoster.teamNames[1];
-        }
-        showScreen('screen-li5-monitor');
-      } else {
-        // Host: apply team names from roster, then skip the setup screen
-        if (window.mpLobbyRoster?.teamNames && typeof teamNames !== 'undefined') {
-          teamNames[0] = window.mpLobbyRoster.teamNames[0];
-          teamNames[1] = window.mpLobbyRoster.teamNames[1];
-        }
-        startGame(); // bypasses screen-setup; team names already applied above
-      }
-    },
+    // PTP: startGame(). Lobby Mode (MDLM + TLM, one path — LI5 pilot S1): the host runs
+    // the match; a client shows standby until LI5_TURN (or, on a rejoin, LI5_STATE).
+    // Safe to re-run. Arrow wrappers: this object is built before li5.js loads.
+    onPassThePhone: () => li5OnEnter(),
     recommendedMode: 'ptp',
-    supportedModes:  ['ptp', 'tlm'],
+    supportedModes:  ['ptp', 'tlm', 'mdlm'],
     multiplayerOnly: false,
     lobbyCtaLabel:   'Play Time!',
     rosterConfig: { type: 'none', showTeamNamesInPreLobby: true, defaultTeamNames: ['Crayon Crew', 'Glue Stick Gang'], hasCaptain: false },
-    getMaxPlayers: () => 2,
+    // A Team Lobby is two devices, one per group; MDLM is 2+ a group (spec § 2.8).
+    getMaxPlayers: () => window.mpLobbyStyle === 'team' ? 2 : 12,
+    getMinPlayers: () => window.mpLobbyStyle === 'team' ? 2 : 4,
+    // The Intro (UI revamp): one brief per MODE — roles rotate every turn, so the round
+    // intro restates them (pilot spec § 2.5). No Line-up in a Team Lobby (engine rule).
+    intro: {
+      template: 'intro-li5',
+      brief:    () => window.syllyMultiplayerMode === 'single' ? 'ptp' : window.mpLobbyStyle === 'team' ? 'tlm' : 'default',
+      lineup:   { type: 'teams', teamNames: ['Crayon Crew', 'Glue Stick Gang'], minPerTeam: 2, balanced: false },
+    },
+    reconnect: {
+      sendState: idx => li5SendState(idx),
+      pause:     () => li5ReconnectPause(),
+      resume:    () => li5ReconnectResume(),
+    },
   },
   gm: {
     gameName:        'Great Minds',
@@ -1029,8 +1026,8 @@ function mpSerialiseSettings(abbr) {
       natSyllyMode, natVotingMode, natScientificIntegrity, natEscapePoints,
     };
     case 'li5': return {
-      settingTimer, settingRounds, settingDifficulty, settingSylly,
-      settingPenaltyMode, settingSkipFree, settingTimePenalty, settingPlayAllDecks,
+      settingTimer, settingRounds, settingDifficulty, settingSylly, settingSyllyPct,
+      settingPenaltyMode, settingSkipFree, settingTimePenalty, settingPlayAllDecks, settingCorrections,
     };
     case 'dsd': return {
       dsdSeaState, dsdDangerLevel, dsdStrategicPlanning, dsdSyllyMode,
@@ -1716,6 +1713,8 @@ function mpApplySettings(abbr, s) {
       if (s.settingSkipFree     !== undefined) settingSkipFree     = s.settingSkipFree;
       if (s.settingTimePenalty  !== undefined) settingTimePenalty  = s.settingTimePenalty;
       if (s.settingPlayAllDecks !== undefined) settingPlayAllDecks = s.settingPlayAllDecks;
+      if (s.settingSyllyPct     !== undefined) settingSyllyPct     = s.settingSyllyPct;
+      if (s.settingCorrections  !== undefined) settingCorrections  = s.settingCorrections;
       break;
     case 'nat':
       if (s.natMatchesSetting   !== undefined) natMatchesSetting   = s.natMatchesSetting;
@@ -2310,60 +2309,9 @@ function mpHandleEnvelope(env) {
     }
   }
 
-  // ── Like I'm Five ACTION/SYNC ──────────────────────────────────────────────
+  // ── Like I'm Five — ACTION + SYNC + the private words/dobs (js/games/li5.js § Lobby Mode) ──
   if (mpActiveGame === 'li5') {
-    // LI5_ROUND_START — Client receives word + nono list.
-    // isClientTurn: true = it's our team describing; show word-card mode (L2).
-    // isClientTurn: false = opposing team describing; show tattletale mode (default).
-    if (env.type === 'SYNC' && env.payload.action === 'LI5_ROUND_START') {
-      const word         = env.payload.word;
-      const nonoList     = env.payload.nonoList || [];
-      const isClientTurn = !!env.payload.isClientTurn;
-
-      document.getElementById('li5-monitor-word').textContent = word;
-      const labelEl   = document.getElementById('li5-monitor-describing-label');
-      const nonoSec   = document.getElementById('li5-monitor-nono-section');
-      const catchSec  = document.getElementById('li5-monitor-catch-section');
-
-      if (isClientTurn) {
-        // L2: Our team is describing — show the word prominently, hide nono/catch
-        if (labelEl)  labelEl.textContent       = "You're describing!";
-        if (nonoSec)  nonoSec.style.display     = 'none';
-        if (catchSec) catchSec.style.display    = 'none';
-      } else {
-        // Opposing team is describing — show full tattletale sheet (default)
-        if (labelEl)  labelEl.textContent       = "They're describing";
-        if (nonoSec)  nonoSec.style.display     = 'block';
-        if (catchSec) catchSec.style.display    = 'block';
-        // L3: Render nono words as tappable buttons (tap = CATCH! that word)
-        const ul = document.getElementById('li5-monitor-nono-list');
-        ul.innerHTML = nonoList.map(w =>
-          `<button data-word="${w}" class="li5-nono-word-btn w-full bg-pink-50 rounded-xl px-3 py-2 text-stone-800 font-semibold text-sm text-center active:scale-95 transition-all duration-100">${w}</button>`
-        ).join('');
-      }
-      showScreen('screen-li5-monitor');
-    }
-
-    // LI5_CATCH — Host receives alert from opposing team; pulses word card + highlights caught word
-    if (env.type === 'ACTION' && env.payload.action === 'LI5_CATCH' &&
-        window.syllyMultiplayerMode === 'host') {
-      playBoing();
-      const card = document.getElementById('active-word-card');
-      if (card) {
-        card.classList.remove('shake');
-        void card.offsetWidth;
-        card.classList.add('shake');
-      }
-      // L3: Highlight the caught word in the active taboo list on host
-      const caughtWord = env.payload.word;
-      if (caughtWord) {
-        document.querySelectorAll('#active-taboo-list li').forEach(li => {
-          if (li.textContent.trim() === caughtWord) {
-            li.classList.add('bg-pink-200', 'text-pink-800', 'font-bold');
-          }
-        });
-      }
-    }
+    if (typeof li5HandleEnvelope === 'function') li5HandleEnvelope(env);
   }
 
   // ── Deep-Sea Deploy ACTION/SYNC ────────────────────────────────────────────
@@ -3916,54 +3864,6 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   document.getElementById('btn-mp-network-error-ok').addEventListener('click', () => {
     document.getElementById('mp-network-error-overlay').style.display = 'none';
-  });
-
-  // LI5: CATCH! button on monitor screen → send alert to Host device (10s cooldown)
-  let li5CatchCooldownTimer = null;
-
-  // L3: tappable nono words — tap to trigger CATCH with the specific word
-  document.getElementById('li5-monitor-nono-list')?.addEventListener('click', e => {
-    const btn = e.target.closest('.li5-nono-word-btn');
-    if (!btn || window.syllyMultiplayerMode !== 'client' || li5CatchCooldownTimer) return;
-    const word = btn.dataset.word;
-    // Highlight the tapped word on the monitor immediately
-    btn.classList.add('ring-2', 'ring-pink-500', 'bg-pink-200', 'text-pink-800');
-    playBoing();
-    mpSendEnvelope({ type: 'ACTION', payload: { action: 'LI5_CATCH', word } });
-    li5StartCatchCooldown();
-  });
-
-  function li5StartCatchCooldown() {
-    const btn = document.getElementById('btn-li5-catch');
-    if (!btn) return;
-    btn.disabled = true;
-    let remaining = 10;
-    btn.textContent = `CATCH! 🚨 (${remaining}s)`;
-    li5CatchCooldownTimer = setInterval(() => {
-      remaining--;
-      if (remaining <= 0) {
-        clearInterval(li5CatchCooldownTimer);
-        li5CatchCooldownTimer = null;
-        btn.disabled = false;
-        btn.textContent = 'CATCH! 🚨';
-      } else {
-        btn.textContent = `CATCH! 🚨 (${remaining}s)`;
-      }
-    }, 1000);
-  }
-
-  // Big CATCH! button — sends without a specific word (general alert)
-  document.getElementById('btn-li5-catch')?.addEventListener('click', () => {
-    if (window.syllyMultiplayerMode !== 'client' || li5CatchCooldownTimer) return;
-    playBoing();
-    mpSendEnvelope({ type: 'ACTION', payload: { action: 'LI5_CATCH' } });
-    li5StartCatchCooldown();
-  });
-
-  // LI5 monitor screen ✕ — leave session and return to lobby (passive spectator, no confirm needed)
-  document.getElementById('btn-li5-monitor-exit')?.addEventListener('click', () => {
-    playExit();
-    resetToLobby();
   });
 
 });

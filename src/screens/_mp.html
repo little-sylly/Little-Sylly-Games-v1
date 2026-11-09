@@ -2,7 +2,6 @@
        Screens : screen-mp-mode (shared, parameterised by mpShowModeScreen)
                  screen-mp-lobby-host (shared, parameterised by mpShowLobbyHost)
                  screen-mp-lobby-join (shared, parameterised by mpShowLobbyJoin)
-                 screen-li5-monitor (LI5-specific opposing team view),
                  screen-mp-roster (host lobby roster assignment — conditional)
        Overlays: mp-version-mismatch-overlay, mp-host-disconnected-overlay,
                  mp-lttp-message-interrupt-overlay, mp-network-error-overlay,
@@ -193,49 +192,6 @@
         disabled>
         Start Game →
       </button>
-    </div>
-  </section>
-
-  <!-- ── screen-li5-monitor: LI5 Opposing Team View (Tattletale Sheet) ── -->
-  <section id="screen-li5-monitor" style="display:none"
-    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
-    <div class="flex flex-col w-full max-w-sm gap-6">
-
-      <!-- Header -->
-      <div class="flex items-center justify-between">
-        <button id="btn-li5-monitor-exit" class="text-stone-500 font-bold text-xl leading-none min-h-11 flex items-center">✕</button>
-        <button class="btn-open-sound text-2xl leading-none">🔊</button>
-      </div>
-
-      <!-- Title -->
-      <div class="text-center">
-        <p class="text-5xl mb-2">👀</p>
-        <h2 class="text-3xl font-bold text-stone-800">Tattletale Sheet</h2>
-        <p class="text-stone-400 text-sm mt-1">Watch for rule breaks — tap CATCH! to alert them.</p>
-      </div>
-
-      <!-- Word display (populated by Sprint 4 Firebase SYNC) -->
-      <div class="bg-white rounded-2xl p-5 shadow-sm text-center">
-        <p id="li5-monitor-describing-label" class="text-stone-400 text-xs font-semibold uppercase tracking-widest mb-2">They're describing</p>
-        <p id="li5-monitor-word" class="text-3xl font-bold text-stone-800">—</p>
-      </div>
-
-      <!-- No-No List (populated by Sprint 4) -->
-      <div id="li5-monitor-nono-section" class="bg-white rounded-2xl p-4 shadow-sm">
-        <p class="text-stone-400 text-xs font-semibold uppercase tracking-widest mb-3 text-center">No-No List</p>
-        <ul id="li5-monitor-nono-list" class="flex flex-col gap-2">
-          <li class="text-stone-400 text-sm italic text-center">Waiting for round to start…</li>
-        </ul>
-      </div>
-
-      <!-- CATCH! button -->
-      <div id="li5-monitor-catch-section">
-      <button id="btn-li5-catch"
-        class="btn-mp-action min-h-16 w-full rounded-2xl bg-pink-500 hover:bg-pink-600 active:scale-95 text-white text-2xl font-bold transition-all duration-150">
-        CATCH! 🚨
-      </button>
-      </div>
-
     </div>
   </section>
 

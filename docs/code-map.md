@@ -161,9 +161,12 @@ Detail: `shared-implementation-notes.md` DD-44.
 |----|---------|
 | `#screen-menu` | Game menu (Let's Play!, How to Play, Settings, Back to the Box) |
 | `#screen-setup` | Team name entry |
-| `#screen-gatekeeper` | Pass-the-phone gate |
-| `#screen-active-play` | Active timer + describe screen |
+| `#screen-gatekeeper` | Pass-the-phone gate; in Lobby Mode the per-role gate (*up the front* / guessing / tattletales / standby) — `li5RenderGate()` owns every element. `#li5-gate-role`, `#li5-gate-wait` |
+| `#screen-active-play` | Active timer + describe screen; in Lobby Mode the describer's (`#li5-note` dob note, `#btn-li5-said-it` / `#btn-li5-didnt`, `#li5-timeup`, `#btn-li5-end-my-turn` in the Time Out view) |
+| `#screen-li5-tattle` | *(Lobby Mode)* Tattletales — word, No-No rows (`data-li5-dob`, delegated on `#li5-tattle-list`), `#btn-li5-dob-word`, cooldown status. `data-tv="private"` |
+| `#screen-li5-guess` | *(Lobby Mode)* Guessing — clock, tallies, the Yay feed (`#li5-guess-feed`). **No word element in its markup.** `data-tv="public"` |
 | `#screen-gameover` | Score summary |
+| `<template id="intro-li5">` | The Intro's copy (Miss) — `MP_GAME_CONFIGS.li5.intro` |
 
 ### Overlays
 | ID | Pattern | Opened by |
@@ -196,12 +199,33 @@ Detail: `shared-implementation-notes.md` DD-44.
 | `loadWords()` | Loads `data/words.json` into `allWords[]` (also used by JEC) |
 | `handlePill(btn)` / `handleCategoryPill(btn)` | Settings pill toggles — write directly to setting vars |
 | `applyExpansionOverrides()` | Secret Mode hook — reads `window.activeExpansionOverrides` (global name — LI5 owns it; other games namespace theirs) |
-| `startGame()` | Resets match state, draws first word → `showGatekeeper()` |
-| `showGatekeeper()` | Pass-the-phone gate → `#screen-gatekeeper` |
-| `showActivePlay()` / `startTimer()` | Active describe screen + countdown |
-| `applyAndAdvance(points)` | Scores current word, draws next (`drawNextWord()`) |
-| `endTurn()` | Stops timer → round review (`showRoundReview()`) or `showGameOver()` |
+| `startGame()` | PTP: resets match state, `li5BuildDeck()`, who-first → `showGatekeeper()` |
+| `showGatekeeper()` / `li5RenderGate(aside)` | The gate — the render function is shared by PTP and every Lobby Mode role |
+| `showActivePlay()` / `startTimer()` | Active describe screen + countdown (PTP) |
+| `applyAndAdvance(action)` | PTP: scores the current word via `li5Score()`, draws next |
+| `endTurn()` | Stops timer → round review → next turn by `li5NextTurn()` or `showGameOver()` |
+| `li5Score(score, {action,isSylly}, rules)` / `li5Flip(e, rules)` / `li5Reclamp(log, before)` / `li5NextTurn(...)` / `li5Rules()` | **Pure, single-source** rules — PTP, the MP host and Pinky Swear all call them (pilot spec § 5.8) |
+| `li5PickAside(scores, team, round, rounds)` / `LI5_MISS_ASIDES` | Miss's aside on the gate (replaced `HYPE_POOLS`) — host-picked in Lobby Mode |
 | `li5ShowHelpTip(key)` | Contextual `[?]` tip overlay content injector |
+
+### Lobby Mode (MDLM + TLM, one path — LI5 pilot S1, `js/games/li5.js` § Lobby Mode)
+
+State: `li5H` (host only — deck, scores, clock, log, dobs), `li5V` (every device — what the screen shows), `li5ClockTick` (display tick). The host broadcasts then applies the same payload to itself (`li5Broadcast` / `li5SendTo`), so every device renders through `LI5_APPLIERS`.
+
+| Function | Purpose |
+|----------|---------|
+| `li5OnEnter()` | `onPassThePhone` — PTP → `startGame()`; host → `li5HostStartMatch()`; client → standby. Safe to re-run |
+| `li5RoleOf(seat, turn, groups)` / `li5MyRole()` / `li5MayKnow(seat)` | Roles `up` / `guess` / `tattle`; `li5MayKnow` is the ONE "who may see the word" filter (live packets + `LI5_STATE`) |
+| `li5HostAction(seat, p)` | Every ACTION, seat from `originId` (`li5SeatOf`), stale `turnId` dropped |
+| `li5HostOpenTurn` / `li5HostMark` / `li5HostTimeout` / `li5HostDob` / `li5HostWave` / `li5HostTimeUp` / `li5HostEndTurn` / `li5HostFlip` / `li5HostNext` | The host turn engine (`LI5_TIME_UP_GRACE_MS` 1000, `LI5_DOB_COOLDOWN_MS` 5000) |
+| `li5HandleEnvelope(env)` | The one dispatch target from `mpHandleEnvelope`; throws are `console.warn`ed |
+| `li5ReconnectPause` / `li5ReconnectResume` / `li5SendState(idx)` | The `reconnect` hook — resume sends `LI5_CLOCK` only |
+| `li5DescriberMark(mark)` | Describer tap — optimistic advance from `LI5_WORD.next` **before** the send |
+| `li5Dob(slot)` | Tattletale tap — local 5 s mirror of the host cooldown |
+| `li5Teardown()` | Clears host timers + display tick, fresh view — from `resetToLobby()`, `resetToMenu()`, every entry |
+| `li5Wire*` | Firebase-empty normalisers |
+
+**Packets:** host → all `LI5_MATCH`, `LI5_TURN`, `LI5_CLOCK`, `LI5_CARD`, `LI5_TIME_UP`, `LI5_REVIEW`, `LI5_GAMEOVER` · host → seat (private) `LI5_WORD`, `LI5_DOBS`, `LI5_STATE` · client → host `LI5_READY`, `LI5_MARK`, `LI5_TIMEOUT`, `LI5_END_TURN`, `LI5_DOB`, `LI5_WAVE`, `LI5_FLIP`, `LI5_NEXT`. Payloads: pilot spec § 5.2. Harness: `tools/verify-li5-loopback.js` (+ `mutate-li5-loopback.js`).
 
 ---
 
@@ -2315,7 +2339,7 @@ Three named modes (Phase 23). Each game has a `recommendedMode` and `supportedMo
 | `tlm` | Team Lobby Mode | Each team shares one device. Host/Join with room code. |
 | `mdlm` | Multi-device Lobby Mode | Each player uses their own phone. Host/Join with room code. |
 
-Per-game: LI5 `ptp`★/`tlm` · GM `ptp`★/`mdlm` · SS `tlm`★/`mdlm`/`ptp` · JEC `mdlm`★/`ptp` · YGI `mdlm`★/`ptp` · LTTP `mdlm`★/`ptp` · NAT `mdlm`★/`ptp` (4–8) · DSD `tlm`★/`mdlm`/`ptp` · GTH `mdlm`★ (MP-only, 4–8) · DYB `mdlm`★ (MP-only, 3–8) · BLD `mdlm`★ (MP-only, 4–10 per `getMinPlayers`) · PASS `mdlm`★ (MP-only, 3–6) · NT `mdlm`★/`ptp` (2–8; DNP requires min 4) · FRT `mdlm`★ (MP-only, 2–8) · SHP `mdlm`★ (MP-only, 3–8) · FLW `mdlm`★ (MP-only, 3–4) (★ = recommended)
+Per-game: LI5 `ptp`★/`tlm`/`mdlm` (4–12) · GM `ptp`★/`mdlm` · SS `tlm`★/`mdlm`/`ptp` · JEC `mdlm`★/`ptp` · YGI `mdlm`★/`ptp` · LTTP `mdlm`★/`ptp` · NAT `mdlm`★/`ptp` (4–8) · DSD `tlm`★/`mdlm`/`ptp` · GTH `mdlm`★ (MP-only, 4–8) · DYB `mdlm`★ (MP-only, 3–8) · BLD `mdlm`★ (MP-only, 4–10 per `getMinPlayers`) · PASS `mdlm`★ (MP-only, 3–6) · NT `mdlm`★/`ptp` (2–8; DNP requires min 4) · FRT `mdlm`★ (MP-only, 2–8) · SHP `mdlm`★ (MP-only, 3–8) · FLW `mdlm`★ (MP-only, 3–4) (★ = recommended)
 
 ### Multiplayer Screens
 | Screen ID | Purpose |
@@ -2324,7 +2348,6 @@ Per-game: LI5 `ptp`★/`tlm` · GM `ptp`★/`mdlm` · SS `tlm`★/`mdlm`/`ptp` �
 | `screen-mp-lobby-host` | Host waiting room — room code, player dock (shared) |
 | `screen-mp-lobby-join` | Client join flow — 4-char code input + nickname entry (shared) |
 | `screen-mp-roster` | Assign Spots — manual slot assignment for `rosterConfig.type: 'individual'` / `'teams'` games. Carries `#mp-roster-hint` (amber reason line above the confirm CTA — "Both teams need the same number of players" when a `requiresBalancedTeams` game is assigned unevenly) |
-| `screen-li5-monitor` | LI5-specific opposing team view — Tattletale Sheet (word + No-No List + CATCH! button) |
 | `screen-dsd-spectator` | DSD TLM non-active team view — read-only crew grid + clue history; shown by `dsdShowSpectatorView()` |
 
 ### Multiplayer Overlays
@@ -2466,7 +2489,7 @@ Solo on `screen-mp-mode`: `MODE_INFO.solo` (a single selectable row, `data-sel-m
 ### Per-Game ACTION/SYNC Packet Types
 | Game | ACTION packets | SYNC packets |
 |------|---------------|-------------|
-| LI5 | `LI5_CATCH` | `LI5_ROUND_START` |
+| LI5 | `LI5_READY`, `LI5_MARK`, `LI5_TIMEOUT`, `LI5_END_TURN`, `LI5_DOB`, `LI5_WAVE`, `LI5_FLIP`, `LI5_NEXT` | public `LI5_MATCH`, `LI5_TURN`, `LI5_CLOCK`, `LI5_CARD`, `LI5_TIME_UP`, `LI5_REVIEW`, `LI5_GAMEOVER`; private `LI5_WORD`, `LI5_DOBS`, `LI5_STATE` — see § Like I'm Five → Lobby Mode |
 | GM | `GM_SUBMIT` | `GM_ROUND_START`, `GM_RESULT` (`isOverride: bool`, `overridePhrase: string` — present when host triggers Social Override) |
 | JEC | *(see Just Enough Cooks section packet table)* | *(see Just Enough Cooks section packet table)* |
 | YGI | `YGI_TAKE_SUBMIT`, `YGI_VOTE_SUBMIT` | `YGI_ROUND_START`, `YGI_LINEUP`, `YGI_VERDICT` |

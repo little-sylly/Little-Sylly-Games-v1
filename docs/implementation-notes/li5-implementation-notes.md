@@ -29,6 +29,24 @@ deliberately for a specific kid, per the overlay's own "Adults make the rules!" 
 tiers 1+2 — see the filter in the round-build code). Called on settings-overlay open and on every
 difficulty pill click. **Not verified beyond syntax checks** — no `visual-check`, no live play.
 
+**DD-14 — Lobby Mode: MDLM and TLM on one host-authoritative path. [9 Nov 2026, LI5 pilot S1]**
+**What:** LI5 gains MDLM (4–12, two groups of ≥ 2, unbalanced allowed) and TLM is folded into the same
+code (a device is a group). The host holds deck, scores, clock, log and dobs (`li5H`); every device
+renders only what it is sent (`li5V`). Roles rotate per turn — *up the front* / *guessing* /
+*tattletales* — and the word reaches only up + tattletales, privately. Spec:
+`docs/superpowers/specs/2026-11-09-li5-pilot-design.md` § 5 (owner answers § 5.13).
+**Decisions:** (1) **The host broadcasts and then applies the same payload to itself**
+(`li5Broadcast` / `li5SendTo` self-delivery) — one applier set renders every device, so host and
+client screens cannot drift, and the host-as-guesser's screen path never reads the deck. (2) **One
+"who may know" filter** (`li5MayKnow`) feeds the live `LI5_WORD`/`LI5_DOBS` sends and the rejoin
+`LI5_STATE`. (3) **The monitor and `isClientTurn` are gone** — TLM-only and asymmetric (Yay/Nay always
+on the host's device); now the describing device marks in both modes. (4) **Pure single-source
+rules** — `li5Score` / `li5Flip` / `li5Reclamp` / `li5NextTurn`, called by PTP, the MP host and Pinky
+Swear; the loopback proves an MDLM and a PTP match fed the same marks write identical Report Cards.
+(5) **Private packets that beat their `LI5_TURN`** are buffered (`li5V.early`) and replayed, not
+dropped. (6) A PTP Nay that runs the clock out is now logged before the turn ends (it used to vanish
+from the Report Card). (7) Miss's asides (`LI5_MISS_ASIDES`, approved copy) replace `HYPE_POOLS`.
+
 ---
 
 ## Bug Index
@@ -48,14 +66,32 @@ Root cause: "No-No List" heading lacked `text-center`; `#taboo-card` had `pt-4` 
 **L5 — Monitor screen ✕ button does nothing; phantom `mpTeardown()` call**
 Root cause: `btn-li5-monitor-exit` handler called `mpTeardown()` — a function that does not exist. The `ReferenceError` aborted the handler before `resetToLobby()` was reached. Client was permanently stuck on the monitor screen. Fix: removed `mpTeardown()` call; `resetToLobby()` handles all client teardown internally. Additionally: `resetToLobby()` in `engine.js` now sends a `HOST_END_GAME` LOBBY envelope before calling `syllyTeardownRoom()` so clients see the disconnect overlay immediately via the envelope path, rather than relying solely on the async Firebase room deletion. File: `js/engine-multiplayer.js`, `js/engine.js`.
 
-**L6 — Toy Box deck panel renders behind the settings overlay (June 2026 audit — open)**
+**L6 — Toy Box deck panel renders behind the settings overlay (June 2026 audit — RESOLVED; found 9 Nov 2026 that `deck-panel` is already `z-[100]`)**
 Root cause: `deck-panel` is `z-[60]` while `settings-overlay` (which opens it via "Edit Toy Box ▸" and stays open) is `z-[80]`. Both are 80vh bottom sheets, so the deck panel is fully hidden and untappable — tapping "Edit Toy Box ▸" appears to do nothing. GM's equivalent `gm-deck-panel` is `z-[100]` (correct). Likely regressed when settings overlays were standardised to z-[80]. Fix: raise `deck-panel` to `z-[100]`. Lesson: any sub-panel opened *from* an overlay must sit on a higher z-layer than its opener.
 
-**L7 — Quit-cancel from the gatekeeper screen starts a phantom turn timer (June 2026 audit — open)**
+**L7 — Quit-cancel from the gatekeeper screen starts a phantom turn timer (June 2026 audit — RESOLVED; `hideQuitConfirm()` already guards on `screen-active-play` being visible, and since 9 Nov 2026 returns early in Lobby Mode)**
 Root cause: `btn-gatekeeper-exit` opens `quit-overlay`, but `btn-quit-cancel` → `hideQuitConfirm()` unconditionally calls `startTimer()` when `!isPaused` — regardless of which screen opened the overlay. On the gatekeeper, the timer then ticks in the background (audible `playTick()`); if `timeLeft` reaches 0 it fires `endTurn()` → re-shows the previous turn's stale Report Card → advancing it double-advances the team rotation. Fix: only restart the timer if the quit overlay was opened from `screen-active-play` (track the opener, or check the visible screen). Lesson: shared cancel handlers must know their opening context before resuming timers.
 
-**L8 — Pinky Swear flips can desync the Report Card delta from the real score (June 2026 audit — open, minor)**
+**L8 — Pinky Swear flips can desync the Report Card delta from the real score (June 2026 audit — RESOLVED; `flipEntry()` clamps sequentially, since 9 Nov 2026 through the shared `li5Reclamp()`)**
 Root cause: live play clamps a points penalty to the available score (`points = -Math.min(mult, teamScores[...])`), but `flipEntry()` recomputes flipped entries as a raw `-mult` with no clamp. The turn total is floored via `Math.max(0, scoreBeforeTurn + Σpoints)`, so the score itself stays sane — but the "−N pts this turn" delta label and per-row values can disagree with the actual score change when the floor engaged. Fix: apply the same clamp logic in `flipEntry()` (or recompute all entry points sequentially from `scoreBeforeTurn`).
+
+**L9 — When the second group won the toss, the first group lost a turn [9 Nov 2026, LI5 pilot S1]**
+**What happened:** PTP's `endTurn()` chose the next turn with `if (currentTeam === 0)`. With Glue
+Stick Gang (team 1) going first, round 1 ended after their turn alone — Crayon Crew got one turn fewer
+per match. **Root cause:** turn order hard-coded "team 0 is first" while the toss could pick either.
+**Fix:** pure `li5NextTurn(round, team, firstTeam, totalRounds)`, `li5FirstTeam` recorded at the toss;
+PTP and the MP host share it. Pinned by `verify-li5-loopback` § 0. **Lesson:** a value the player
+chooses (who goes first) must never be re-assumed as a constant later in the flow.
+
+**L10 — The describer's optimistic advance ran after its send; a fast reply was overwritten [9 Nov 2026, LI5 pilot S1]**
+**What happened:** a client describer shows `LI5_WORD.next` the instant it taps. The first draft sent
+`LI5_MARK` and *then* advanced; whenever the host's `LI5_WORD` for the new card landed first, the
+advance overwrote it with an older guess — `null` at the deck's end (the turn froze), otherwise the
+*following* card under the current number. The screen still looked right (`renderedCard` dedupes by
+cardNo), so a DOM check passed; a dob note would have named the wrong No-No words. **Fix:** advance,
+then send. **Lesson:** apply an optimistic update *before* the action whose reply confirms it — and
+**assert the view state, not only the screen**, wherever a render dedupe can hide a wrong value.
+Mutant 5 in `mutate-li5-loopback.js`.
 
 ---
 
@@ -78,12 +114,20 @@ Any game screen's ✕ handler that needs to leave a multiplayer session should c
 **Belt-and-suspenders disconnect notification (Phase 27)**
 `resetToLobby()` on the host now sends `HOST_END_GAME` LOBBY envelope before `syllyTeardownRoom()`. This notifies all clients via the events channel immediately (before room deletion). The Firebase `mpRoomListener` on clients still fires as a second path for unexpected disconnects (browser crash, etc.).
 
+**Two harness traps found building `verify-li5-loopback.js` (pilot S1)**
+(1) **A host's own ACTION is never a test of refusal.** The dedup guard drops self-sent ACTIONs, so a
+wire-injected "is this refused?" check sent from the host passes whatever the code does — the
+dob-cooldown mutant survived until `act()` applied a host tap the way the host really does
+(`li5HostAction(mpMyPlayerIdx, …)`). (2) **A phone booted with a fast clock never joins** — it drops
+every host event stamped before its own join time (`mpJoinListenFrom`). Skew a clock *after* the
+match starts.
+
 ---
 
 ## Template Gaps
 
-**Screen monitor pattern for 2-Device Team games**
+**Screen monitor pattern for 2-Device Team games** *(RETIRED 9 Nov 2026 — the monitor is gone; model a new team game on `li5.js` § Lobby Mode: per-seat roles, private words, one applier set)*
 If a future team game has a "spectator" or "watcher" screen on one device, model it after `screen-li5-monitor`. Key elements: `li5-monitor-nono-section` and `li5-monitor-catch-section` IDs for show/hide switching, event delegation on the list for per-item tap actions, and `data-word` attribute on each tappable item. The ✕ exit button must call `resetToLobby()` directly — no intermediate wrapper.
 
-**isClientTurn pattern for alternating 2-device roles**
+**isClientTurn pattern for alternating 2-device roles** *(RETIRED 9 Nov 2026 — superseded by `li5RoleOf(seat, turn, groups)`; TLM is MDLM with one device per group)*
 When both devices in TLM need to swap active/passive roles per round, add a boolean flag (e.g., `isClientTurn`) to the SYNC round-start packet. Each device branches on this flag to show the appropriate screen. This is cleaner than maintaining separate state on each device.

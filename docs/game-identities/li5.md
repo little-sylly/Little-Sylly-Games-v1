@@ -89,7 +89,8 @@ Australian English throughout.
 | **Extra Credit** | Sylly Mode's name — difficulty-3 words mixed into the deck, worth double points (and double penalty), always showing all 10 No-No words. |
 | **Learning Plan 📝** | The settings overlay's title. |
 | **Class Dismissed!** | The gameover heading. |
-| **Tattletale Sheet** | The opposing (non-describing) team's multiplayer monitor screen — shows the word + No-No List with a CATCH! button. |
+| **Tattletales** | In Lobby Mode, the group that isn't describing this turn — each player's phone shows the word + No-No List; tapping a word **dobs** the describer in (a note on the describer's board, answered *I said it* / *I didn't*). Replaced the TLM-only Tattletale Sheet monitor (LI5 pilot S1, 9 Nov 2026). |
+| **Up the front** | In Lobby Mode, the one player describing this turn; the rest of their group is **guessing** and never sees the word. |
 | **Pinky Swear Mode** | The setting that lets the reviewing team tap Report Card rows to flip a Yay!/Nay!/Skip! outcome after the fact. |
 
 ---
@@ -121,15 +122,17 @@ The settings overlay is titled **Learning Plan 📝** — *"Adults make the rule
 | 2 | `screen-setup` | Name your Playgroups! — team names | Setup | — | 🔊 ✕ |
 | 3 | `screen-gatekeeper` | Ready up, [team] — pass-the-phone + mini scoreboard + hype line | Gate | — | 🔊 ✕ |
 | 4 | `screen-active-play` | Describe/guess timer, No-No List, score buttons | Interactive | — | `?` 🔊 ⏸ ⏭ ✕ |
-| — | `screen-li5-monitor` | *(TLM only)* Tattletale Sheet — the non-describing team's device | Interactive | — | 🔊 ✕ |
+| — | `screen-li5-tattle` | *(Lobby Mode)* Tattletales — the other group's phones: word, No-No List, dob | Interactive | — | `[?]` 🔊 ✕ |
+| — | `screen-li5-guess` | *(Lobby Mode)* Guessing — the describer's own group: clock, tallies, the Yay'd words, never the word | Interactive | — | `[?]` 🔊 ✕ |
 | 5 | `screen-gameover` | Class Dismissed! — final scores | Result | — | 🔊 ✕ |
 
 Rows 3–4 loop, alternating teams, until Roundy Rounds is reached. `screen-active-play` has a third,
 non-registered sub-state — the inline `pause-overlay` swapped in for `active-content` — rather than a
-separate screen. TLM's Tattletale Sheet stands in place of a pass-gate/reveal-gate pair: the host
-device always shows `screen-active-play` (it's the judging/scoring team), while the client shows the
-monitor, which itself has a sub-mode when the client's own team is describing (`isClientTurn: true`
-in `LI5_ROUND_START` swaps it to a plain word-card view, hiding the No-No List and CATCH! button).
+separate screen. **Lobby Mode (MDLM and TLM, one path — LI5 pilot S1):** every device sees the gate;
+then the person up the front gets `screen-active-play`, their group `screen-li5-guess`, the other group
+`screen-li5-tattle`. In TLM a device is a group, so the describing device is up the front and the
+other device tattles. The Report Card shows on every device; the describer and the host control it.
+*(S1 ships these screens as plain markup — the chalkboard world dresses them in S3–S6.)*
 
 **Overlays**
 
@@ -192,18 +195,22 @@ Skip!
 Time Out
 Word is hidden so no peeking!
 ▶ Let's Continue Playing!
+End my turn
+I said it
+I didn't
 ```
 
-#### Tattletale Sheet (TLM)
+#### Tattletales and Guessing (Lobby Mode)
 
 ```copy
-# screen-li5-monitor
-Tattletale Sheet
-Watch for rule breaks — tap CATCH! to alert them.
-They're describing
-No-No List
-Waiting for round to start…
-CATCH! 🚨
+# screen-li5-tattle
+Tattletales
+They said the word itself
+```
+
+```copy
+# screen-li5-guess
+Guessing
 ```
 
 #### Report Card and Match History
@@ -437,20 +444,20 @@ any edit to an animal entry's `nono_list[0]` affects both games at once.
 
 ## T10 — At the Table · *derived — except the PTP judgement*
 
-**Modes.** Pass-the-Phone (recommended) and Team Lobby Mode are both supported. There is no
-Multi-Device Lobby Mode — Like I'm Five's core mechanic (one device visibly held by the describer,
-teammates listening without seeing the screen) doesn't map onto a one-device-per-player model the way
-most of the suite's other games do.
+**Modes.** Pass-the-Phone (recommended), Team Lobby Mode and — since the LI5 pilot S1 (9 Nov 2026) —
+Multi-Device Lobby Mode. TLM and MDLM are one code path: the host runs the match and each device's
+screen is its role this turn (*up the front* / *guessing* / *tattletales*). The Intro's Line-up forms
+the two groups in MDLM; a Team Lobby has no Line-up (a device is a group).
 
-**Players.** Exactly 2 teams — `getMaxPlayers()` for `li5` in `engine-multiplayer.js` is a hardcoded
-`2`. There's no player-count-cap gap here the way there is in several other games (see
-`docs/deferred-work.md`) since LI5 was never meant to scale player count in the first place — it's a
-team-size game, not an individual-headcount one.
+**Players.** PTP: two groups on one phone. TLM: exactly 2 devices. MDLM: 4–12 players, two groups of
+at least 2 each, unbalanced allowed (a 3-v-2 plays fine — the smaller group describes more often).
+Bounds are constants plus `window.mpLobbyStyle` in `MP_GAME_CONFIGS.li5`.
 
-**Devices.** Pass-the-Phone shares one device, handed off at the gatekeeper gate every turn. TLM
-gives the describing/judging team the main device and the opposing team the Tattletale Sheet monitor
-— roles alternate via `isClientTurn` each round, so both devices see both screen types over the
-course of a match.
+**Devices.** Pass-the-Phone shares one device, handed off at the gatekeeper gate every turn. In Lobby
+Mode the describer's phone shows the word and the Yay / Nay / Skip buttons; the other group's phones
+show the word and No-No List to dob from; the describer's own group sees only the clock, the tallies
+and the words already shouted correctly. The word reaches only the describer and the tattletales, by
+the private channel. Reconnect is adopted: a dropped phone can rejoin mid-turn.
 
 **Shape-changing settings.** None of the eight settings alter player count or session structure.
 
@@ -466,7 +473,7 @@ course of a match.
 — a describer visibly holding the phone while teammates listen without seeing the screen — is exactly
 what a shared device does for free. TLM's Tattletale Sheet is a genuine added feature (letting the
 opposing team actively hunt for No-No slips instead of just half-listening), not a workaround for a
-privacy problem PTP already has; it's why LI5 was never extended to MDLM, where there'd be no shared
-screen left for the describer's team to gather around.
+privacy problem PTP already has; MDLM (pilot S1) answers the shared-screen worry by giving the describer's group a screen of its
+own that never holds the word — so PTP stays the recommended mode, and MDLM is the big-group one.
 
 ---

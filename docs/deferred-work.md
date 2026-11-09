@@ -503,21 +503,6 @@ track. What is parked:
 
 ---
 
-## LI5 gaps found while writing its identity doc (23 Aug 2026)
-
-**Found, not fixed.** An identity pass records the game as it shipped; fixing what it reveals is a
-separate task (spec § 15).
-
-- **Minor, documentation-only:** `li5-implementation-notes.md` lists L6 (deck panel behind its own
-  opener), L7 (phantom timer on quit-cancel) and L8 (Pinky Swear score desync) as open. All three
-  are fixed in shipped code — `deck-panel` is now `z-[100]`, `hideQuitConfirm()` guards on the
-  active-play screen being visible, and `flipEntry()` re-clamps every entry sequentially from
-  `scoreBeforeTurn`. Same stale-Bug-Index pattern as GM (below); the generalised lesson is in
-  `shared-implementation-notes.md` § Template Gaps.
-
-`docs/game-identities/li5.md` T7c already carries both of these; fixing either means updating that
-section in the same change.
-
 ---
 
 ## GM gaps found while writing its identity doc (23 Aug 2026)

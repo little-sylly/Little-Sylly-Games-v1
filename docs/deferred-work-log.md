@@ -7,6 +7,24 @@ game abbreviation, function or screen id. Items keep their original section head
 
 ---
 
+## LI5 gaps found while writing its identity doc (23 Aug 2026)
+
+**RESOLVED 9 Nov 2026 (LI5 pilot S1):** L6, L7 and L8 marked resolved in
+`li5-implementation-notes.md` § Bug Index (all three were already fixed in code); L8's clamp now runs
+through the shared `li5Reclamp()`.
+
+**Found, not fixed.** An identity pass records the game as it shipped; fixing what it reveals is a
+separate task (spec § 15).
+
+- **Minor, documentation-only:** `li5-implementation-notes.md` lists L6 (deck panel behind its own
+  opener), L7 (phantom timer on quit-cancel) and L8 (Pinky Swear score desync) as open. All three
+  are fixed in shipped code — `deck-panel` is now `z-[100]`, `hideQuitConfirm()` guards on the
+  active-play screen being visible, and `flipEntry()` re-clamps every entry sequentially from
+  `scoreBeforeTurn`. Same stale-Bug-Index pattern as GM (below); the generalised lesson is in
+  `shared-implementation-notes.md` § Template Gaps.
+
+---
+
 ## Arcade cabinets — eight new ones integrated, none phone-tested (18 Oct 2026, SW v249; COLD SHOT + TRACE ROUTE SW v255)
 
 Item 0, Stage 3 — **RESOLVED 21 Oct 2026 (SW v258; `shared-implementation-notes.md` DD-61)**:

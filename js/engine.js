@@ -16,7 +16,7 @@ let activeGameId = null;  // set by each plugin on entry; cleared by resetToLobb
 // The MULTIPLAYER WIRE version, not the app version (was SYLLY_VERSION, stuck at 'v83' — 28 Sep 2026).
 // Two devices join one room only if these match. Bump it ONLY when a packet changes shape or
 // meaning, to the SW version that ships the change — so the value says when the wire last moved.
-const MP_PROTOCOL_VERSION = 'v247';
+const MP_PROTOCOL_VERSION = 'v265';   // LI5 Lobby Mode packets (LI5 pilot S1) — ships with SW v265
 
 // ── Who Goes First shared utility ─────────────────────────────────────────────
 let whoFirstConfig      = null;
@@ -28,6 +28,7 @@ const allScreens = [
   'screen-lobby', 'screen-lounge', 'screen-tv', 'screen-shelves', 'screen-jukebox', 'screen-arcade',
   'screen-who-first', 'screen-workshop', 'screen-menu', 'screen-setup',
   'screen-gatekeeper', 'screen-active-play', 'screen-gameover',
+  'screen-li5-tattle', 'screen-li5-guess',   // LI5 Lobby Mode role screens (pilot S1)
   'screen-gm-menu', 'screen-gm-setup', 'screen-gm-input', 'screen-gm-pass-gate',
   'screen-gm-reveal-gate', 'screen-gm-reveal', 'screen-gm-result',
   'screen-ss-menu', 'screen-ss-setup', 'screen-ss-vault-gate', 'screen-ss-vault',
@@ -58,10 +59,9 @@ const allScreens = [
   'screen-dsd-briefing', 'screen-dsd-pass-gate',
   'screen-dsd-captain', 'screen-dsd-crew', 'screen-dsd-execution', 'screen-dsd-sabotage',
   'screen-dsd-spectator', 'screen-dsd-gameover',
-  // Multiplayer — 3 shared parameterised screens + LI5-specific monitor
+  // Multiplayer — the shared parameterised screens (the LI5 monitor retired in the LI5 pilot S1)
   'screen-mp-mode', 'screen-mp-lobby-host', 'screen-mp-lobby-join',
   'screen-mp-roster',
-  'screen-li5-monitor',
   // The Intro — engine-owned, every revamped game (UI revamp Stage 0, js/engine-intro.js)
   'screen-game-intro',
   // Bailed
@@ -696,6 +696,7 @@ function formatTime(secs) {
 // ── Reset (settings intentionally preserved) ──────────────────────────────────
 function resetToLobby() {
   stopTimer();
+  if (typeof li5Teardown === 'function') li5Teardown();   // LI5 Lobby Mode: host clock, grace, display tick
   document.getElementById('quit-overlay').style.display          = 'none';
   document.getElementById('li5-play-again-overlay').style.display = 'none';
   document.getElementById('li5-how-to-overlay').style.display     = 'none';
@@ -946,6 +947,7 @@ function resetToLobby() {
 
 function resetToMenu() {
   stopTimer();
+  if (typeof li5Teardown === 'function') li5Teardown();
   document.getElementById('quit-overlay').style.display    = 'none';
   document.getElementById('review-overlay').style.display  = 'none';
   document.getElementById('history-overlay').style.display = 'none';
