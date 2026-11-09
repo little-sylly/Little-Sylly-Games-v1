@@ -12,6 +12,22 @@ the discovery record is kept there, not deleted. A section with nothing left ope
 
 ---
 
+## UI revamp — Stage 0 shipped, what is parked (9 Nov 2026, SW v264)
+
+The programme's own line items (lobby roster retirement, the `'seats'` Line-up type, TV mode, size
+caps, PTP gates) live in **`docs/ui-revamp-rollout.md` § 4** — track them there. Parked here:
+1. **Settings Card Standard → on-demand.** Move it out of `ui-style.md` only **after** the revamp has
+   reworked it — moving it now would move it twice (spec § 2.4).
+2. **Friendlier Intro drop** — remove the leaver instead of dissolving the session. Today a drop is
+   Away and a quit dissolves, exactly as mid-game (spec § 5.7). Not now.
+3. **The Intro has never run on a phone.** Verified by the loopback (142) and headless Chromium at the
+   three SE sizes + reduced motion; no game adopts it until the LI5 pilot, whose R15 hardware pass is
+   its first real session (scene frame rate with `?fps`, the Line-up's thumb reach at 320 px).
+4. **A Line-up host-rename `<input>` truncates long names at 320 px** ("Glue Stick Gar…") — readable
+   when focused; revisit if the LI5 board puts names elsewhere.
+
+---
+
 ## Arcade cabinets — eight new ones integrated, none phone-tested (18 Oct 2026, SW v249; COLD SHOT + TRACE ROUTE SW v255)
 
 Integration and registration are done and verified (`tools/verify-arcade.js`, 141 checks;
@@ -88,6 +104,10 @@ brain: `cld-implementation-notes.md` DD-21.
      Host callback can still land on the mode screen. Pre-existing.
 7. **`visual-lobby.js`'s Konami audio check flakes** ("0 press voices, 0 beeps", 2 runs in 3 during this
    build; the harness's own comment records 2 in 5 on 26 Sep 2026). Unrelated to bots.
+   **9 Nov 2026 (SW v264 build):** worse under load — three runs gave 155/155, 154 + 1 fail, 127 + 2 fail,
+   and the **pre-change tree** gave 126 + 3 (Konami voices, `tv: the ornament nudges itself`, a
+   `page.click` 30 s timeout). Machine load under software GL, not the change; it now needs a retry or
+   longer timeouts before it can gate anything.
 
 ---
 
@@ -145,8 +165,8 @@ Spec § 10's deliberate outs — each is its own later piece of work, none block
 - **Seat and colour picking in the waiting lobby — suite-wide.** Today a DYB tint is `seat − 1`;
   `dybTintFor(playerIdx)` is the one function a colour pick replaces. Other games would need their own hook.
 - **Practice tab retrofit — the 19 remaining games.** Moved to its own tracker,
-  **`docs/practice-rollout.md`** (28 Sep 2026): priority + effort, the per-game definition of done,
-  and a card per game. Track it there, not here.
+  **`docs/practice-rollout.md`** (28 Sep 2026), and since 9 Nov 2026 folded into the UI revamp as
+  **R10** of each pass — track it in **`docs/ui-revamp-rollout.md`**, not here.
 - **Persisting the stage view toggle** (Close-up | Whole table) across sessions — needs a new
   permitted `localStorage` key (CLAUDE.md § Anti-Patterns lists the permitted ones). Owner call;
   today it is memory-only (`dybStageView`).

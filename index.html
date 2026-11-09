@@ -359,6 +359,93 @@ Rock Paper Scissors
     </div>
   </section>
 
+  <!-- ENGINE — The Intro (UI revamp Stage 0, SW v264 · js/engine-intro.js).
+       Every revamped game opens here: narrator beats → brief → Line-up → Ready → game.
+       The copy is cloned from the game's own <template id="intro-[abbr]">; every
+       element below is repainted by mpIntroRender() alone. The Stack, one column.
+       data-tv="private": the brief can name a seat's role. -->
+  <section id="screen-game-intro" data-tv="private" style="display:none"
+    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-4">
+
+      <!-- HEADER -->
+      <div class="flex items-center justify-between">
+        <p id="game-intro-eyebrow" class="text-stone-400 text-xs font-semibold uppercase tracking-widest"></p>
+        <div class="flex items-center gap-2">
+          <button class="btn-open-sound text-2xl leading-none min-h-11 w-11 flex items-center justify-center">🔊</button>
+          <button id="btn-game-intro-quit" class="text-stone-500 font-bold text-xl leading-none min-h-11 w-11 flex items-center justify-center" aria-label="Leave">✕</button>
+        </div>
+      </div>
+
+      <!-- STAGE — the game's scene mounts here (its own { mount, stop }) -->
+      <div id="game-intro-scene" class="intro-scene relative w-full rounded-3xl overflow-hidden"></div>
+
+      <!-- Narrator: one line at a time; tap to advance -->
+      <button id="game-intro-narrator" type="button"
+        class="intro-narrator w-full text-left bg-white rounded-2xl p-5 shadow-sm flex flex-col gap-2">
+        <span id="game-intro-who" class="text-stone-400 text-xs font-semibold uppercase tracking-widest"></span>
+        <span id="game-intro-line" class="intro-line text-stone-800 text-2xl font-semibold leading-snug"></span>
+        <span class="flex items-center justify-between text-stone-400 text-xs">
+          <span>Tap to keep going</span><span id="game-intro-beat-count"></span>
+        </span>
+      </button>
+
+      <!-- Brief: up to three "what you'll be doing" points -->
+      <div id="game-intro-brief" style="display:none" class="bg-white rounded-2xl p-5 shadow-sm flex flex-col gap-2">
+        <p class="text-stone-400 text-xs font-semibold uppercase tracking-widest">What you'll be doing</p>
+        <ul id="game-intro-brief-list" class="intro-brief flex flex-col gap-2 text-stone-700 text-base"></ul>
+      </div>
+
+      <!-- Line-up: teams + Unassigned; clicks delegated from mpWireIntro() -->
+      <div id="game-intro-lineup-wrap" style="display:none" class="flex flex-col gap-2">
+        <p id="game-intro-lineup-prompt" class="text-stone-600 text-sm font-semibold"></p>
+        <div id="game-intro-lineup" class="flex flex-col gap-2"></div>
+      </div>
+
+      <!-- Roll call (a game with no Line-up): who is ready -->
+      <div id="game-intro-roll" style="display:none"></div>
+
+      <!-- CONTROLS -->
+      <div class="flex flex-col gap-3">
+        <p id="game-intro-status" class="text-stone-400 text-sm text-center"></p>
+        <p id="game-intro-problem" style="display:none" class="text-amber-600 text-xs text-center"></p>
+        <button id="btn-game-intro-ready" style="display:none"
+          class="min-h-14 w-full rounded-2xl bg-stone-700 text-white text-xl font-semibold">I'm ready</button>
+        <button id="btn-game-intro-go" style="display:none"
+          class="min-h-14 w-full rounded-2xl bg-stone-700 text-white text-xl font-semibold">Let's go</button>
+        <button id="btn-game-intro-start" style="display:none"
+          class="min-h-14 w-full rounded-2xl bg-stone-700 text-white text-xl font-semibold">Start</button>
+        <button id="btn-game-intro-anyway" style="display:none"
+          class="min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 text-xl font-semibold transition-transform duration-150">Start anyway</button>
+        <button id="btn-game-intro-shuffle" style="display:none"
+          class="min-h-11 w-full rounded-2xl bg-stone-100 hover:bg-stone-200 active:scale-95 text-stone-600 text-base font-semibold transition-transform duration-150">Shuffle teams</button>
+        <button id="btn-game-intro-skip" style="display:none"
+          class="min-h-11 w-full rounded-2xl bg-stone-100 hover:bg-stone-200 active:scale-95 text-stone-600 text-base font-semibold transition-transform duration-150">Skip the intro</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- game-intro-quit-overlay (decision modal z-[80]) — the Intro's ✕. In a lobby
+       session it is the Mid-Game Quit Contract (mpNotifyPlayerLeft → resetToLobby);
+       Pass-the-Phone goes back to the game menu. Engine-owned, so the border is the
+       neutral stone rung rather than a game's brand. -->
+  <div id="game-intro-quit-overlay" style="display:none"
+    class="fixed inset-0 z-[80] overlay-modal-backdrop flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-stone-300">
+      <p class="text-4xl">🚪</p>
+      <h3 class="text-lg font-bold text-stone-800">Leave before it starts?</h3>
+      <p id="game-intro-quit-sub" class="text-stone-500 text-sm"></p>
+      <button id="btn-game-intro-quit-confirm"
+        class="min-h-14 w-full rounded-2xl bg-red-500 hover:bg-red-600 active:scale-95 text-white font-semibold text-lg transition-all duration-150">
+        Yeah, head out
+      </button>
+      <button id="btn-game-intro-quit-cancel"
+        class="min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-lg transition-all duration-150">
+        Stay
+      </button>
+    </div>
+  </div>
+
   <!-- ═══════════════════════════════════════════════════════════════
        LOBBY LAYOUTS (SW v231)
        Screens : #screen-lounge, #screen-tv, #screen-shelves
@@ -4494,6 +4581,7 @@ Head Out Again
   <script src="js/lib/controller-sticker-surface.js"></script>
   <script src="js/lib/physics.js"></script>
   <script src="js/engine-multiplayer.js"></script>
+  <script src="js/engine-intro.js"></script>
   <script src="js/lib/canvas-draw.js"></script>
   <script src="js/games/li5.js"></script>
   <script src="js/games/great-minds.js"></script>

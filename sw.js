@@ -1,7 +1,7 @@
 // Little Sylly Games — Service Worker v236
 // All assets are local — no external CDN URLs, no opaque response issues.
 
-const CACHE_NAME = 'sylly-games-v263';
+const CACHE_NAME = 'sylly-games-v264';
 
 const PRECACHE_URLS = [
   './',
@@ -241,6 +241,7 @@ const PRECACHE_URLS = [
   'data/art/comb/die/img/die-numbered.png',
   'manifest.json',
   'js/engine-multiplayer.js',
+  'js/engine-intro.js',
   'js/lib/firebase-app.js',
   'js/lib/firebase-database.js',
   'js/lib/firebase-auth.js',

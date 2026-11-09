@@ -287,6 +287,64 @@ for (const id of IDS) {
   if ((CONFIGS[id].supportedModes || []).includes('solo')) ok(id + ': Solo needs bots', !!CONFIGS[id].bots);
 }
 
+// ── 9. The Intro (UI revamp Stage 0, SW v264) ───────────────────────────────
+// docs/rules/ui-revamp.md § The Intro. A game opts in with `intro`; a Line-up replaces
+// the lobby roster step, so it REQUIRES automatic seating. The adopter list is pinned,
+// like reconnect's and bots': a new adopter is a reviewed change. No real game adopts in
+// Stage 0, so the checker is also run against fakes — a check that never fires proves
+// nothing.
+section('9. Intro — schema, Line-up ⇒ automatic seating, template exists');
+function introProblems(c, html) {
+  const it = c.intro, p = [];
+  if (it === undefined) return p;
+  if (!it || typeof it !== 'object') return ['intro is not an object'];
+  if (typeof it.template !== 'string' || !/^intro-[a-z0-9-]+$/.test(it.template)) p.push('template must be "intro-[abbr]"');
+  else if (!html.includes('<template id="' + it.template + '"')) p.push('<template id="' + it.template + '"> is not in index.html');
+  if (it.scene !== undefined && typeof it.scene !== 'function') p.push('scene must be a function returning { mount, stop }');
+  if (it.brief !== undefined && typeof it.brief !== 'function') p.push('brief must be a function (seatIdx, teamIdx) → key');
+  const l = it.lineup;
+  if (l != null) {
+    if (l.type !== 'teams') {
+      p.push("lineup.type '" + l.type + "' — only 'teams' exists until a 'seats' beat is designed at its first adopter's R2");
+    } else {
+      const names = l.teamNames;
+      if (!Array.isArray(names) || names.length < 2 || names.some(n => typeof n !== 'string' || !n.trim())) p.push('lineup.teamNames: two or more non-empty names');
+      if (l.minPerTeam !== undefined && !(Number.isInteger(l.minPerTeam) && l.minPerTeam >= 1)) p.push('lineup.minPerTeam must be an integer >= 1');
+      const max = bound(c, 'getMaxPlayers', 'individual');
+      if (Array.isArray(names) && l.minPerTeam && max < l.minPerTeam * names.length) p.push('getMaxPlayers can never fill every team to minPerTeam');
+      if (Array.isArray(names) && l.balanced && max % names.length !== 0) p.push('a balanced Line-up needs a max divisible by the team count');
+    }
+    if (!c.rosterConfig || c.rosterConfig.type !== 'none') p.push('a Line-up needs rosterConfig.type: none — it replaces the lobby roster step');
+  }
+  return p;
+}
+const INTRO_GAMES = IDS.filter(id => CONFIGS[id].intro !== undefined);
+check('the intro adopters are exactly the reviewed list', INTRO_GAMES, []);
+for (const id of INTRO_GAMES) {
+  const pr = introProblems(CONFIGS[id], indexSrc);
+  ok(id + ': intro is whole', pr.length === 0, pr.join('; '));
+}
+ok('engine has the entry seam mpEnterGame()', /function mpEnterGame\s*\(/.test(engineSrc));
+ok('index.html has screen-game-intro', /<section id="screen-game-intro"/.test(indexSrc));
+{
+  const fakeHtml = '<template id="intro-ok"></template>';
+  const base = { rosterConfig: { type: 'none' }, getMaxPlayers: () => 6 };
+  const teams = { type: 'teams', teamNames: ['A', 'B'], minPerTeam: 2 };
+  const fakes = [
+    ['a whole intro passes', Object.assign({}, base, { intro: { template: 'intro-ok', scene: () => null, lineup: teams } }), null],
+    ['a missing template', Object.assign({}, base, { intro: { template: 'intro-nope' } }), /not in index\.html/],
+    ['a Line-up on a lobby-roster game', Object.assign({}, base, { rosterConfig: { type: 'individual' }, intro: { template: 'intro-ok', lineup: teams } }), /rosterConfig\.type/],
+    ["a 'seats' Line-up (not designed yet)", Object.assign({}, base, { intro: { template: 'intro-ok', lineup: { type: 'seats' } } }), /only 'teams'/],
+    ['a scene that is not a function', Object.assign({}, base, { intro: { template: 'intro-ok', scene: {} } }), /scene must be/],
+    ['a room too small for minPerTeam', Object.assign({}, base, { getMaxPlayers: () => 3, intro: { template: 'intro-ok', lineup: teams } }), /never fill/],
+    ['an empty team name', Object.assign({}, base, { intro: { template: 'intro-ok', lineup: { type: 'teams', teamNames: ['A', ' '] } } }), /non-empty names/],
+  ];
+  for (const [label, cfg, re] of fakes) {
+    const pr = introProblems(cfg, fakeHtml).join('; ');
+    ok('the check: ' + label, re ? re.test(pr) : pr === '', pr || '(no problem reported)');
+  }
+}
+
 console.log('\n' + '='.repeat(70));
 console.log(failures ? 'FAILED — ' + failures + ' check(s)' : 'ALL CHECKS PASSED');
 process.exit(failures ? 1 : 0);

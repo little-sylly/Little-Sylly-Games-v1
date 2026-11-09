@@ -2261,13 +2261,51 @@ Run.**
 | `mpLobbyStyle` | string | `'individual'` | `'team'` (TLM) / `'individual'` (MDLM) — set at mode selection; broadcast in GAME_START; reset in `resetToLobby()` |
 | `mpPlayersListener` | function\|null | `null` | `onValue` unsubscribe for `/players` node; active during host lobby only; cancelled in `mpStopListeners()` and before GAME_START in `mpConfirmRoster()` |
 | `window.mpClientPlayerRef` | Firebase ref\|null | `null` | Reference to client's own `/players/{uid}` node; used for explicit removal on leave/cancel; set in `mpClientJoinRoom()`, cleared in `resetToLobby()` and cancel handler |
-| `mpSeats` | uid[] | `[]` | Reconnect (SW v236): seat order frozen at `GAME_START` — mirrors `rooms/{code}/seats`. Host sets it in `mpBeginMatchSeats()`, clients in the `GAME_START` / rejoin appliers |
+| `mpSeats` | uid[] | `[]` | Reconnect (SW v236): seat order frozen at `GAME_START` — mirrors `rooms/{code}/seats`. Host sets it in `mpBeginMatchSeats()`, clients in the `GAME_START` / rejoin appliers. **Re-frozen at `MP_INTRO_DONE`** when an Intro Line-up reorders seats (`mpIntroRefreeze`, SW v264) |
 | `mpMatchLive` | bool | `false` | True from `GAME_START` until `LOBBY_RESET` / teardown — gates the presence watcher, the mid-match `HANDSHAKE` refusal and `MP_REJOIN` |
 | `mpAwaySeats` / `mpAwayPending` | Set / Map | empty | Host: seat indices currently Away / seat → the 3 s debounce handle |
 | `mpPresenceListener` / `mpConnListener` / `mpPresenceRef` | fn / fn / ref | `null` | Host's watcher on `rooms/{code}/presence`; a client's `.info/connected` listener and its current connection's presence child |
 | `mpAwayTimer` / `mpAwayTick` / `mpAwayGraceEndsAt` / `mpRejoinTimer` | handles / ms | `null` / `0` | Non-adopter grace, the overlay countdown, the grace deadline, an unanswered rejoin. All cleared in `mpEndMatchLocal()` |
 | `mpAwayAsking` | bool | `false` | Host (SW v240): a non-adopter's grace ran out and **Keep waiting / End session** is on screen. Rides `MP_AWAY_STATE` as `asking`; cleared by Keep waiting, the last seat back, and `mpEndMatchLocal()` |
 | `MP_AWAY_DEBOUNCE_MS` / `MP_AWAY_GRACE_MS` / `MP_REJOIN_TIMEOUT_MS` / `MP_REJOIN_TTL_MS` | const | 3000 / 60000 / 15000 / 7200000 | Reconnect timings; `MP_REJOIN_KEY = 'sylly_rejoin'` |
+
+### The entry seam + the Intro (UI revamp Stage 0, SW v264)
+
+**`mpEnterGame(cfg, opts)`** (`engine-multiplayer.js`) — the ONE route into a game: host after
+`mpConfirmRoster()`, client on `GAME_START`, Pass-the-Phone from the mode CTA, Solo, rejoin
+(`{ rejoin: true, intro }`). No `cfg.intro` → `cfg.onPassThePhone()` exactly as before. The only two
+direct `onPassThePhone()` calls left in the engine are inside it (asserted by `verify-game-intro.js` § 16).
+`mpInIntro()` guards `rc.pause()`/`rc.resume()` in `mpMarkAway`/`mpMarkBack`; `mpHostHandleRejoin`
+answers a mid-Intro rejoin with `ACCEPT { intro: true }` + a private `MP_INTRO_STATE`.
+
+**`js/engine-intro.js`** (loads right after `engine-multiplayer.js`) · rules `docs/rules/ui-revamp.md` § 3.
+
+| Screen / overlay | Notes |
+|---|---|
+| `screen-game-intro` (`_shell.html`, `data-tv="private"`) | Header (`game-intro-eyebrow`, 🔊, `btn-game-intro-quit`) · `game-intro-scene` · `game-intro-narrator` (`-who`, `-line`, `-beat-count`) · `game-intro-brief` (`-brief-list`) · `game-intro-lineup-wrap` (`-lineup-prompt`, `game-intro-lineup` — innerHTML, delegated clicks `data-intro-join` / `data-intro-chip` / `data-intro-rename`) · `game-intro-roll` · `game-intro-status` / `game-intro-problem` · `btn-game-intro-{ready,go,start,anyway,shuffle,skip}` |
+| `game-intro-quit-overlay` (z-[80]) | `btn-game-intro-quit-confirm` (MP: `mpNotifyPlayerLeft` → `resetToLobby`; PTP: game menu) / `btn-game-intro-quit-cancel` |
+
+| State | Purpose |
+|---|---|
+| `mpIntro` | The open Intro: `{ cfg, abbr, mode: 'ptp'\|'host'\|'client', copy, lineup, beat, waiting, shown, scene, beatTimer, anyway, readySent, state }`; `state = { ready[], team[] (-1 = Unassigned), names[], skipped }` (host-authoritative) |
+| `mpIntroTimers` | The one timer bag — beat auto-advance (`MP_INTRO_BEAT_MS` 5000), Start-anyway reveal (`MP_INTRO_START_ANYWAY_MS` 20000) |
+| `mpIntroSeen` / `mpIntroLastTeams` | Play-again flag (set by `mpReturnToLobby`, cleared by `resetToLobby`) / host's `{ uid: team }` kept for the returning form |
+
+| Function | Role |
+|---|---|
+| `mpIntroOpen(cfg)` / `mpIntroShow()` / `mpIntroStop()` / `mpIntroTeardown()` | Open (client waits for the first state) · show + mount scene · stop timers + scene (from `mpEndMatchLocal`, DONE, Let's go) · + clear the Play-again flag (from `resetToLobby`) |
+| `mpIntroReadTemplate(id)` | Copy from `<template id="intro-[abbr]">`: `data-intro-narrator/-role/-line/-brief="key"/-lineup` |
+| `mpIntroAdvance()` / `mpIntroSkip()` | Local beat step / host (or PTP) skips for every device |
+| `mpIntroReady()` / `mpIntroPick(team)` | Ready (host marks its own slot; client sends `MP_INTRO_READY` once) / Line-up pick (`MP_LINEUP_PICK`) |
+| `mpIntroHostMove(seat)` / `mpIntroHostRandomise()` / `mpIntroHostRename(t, name)` | Host powers |
+| `mpIntroStart(anyway)` → `mpIntroFinishHost()` | Gate (ready or 20 s, Line-up valid, nobody Away) → place, reorder, `mpIntroRefreeze`, roster, **then** `MP_INTRO_DONE`, then `onPassThePhone()` |
+| `mpIntroPlace(team, n)` / `mpIntroLineupProblem(team, lineup)` | Pure: auto-place into the smallest team / the gate's reason string |
+| `mpIntroHandleEnvelope(env)` | Routed from `mpHandleEnvelope` before per-game code; consumes every `MP_INTRO_*`/`MP_LINEUP_PICK` |
+| `mpIntroApplyState(p)` / `mpIntroApplyDone(p)` | Client appliers — normalise with `mpIntroWireArr` / `mpIntroWireRoster` (Firebase erases empties) |
+| `mpIntroRender()` | Owns every element on the screen |
+| `mpWireIntro()` | Listeners (DOMContentLoaded; a harness calls it directly) |
+
+**`?fps`** (`engine.js`, last block) — dev-only frame meter `#fps-meter`, on only with `?fps` in the URL.
 
 ### Multiplayer Mode Classification
 Three named modes (Phase 23). Each game has a `recommendedMode` and `supportedModes[]` in `MP_GAME_CONFIGS`:

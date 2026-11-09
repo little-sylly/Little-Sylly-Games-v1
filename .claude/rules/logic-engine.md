@@ -192,6 +192,7 @@ Required fields for every entry (grounded in the `li5` entry, `engine-multiplaye
 | `getMaxPlayers` | () => int | Upper bound enforced by the lobby |
 | `getMinPlayers` | () => int | Lower bound — **mandatory for any game with a minimum above 2** (role-table games, e.g. BLD min 5). Omitting it let BLD start under-strength. Defaults to the engine minimum when absent. |
 | `bots` | object (optional) | Bot seats (SW v247): `{ names, pillClass, view(idx), decide(view, difficulty, rng), submit(idx, move, tag), thinkMs? }`, all host-only arrow wrappers. Requires `rosterConfig.type: 'none'`; `'solo'` in `supportedModes` requires it. See § Bots |
+| `intro` | object (optional) | The match-start Intro (SW v264): `{ template, scene?, brief?, lineup? }`. A `lineup` requires `rosterConfig.type: 'none'`. See § Entry seam |
 
 **A lobby bound may read NOTHING that a post-lobby screen sets.** `getMaxPlayers`/`getMinPlayers`
 are consulted at exactly two moments — `mpRenderHostPlayerList()` while the room fills, and the room
@@ -375,6 +376,16 @@ updateSliderTheme(null);
 if (isMuted) document.getElementById('global-mute-toggle').className = getMuteToggleOnClass(null);
 ```
 
+### Entry seam + the Intro (SW v264)
+
+**`mpEnterGame(cfg)` is the ONLY way into a game** — host after the roster, client on `GAME_START`,
+Pass-the-Phone, Solo, rejoin. Never call `cfg.onPassThePhone()` directly (`verify-game-intro.js` § 16
+counts the call sites). With no `cfg.intro` it is exactly `onPassThePhone()`. A game that opts in gets
+the engine-owned Intro (`js/engine-intro.js`); its four packets (`MP_INTRO_READY`, `MP_LINEUP_PICK`,
+`MP_INTRO_STATE`, `MP_INTRO_DONE`) route before per-game code, so the game needs no handler, and a
+Line-up writes the same `mpPlayerSlots` / `window.mpLobbyRoster` shapes the lobby roster does — and
+re-freezes `mpSeats` at `MP_INTRO_DONE`. Detail: `docs/rules/ui-revamp.md` § 3.
+
 ### Play-Again Return Pattern (`mpReturnToLobby`)
 
 **Rule:** Every game's play-again confirm handler MUST call `mpReturnToLobby()` instead of navigating to setup or game menu when `syllyMultiplayerMode !== 'single'`.
@@ -525,7 +536,7 @@ RAF loop left running repaints/advances against the next screen's state. Referen
 **Non-game timers follow the same rule** — the 3D controller's `ctlRaf`, Secret Mode's
 `smTypewriterTimers`, the lobby layouts' RAFs/timers (`tvDrop()`, `bdDrop()` — the Board's `bdTimers`/`bdRaf`/`bdFlights`, SW v250 —
 `lobbyScene.stop()`, `jbxStop()`, the Arcade's one loop `arcRaf` and a playing cabinet's `arcAmbTimer` — `arcStop()`, SW v260/v261),
-reconnect's handles (all cleared in `mpEndMatchLocal()`) and the Bluff's two choreography bags
+reconnect's handles (all cleared in `mpEndMatchLocal()`), the Intro's `mpIntroTimers` (`mpIntroStop()`) and the Bluff's two choreography bags
 (`dybAnimTimers` / `dybPrTimers` — stopping one never touches the other). Per-handle clear sites:
 `shared-implementation-notes.md` DD-54. A prop that idles schedules off the scene's frame time inside its
 `tick`, not off a new timer.

@@ -3383,3 +3383,37 @@ body.flash-red   { background-color: #fecaca; }
   white-space: pre;
   word-break: break-all;
 }
+
+/* ═══ The Intro — screen-game-intro (UI revamp Stage 0, SW v264) ═══════════════
+   Engine-owned and unbranded: every colour here is neutral stone, because the
+   brand belongs to the CONTROLS (they take the game's brandBtnClass at render) and
+   the world belongs to the game's own scene. A game restyles nothing here — it
+   brings a scene. transform/opacity only; the global reduced-motion block
+   collapses the line entrance. */
+.intro-scene { aspect-ratio: 16 / 10; background: #f5f5f4; }
+.intro-scene:empty { display: none; }
+.intro-narrator { min-height: 9rem; cursor: pointer; }
+.intro-narrator:active { transform: scale(0.99); }
+@keyframes introLineIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.intro-line-enter { animation: introLineIn 260ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+.intro-brief li { position: relative; padding-left: 1.25rem; }
+.intro-brief li::before { content: ''; position: absolute; left: 0.25rem; top: 0.6em; width: 0.4rem; height: 0.4rem; border-radius: 9999px; background: #a8a29e; }
+.intro-teams { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.5rem; }
+.intro-col { background: #fff; border-radius: 1rem; padding: 0.75rem; display: flex; flex-direction: column; gap: 0.5rem; box-shadow: 0 1px 2px rgba(0,0,0,.05); border: 2px solid transparent; min-width: 0; }
+.intro-col.is-mine { border-color: #d6d3d1; }
+.intro-col-unassigned { background: #fafaf9; }
+.intro-col-name { color: #44403c; font-weight: 600; font-size: 0.875rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.intro-col-input { width: 100%; min-width: 0; min-height: 2.75rem; padding: 0 0.5rem; border-radius: 0.75rem; border: 1px solid #e7e5e4; background: #fafaf9; color: #44403c; font-weight: 600; font-size: 0.875rem; }
+.intro-col-input:focus { outline: none; border-color: #a8a29e; }
+.intro-col-chips { display: flex; flex-wrap: wrap; gap: 0.375rem; }
+.intro-col-empty { color: #a8a29e; font-size: 0.75rem; font-style: italic; }
+.intro-chip { display: inline-flex; align-items: center; gap: 0.25rem; min-height: 2.75rem; padding: 0 0.75rem; border-radius: 9999px; background: #f5f5f4; color: #44403c; font-size: 0.875rem; font-weight: 600; max-width: 100%; }
+.intro-chip.is-me { background: #e7e5e4; }
+.intro-chip-you { color: #a8a29e; font-weight: 500; }
+.intro-chip-tick { color: #16a34a; }
+button.intro-chip:active, .intro-col-join:active { transform: scale(0.96); }
+.intro-col-join { min-height: 2.75rem; border-radius: 0.75rem; background: #f5f5f4; color: #57534e; font-weight: 600; font-size: 0.875rem; }
+.intro-col-join:hover { background: #e7e5e4; }

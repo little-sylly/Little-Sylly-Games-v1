@@ -19,6 +19,9 @@ Detail: pointer to the canonical doc (snapshot / impl note / spec / memory).
 ```
 
 
+## 2026-11-09 — UI revamp Stage 0: one entry seam, an engine-owned Intro (Architecture)
+**Decision:** every route into a game goes through `mpEnterGame()`; a game opting in with `MP_GAME_CONFIGS[abbr].intro` gets the engine-owned Intro (narrator, brief, Line-up, Ready) in its own file `js/engine-intro.js`, with four engine-generic packets; a Line-up replaces the lobby roster step and re-freezes seats at `MP_INTRO_DONE`. No game adopts yet. **Why:** spec § 5 — the revamp rolls out one game at a time, so the seam must leave unrevamped games byte-identical. **Changed:** `engine-multiplayer.js` (seam, rejoin/away guards), `engine.js`, `_shell.html`, `styles.css`, new tools (`verify-game-intro` + mutate, `verify-tv-labels`, `capture-screens`), `?fps`, SW v264. Wire shape refined from the spec: a per-seat `team[]`, never empty. **Detail:** `shared-implementation-notes.md` DD-66; `docs/rules/ui-revamp.md`.
+
 ## 2026-11-09 — World first: a Directions step before building any game's screens (Process)
 **Decision:** every revamp pass and every new game gets an Opus "Directions" step (world brief → three action-screen directions on a Design canvas → owner picks → build plan); Sonnet builds from board + plan. A strong world may reopen brand colour, terminology and the brief, and that is in scope. One game per session. First picks: LI5 → Chalkboard + passed-note buzz (brand colour and terms under review); GM → thought bubbles with a word-cloud history, radio language dropped. **Why:** owner — the chalkboard alone established LI5's classroom; building on day-1 identity choices gives half-built worlds. **Changed:** UI revamp spec § 17, `new-game-process.md` § Stage 1b. Nothing built. **Detail:** spec § 17; boards in `wip/revamp/mockups/`.
 

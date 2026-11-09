@@ -20,6 +20,7 @@ Every screen must have:
 
 > **Moved (4 Nov 2026) → `docs/rules/ui-screen-patterns.md`** — read it when adding or retrofitting a per-round intro screen.
 > **Headline rule:** A repeated phase (Night, Raid, Round) opens with a short auto-advancing interstitial that sets the scene AND restates what to do; flavour line host-picked and synced in MDLM.
+> **The match-start Intro** (narrator, brief, Line-up, Ready) is engine-owned — `screen-game-intro`; a game brings a template + scene, never its own screen. `docs/rules/ui-revamp.md` § 3.
 
 ---
 
@@ -560,6 +561,9 @@ See **Table A** in `docs/rules/per-game-classes.md`.
 ## Game Brand Colour — Scope
 
 **Rule:** Game brand colour = "yes, proceed" actions and accents only. Navigation chrome (exit, back) is always neutral.
+**UI revamp wording (SW v264):** *brand-coded controls (CTA, active pill, ON toggle, focus border) use only this
+game's brand colour. Scene art uses whatever palette its world needs.* During the revamp the layout, motion-cap and
+screen-pattern rules in this file are **defaults, not gates** — depart and log it (`docs/rules/ui-revamp.md` § 2).
 
 ### Applies — game colour:
 | Element | Implementation |

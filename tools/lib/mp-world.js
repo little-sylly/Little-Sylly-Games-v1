@@ -12,6 +12,11 @@ const fs = require('fs'), path = require('path'), vm = require('vm');
 const ROOT  = path.join(__dirname, '..', '..');
 const MP    = process.env.MP_SRC ? path.resolve(process.env.MP_SRC) : path.join(ROOT, 'js/engine-multiplayer.js');
 const mpSrc = fs.readFileSync(MP, 'utf8');
+// The Intro (UI revamp Stage 0) runs alongside the engine on every device, so every
+// engine-tier harness proves a game WITHOUT an intro passes through it unchanged.
+// INTRO_SRC= points every device at another copy (verify-game-intro.js's broken run).
+const INTRO    = process.env.INTRO_SRC ? path.resolve(process.env.INTRO_SRC) : path.join(ROOT, 'js/engine-intro.js');
+const introSrc = fs.existsSync(INTRO) ? fs.readFileSync(INTRO, 'utf8') : '';
 
 // ── The wire (verbatim from verify-comb-loopback.js) ────────────────────────
 function fbWrite(v) {
@@ -256,11 +261,13 @@ function boot(name, uid, phone, skew = 0) {
     w.syllyMultiplayerMode = 'single';
     w.syllySyncLocked = false;
     if (typeof S.mpReconnectTeardown === 'function') S.mpReconnectTeardown();
+    if (typeof S.mpIntroTeardown === 'function') S.mpIntroTeardown();
   };
   S.globalThis = S;
   vm.createContext(S);
   vm.runInContext('let activeGameId = null;', S);
   vm.runInContext(mpSrc, S, { filename: 'engine-multiplayer.js (' + name + ')' });
+  if (introSrc) vm.runInContext(introSrc, S, { filename: 'engine-intro.js (' + name + ')' });
   // Firebase is "lazy-loaded" the moment the device needs it — here, at once.
   S.window.syllyFirebase  = net.fb;
   S.window.syllyDeviceUid = uid;
@@ -360,6 +367,6 @@ function report() {
 }
 
 module.exports = {
-  ROOT, MP, mpSrc, fbWrite, fbRead, clock, flush, snap, server, connect, makeDocument, makePhone,
+  ROOT, MP, mpSrc, INTRO, introSrc, fbWrite, fbRead, clock, flush, snap, server, connect, makeDocument, makePhone,
   devices, boot, advance, tally, check, ok, section, errorsOf, startMatch, report,
 };

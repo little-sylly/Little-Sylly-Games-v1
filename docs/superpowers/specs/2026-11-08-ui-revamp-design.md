@@ -1,7 +1,7 @@
 # UI Revamp — programme + Stage 0 design
 
 **Date:** 8 Nov 2026 · **Tier:** 2 (process-level, suite-wide; Stage 0 touches the engine's MP entry path)
-**Status:** awaiting owner approval (the hard gate) · **Brainstormed:** this session, sections 1–6 approved in turn
+**Status:** approved (23bfbe1) · **Stage 0 built 9 Nov 2026, SW v264** — as specified, with three refinements recorded in `shared-implementation-notes.md` DD-66 (the Intro in its own `js/engine-intro.js`; a per-seat `team[]` on the wire instead of `teams[][]`; `lineup.type` `'teams'` only until a `'seats'` beat is designed) · **Brainstormed:** sections 1–6 approved in turn
 **Supersedes as a tracker:** `docs/practice-rollout.md` (absorbed — § 8)
 
 ---

@@ -62,6 +62,8 @@ const allScreens = [
   'screen-mp-mode', 'screen-mp-lobby-host', 'screen-mp-lobby-join',
   'screen-mp-roster',
   'screen-li5-monitor',
+  // The Intro — engine-owned, every revamped game (UI revamp Stage 0, js/engine-intro.js)
+  'screen-game-intro',
   // Bailed
   'screen-bld-menu', 'screen-bld-setup', 'screen-bld-seating', 'screen-bld-pass-gate',
   'screen-bld-role-reveal', 'screen-bld-main', 'screen-bld-aftermath',
@@ -922,6 +924,7 @@ function resetToLobby() {
   window.mpLobbyRosterCaptainNames = null;
   document.body.classList.remove('mp-sync-locked');
   if (typeof mpReconnectTeardown === 'function') mpReconnectTeardown();   // presence, away overlay, rejoin key (SW v236)
+  if (typeof mpIntroTeardown === 'function') mpIntroTeardown();           // the Intro's timers, scene, Play-again flag (SW v264)
   ['mp-version-mismatch-overlay', 'mp-host-disconnected-overlay',
    'mp-lttp-message-interrupt-overlay', 'mp-network-error-overlay',
    'mp-host-prelobby-overlay', 'mp-roster-mismatch-overlay', 'ctl-how-to-overlay'].forEach(id => {
@@ -1248,3 +1251,35 @@ document.getElementById('btn-who-first-back-from-confirm').addEventListener('cli
 document.getElementById('btn-who-first-confirm').addEventListener('click', () => {
   playLaunch(); whoFirstConfig.onResult(whoFirstSelectedIdx);
 });
+
+// ── ?fps — a dev-only frame-time meter (UI revamp Stage 0, SW v264) ────────────
+// On ONLY when the URL carries ?fps; a normal player never sees it. Corner-pinned,
+// pointer-events none, reads nothing and writes nothing but its own box. It runs for
+// the page's life on purpose (it is measuring the page) — so it is exempt from the
+// timer-lifecycle teardown, and it is the one RAF that ignores reduced motion: it
+// animates nothing. Self-contained: delete this block whole to remove it.
+(function fpsMeter() {
+  let on = false;
+  try { on = new URLSearchParams(location.search).has('fps'); } catch (_) { on = false; }
+  if (!on) return;
+  const box = document.createElement('div');
+  box.id = 'fps-meter';
+  box.setAttribute('aria-hidden', 'true');
+  box.style.cssText = 'position:fixed;left:4px;bottom:4px;z-index:200;pointer-events:none;' +
+    'font:600 11px/1.2 ui-monospace,monospace;color:#fff;background:rgba(0,0,0,.55);' +
+    'padding:3px 6px;border-radius:6px;white-space:pre';
+  document.body.appendChild(box);
+  let frames = 0, worst = 0, last = performance.now(), since = last;
+  const tick = now => {
+    const dt = now - last; last = now;
+    frames++; if (dt > worst) worst = dt;
+    if (now - since >= 500) {
+      const fps = Math.round(frames * 1000 / (now - since));
+      box.textContent = `${fps} fps · worst ${Math.round(worst)} ms`;
+      box.style.color = fps >= 55 ? '#bbf7d0' : fps >= 40 ? '#fde68a' : '#fecaca';
+      frames = 0; worst = 0; since = now;
+    }
+    requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+})();

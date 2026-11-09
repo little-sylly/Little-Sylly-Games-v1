@@ -3,6 +3,13 @@
 Historical SW release notes, moved out of `CLAUDE.md` (1 Aug 2026) so they stop loading into every session.
 The **current** version and its notes stay in `CLAUDE.md` § Current Focus — append the outgoing entry here on each bump.
 
+## v263 — six arcade cabinets get the arcade treatment (22 Oct 2026). Owner review of cabinets 1–7 against the
+prompt's guidelines (variety, escalation, madness, teach in play). DEEP-SEA SWEEP is a dive (sectors, hull plates, pearls / air /
+sonar / reef / jammers one per sector); CHOP SALAD fills a salad bowl per course and wakes one Fruity Personality each course,
+then FRUIT FRENZY; BEYOND THE BLUFF climbs in pitches (a ledge every 100 m, one new element each, rockslides, gusts, two
+power-ups); COOKIE JAR counts down to dinner and builds tension; STACKING ORDER gets FEEDING FRENZY and HIGH WINDS; OTHER SIDE
+honks, near-misses, Speed Demons, Rush Hour — and its tab-away double loop is fixed. No packet. Detail: `shared-implementation-notes.md` DD-65.
+
 ## v262 — the arcade cabinet, rebuilt the way a moulded toy is made (21 Oct 2026). Owner: a larger CRT, the deck lower,
 the ears seamless, the mock-ups' detail — "could double as a real physical object". `louBuildArcade` is side walls + a core set
 in all round (a parting line) + one bent faceplate in the front pocket: a 4:3 CRT (~44% more glass) in a sloped bezel, the deck

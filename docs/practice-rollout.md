@@ -1,5 +1,10 @@
 # Practice Rollout — the tutorial tracker
 
+> **Superseded as a tracker (9 Nov 2026, UI revamp Stage 0).** Practice is now **R10** of each game's
+> UI revamp pass, built on the new screens — status lives in **`docs/ui-revamp-rollout.md`**. This
+> file stays as R10's reference: §§ 1, 3, 5 (purpose, D1–D12, the four forms) and the § 6 game cards.
+> The § 4 table below is frozen as of 9 Nov — don't tick it; tick the revamp tracker.
+
 **On-demand — not auto-loaded.** The worklist for giving every game a **Practice** tab
 (`ui-style.md` § Practice tab). We work through it **one game at a time**, top of the tracker
 down, ticking the checklist as we go. The Bluff (DYB) is the reference and is backfilled below.

@@ -88,7 +88,9 @@ syllyMultiplayerMode: 'single' | 'host' | 'client'
 | Handed out | A device whose Lounge arrival beat has played (a phone). The Lounge is closed to it for the session |
 | Ornament | The live 3D controller shown in Original, the Board or TV — one canvas, moved between their slots |
 | Internal game id | The `activeGameId` string is the *internal* id and may differ from the display name — SS uses `'sylly-signals'` (legacy) although the game is displayed as Secret Signals |
-| Seats | `rooms/{code}/seats` — the uids in seat order, frozen by the host at `GAME_START` (`mpSeats`). Answers "does this room still have a seat for me?" without asking the host. Rewritten each match (SW v236) |
+| Seats | `rooms/{code}/seats` — the uids in seat order, frozen by the host at `GAME_START` (`mpSeats`), or re-frozen at `MP_INTRO_DONE` when an Intro Line-up reorders them (SW v264). Answers "does this room still have a seat for me?" without asking the host. Rewritten each match (SW v236) |
+| The Intro | The engine-owned match-start screen (`screen-game-intro`, SW v264): narrator beats → brief → Line-up → Ready. A game opts in with `MP_GAME_CONFIGS[abbr].intro`; entered only through `mpEnterGame()` |
+| Line-up | The Intro's team-picking beat — columns per team plus Unassigned; replaces the lobby roster screen for a game that has one |
 | Presence | `rooms/{code}/presence/{uid}/{pushId}` — one child **per connection**, each removed by its own `onDisconnect`. A seat is present while any child exists. Clients only; the host writes none |
 | Away | A seated client whose presence has been empty for 3 s. Every device shows `#mp-away-overlay` ("Waiting for …") until it returns or the session ends. **A drop, not a quit** |
 | `sylly_rejoin` | localStorage `{ code, game, ts }` — a pointer to a live session for the reconnect prompt, never game state. Adopting games only; 2 h expiry |

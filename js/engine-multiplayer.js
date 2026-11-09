@@ -1123,6 +1123,8 @@ function mpSeatList(v) {
 }
 
 // Host, from mpConfirmRoster(): freeze the seats and start watching presence.
+// A game whose Intro has a Line-up re-freezes them at MP_INTRO_DONE (mpIntroRefreeze,
+// engine-intro.js) — presence still starts here, so Away works during the Intro.
 async function mpBeginMatchSeats() {
   mpBotRngFn = null; mpBotsPaused = false;   // one rng stream per match
   mpSeats = mpPlayerSlots.map(p => p.uid);
@@ -1208,7 +1210,8 @@ function mpMarkAway(idx) {
   if (first) {
     mpBotsPause();                          // nobody can act, so neither do the bots (SW v247)
     const rc = mpActiveGameConfig?.reconnect;
-    if (rc) { try { rc.pause(); } catch (e) { console.warn('[MP] reconnect.pause', e); } }
+    // Mid-Intro there is no game to pause yet — the Intro's Start waits on Away instead.
+    if (rc) { if (!mpInIntro()) { try { rc.pause(); } catch (e) { console.warn('[MP] reconnect.pause', e); } } }
     else mpArmAwayGrace();
   }
   mpBroadcastAway();
@@ -1221,10 +1224,12 @@ function mpMarkBack(idx) {
     mpBotsResume();
     mpAwayAsking = false;
     const rc = mpActiveGameConfig?.reconnect;
-    if (rc) { try { rc.resume(); } catch (e) { console.warn('[MP] reconnect.resume', e); } }
+    if (rc && !mpInIntro()) { try { rc.resume(); } catch (e) { console.warn('[MP] reconnect.resume', e); } }
   }
   mpBroadcastAway();
 }
+
+function mpInIntro() { return typeof mpIntroIsOpen === 'function' && mpIntroIsOpen(); }
 
 // One packet carries the WHOLE away set; an empty set closes every overlay.
 // seats: [] is ERASED by Firebase — the receiver rebuilds it with `|| []`.
@@ -1316,6 +1321,7 @@ function mpEndMatchLocal() {
   mpAwaySeats.clear();
   mpShowAwayOverlay([], 0, false);       // also clears the countdown interval
   mpBotsCancel(); mpBotsPaused = false;   // a pending bot move never outlives its match
+  if (typeof mpIntroStop === 'function') mpIntroStop();   // the Intro's timers + scene (UI revamp Stage 0)
 }
 
 // Everything reconnect owns, from resetToLobby(). Every deliberate exit ends here.
@@ -1430,12 +1436,21 @@ function mpHostHandleRejoin(uid, version, nonce) {
   const rc = mpActiveGameConfig?.reconnect;
   if (!rc)                       { refuse('unsupported'); return; }
   mpReleasedSeats.delete(idx);            // a player who left and came back is watched again
+  // Still in the Intro (UI revamp Stage 0): there is no game state yet — the rejoiner
+  // gets the Intro's state instead of the game's snapshot, and re-enters the Intro.
+  const inIntro = typeof mpIntroIsOpen === 'function' && mpIntroIsOpen();
   // 1. The session context — the same fields GAME_START and SETTINGS_SYNC carry.
   mpSendPrivate(uid, { type: 'LOBBY', payload: {
     action: 'MP_REJOIN_ACCEPT', nonce, game: mpActiveGame, playerSlots: mpPlayerSlots,
     mpLobbyStyle: window.mpLobbyStyle, rosterData: window.mpLobbyRoster || null,
-    gameSettings: mpSerialiseSettings(mpActiveGame),
+    gameSettings: mpSerialiseSettings(mpActiveGame), intro: inIntro,
   } });
+  if (inIntro) {
+    mpCancelAwayPending(idx);
+    mpMarkBack(idx);
+    mpIntroSendStateTo(uid);
+    return;
+  }
   // 2. Seat back BEFORE the snapshot: resume() re-arms any clock first, so the
   //    snapshot carries the live deadline. The public resume broadcast can beat the
   //    private ACCEPT to this device and be dropped — the snapshot is the reliable carrier.
@@ -1486,7 +1501,7 @@ function mpApplyRejoinAccept(p, ts) {
   const ov = document.getElementById('mp-rejoin-overlay');
   if (ov) ov.style.display = 'none';
   if (typeof lobbyLeaveForGame === 'function') lobbyLeaveForGame();
-  cfg.onPassThePhone();
+  mpEnterGame(cfg, { rejoin: true, intro: p.intro === true });
 }
 
 function mpAbandonSession() {
@@ -1808,6 +1823,27 @@ function mpNotifyPlayerLeft() {
   } catch (_) {}
 }
 
+// ── The one entry seam (UI revamp Stage 0, SW v264) ───────────────────────────
+// EVERY route into a game comes through here: the host after mpConfirmRoster(), a
+// client on GAME_START, Pass-the-Phone from the mode screen, Solo (via the roster
+// confirm) and rejoin. A game with no `intro` runs exactly as it always has — that
+// is what lets the revamp roll out one game at a time. The Intro itself lives in
+// js/engine-intro.js; this file still works without it loaded (every game loopback).
+// Spec: docs/superpowers/specs/2026-11-08-ui-revamp-design.md § 5.1.
+function mpEnterGame(cfg, opts) {
+  cfg  = cfg || mpActiveGameConfig;
+  opts = opts || {};
+  if (!cfg) return;
+  if (!cfg.intro || typeof mpIntroOpen !== 'function') { cfg.onPassThePhone(); return; }
+  if (opts.rejoin) {
+    // Rejoining mid-Intro: the host's private MP_INTRO_STATE (right behind the ACCEPT)
+    // opens it. Rejoining mid-game: straight back in, as before.
+    if (!opts.intro) cfg.onPassThePhone();
+    return;
+  }
+  mpIntroOpen(cfg);
+}
+
 function mpHandleEnvelope(env) {
   // Generic quit contract — checked before any per-game routing so a game needs no handler.
   if (env.type === 'ACTION' && env.payload?.action === 'MP_PLAYER_LEFT') {
@@ -1824,6 +1860,10 @@ function mpHandleEnvelope(env) {
     if (window.syllyMultiplayerMode === 'host') mpHostHandleRejoin(env.originId, env.payload.version, env.payload.nonce);
     return;
   }
+
+  // The Intro (UI revamp Stage 0) — MP_INTRO_READY / MP_LINEUP_PICK / MP_INTRO_STATE /
+  // MP_INTRO_DONE, engine-generic, before any per-game routing.
+  if (typeof mpIntroHandleEnvelope === 'function' && mpIntroHandleEnvelope(env)) return;
 
   if (env.type === 'HANDSHAKE' && window.syllyMultiplayerMode === 'host') {
     if (mpMatchLive) {                 // mid-match: never a phantom slot
@@ -1917,8 +1957,9 @@ function mpHandleEnvelope(env) {
       mpMatchLive = true;
       mpStartPresence();
       mpWriteRejoinKey();
-      // Navigate to the game's first screen — same path as Pass-the-Phone
-      mpActiveGameConfig.onPassThePhone();
+      // Navigate to the game's first screen — same path as Pass-the-Phone (the Intro
+      // first, for a game that has one)
+      mpEnterGame(mpActiveGameConfig);
     }
   }
 
@@ -3229,7 +3270,7 @@ async function mpConfirmRoster() {
     });
     mpMyPlayerIdx = mpPlayerSlots.findIndex(p => p.uid === window.syllyDeviceUid);
     if (mpMyPlayerIdx < 0) mpMyPlayerIdx = 0; // safety fallback
-    mpActiveGameConfig.onPassThePhone();
+    mpEnterGame(mpActiveGameConfig);
   } catch (err) {
     console.error('[MP] GAME_START failed:', err);
     if (cta) { cta.disabled = false; cta.textContent = 'Start Game →'; }
@@ -3669,6 +3710,8 @@ function mpLobbyCodeText() { return mpSolo ? 'SOLO' : (mpActiveRoomCode || '----
 async function mpReturnToLobby() {
   if (window.syllyMultiplayerMode === 'host') {
     mpEndMatchLocal();
+    // Play again is the ONLY thing that skips the Intro's narrator beats (spec § 5.6).
+    if (typeof mpIntroNoteReturning === 'function') mpIntroNoteReturning(mpActiveGame);
     // seats/presence describe the match that just ended — the next one may seat a stranger.
     if (window.syllyFirebase && mpActiveRoomCode) {
       try { window.syllyFirebase.remove(window.syllyFirebase.ref(`rooms/${mpActiveRoomCode}/seats`)); } catch (_) {}
@@ -3737,7 +3780,7 @@ document.addEventListener('DOMContentLoaded', () => {
     } else if (mpSelectedMode === 'solo') {
       playLaunch(); mpEnterSolo();
     } else {
-      playLaunch(); mpActiveGameConfig.onPassThePhone();
+      playLaunch(); mpEnterGame(mpActiveGameConfig);
     }
   });
 
