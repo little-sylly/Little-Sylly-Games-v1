@@ -175,10 +175,9 @@ Detail: `shared-implementation-notes.md` DD-44.
 | `#li5-how-to-overlay` | Data (slide-up) | `#btn-how-to` |
 | `#li5-help-tip-overlay` | Decision modal | Contextual `[?]` tips — `li5ShowHelpTip()` |
 | `#quit-overlay` | Decision modal | ✕ during active play |
-| `#skip-turn-overlay` | Decision modal | Skip button |
 | `#review-overlay` | Data (slide-up) | Review edits button |
 | `#history-overlay` | Data (slide-up) | Score history button |
-| `#pause-overlay` | Inline (inside `#screen-active-play`) | Pause button |
+| `#pause-overlay` | Inline (inside `#screen-active-play`) | The wall clock `#btn-pause` — the Time Out view (S4); `Keep going` / `End my turn` sit on the tray |
 | `#deck-panel` | Data (slide-up) | Word deck button |
 | `#li5-play-again-overlay` | Decision modal | "New Playgroup?" play-again confirmation — `#btn-play-again` (legacy unprefixed ID) |
 

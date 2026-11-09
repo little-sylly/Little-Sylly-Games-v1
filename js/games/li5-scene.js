@@ -10,6 +10,7 @@
 //   li5Duster(el)       wipe pass over el's box
 //   li5Dust(el, x, y)   four-dot puff
 //   li5TallySvg(n)      tally marks in groups of five (SVG string)
+//   li5VoiceBubble(...) a classmate's speech bubble from a corner (S4)
 //   li5SlateTexture()   matte slate speckle, Canvas 2D once → cached data URL
 // Every animating helper returns { finished: Promise, cancel() }.
 // ═══════════════════════════════════════════════════════════════════════════
@@ -162,6 +163,31 @@ function li5TallySvg(n) {
   }
   const w = groups * gw - 4;
   return '<svg class="li5-tally" viewBox="0 0 ' + w + ' 24" width="' + w + '" height="24" role="img" aria-label="' + count + '">' + body + '</svg>';
+}
+
+// ── Classmates' voice bubble ────────────────────────────────────────────────
+// A small speech bubble from one corner of `host` (position:relative): pops in from its side,
+// holds, fades — about 1.3 s. corner ∈ tl|tr|bl|br (css/li5.css places it). Reduced motion =
+// fade only. The caller decides what is said and when; this only draws it.
+function li5VoiceBubble(host, text, corner, opts) {
+  const o = opts || {};
+  if (!host) return li5Done();
+  const b = document.createElement('span');
+  b.className = 'li5-voice li5-voice-' + corner;
+  b.setAttribute('aria-hidden', 'true');
+  b.textContent = text;
+  host.appendChild(b);
+  const side = String(corner).charAt(1) === 'l' ? -1 : 1;
+  const frames = o.reducedMotion
+    ? [{ opacity: 0 }, { opacity: 1, offset: 0.15 }, { opacity: 1, offset: 0.8 }, { opacity: 0 }]
+    : [{ opacity: 0, transform: 'translateX(' + (side * 14) + 'px) scale(0.85)' },
+       { opacity: 1, transform: 'translateX(0) scale(1)', offset: 0.15 },
+       { opacity: 1, offset: 0.8 }, { opacity: 0 }];
+  const a = li5Anim(b, frames, { duration: 1300, easing: 'ease-out', fill: 'forwards' });
+  const drop = () => { if (b.parentNode) b.parentNode.removeChild(b); };
+  if (!a) { drop(); return li5Done(); }
+  const finished = a.finished.catch(() => {}).then(drop);
+  return { finished, cancel() { try { a.cancel(); } catch (_) {} drop(); } };
 }
 
 // ── The Intro scene ─────────────────────────────────────────────────────────

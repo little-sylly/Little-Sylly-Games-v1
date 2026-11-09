@@ -704,7 +704,6 @@ function resetToLobby() {
   document.getElementById('history-overlay').style.display       = 'none';
   document.getElementById('settings-overlay').style.display      = 'none';
   document.getElementById('deck-panel').style.display            = 'none';
-  document.getElementById('skip-turn-overlay').style.display     = 'none';
   document.getElementById('gm-override-overlay').style.display = 'none';
   document.getElementById('gm-quit-overlay').style.display     = 'none';
   document.getElementById('gm-settings-overlay').style.display      = 'none';

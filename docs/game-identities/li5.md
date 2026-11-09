@@ -121,7 +121,7 @@ The settings overlay is titled **Learning Plan 📝** — *"Adults make the rule
 | 1 | `screen-menu` | Menu | Menu | — | 🔊 |
 | 2 | `screen-setup` | Name your Playgroups! — team names | Setup | — | 🔊 ✕ |
 | 3 | `screen-gatekeeper` | Ready up, [team] — pass-the-phone + mini scoreboard + hype line | Gate | — | 🔊 ✕ |
-| 4 | `screen-active-play` | Describe/guess timer, No-No List, score buttons | Interactive | — | `?` 🔊 ⏸ ⏭ ✕ |
+| 4 | `screen-active-play` | The describer's board — the wall clock (which is Time Out), the word + No-No List as one group, tallies, Yay | Nay on the chalk tray then Skip; a dob arrives as a folded note | Interactive | — | 🔊 `?` ✕ |
 | — | `screen-li5-tattle` | *(Lobby Mode)* Tattletales — the other group's phones: word, No-No List, dob | Interactive | — | `[?]` 🔊 ✕ |
 | — | `screen-li5-guess` | *(Lobby Mode)* Guessing — the describer's own group: clock, tallies, the Yay'd words, never the word | Interactive | — | `[?]` 🔊 ✕ |
 | 5 | `screen-gameover` | Class Dismissed! — final scores | Result | — | 🔊 ✕ |
@@ -143,11 +143,10 @@ other device tattles. The Report Card shows on every device; the describer and t
 | `li5-how-to-overlay` | Menu, active-play header `?` | How to Play — no tab bar |
 | `li5-help-tip-overlay` | Contextual `[?]` buttons | Shared contextual tip overlay |
 | `quit-overlay` | ✕ during active play/gatekeeper | "Done explaining already?" mid-game quit confirm |
-| `skip-turn-overlay` | ⏭ end-turn button | "All tuckered out?" confirms ending the turn early |
 | `review-overlay` | After every turn | Report Card — per-word turn review, Pinky Swear flips happen here |
 | `history-overlay` | Gameover team cards | Full per-team match history across every turn |
 | `li5-play-again-overlay` | Gameover "One More Go?" | "New Playgroup?" play-again confirm |
-| `pause-overlay` | ⏸ pause button | Inline swap for `active-content`, not a `fixed` overlay — hides the word so nobody peeks |
+| `pause-overlay` | The wall clock (tap it) | The Time Out view — an inline swap for `active-content`, not a `fixed` overlay: the word is rubbed off so nobody peeks, *Clock stopped at 0:42*, **Keep going** / *End my turn* on the tray (LI5 pilot S4) |
 
 ### T7b — The words on screen
 
@@ -190,14 +189,14 @@ Listen for No-No words. Hear one? Dob.
 
 ```copy
 # screen-active-play
+Up the front
 The No-No List
-Score:
 Yay!
 Nay!
 Skip!
 Time Out
-Word is hidden so no peeking!
-▶ Let's Continue Playing!
+Clock stopped at
+Keep going
 End my turn
 I said it
 I didn't
@@ -349,7 +348,7 @@ Extra Credit words are shuffled into the deck. Correct answers score double, but
 Got it
 ```
 
-#### Quit, skip-turn, play-again
+#### Quit and play-again
 
 ```copy
 # quit-overlay
@@ -357,14 +356,6 @@ Done explaining already? 🧒
 Your stars will disappear!
 Yeah, pack up!
 Keep going!
-```
-
-```copy
-# skip-turn-overlay
-All tuckered out?
-The current word won't count.
-Yep, break time!
-Not yet!
 ```
 
 ```copy
@@ -409,7 +400,7 @@ NAT, DSD); all eight now call the new engine helper `mpNotifyPlayerLeft()`, and
 `dstw.js` ("Don't Say Those Words") before the game's public rename to Like I'm Five, and several
 DOM ids never picked up the `li5-` prefix convention other games use throughout: `#screen-menu`,
 `#screen-setup`, `#screen-gatekeeper`, `#screen-active-play`, `#screen-gameover`, `#settings-overlay`,
-`#deck-panel`, `#quit-overlay`, `#skip-turn-overlay`, `#review-overlay`, `#history-overlay`,
+`#deck-panel`, `#quit-overlay`, `#review-overlay`, `#history-overlay`,
 `#btn-play`, `#btn-settings`, `#btn-how-to`, `#btn-play-again`, among others. This is long-standing,
 harmless, and already flagged in `docs/rules/definitions.md` ("LI5 state — no prefix, predates the
 convention") — not a new finding, just the reason this doc's copy blocks reference bare ids like

@@ -56,8 +56,13 @@ let roundLog        = [];
 let currentStreak   = 0;
 let isProcessing    = false;
 
-const HYPE_PHRASES = ['Gold Star! 🌟', 'Clever clogs! 🧠', 'A+ Student! 📝', 'Show and Tell champion! 🎤', "Teacher's Pet! 🍎", 'Playground Legend! 🎡', 'Sticker Chart Full! 🎫'];
-let lastHypeIdx     = -1;
+// Classmates' voices (pilot spec § 3 — owner-approved copy, ≤3 words, no emoji). Cosmetic and local:
+// each device picks its own line off the Yay/Nay it already has, so there is no packet.
+const LI5_VOICES = {
+  yay:  ['Gold star!', 'Clever clogs!', 'Top of the class!', 'A-plus!', "Teacher's pet!", 'Smarty pants!'],
+  roll: ['On a roll!', 'Show-off!', 'Unstoppable!'],
+  nay:  ['Busted!', 'Ooooh!', 'Caught out!'],
+};
 let reviewCallback  = null;
 let matchLog        = [];
 let scoreBeforeTurn = 0;
@@ -77,13 +82,6 @@ function setTeamBoxState(id, state) {
   const el = document.getElementById(id);
   el.classList.remove('team-box-active', 'team-box-inactive', 'team-box-pulse', 'team-box-winner');
   if (state) el.classList.add(...state.split(' '));
-}
-
-function pulseScore() {
-  const el = document.getElementById('score-display');
-  el.classList.remove('score-pulse');
-  void el.offsetWidth;
-  el.classList.add('score-pulse');
 }
 
 function flashBackground(colour) {
@@ -118,38 +116,17 @@ function drawNextWord() {
 }
 
 // ── Sylly visuals ─────────────────────────────────────────────────────────────
-function applySyllyVisuals() {
-  const card = document.getElementById('active-word-card');
+// Called from li5RenderDescriber only. The look itself lives in css/li5.css (.li5-sylly).
+function applySyllyVisuals(on) {
   const nay  = document.getElementById('btn-taboo');
   const skip = document.getElementById('btn-skip');
-  const hint = document.getElementById('sylly-scoring-hint');
-
-  const yay = document.getElementById('btn-correct');
-  if (currentWordIsSylly) {
-    card.classList.add('sylly-glow');
-    yay.textContent        = 'Double Yay!';
-    nay.textContent        = 'Double Nay!';
-    skip.textContent       = 'Skip!';
-    nay.classList.add('shake');
-    nay.style.background   = '#a855f7';
-    nay.style.color        = '#fff';
-    skip.classList.add('shake');
-    skip.style.background  = '#a855f7';
-    skip.style.color       = '#fff';
-    hint.classList.add('sylly-hint-show');
-  } else {
-    card.classList.remove('sylly-glow');
-    yay.textContent        = 'Yay!';
-    nay.textContent        = 'Nay!';
-    skip.textContent       = 'Skip!';
-    nay.classList.remove('shake');
-    nay.style.background   = '';
-    nay.style.color        = '';
-    skip.classList.remove('shake');
-    skip.style.background  = '';
-    skip.style.color       = '';
-    hint.classList.remove('sylly-hint-show');
-  }
+  document.getElementById('li5-desc-board').classList.toggle('li5-sylly', on);
+  document.getElementById('btn-correct').textContent = on ? 'Double Yay!' : 'Yay!';
+  nay.textContent  = on ? 'Double Nay!' : 'Nay!';
+  skip.textContent = 'Skip!';
+  nay.classList.toggle('shake', on);
+  skip.classList.toggle('shake', on);
+  document.getElementById('sylly-scoring-hint').style.display = on ? '' : 'none';
 }
 
 // ── Dynamic scoring ───────────────────────────────────────────────────────────
@@ -279,8 +256,8 @@ function renderTabooList(containerId, tabooList) {
   const count = currentWordIsSylly ? 10 : 5;
   const words = tabooList.slice(0, count);
   const el = document.getElementById(containerId);
-  el.className = currentWordIsSylly ? 'taboo-list-hard' : 'taboo-list-clean';
-  el.innerHTML = words.map(t => `<li data-word="${t}">${t}</li>`).join('');
+  el.className = currentWordIsSylly ? 'li5-nono li5-nono-2' : 'li5-nono li5-nono-1';   // 5 → one column, Extra Credit's 10 → two
+  el.innerHTML = words.map((t, i) => `<li data-word="${t}" data-slot="${i}">${t}</li>`).join('');
 }
 
 // ── Miss's asides (pilot spec § 4.5 — owner-approved 9 Nov 2026) ──────────────
@@ -396,47 +373,20 @@ function li5GateWrite() {
   if (dummy.parentNode) wipe.finished.then(() => { if (dummy.parentNode) dummy.parentNode.removeChild(dummy); });
 }
 
-// ── Screen: ACTIVE PLAY ───────────────────────────────────────────────────────
+// ── Screen: ACTIVE PLAY — the describer's board (pilot S4) ────────────────────
 function showActivePlay() {
-  document.getElementById('active-team-label').textContent = teamNames[currentTeam];
-  renderCurrentWord();
-  document.getElementById('score-display').textContent = teamScores[currentTeam];
-
   roundLog        = [];
   currentStreak   = 0;
-  document.getElementById('active-team-label').classList.remove('streak-fire-active', 'streak-fire-shake');
-  const _hype = document.getElementById('hype-phrase');
-  _hype.classList.remove('hype-pop'); _hype.textContent = '';
   scoreBeforeTurn = teamScores[currentTeam];
   isPaused = false;
-  document.getElementById('pause-overlay').style.display  = 'none';
-  document.getElementById('active-content').style.display = 'flex';
-  document.getElementById('li5-note').style.display       = 'none';
-  document.getElementById('li5-timeup').style.display     = 'none';
-  li5DimControls(false);
+  li5DescReset();
   timeLeft = settingTimer;
   const timerEl = document.getElementById('timer-display');
   timerEl.classList.remove('timer-warning');
   timerEl.textContent = formatTime(timeLeft);
-  ['gatekeeper-score-team1', 'gatekeeper-score-team2'].forEach(id =>
-    document.getElementById(id).classList.remove('team-box-pulse')
-  );
+  li5RenderDescriber();
   startTimer();
   showScreen('screen-active-play');
-}
-
-function renderCurrentWord() {
-  document.getElementById('active-word').textContent = currentWordData.word;
-  const emoji = CATEGORY_EMOJI[currentWordData.category] ?? '';
-  const label = currentWordData.category.replace('_', ' ');
-  document.getElementById('word-category-label').textContent = `${emoji} ${label}`;
-  renderTabooList('active-taboo-list', currentWordData.nono_list);
-  applySyllyVisuals();
-  const card = document.getElementById('active-word-card');
-  card.classList.remove('card-enter');
-  void card.offsetWidth;
-  card.classList.add('card-enter');
-  card.addEventListener('animationend', () => card.classList.remove('card-enter'), { once: true });
 }
 
 // ── Timer ─────────────────────────────────────────────────────────────────────
@@ -469,27 +419,10 @@ function applyAndAdvance(action) {
     timeLeft = Math.max(0, timeLeft - r.penaltySecs);
     document.getElementById('timer-display').textContent = formatTime(timeLeft);
     if (timeLeft <= 0) { endTurn(); return; }
-  } else if (action !== 'skip' || !settingSkipFree) {   // a Yay, or a penalised mark in points mode
-    document.getElementById('score-display').textContent = teamScores[currentTeam];
-    pulseScore();
   }
 
-  if (action === 'correct') {
-    currentStreak++;
-    if (currentStreak >= 3) {
-      const lbl = document.getElementById('active-team-label');
-      lbl.classList.add('streak-fire-active');
-      lbl.classList.remove('streak-fire-shake');
-      void lbl.offsetWidth;
-      lbl.classList.add('streak-fire-shake');
-      lbl.addEventListener('animationend', () => lbl.classList.remove('streak-fire-shake'), { once: true });
-      showHypePhrase();
-    }
-  } else {
-    currentStreak = 0;
-    const lbl = document.getElementById('active-team-label');
-    lbl.classList.remove('streak-fire-active', 'streak-fire-shake');
-  }
+  if (action === 'correct') currentStreak++; else currentStreak = 0;
+  li5VoiceFor(action, currentStreak);
 
   if (!drawNextWord()) {
     wordsExhausted = true;
@@ -501,9 +434,10 @@ function applyAndAdvance(action) {
     card.classList.add(exitClass);
     setTimeout(() => {
       card.classList.remove(exitClass); // wait for 150ms card-exit CSS animation before rendering next word
-      renderCurrentWord();
+      li5RenderDescriber();
     }, 150);
   }
+  li5PaintDescTallies();   // the tallies move now; the new word follows the exit above
 }
 
 // ── End of turn ───────────────────────────────────────────────────────────────
@@ -517,29 +451,6 @@ function endTurn() {
     if (!drawNextWord()) { wordsExhausted = true; showGameOver(); return; }
     showGatekeeper();
   });
-}
-
-// ── Hype phrase pop ───────────────────────────────────────────────────────────
-function showHypePhrase() {
-  let idx;
-  do { idx = Math.floor(Math.random() * HYPE_PHRASES.length); } while (idx === lastHypeIdx && HYPE_PHRASES.length > 1);
-  lastHypeIdx = idx;
-  const el = document.getElementById('hype-phrase');
-  el.textContent = HYPE_PHRASES[idx];
-  el.classList.remove('hype-pop');
-  void el.offsetWidth;
-  el.classList.add('hype-pop');
-  el.addEventListener('animationend', () => { el.classList.remove('hype-pop'); el.textContent = ''; }, { once: true });
-}
-
-function showPenaltyPhrase() {
-  const el = document.getElementById('hype-phrase');
-  el.textContent = "Oops! That's a No-No! 🙊";
-  el.classList.add('text-red-500');
-  el.classList.remove('hype-pop');
-  void el.offsetWidth;
-  el.classList.add('hype-pop');
-  el.addEventListener('animationend', () => { el.classList.remove('hype-pop', 'text-red-500'); el.textContent = ''; }, { once: true });
 }
 
 // ── Round Review ──────────────────────────────────────────────────────────────
@@ -617,7 +528,7 @@ function flipEntry(idx) {
   if (!roundLog[idx]) return;
   li5Flip(roundLog[idx], li5Rules());
   teamScores[currentTeam] = li5Reclamp(roundLog, scoreBeforeTurn);
-  document.getElementById('score-display').textContent = teamScores[currentTeam];
+  li5PaintDescTallies();
   renderReviewList();
   renderReviewHeader();
 }
@@ -705,22 +616,10 @@ function hideQuitConfirm() {
   if (!isPaused && activePlay && activePlay.style.display !== 'none') startTimer();
 }
 
-function showSkipTurnConfirm() {
-  stopTimer();
-  document.getElementById('skip-turn-overlay').style.display = 'flex';
-}
-
-function hideSkipTurnConfirm() {
-  document.getElementById('skip-turn-overlay').style.display = 'none';
-  if (window.syllyMultiplayerMode !== 'single') return;
-  if (!isPaused) startTimer();
-}
-
 function togglePause() {
   isPaused = !isPaused;
-  document.getElementById('pause-overlay').style.display  = isPaused ? 'flex' : 'none';
-  document.getElementById('active-content').style.display = isPaused ? 'none' : 'flex';
   isPaused ? stopTimer() : startTimer();
+  li5RenderDescriber();
 }
 
 // ── Settings modal ────────────────────────────────────────────────────────────
@@ -1377,13 +1276,7 @@ function li5WipeWordDom() {
   ['active-taboo-list', 'li5-tattle-list', 'li5-guess-feed'].forEach(id => { $(id).innerHTML = ''; });
   $('li5-note').style.display = 'none';
   currentWordData = null;
-}
-
-function li5DimControls(on) {
-  ['btn-correct', 'btn-taboo', 'btn-skip'].forEach(id => {
-    const b = document.getElementById(id);
-    b.classList.toggle('opacity-50', !!on);
-  });
+  li5DescReset();
 }
 
 function li5ClockSecs() {
@@ -1428,45 +1321,166 @@ function li5RenderPlay() {
   li5RenderClock();
 }
 
-function li5RenderDescriber() {
-  const $ = id => document.getElementById(id);
-  const ph = li5V.phase, c = li5V.card;
-  $('active-team-label').textContent = teamNames[currentTeam];
-  $('score-display').textContent     = teamScores[currentTeam];
-  $('pause-overlay').style.display   = ph === 'timeout' ? 'flex' : 'none';
-  $('active-content').style.display  = ph === 'timeout' ? 'none' : 'flex';
-  $('li5-timeup').textContent        = ph === 'timeup' ? 'Time!' : '';
-  $('li5-timeup').style.display      = ph === 'timeup' ? '' : 'none';
-  li5DimControls(ph === 'timeup');
-  if (c) {
-    if (li5V.renderedCard !== c.cardNo) {
-      li5V.renderedCard  = c.cardNo;
-      currentWordData    = { word: c.word, category: c.category, nono_list: c.nonoList };
-      currentWordIsSylly = c.isSylly;
-      renderCurrentWord();
-    }
-  } else {                                            // waiting-word: the clock beat the first LI5_WORD
-    li5V.renderedCard = -1;
-    $('active-word').textContent = '…';
-    $('word-category-label').textContent = '';
-    $('active-taboo-list').innerHTML = '';
-  }
-  li5RenderNote();
+// ── The describer's board (pilot S4) ─────────────────────────────────────────
+// ONE render function owns every element of screen-active-play (Stack rule 4), for Pass-the-Phone
+// and the Lobby Mode describer alike. Content lands in its FINAL state synchronously; the chalk
+// reveal, the duster, the note wiggle and the voices are cosmetic passes over it — a newer render
+// cancels them, and reduced motion (or no WAAPI) leaves the final state untouched.
+let li5DescKey      = '';          // the word painted ('' = nothing yet, '~' = waiting for the first LI5_WORD)
+let li5DescPhase    = '';          // the phase last painted (the Time Out wipe fires on entry)
+let li5DescShown    = [-1, -1];    // scores last painted (a new tally mark draws in)
+let li5DescNoteSeen = { key: '', n: 0 };   // the note on show (a new dobber wiggles it)
+let li5DescAnim     = null;
+let li5VoiceUp      = false, li5VoiceCorner = 0;
+
+function li5DescReset() {
+  li5DescKey = ''; li5DescPhase = ''; li5DescShown = [-1, -1]; li5DescNoteSeen = { key: '', n: 0 };
+  if (li5DescAnim) { try { li5DescAnim.cancel(); } catch (_) {} li5DescAnim = null; }
 }
 
-// A dob arrives as a note: the most-dobbed slot, in the passed-note voice (§ 2.10).
-function li5RenderNote() {
+function li5ReducedMotion() {
+  try { return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); } catch (_) { return false; }
+}
+
+function li5PaintDescTallies() {
+  const $ = id => document.getElementById(id);
+  [0, 1].forEach(i => {
+    $('li5-desc-name-' + i).textContent = teamNames[i];
+    $('li5-desc-pts-' + i).textContent  = teamScores[i];
+    const marks = $('li5-desc-tally-' + i);
+    marks.innerHTML = li5TallySvg(teamScores[i]);
+    if (li5DescShown[i] >= 0 && teamScores[i] > li5DescShown[i] && !li5ReducedMotion()) {
+      const svg = marks.firstChild, last = svg && svg.lastElementChild;
+      if (last && last.classList) last.classList.add('li5-tally-new');   // the newest stroke draws in
+    }
+    li5DescShown[i] = teamScores[i];
+    $('li5-desc-row-' + i).classList.toggle('li5-gate-active', currentTeam === i);
+  });
+}
+
+// Classmates' voices: one at a time (a second is dropped, never queued), corners cycling tl → br → tr → bl.
+function li5Voice(kind, host) {
+  const pool = LI5_VOICES[kind];
+  if (li5VoiceUp || !pool || !host || typeof host.animate !== 'function' || typeof li5VoiceBubble !== 'function') return;
+  const corner = ['tl', 'br', 'tr', 'bl'][li5VoiceCorner++ % 4];
+  li5VoiceUp = true;
+  li5VoiceBubble(host, pool[Math.floor(Math.random() * pool.length)], corner, { reducedMotion: li5ReducedMotion() })
+    .finished.then(() => { li5VoiceUp = false; });
+}
+
+// The describer's own tap: a Yay (a run of 3+ rolls every 3rd) or a taken Nay. A Skip says nothing.
+function li5VoiceFor(action, streak) {
+  const kind = action === 'taboo' ? 'nay'
+             : action === 'correct' ? ((streak >= 3 && streak % 3 === 0) ? 'roll' : 'yay') : null;
+  if (kind) li5Voice(kind, document.getElementById('li5-desc-board'));
+}
+
+function li5RenderDescriber() {
+  const $ = id => document.getElementById(id);
+  const mp = window.syllyMultiplayerMode !== 'single';
+  const ph = mp ? li5V.phase : (isPaused ? 'timeout' : 'play');
+  const c  = mp ? li5V.card : null;
+  const out = ph === 'timeout', up = ph === 'timeup';
+  if (mp && c && li5V.renderedCard !== c.cardNo) {
+    li5V.renderedCard  = c.cardNo;
+    currentWordData    = { word: c.word, category: c.category, nono_list: c.nonoList };
+    currentWordIsSylly = c.isSylly;
+  } else if (mp && !c) {
+    li5V.renderedCard = -1;
+  }
+  const waiting = mp && !c;                           // waiting-word: the clock beat the first LI5_WORD (§ 5.4)
+
+  $('active-team-label').textContent = teamNames[currentTeam];
+  li5PaintDescTallies();
+  $('pause-overlay').style.display    = out ? 'flex' : 'none';
+  $('active-content').style.display   = out ? 'none' : 'flex';
+  $('li5-tray-play').style.display    = out ? 'none' : '';
+  $('li5-tray-timeout').style.display = out ? '' : 'none';
+  $('btn-pause').classList.toggle('li5-clock-frozen', out);
+  $('li5-timeup').textContent         = up ? 'Time!' : '';
+  $('li5-timeup').style.display       = up ? '' : 'none';
+  $('word-category-label').style.visibility = up ? 'hidden' : '';
+  ['btn-correct', 'btn-taboo', 'btn-skip'].forEach(id => $(id).classList.toggle('opacity-50', up));
+  if (out) $('li5-timeout-time').textContent = formatTime(mp ? li5ClockSecs() : timeLeft);
+
+  // The word and its No-No List: repainted only when the card changes
+  const key = waiting || !currentWordData ? '~' : currentWordData.word + '|' + (currentWordIsSylly ? 1 : 0);
+  if (key !== li5DescKey) {
+    li5DescKey = key;
+    if (key === '~') {
+      $('active-word').textContent = '…';
+      $('word-category-label').textContent = '';
+      $('active-taboo-list').innerHTML = '';
+      applySyllyVisuals(false);
+    } else {
+      $('active-word').textContent = currentWordData.word;
+      const emoji = CATEGORY_EMOJI[currentWordData.category] ?? '';
+      $('word-category-label').textContent = `${emoji} ${currentWordData.category.replace('_', ' ')}`;
+      renderTabooList('active-taboo-list', currentWordData.nono_list);
+      applySyllyVisuals(currentWordIsSylly);
+    }
+    li5DescNoteSeen = { key: '', n: 0 };               // notes clear on every new card
+    li5DescReveal();
+  }
+  li5DescNote(ph);
+  if (out && li5DescPhase !== 'timeout') li5DescTimeoutWipe();
+  li5DescPhase = ph;
+}
+
+// New word (§ 4.5): the group is chalked on, 240 ms. Cosmetic; the text is already final.
+function li5DescReveal() {
+  if (li5DescAnim) { try { li5DescAnim.cancel(); } catch (_) {} li5DescAnim = null; }
+  const g = document.getElementById('active-word-card');
+  if (li5ReducedMotion() || !g || typeof g.animate !== 'function') return;
+  li5DescAnim = g.animate([{ clipPath: 'inset(0 100% 0 0)' }, { clipPath: 'inset(0 0 0 0)' }], { duration: 240, easing: 'steps(6, end)' });
+}
+
+// Time Out (§ 4.5): a 300 ms duster pass, then Miss chalks the heading. Cosmetic; the view is already final.
+function li5DescTimeoutWipe() {
+  const board = document.getElementById('li5-desc-board'), head = document.getElementById('li5-timeout-head');
+  if (li5ReducedMotion() || !board || !head || typeof board.animate !== 'function' || typeof li5Duster !== 'function') return;
+  const dummy = document.createElement('span');
+  dummy.setAttribute('aria-hidden', 'true');
+  board.appendChild(dummy);
+  head.style.opacity = '0';
+  li5Duster(dummy, { duration: 300 }).finished.then(() => {
+    if (dummy.parentNode) dummy.parentNode.removeChild(dummy);
+    head.style.opacity = '';
+    li5Chalk(head, head.textContent, {});
+  });
+}
+
+// A dob arrives as a folded note passed along the tray: the most-dobbed slot, in the passed-note
+// voice (§ 2.10). Two or more tattletales on one word stack the note and wiggle it; the word it
+// names is ringed in the list.
+function li5DescNote(ph) {
   const $ = id => document.getElementById(id);
   const c = li5V.card, d = li5V.dobs;
+  const mp = window.syllyMultiplayerMode !== 'single';
   let slot = -1;
-  if (c && d && d.cardNo === c.cardNo && li5V.phase !== 'timeup') {
+  if (mp && c && d && d.cardNo === c.cardNo && ph !== 'timeup' && ph !== 'timeout') {
     d.counts.forEach((n, i) => { if (n > 0 && (slot < 0 || n > d.counts[slot])) slot = i; });
   }
   li5V.noteSlot = slot;
-  if (slot < 0) { $('li5-note').style.display = 'none'; $('li5-note-text').textContent = ''; return; }
+  Array.prototype.forEach.call($('active-taboo-list').children || [], li => {
+    li.classList.toggle('li5-ringed', slot >= 0 && Number(li.dataset.slot) === slot);
+  });
+  $('active-word').classList.toggle('li5-ringed', slot >= 0 && slot >= c.nonoList.length);
+  if (slot < 0) {
+    $('li5-note').style.display = 'none';
+    $('li5-note-text').textContent = '';
+    li5DescNoteSeen = { key: '', n: 0 };
+    return;
+  }
   const said = slot >= c.nonoList.length ? c.word : c.nonoList[slot];
-  const n = d.counts[slot];
+  const n = d.counts[slot], key = c.cardNo + ':' + slot;
   $('li5-note-text').textContent = n === 1 ? `Psst — you said "${said}"` : `${n} tattletales say you said "${said}"`;
+  $('li5-note').classList.toggle('li5-note-crowd', n >= 2);
+  if (li5DescNoteSeen.key === key && n > li5DescNoteSeen.n && !li5ReducedMotion() && typeof $('li5-note').animate === 'function') {
+    $('li5-note').animate([{ transform: 'rotate(-1.2deg)' }, { transform: 'rotate(-3.5deg)' }, { transform: 'rotate(1.5deg)' }, { transform: 'rotate(-1.2deg)' }],
+                          { duration: 400, easing: 'ease-in-out' });
+  }
+  li5DescNoteSeen = { key, n };
   $('li5-note').style.display = '';
 }
 
@@ -1526,6 +1540,7 @@ function li5DescriberMark(mark) {
   const c = li5V.card;
   if (!c || li5V.marked >= c.cardNo) return;          // one mark per card from this device
   li5V.marked = c.cardNo;
+  li5VoiceFor(mark, mark === 'correct' ? li5V.streak + 1 : 0);
   // A client's next word is already here (LI5_WORD.next) — show it now; the host confirms.
   // BEFORE the send: the host's LI5_WORD for the new card may land before li5Act returns,
   // and an advance after it would overwrite that card with this (older) guess.
@@ -1685,7 +1700,7 @@ document.getElementById('btn-start-turn')
 document.getElementById('btn-pause')
   .addEventListener('click', () => {
     playPillClick();
-    if (window.syllyMultiplayerMode === 'single') { togglePause(); return; }
+    if (window.syllyMultiplayerMode === 'single') { if (!isPaused) togglePause(); return; }
     if (li5MyRole() === 'up' && li5V.phase === 'play') li5Act('LI5_TIMEOUT', { paused: true });
   });
 
@@ -1702,8 +1717,6 @@ document.getElementById('btn-li5-end-my-turn')
     playWhoosh();
     if (window.syllyMultiplayerMode === 'single') {
       isPaused = false;
-      document.getElementById('pause-overlay').style.display  = 'none';
-      document.getElementById('active-content').style.display = 'flex';
       endTurn();
       return;
     }
@@ -1728,7 +1741,7 @@ document.getElementById('btn-taboo').addEventListener('click', () => {
   if (li5Debounced()) return;
   playBoing(); flashBackground('red'); navigator.vibrate?.(40);
   if (window.syllyMultiplayerMode !== 'single') { li5DescriberMark('taboo'); return; }
-  showPenaltyPhrase(); applyAndAdvance('taboo');
+  applyAndAdvance('taboo');
 });
 
 document.getElementById('btn-skip').addEventListener('click', () => {
@@ -1778,19 +1791,6 @@ document.getElementById('btn-quit-confirm')
 
 document.getElementById('btn-quit-cancel')
   .addEventListener('click', () => { playResume(); hideQuitConfirm(); });
-
-document.getElementById('btn-end-turn')
-  .addEventListener('click', () => { playPillClick(); showSkipTurnConfirm(); });
-
-document.getElementById('btn-skip-turn-confirm').addEventListener('click', () => {
-  playWhoosh();
-  document.getElementById('skip-turn-overlay').style.display = 'none';
-  if (window.syllyMultiplayerMode !== 'single') { if (li5MyRole() === 'up') li5Act('LI5_END_TURN'); return; }
-  endTurn();
-});
-
-document.getElementById('btn-skip-turn-cancel')
-  .addEventListener('click', () => { playResume(); hideSkipTurnConfirm(); });
 
 document.getElementById('btn-review-next').addEventListener('click', () => {
   playLaunch();

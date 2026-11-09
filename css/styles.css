@@ -316,25 +316,6 @@ body.flash-red   { background-color: #fecaca; }
   opacity: 0;
 }
 
-/* ── 5-word clean centred list ───────────────────────────────────────────── */
-.taboo-list-clean {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.45rem;
-}
-.taboo-list-clean li {
-  color: #44403c;
-  font-weight: 600;
-  font-size: 1.05rem;
-}
-/* Alternating micro-rotation — hand-stamped flash card feel */
-.taboo-list-clean li:nth-child(odd)  { transform: rotate(-0.5deg); }
-.taboo-list-clean li:nth-child(even) { transform: rotate(0.5deg); }
-
 /* ── Overlay Library ─────────────────────────────────────────────────────── */
 /*
  * TWO PATTERNS ONLY. Do not invent a third.
@@ -413,50 +394,6 @@ body.flash-red   { background-color: #fecaca; }
    A tile still on its emoji fallback never gets this class and never gets a
    handler — there is no full artwork behind it to open. */
 .art-zoomable { cursor: zoom-in; }
-
-/* ── No-No List container — flash card look ──────────────────────────────── */
-#taboo-card {
-  width: 90%;
-  margin: 0 auto;
-  display: flex;
-  flex-direction: column;
-  position: relative;
-  box-shadow: 0 6px 16px rgba(0,0,0,0.10), 0 1px 4px rgba(0,0,0,0.07);
-}
-
-/* Hole-punch ring at the top — mimics a physical flash card */
-#taboo-card::before {
-  content: '';
-  position: absolute;
-  top: 14px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  border: 2px solid #d6d3d1; /* stone-300 */
-  background: transparent;
-  pointer-events: none;
-}
-
-/* Stability floor — prevents buttons jumping between words without adding air */
-#active-word-card { min-height: 14rem; }
-
-/* ── 10-word Hard Mode taboo layout ──────────────────────────────────────── */
-.taboo-list-hard {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.4rem 0.75rem;
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  text-align: center;
-}
-.taboo-list-hard li {
-  color: #44403c;
-  font-weight: 600;
-  font-size: 0.95rem;
-}
 
 /* ── Volume control group — slides away when muted ───────────────────────── */
 #volume-control-group {

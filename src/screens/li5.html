@@ -4,7 +4,7 @@
                  #screen-active-play, #screen-li5-tattle, #screen-li5-guess (Lobby Mode),
                  #screen-gameover · <template id="intro-li5">
        Overlays: #settings-overlay, #li5-how-to-overlay, #quit-overlay,
-                 #li5-play-again-overlay, #skip-turn-overlay, #review-overlay,
+                 #li5-play-again-overlay, #review-overlay,
                  #history-overlay, #pause-overlay (inline), #deck-panel,
                  #li5-help-tip-overlay
        Ref     : js/games/li5.js  (was dstw.js)
@@ -100,76 +100,79 @@ Let's Go Already!
     </div>
   </section>
 
-  <!-- ⑤ ACTIVE PLAY screen — timer, word, taboo list, score buttons -->
-  <section id="screen-active-play" style="display:none" class="flex flex-col items-center px-6 py-3 w-full max-w-sm mx-auto text-center gap-2">
-
-    <!-- Header row: [Team Name] | Timer | [⏸ ⏭ 🔊 ✕] -->
-    <div class="w-full" style="display:grid; grid-template-columns: 1fr auto 1fr; align-items: center;">
-      <div class="flex flex-col items-center min-w-0">
-        <span id="active-team-label" class="text-stone-500 text-sm font-semibold truncate w-full"></span>
-        <span id="hype-phrase" class="text-xs font-bold text-orange-500 leading-tight"></span>
-      </div>
-      <span id="timer-display" class="text-3xl font-bold text-stone-800 tabular-nums">1:00</span>
-      <div class="flex items-center justify-end gap-2">
-        <button id="btn-pause"    aria-label="Pause"    class="text-xl leading-none text-stone-400 active:scale-90 transition-transform duration-100">⏸</button>
-        <button id="btn-end-turn" aria-label="End turn" class="text-xl leading-none text-stone-400 active:scale-90 transition-transform duration-100">⏭</button>
-        <button id="btn-mute"     aria-label="Mute"     class="text-xl leading-none text-stone-400 active:scale-90 transition-transform duration-100">🔊</button>
-        <button id="btn-li5-how-to" aria-label="Help" class="text-stone-300 font-mono font-bold text-xl leading-none active:scale-90 transition-transform duration-100">?</button>
-        <button id="btn-stop"     aria-label="Quit game" class="text-xl leading-none text-stone-500 font-bold active:scale-90 transition-transform duration-100">✕</button>
-      </div>
+  <!-- ⑤ ACTIVE PLAY — the describer's board (LI5 pilot S4). The board fills the Stage edge to edge
+       (departure D1); the Controls sit on the chalk tray. li5RenderDescriber() owns EVERY element
+       here (Stack rule 4). Legacy ids kept. The wall clock IS Time Out (btn-pause, departure D3). -->
+  <section id="screen-active-play" style="display:none" class="li5-desc-screen flex flex-col w-full max-w-sm mx-auto px-3 py-1 gap-1 text-center">
+    <div class="flex items-center justify-end gap-1">
+      <button id="btn-mute"       aria-label="Mute"      class="text-xl leading-none text-stone-400 active:scale-90 transition-transform duration-100 min-h-11 min-w-11">🔊</button>
+      <button id="btn-li5-how-to" aria-label="Help"      class="text-stone-400 font-mono font-bold text-xl leading-none active:scale-90 transition-transform duration-100 min-h-11 min-w-11">?</button>
+      <button id="btn-stop"       aria-label="Quit game" class="text-xl leading-none text-stone-500 font-bold active:scale-90 transition-transform duration-100 min-h-11 min-w-11">✕</button>
     </div>
 
-    <!-- Pause overlay — shown instead of word/taboo/buttons when paused -->
-    <div id="pause-overlay" style="display:none" class="flex flex-col items-center gap-4 w-full">
-      <p class="text-5xl">⏸</p>
-      <p class="text-stone-400 text-lg font-semibold">Time Out</p>
-      <p class="text-stone-400 text-sm">Word is hidden so no peeking!</p>
-      <button id="btn-resume" class="min-h-14 w-full rounded-2xl bg-pink-500 hover:bg-pink-600 active:scale-95 text-white text-xl font-semibold transition-all duration-150">
-        ▶ Let's Continue Playing!
-      </button>
-      <button id="btn-li5-end-my-turn" class="min-h-11 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 text-base font-semibold transition-all duration-150">
-        End my turn
-      </button>
-    </div>
+    <div id="li5-desc-board" class="li5-board li5-desc-board">
+      <div class="li5-desc-top">
+        <p class="li5-tag">Up the front · <span id="active-team-label"></span></p>
+        <button id="btn-pause" type="button" aria-label="Time Out" class="li5-clock">
+          <span id="timer-display" class="li5-clock-time">1:00</span>
+          <span class="li5-clock-cap">Time Out</span>
+        </button>
+      </div>
 
-    <!-- Game content — hidden while paused -->
-    <div id="active-content" class="flex flex-col w-full gap-2">
-      <!-- Target word + taboo list wrapped for Sylly glow -->
-      <div id="active-word-card" class="w-full">
-        <p id="word-category-label" class="text-stone-400 text-xs uppercase tracking-widest mb-1"></p>
-        <h2 id="active-word" class="text-3xl font-bold text-pink-500 mb-2"></h2>
-        <div id="taboo-card" class="w-full text-center bg-white rounded-2xl px-3 pb-3 pt-8 shadow-sm">
-          <p class="text-stone-400 text-xs uppercase tracking-widest mb-2">The No-No List</p>
-          <ul id="active-taboo-list" class="flex flex-col gap-2"></ul>
+      <!-- Time Out view: the word is rubbed off (active-content hidden); Keep going / End my turn are on the tray -->
+      <div id="pause-overlay" style="display:none" class="li5-timeout">
+        <p id="li5-timeout-head" class="li5-chalk li5-timeout-head">Time Out</p>
+        <p class="li5-chalk li5-timeout-line">Clock stopped at <span id="li5-timeout-time">0:00</span></p>
+      </div>
+
+      <div id="active-content" class="li5-desc-content">
+        <p id="word-category-label" class="li5-cat"></p>
+        <p id="li5-timeup" style="display:none" class="li5-chalk li5-timeup"></p>
+        <!-- The word and the No-No List are ONE group, centred in the free height -->
+        <div id="active-word-card" class="li5-desc-group">
+          <h2 id="active-word" class="li5-chalk li5-desc-word"></h2>
+          <p class="li5-nono-label">The No-No List</p>
+          <ul id="active-taboo-list" class="li5-nono li5-nono-1"></ul>
+          <p id="sylly-scoring-hint" style="display:none" class="li5-sylly-hint">✨ Sylly word x2 🔥</p>
         </div>
       </div>
 
-      <!-- Live score + Sylly scoring hint -->
-      <p class="text-stone-500 text-base mb-1">Score: <span id="score-display" class="font-bold text-stone-800">0</span></p>
-      <p id="sylly-scoring-hint" style="display:none" class="text-purple-500 text-sm font-semibold">✨ Sylly word x2 🔥</p>
-      <p id="li5-timeup" style="display:none" class="text-stone-800 text-2xl font-bold"></p>
-
-      <!-- Lobby Mode: a dob arrives as a note (LI5 pilot S1 — plain; S4 dresses it) -->
-      <div id="li5-note" style="display:none" class="w-full bg-white rounded-2xl p-3 shadow-sm flex flex-col gap-2">
-        <p id="li5-note-text" class="text-stone-800 text-base font-semibold"></p>
-        <div class="flex gap-3">
-          <button id="btn-li5-said-it" class="min-h-11 flex-1 rounded-xl bg-red-500 hover:bg-red-600 active:scale-95 text-white text-base font-semibold transition-all duration-150">I said it</button>
-          <button id="btn-li5-didnt" class="min-h-11 flex-1 rounded-xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 text-base font-semibold transition-all duration-150">I didn't</button>
+      <!-- Tallies: one cell per group -->
+      <div class="li5-desc-tallies">
+        <div id="li5-desc-row-0" class="li5-desc-row">
+          <span id="li5-desc-name-0" class="li5-gate-name"></span>
+          <span id="li5-desc-tally-0" class="li5-gate-marks"></span>
+          <span id="li5-desc-pts-0" class="li5-gate-pts">0</span>
+        </div>
+        <div id="li5-desc-row-1" class="li5-desc-row">
+          <span id="li5-desc-name-1" class="li5-gate-name"></span>
+          <span id="li5-desc-tally-1" class="li5-gate-marks"></span>
+          <span id="li5-desc-pts-1" class="li5-gate-pts">0</span>
         </div>
       </div>
 
-      <!-- Action buttons -->
-      <div class="flex gap-3 w-full mb-3">
-        <button id="btn-correct" class="min-h-12 flex-1 rounded-xl bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white text-lg font-semibold transition-all duration-150">
-          Yay!
-        </button>
-        <button id="btn-taboo" class="min-h-12 flex-1 rounded-xl bg-red-500 hover:bg-red-600 active:scale-95 text-white text-lg font-semibold transition-all duration-150">
-          Nay!
-        </button>
+      <!-- Controls on the chalk tray -->
+      <div class="li5-desc-tray">
+        <div id="li5-tray-play" class="li5-tray-stack">
+          <div class="flex gap-3 w-full">
+            <button id="btn-correct" class="li5-btn-yay min-h-12 flex-1 rounded-xl bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white text-lg font-semibold transition-transform duration-100">Yay!</button>
+            <button id="btn-taboo" class="li5-btn-nay min-h-12 flex-1 rounded-xl bg-red-500 hover:bg-red-600 active:scale-95 text-white text-lg font-semibold transition-transform duration-100">Nay!</button>
+          </div>
+          <button id="btn-skip" class="li5-btn-skip min-h-10 w-full rounded-xl bg-stone-300 hover:bg-stone-400 active:scale-95 text-stone-700 text-base font-semibold transition-transform duration-100">Skip!</button>
+        </div>
+        <div id="li5-tray-timeout" style="display:none" class="li5-tray-stack">
+          <button id="btn-resume" class="min-h-12 w-full rounded-xl bg-pink-500 hover:bg-pink-600 active:scale-95 text-white text-lg font-semibold transition-transform duration-100">Keep going</button>
+          <button id="btn-li5-end-my-turn" class="min-h-10 w-full rounded-xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 text-base font-semibold transition-transform duration-100">End my turn</button>
+        </div>
+        <!-- Lobby Mode: a dob arrives as a folded note passed along the tray (departure D2) -->
+        <div id="li5-note" style="display:none" class="li5-note">
+          <p id="li5-note-text" class="li5-note-text"></p>
+          <div class="flex gap-3">
+            <button id="btn-li5-said-it" class="min-h-11 flex-1 rounded-xl bg-red-500 hover:bg-red-600 active:scale-95 text-white text-base font-semibold transition-transform duration-100">I said it</button>
+            <button id="btn-li5-didnt" class="min-h-11 flex-1 rounded-xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 text-base font-semibold transition-transform duration-100">I didn't</button>
+          </div>
+        </div>
       </div>
-      <button id="btn-skip" class="min-h-10 w-full rounded-xl bg-stone-300 hover:bg-stone-400 active:scale-95 text-stone-700 text-base font-semibold transition-all duration-150">
-        Skip!
-      </button>
     </div>
   </section>
 
@@ -492,21 +495,6 @@ Let's Go Already!
 Let's do it!
 </button>
       <button id="btn-li5-cancel-new-game" class="min-h-11 w-full rounded-2xl bg-stone-100 hover:bg-stone-200 active:scale-95 text-stone-500 text-base font-semibold transition-all duration-150">
-        Not yet!
-      </button>
-    </div>
-  </div>
-
-  <!-- Skip turn confirmation overlay -->
-  <div id="skip-turn-overlay" style="display:none" class="fixed inset-0 bg-black/50 z-[80] flex items-center justify-center px-6">
-    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-pink-300">
-      <p class="text-4xl">⏭</p>
-      <h3 class="text-xl font-bold text-stone-800">All tuckered out?</h3>
-      <p class="text-stone-400 text-sm">The current word won't count.</p>
-      <button id="btn-skip-turn-confirm" class="min-h-12 w-full rounded-xl bg-stone-700 hover:bg-stone-800 active:scale-95 text-white text-lg font-semibold transition-all duration-150 mt-2">
-        Yep, break time!
-      </button>
-      <button id="btn-skip-turn-cancel" class="min-h-12 w-full rounded-xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 text-lg font-semibold transition-all duration-150">
         Not yet!
       </button>
     </div>

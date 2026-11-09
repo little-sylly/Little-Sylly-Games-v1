@@ -3,6 +3,8 @@
 Historical SW release notes, moved out of `CLAUDE.md` (1 Aug 2026) so they stop loading into every session.
 The **current** version and its notes stay in `CLAUDE.md` § Current Focus — append the outgoing entry here on each bump.
 
+## v266 — LI5 pilot S3: the gatekeeper is the wipe-and-write round intro (9 Nov 2026). `screen-gatekeeper` rebuilt in place (legacy ids kept): one board, `li5RenderGate()` owns every element (five states, spec § 4.3), Miss's aside from `LI5_TURN.aside` (PTP local), tallies via `li5TallySvg`, Ready, Miss! on the chalk tray; `li5GateWrite()` is the cosmetic duster-then-chalk pass (reduced motion = instant, final state always set synchronously). Styles in `css/li5.css`. PTP head now *Pass it to [group].* Departures D1/D5 applied. Role screens S4–S6 still plain.
+
 ## v265 — LI5 pilot S2: the chalkboard world kit + Intro scene (9 Nov 2026). `js/games/li5-scene.js` (`Li5Scene` mount/beat/stop +
 `li5Chalk/Duster/Dust/TallySvg/SlateTexture`, WAAPI only, no RAF, slate made in code) and `css/li5.css`; `MP_GAME_CONFIGS.li5.intro.scene` is live,
 so LI5's Intro now chalks Miss's beats on the board. Reduced motion = instant writes. Load order `canvas-draw.js` → `li5-scene.js` → `li5.js`.
