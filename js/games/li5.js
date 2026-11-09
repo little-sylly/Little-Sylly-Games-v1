@@ -721,7 +721,7 @@ let li5ClockTick = null;             // every device — the 1 s display tick (T
 
 function li5FreshView() {
   return { phase: 'standby', turnId: -1, turn: null, groups: [], clock: null, card: null, next: null,
-           dobs: null, feed: [], streak: 0, lastResolved: -1, marked: -1, early: [], coolUntil: 0,
+           dobs: null, feed: [], streak: 0, lastResolved: -1, marked: -1, early: [], coolUntil: 0, lastDob: null,
            noteSlot: -1, renderedCard: -1, reviewUp: -1 };
 }
 
@@ -1195,6 +1195,8 @@ const LI5_APPLIERS = {
     teamScores    = li5WireArr(p.scores, 2, 0).map(Number);
     li5V.streak   = Number(p.streak) || 0;
     currentStreak = li5V.streak;
+    const role = li5MyRole();                           // the describer already voiced its own tap
+    if (l && role !== 'up') li5VoiceFor(String(l.action), li5V.streak, role === 'tattle' ? 'li5-tattle-board' : 'li5-guess-board');
     li5RenderPlay();
   },
 
@@ -1272,9 +1274,10 @@ function li5ShowRoleScreen() {
 // Leaving a turn: no word survives on a hidden screen for a device that guesses next.
 function li5WipeWordDom() {
   const $ = id => document.getElementById(id);
-  ['active-word', 'word-category-label', 'li5-tattle-word', 'li5-note-text'].forEach(id => { $(id).textContent = ''; });
+  ['active-word', 'word-category-label', 'li5-tattle-word', 'li5-tattle-wordnote', 'li5-note-text'].forEach(id => { $(id).textContent = ''; });
   ['active-taboo-list', 'li5-tattle-list', 'li5-guess-feed'].forEach(id => { $(id).innerHTML = ''; });
   $('li5-note').style.display = 'none';
+  $('li5-tattle-board').classList.remove('li5-sylly');
   currentWordData = null;
   li5DescReset();
 }
@@ -1284,10 +1287,6 @@ function li5ClockSecs() {
   if (!c) return settingTimer;
   const ms = c.paused ? c.remainingMs : c.endTimestamp - Date.now();
   return Math.max(0, Math.ceil(ms / 1000));
-}
-
-function li5ScoresLine() {
-  return `${teamNames[0]} ${teamScores[0]} · ${teamNames[1]} ${teamScores[1]}`;
 }
 
 function li5RenderClock() {
@@ -1331,10 +1330,13 @@ let li5DescPhase    = '';          // the phase last painted (the Time Out wipe 
 let li5DescShown    = [-1, -1];    // scores last painted (a new tally mark draws in)
 let li5DescNoteSeen = { key: '', n: 0 };   // the note on show (a new dobber wiggles it)
 let li5DescAnim     = null;
+let li5TabShown = [-1, -1], li5GuessShown = [-1, -1];   // scores last painted on the tattle / guess boards
+let li5TabPhase = '', li5GuessPhase = '', li5GuessFeedN = 0;
 let li5VoiceUp      = false, li5VoiceCorner = 0;
 
 function li5DescReset() {
   li5DescKey = ''; li5DescPhase = ''; li5DescShown = [-1, -1]; li5DescNoteSeen = { key: '', n: 0 };
+  li5TabShown = [-1, -1]; li5GuessShown = [-1, -1]; li5TabPhase = ''; li5GuessPhase = ''; li5GuessFeedN = 0;
   if (li5DescAnim) { try { li5DescAnim.cancel(); } catch (_) {} li5DescAnim = null; }
 }
 
@@ -1342,19 +1344,21 @@ function li5ReducedMotion() {
   try { return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); } catch (_) { return false; }
 }
 
-function li5PaintDescTallies() {
+// The tally rows on the describer / tattle / guess boards: prefix 'li5-desc' | 'li5-tt' | 'li5-gs'.
+function li5PaintDescTallies(prefix, shown) {
   const $ = id => document.getElementById(id);
+  prefix = prefix || 'li5-desc'; shown = shown || li5DescShown;
   [0, 1].forEach(i => {
-    $('li5-desc-name-' + i).textContent = teamNames[i];
-    $('li5-desc-pts-' + i).textContent  = teamScores[i];
-    const marks = $('li5-desc-tally-' + i);
+    $(prefix + '-name-' + i).textContent = teamNames[i];
+    $(prefix + '-pts-' + i).textContent  = teamScores[i];
+    const marks = $(prefix + '-tally-' + i);
     marks.innerHTML = li5TallySvg(teamScores[i]);
-    if (li5DescShown[i] >= 0 && teamScores[i] > li5DescShown[i] && !li5ReducedMotion()) {
+    if (shown[i] >= 0 && teamScores[i] > shown[i] && !li5ReducedMotion()) {
       const svg = marks.firstChild, last = svg && svg.lastElementChild;
       if (last && last.classList) last.classList.add('li5-tally-new');   // the newest stroke draws in
     }
-    li5DescShown[i] = teamScores[i];
-    $('li5-desc-row-' + i).classList.toggle('li5-gate-active', currentTeam === i);
+    shown[i] = teamScores[i];
+    $(prefix + '-row-' + i).classList.toggle('li5-gate-active', currentTeam === i);
   });
 }
 
@@ -1368,11 +1372,12 @@ function li5Voice(kind, host) {
     .finished.then(() => { li5VoiceUp = false; });
 }
 
-// The describer's own tap: a Yay (a run of 3+ rolls every 3rd) or a taken Nay. A Skip says nothing.
-function li5VoiceFor(action, streak) {
+// A Yay (a run of 3+ rolls every 3rd) or a taken Nay. A Skip says nothing. The describer voices its own tap;
+// every other device voices the LI5_CARD it receives (S5), on its own board.
+function li5VoiceFor(action, streak, hostId) {
   const kind = action === 'taboo' ? 'nay'
              : action === 'correct' ? ((streak >= 3 && streak % 3 === 0) ? 'roll' : 'yay') : null;
-  if (kind) li5Voice(kind, document.getElementById('li5-desc-board'));
+  if (kind) li5Voice(kind, document.getElementById(hostId || 'li5-desc-board'));
 }
 
 function li5RenderDescriber() {
@@ -1436,8 +1441,8 @@ function li5DescReveal() {
 }
 
 // Time Out (§ 4.5): a 300 ms duster pass, then Miss chalks the heading. Cosmetic; the view is already final.
-function li5DescTimeoutWipe() {
-  const board = document.getElementById('li5-desc-board'), head = document.getElementById('li5-timeout-head');
+function li5DescTimeoutWipe(boardId, headId) {
+  const board = document.getElementById(boardId || 'li5-desc-board'), head = document.getElementById(headId || 'li5-timeout-head');
   if (li5ReducedMotion() || !board || !head || typeof board.animate !== 'function' || typeof li5Duster !== 'function') return;
   const dummy = document.createElement('span');
   dummy.setAttribute('aria-hidden', 'true');
@@ -1484,42 +1489,94 @@ function li5DescNote(ph) {
   $('li5-note').style.display = '';
 }
 
+// ── The tattletale and guessing boards (pilot S5) ───────────────────────────
+// Same board as the describer's. One render function per screen owns every element; text lands in
+// its FINAL state synchronously and the duster / new-note pops are cosmetic passes over it.
 function li5RenderTattle() {
   const $ = id => document.getElementById(id);
   const ph = li5V.phase, c = li5V.card, t = li5V.turn;
-  $('li5-tattle-scores').textContent = li5ScoresLine();
-  $('li5-tattle-up').textContent     = t ? `${li5SeatName(t.upSeat)} is up the front` : '';
-  const live = ph === 'play' && c;
-  $('li5-tattle-word').textContent   = ph === 'timeout' ? '' : (c ? c.word : '…');
+  const out = ph === 'timeout', up = ph === 'timeup', live = ph === 'play';
+  li5PaintDescTallies('li5-tt', li5TabShown);
+  $('li5-tattle-board').dataset.phase = ph;
+  $('li5-tattle-board').classList.toggle('li5-sylly', !!(c && c.isSylly));
+  $('li5-tattle-up').textContent = t ? li5SeatName(t.upSeat) : '';
+  $('li5-tattle-timeout').style.display = out ? 'flex' : 'none';
+  $('li5-tattle-live').style.display    = out ? 'none' : 'flex';
+  if (out) $('li5-tattle-time').textContent = formatTime(li5ClockSecs());
+  $('li5-tattle-word').textContent = c ? c.word : '…';
   const counts = (li5V.dobs && c && li5V.dobs.cardNo === c.cardNo) ? li5V.dobs.counts : [];
-  $('li5-tattle-list').innerHTML = (live || ph === 'timeup') && c
-    ? c.nonoList.map((w, i) => `<li><button type="button" data-li5-dob="${i}" class="min-h-12 w-full bg-white rounded-xl px-3 py-2 text-stone-800 font-semibold text-base shadow-sm${ph === 'play' ? '' : ' opacity-50'}">${li5Esc(w)}${counts[i] ? ` <span class="text-pink-500">· ${counts[i]} dobbed</span>` : ''}</button></li>`).join('')
+  const list = $('li5-tattle-list');
+  const show = (live || up) && c;
+  const n = show ? c.nonoList.length : 0;
+  list.className = 'li5-dobs' + (n > 5 ? ' li5-dobs-2' : '');
+  list.innerHTML = show
+    ? c.nonoList.map((w, i) => `<li><button type="button" data-li5-dob="${i}" data-slot="${i}" class="li5-dob-row"><span class="li5-dob-word">${li5Esc(w)}</span>${li5DobCount(counts[i])}<span class="li5-dob-ack">Dobbed!</span></button></li>`).join('')
     : '';
-  $('btn-li5-dob-word').style.display = live ? '' : 'none';
+  $('btn-li5-dob-word').style.display = live && c ? '' : 'none';
   li5RenderTattleStatus();
+  if (out && li5TabPhase !== 'timeout') li5DescTimeoutWipe('li5-tattle-board', 'li5-tattle-timeout-head');
+  li5TabPhase = ph;
 }
 
+// "N dobbed": a dot per tattletale (to 5) and the number.
+function li5DobCount(n) {
+  n = Number(n) || 0;
+  if (!n) return '';
+  return `<span class="li5-dob-count">${'<i class="li5-dob-dot"></i>'.repeat(Math.min(n, 5))}<span>${n} dobbed</span></span>`;
+}
+
+// Cooldown view (5 s after a dob) — repainted every clock tick as well as by li5RenderTattle.
 function li5RenderTattleStatus() {
-  const ph = li5V.phase;
+  const $ = id => document.getElementById(id);
+  const ph = li5V.phase, c = li5V.card;
   const left = Math.ceil((li5V.coolUntil - Date.now()) / 1000);
+  const cooling = ph === 'play' && left > 0;
   const name = li5V.turn ? li5SeatName(li5V.turn.upSeat) : '';
-  document.getElementById('li5-tattle-status').textContent =
-      ph === 'timeup'  ? 'Time!'
-    : ph === 'timeout' ? 'Time Out'
-    : left > 0         ? `Note passed to ${name}. Dob again in ${left} s`
-    :                    '';
+  const hit = cooling && c && li5V.lastDob && li5V.lastDob.cardNo === c.cardNo ? li5V.lastDob.slot : -1;
+  $('li5-tattle-list').classList.toggle('li5-cooling', cooling || ph === 'timeup');
+  Array.prototype.forEach.call($('li5-tattle-list').querySelectorAll('[data-slot]'), b => {
+    b.classList.toggle('li5-dob-hit', Number(b.dataset.slot) === hit);
+  });
+  $('btn-li5-dob-word').classList.toggle('opacity-50', cooling);
+  const counts = (li5V.dobs && c && li5V.dobs.cardNo === c.cardNo) ? li5V.dobs.counts : [];
+  const wn = c ? (counts[c.nonoList.length] | 0) : 0;
+  $('li5-tattle-wordnote').textContent = c && hit === c.nonoList.length ? 'Dobbed!' : (wn ? `${wn} dobbed` : '');
+  const st = $('li5-tattle-status');
+  st.classList.toggle('li5-status-big', ph === 'timeup');
+  st.textContent = ph === 'timeup' ? 'Time!'
+                 : cooling ? `Note passed to ${name}.` + '\n' + `Dob again in ${left} s`
+                 : '';
 }
 
 function li5RenderGuess() {
   const $ = id => document.getElementById(id);
   const ph = li5V.phase, t = li5V.turn;
-  $('li5-guess-scores').textContent = li5ScoresLine();
-  $('li5-guess-up').textContent     = t ? `${li5SeatName(t.upSeat)} is up the front. Shout it out!` : '';
-  $('li5-guess-streak').textContent = li5V.streak >= 2 ? `${li5V.streak} in a row!` : '';
-  $('li5-guess-feed').innerHTML = li5V.feed.map(f => (f.action === 'correct' && f.word)
-    ? `<li class="bg-yellow-100 text-stone-800 font-semibold rounded-lg px-3 py-2">${li5Esc(f.word)}${f.points > 1 ? ` +${f.points}` : ''}</li>`
-    : `<li class="bg-stone-100 text-stone-400 rounded-lg px-3 py-2">${f.action === 'skip' ? 'Skipped' : 'Dobbed'}${f.points < 0 ? ` ${f.points}` : ''}</li>`).join('');
-  $('li5-guess-status').textContent = ph === 'timeup' ? 'Time!' : ph === 'timeout' ? 'Time Out' : '';
+  const out = ph === 'timeout', up = ph === 'timeup';
+  li5PaintDescTallies('li5-gs', li5GuessShown);
+  $('li5-guess-board').dataset.phase = ph;
+  $('li5-guess-up').textContent = t ? li5SeatName(t.upSeat) : '';
+  $('li5-guess-timeout').style.display = out ? 'flex' : 'none';
+  $('li5-guess-live').style.display    = out ? 'none' : 'flex';
+  if (out) $('li5-guess-time').textContent = formatTime(li5ClockSecs());
+  const st = $('li5-guess-streak');
+  st.classList.toggle('li5-status-big', up);
+  st.textContent = up ? 'Time!' : li5V.streak >= 2 ? `${li5V.streak} in a row!` : '';
+  // The feed, newest first: a sticky note per Yay'd word, a blank slip for a Skip or a Dob.
+  $('li5-guess-feed').innerHTML = li5V.feed.slice().reverse().map(f => {
+    const rot = ((f.cardNo * 37) % 7 - 3) * 1.1;
+    if (f.action === 'correct' && f.word) {
+      return `<li class="li5-sticky" style="--r:${rot}deg">${li5Esc(f.word)}${f.points > 1 ? `<small>+${f.points}</small>` : ''}</li>`;
+    }
+    const txt = f.action === 'skip' ? 'Skipped' : `Dobbed${f.points < 0 ? ` \u2212${Math.abs(f.points)}` : ''}`;
+    return `<li class="li5-slip" style="--r:${rot}deg">${txt}</li>`;
+  }).join('');
+  const first = $('li5-guess-feed').firstElementChild;
+  if (first && li5V.feed.length > li5GuessFeedN && !li5ReducedMotion() && typeof first.animate === 'function') {
+    first.animate([{ opacity: 0, transform: 'translateY(-10px) scale(0.9)' }], { duration: 200, easing: 'ease-out' });
+  }
+  li5GuessFeedN = li5V.feed.length;
+  if (out && li5GuessPhase !== 'timeout') li5DescTimeoutWipe('li5-guess-board', 'li5-guess-timeout-head');
+  li5GuessPhase = ph;
 }
 
 // The Report Card — on every device; only the describer and the host can change it.
@@ -1558,6 +1615,7 @@ function li5Dob(slot) {
   const now = Date.now();
   if (now < li5V.coolUntil) return;                   // the local mirror of the host's cooldown
   li5V.coolUntil = now + LI5_DOB_COOLDOWN_MS;
+  li5V.lastDob = { cardNo: li5V.card.cardNo, slot };
   playBoing();
   li5Act('LI5_DOB', { cardNo: li5V.card.cardNo, slot });
   li5RenderTattle();

@@ -276,3 +276,82 @@
   .li5-desc-tray { padding-top: 0.35rem; padding-bottom: 0.4rem; min-height: 0; }
   .li5-tray-stack { gap: 0.3rem; }
 }
+
+/* ═══ The tattletale and guessing boards (pilot S5) ══════════════════════════
+   Same board, tallies and tray as the describer's (.li5-desc-*). The clock here is a read-out, not a button. */
+.li5-clock-static { cursor: default; pointer-events: none; }
+.li5-status { margin: 0; min-height: 1.5rem; font-size: 0.9rem; font-weight: 600; line-height: 1.25; color: var(--li5-pink); white-space: pre-line; }
+.li5-status-big { font-size: 1.6rem; font-weight: 700; }
+.li5-tray-slim { min-height: 4.6rem; }
+.li5-tray-bare { min-height: 1.1rem; padding: 0; }
+
+/* Tattle: the No-No List as dob rows (48 px). Extra Credit's 10 words flow into two columns. */
+.li5-wordnote { margin: 0; min-height: 1rem; font-size: 0.75rem; font-weight: 600; color: var(--li5-pink); }
+.li5-dobs { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr; gap: 0.35rem; width: 100%; }
+.li5-dobs-2 { grid-template-columns: 1fr 1fr; }
+.li5-dob-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 0.4rem;
+  width: 100%; min-height: 3rem; padding: 0 0.7rem;
+  background: rgba(244,241,232,.06); border: 1.5px dashed rgba(244,241,232,.5); border-radius: 0.7rem;
+  color: var(--li5-chalk); font: inherit; font-size: 1.05rem; font-weight: 600; text-align: left;
+  touch-action: manipulation; cursor: pointer;
+}
+.li5-dob-row:active { transform: scale(0.97); }
+.li5-dobs-2 .li5-dob-row { font-size: 0.95rem; padding: 0 0.5rem; }
+.li5-dob-word { min-width: 0; overflow-wrap: anywhere; }
+.li5-dob-count { flex: none; display: inline-flex; align-items: center; gap: 0.2rem; font-size: 0.7rem; color: var(--li5-pink); }
+.li5-dob-dot { width: 0.45rem; height: 0.45rem; border-radius: 9999px; background: var(--li5-pink); }
+.li5-dobs-2 .li5-dob-dot { display: none; }
+.li5-dob-ack { display: none; flex: none; font-size: 0.8rem; color: var(--li5-pink); }
+.li5-cooling .li5-dob-row { opacity: 0.4; }
+.li5-cooling .li5-dob-row.li5-dob-hit { opacity: 1; border-style: solid; border-color: var(--li5-pink); }
+.li5-dob-hit .li5-dob-ack { display: inline; }
+.li5-dob-hit .li5-dob-count { display: none; }
+
+/* Guess: the big chalk ?, the streak, the feed of notes and slips */
+.li5-guess-mid { flex: 1 1 auto; display: flex; flex-direction: column; align-items: center; min-height: 0; gap: 0.1rem; }
+.li5-qmark { margin: 0; font-size: clamp(3.5rem, 26cqw, 5.5rem); font-weight: 700; line-height: 1; color: var(--li5-pink); transform-origin: 50% 90%; }
+[data-phase="play"] > .li5-guess-mid .li5-qmark { animation: li5QWiggle 3s ease-in-out infinite; }
+@keyframes li5QWiggle { 0%, 100% { transform: rotate(-3deg); } 50% { transform: rotate(3deg); } }
+.li5-shout { font-size: 1.3rem; }
+.li5-feed {
+  list-style: none; margin: 0.2rem 0 0; padding: 0.3rem 0.1rem; width: 100%;
+  flex: 1 1 0; min-height: 0; overflow-y: auto;
+  display: flex; flex-wrap: wrap; gap: 0.4rem; justify-content: center; align-content: flex-start;
+}
+.li5-sticky {
+  padding: 0.3rem 0.6rem; background: #fde68a; color: #44403c; font-size: 0.95rem; font-weight: 700;
+  border-radius: 0.15rem; box-shadow: 0 2px 4px rgba(0,0,0,.4); transform: rotate(var(--r, 0deg));
+}
+.li5-sticky small { margin-left: 0.25rem; font-size: 0.7rem; opacity: 0.7; }
+.li5-slip {
+  padding: 0.3rem 0.6rem; background: #e7e2d3; color: #78716c; font-size: 0.8rem; font-weight: 600;
+  border-radius: 0.15rem; box-shadow: 0 1px 3px rgba(0,0,0,.35); transform: rotate(var(--r, 0deg));
+}
+
+/* Voices: tattle — just under the header row; guess — beside the ? */
+#li5-tattle-board .li5-voice-tl, #li5-tattle-board .li5-voice-bl { top: 3.1rem; bottom: auto; left: 0.7rem; }
+#li5-tattle-board .li5-voice-tr, #li5-tattle-board .li5-voice-br { top: 3.1rem; bottom: auto; right: 0.7rem; }
+#li5-guess-board .li5-voice-tl, #li5-guess-board .li5-voice-tr { top: 4.2rem; bottom: auto; }
+#li5-guess-board .li5-voice-bl, #li5-guess-board .li5-voice-br { top: 6.4rem; bottom: auto; }
+
+@media (max-height: 600px) {
+  .li5-dobs { grid-template-columns: 1fr 1fr; gap: 0.3rem; }
+  .li5-dob-row { min-height: 2.5rem; font-size: 0.95rem; padding: 0 0.5rem; }
+  .li5-dob-dot { display: none; }
+  #li5-tattle-board .li5-nono-label { display: none; }
+  .li5-wordnote { min-height: 0.8rem; }
+  .li5-qmark { font-size: 3.4rem; }
+  .li5-shout { font-size: 1.1rem; }
+  .li5-tray-slim { min-height: 4rem; }
+}
+@media (max-height: 500px) {
+  .li5-dobs { grid-template-columns: 1fr 1fr; gap: 0.25rem; }
+  .li5-dob-row { min-height: 2.3rem; font-size: 0.9rem; padding: 0 0.45rem; }
+  .li5-dob-dot { display: none; }
+  .li5-status { min-height: 1.1rem; font-size: 0.8rem; white-space: normal; }
+  .li5-wordnote { min-height: 0.8rem; font-size: 0.65rem; }
+  .li5-tray-slim { min-height: 0; }
+  .li5-qmark { font-size: 2.6rem; }
+  .li5-shout { font-size: 1rem; }
+}

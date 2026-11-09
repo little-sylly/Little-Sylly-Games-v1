@@ -89,7 +89,7 @@ Each card: **shape** (modes · players · roster today) · **Line-up** (the R2 c
 - **Network — BUILT (S1, 9 Nov):** LI5's MP code moved out of `engine-multiplayer.js` into
   `li5.js` § Lobby Mode / `li5HandleEnvelope`; TLM folded into the MDLM path; `reconnect` adopted;
   the monitor deleted. `tools/verify-li5-loopback.js` (182, on `mp-world`) + `mutate-li5-loopback.js`
-  (5/5). Role screens are plain markup until S4–S6 (S3 gatekeeper built, SW v266). Found + fixed on the way: PTP turn order when the
+  (5/5). S3 gatekeeper (SW v266), S4 describer (v267) and S5 tattle + guess (v268) built; Report Card / gameover are S6. Found + fixed on the way: PTP turn order when the
   second group won the toss (L9), the describer's optimistic advance (L10).
 - **Engine (S0, 9 Nov):** the scene `beat(i, text)` hook, `data-intro-unassigned`, no Line-up in TLM
   (`shared-implementation-notes.md` DD-67). The `<template id="intro-li5">` copy is in; the scene is S2.

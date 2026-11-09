@@ -3,6 +3,8 @@
 Historical SW release notes, moved out of `CLAUDE.md` (1 Aug 2026) so they stop loading into every session.
 The **current** version and its notes stay in `CLAUDE.md` § Current Focus — append the outgoing entry here on each bump.
 
+## v267 — LI5 pilot S4: the describer's board (9 Nov 2026). `screen-active-play` rebuilt in place (legacy ids kept): the board edge to edge (D1), `li5RenderDescriber()` owns every element for PTP and the Lobby Mode describer (final state synchronous; reveal / duster / wiggle / voices are cosmetic WAAPI), word + No-No List one centred group (5 → 1 col 22 px, Extra Credit's 10 → 2 cols 17 px), the wall clock **is** Time Out (`btn-pause`, D3) with *Clock stopped at 0:42* / **Keep going** / *End my turn* on the tray, tallies, the dob as a folded note over the tray (stacked + wiggle when crowded, the word ringed), classmates' voices (`li5Voice`, no packet). `skip-turn-overlay`, `btn-end-turn`, `#hype-phrase` retired (D6). No packet change — `MP_PROTOCOL_VERSION` stays v265. Tattle / guess screens S5 next.
+
 ## v266 — LI5 pilot S3: the gatekeeper is the wipe-and-write round intro (9 Nov 2026). `screen-gatekeeper` rebuilt in place (legacy ids kept): one board, `li5RenderGate()` owns every element (five states, spec § 4.3), Miss's aside from `LI5_TURN.aside` (PTP local), tallies via `li5TallySvg`, Ready, Miss! on the chalk tray; `li5GateWrite()` is the cosmetic duster-then-chalk pass (reduced motion = instant, final state always set synchronously). Styles in `css/li5.css`. PTP head now *Pass it to [group].* Departures D1/D5 applied. Role screens S4–S6 still plain.
 
 ## v265 — LI5 pilot S2: the chalkboard world kit + Intro scene (9 Nov 2026). `js/games/li5-scene.js` (`Li5Scene` mount/beat/stop +

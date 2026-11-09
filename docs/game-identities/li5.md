@@ -207,12 +207,23 @@ I didn't
 ```copy
 # screen-li5-tattle
 Tattletales
+The No-No List
+Time Out
+Clock stopped at
 They said the word itself
+Dobbed!
+Note passed to
+Dob again in
 ```
 
 ```copy
 # screen-li5-guess
 Guessing
+Shout it out!
+Time Out
+Clock stopped at
+Skipped
+in a row!
 ```
 
 #### Report Card and Match History

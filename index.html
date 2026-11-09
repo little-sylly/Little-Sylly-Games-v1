@@ -923,58 +923,101 @@ Let's Go Already!
     </div>
   </section>
 
-  <!-- ⑤b TATTLETALES — Lobby Mode, the other group (LI5 pilot S1: plain markup, S5 dresses it).
-       Sees the word + No-No List; taps a row to dob. data-tv private: it shows the word. -->
+  <!-- ⑤b TATTLETALES — Lobby Mode, the other group (LI5 pilot S5). The word + No-No List as dob rows on
+       the board; the Controls (They said the word itself) on the tray. li5RenderTattle() owns EVERY
+       element here (Stack rule 4). data-tv private: it shows the word. -->
   <section id="screen-li5-tattle" data-tv="private" style="display:none"
-    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
-    <div class="flex flex-col w-full max-w-sm gap-4">
-      <div class="flex items-center justify-between">
-        <p class="text-stone-400 text-xs font-semibold uppercase tracking-widest">Tattletales</p>
-        <div class="flex items-center gap-2">
-          <button class="btn-li5-help-open text-stone-400 font-bold text-sm min-h-11 w-11">[?]</button>
-          <button class="btn-open-sound text-2xl leading-none min-h-11 w-11 flex items-center justify-center">🔊</button>
-          <button id="btn-li5-tattle-quit" class="text-stone-500 font-bold text-xl leading-none min-h-11 w-11 flex items-center justify-center" aria-label="Quit game">✕</button>
+    class="li5-desc-screen flex flex-col w-full max-w-sm mx-auto px-3 py-1 gap-1 text-center">
+    <div class="flex items-center justify-end gap-1">
+      <button class="btn-li5-help-open text-stone-400 font-mono font-bold text-xl leading-none active:scale-90 transition-transform duration-100 min-h-11 min-w-11" aria-label="Help">?</button>
+      <button class="btn-open-sound text-xl leading-none min-h-11 min-w-11 flex items-center justify-center" aria-label="Sound">🔊</button>
+      <button id="btn-li5-tattle-quit" class="text-xl leading-none text-stone-500 font-bold active:scale-90 transition-transform duration-100 min-h-11 min-w-11" aria-label="Quit game">✕</button>
+    </div>
+
+    <div id="li5-tattle-board" class="li5-board li5-desc-board" data-phase="">
+      <div class="li5-desc-top">
+        <p class="li5-tag">Tattletales · <span id="li5-tattle-up"></span></p>
+        <div class="li5-clock li5-clock-static"><span id="li5-tattle-clock" class="li5-clock-time">1:00</span></div>
+      </div>
+
+      <!-- Time Out: the rows are rubbed off -->
+      <div id="li5-tattle-timeout" style="display:none" class="li5-timeout">
+        <p id="li5-tattle-timeout-head" class="li5-chalk li5-timeout-head">Time Out</p>
+        <p class="li5-chalk li5-timeout-line">Clock stopped at <span id="li5-tattle-time">0:00</span></p>
+      </div>
+
+      <div id="li5-tattle-live" class="li5-desc-content">
+        <div class="li5-desc-group">
+          <h2 id="li5-tattle-word" class="li5-chalk li5-desc-word"></h2>
+          <p id="li5-tattle-wordnote" class="li5-wordnote"></p>
+          <p class="li5-nono-label">The No-No List</p>
+          <ul id="li5-tattle-list" class="li5-dobs"></ul>
+        </div>
+        <p id="li5-tattle-status" class="li5-status"></p>
+      </div>
+
+      <div class="li5-desc-tallies">
+        <div id="li5-tt-row-0" class="li5-desc-row">
+          <span id="li5-tt-name-0" class="li5-gate-name"></span>
+          <span id="li5-tt-tally-0" class="li5-gate-marks"></span>
+          <span id="li5-tt-pts-0" class="li5-gate-pts">0</span>
+        </div>
+        <div id="li5-tt-row-1" class="li5-desc-row">
+          <span id="li5-tt-name-1" class="li5-gate-name"></span>
+          <span id="li5-tt-tally-1" class="li5-gate-marks"></span>
+          <span id="li5-tt-pts-1" class="li5-gate-pts">0</span>
         </div>
       </div>
-      <div class="flex items-center justify-between">
-        <p id="li5-tattle-scores" class="text-stone-500 text-sm font-semibold"></p>
-        <p id="li5-tattle-clock" class="text-3xl font-bold text-stone-800 tabular-nums"></p>
+
+      <div class="li5-desc-tray li5-tray-slim">
+        <button id="btn-li5-dob-word" class="min-h-12 w-full rounded-xl bg-pink-500 hover:bg-pink-600 active:scale-95 text-white text-base font-semibold transition-transform duration-100">They said the word itself</button>
       </div>
-      <div class="bg-white rounded-2xl p-5 shadow-sm text-center">
-        <p id="li5-tattle-up" class="text-stone-400 text-xs font-semibold uppercase tracking-widest mb-2"></p>
-        <p id="li5-tattle-word" class="text-3xl font-bold text-stone-800"></p>
-      </div>
-      <ul id="li5-tattle-list" class="flex flex-col gap-2"></ul>
-      <button id="btn-li5-dob-word" class="min-h-12 w-full rounded-2xl bg-pink-500 hover:bg-pink-600 active:scale-95 text-white text-base font-semibold transition-all duration-150">They said the word itself</button>
-      <p id="li5-tattle-status" class="text-stone-400 text-sm text-center"></p>
     </div>
   </section>
 
-  <!-- ⑤c GUESSING — Lobby Mode, the describer's own group (LI5 pilot S1: plain, S5 dresses it).
+  <!-- ⑤c GUESSING — Lobby Mode, the describer's own group (LI5 pilot S5).
        NO word slot in this markup, on purpose: there is nothing a stale render could leave
-       behind. data-tv public: safe for anyone in the room to see. -->
+       behind. li5RenderGuess() owns EVERY element here. data-tv public: safe for the room to see. -->
   <section id="screen-li5-guess" data-tv="public" style="display:none"
-    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
-    <div class="flex flex-col w-full max-w-sm gap-4">
-      <div class="flex items-center justify-between">
-        <p class="text-stone-400 text-xs font-semibold uppercase tracking-widest">Guessing</p>
-        <div class="flex items-center gap-2">
-          <button class="btn-li5-help-open text-stone-400 font-bold text-sm min-h-11 w-11">[?]</button>
-          <button class="btn-open-sound text-2xl leading-none min-h-11 w-11 flex items-center justify-center">🔊</button>
-          <button id="btn-li5-guess-quit" class="text-stone-500 font-bold text-xl leading-none min-h-11 w-11 flex items-center justify-center" aria-label="Quit game">✕</button>
+    class="li5-desc-screen flex flex-col w-full max-w-sm mx-auto px-3 py-1 gap-1 text-center">
+    <div class="flex items-center justify-end gap-1">
+      <button class="btn-li5-help-open text-stone-400 font-mono font-bold text-xl leading-none active:scale-90 transition-transform duration-100 min-h-11 min-w-11" aria-label="Help">?</button>
+      <button class="btn-open-sound text-xl leading-none min-h-11 min-w-11 flex items-center justify-center" aria-label="Sound">🔊</button>
+      <button id="btn-li5-guess-quit" class="text-xl leading-none text-stone-500 font-bold active:scale-90 transition-transform duration-100 min-h-11 min-w-11" aria-label="Quit game">✕</button>
+    </div>
+
+    <div id="li5-guess-board" class="li5-board li5-desc-board" data-phase="">
+      <div class="li5-desc-top">
+        <p class="li5-tag">Guessing · <span id="li5-guess-up"></span></p>
+        <div class="li5-clock li5-clock-static"><span id="li5-guess-clock" class="li5-clock-time">1:00</span></div>
+      </div>
+
+      <div id="li5-guess-timeout" style="display:none" class="li5-timeout">
+        <p id="li5-guess-timeout-head" class="li5-chalk li5-timeout-head">Time Out</p>
+        <p class="li5-chalk li5-timeout-line">Clock stopped at <span id="li5-guess-time">0:00</span></p>
+      </div>
+
+      <div id="li5-guess-live" class="li5-guess-mid">
+        <p class="li5-qmark" aria-hidden="true">?</p>
+        <p class="li5-chalk li5-shout">Shout it out!</p>
+        <p id="li5-guess-streak" class="li5-status"></p>
+        <ul id="li5-guess-feed" class="li5-feed"></ul>
+      </div>
+
+      <div class="li5-desc-tallies">
+        <div id="li5-gs-row-0" class="li5-desc-row">
+          <span id="li5-gs-name-0" class="li5-gate-name"></span>
+          <span id="li5-gs-tally-0" class="li5-gate-marks"></span>
+          <span id="li5-gs-pts-0" class="li5-gate-pts">0</span>
+        </div>
+        <div id="li5-gs-row-1" class="li5-desc-row">
+          <span id="li5-gs-name-1" class="li5-gate-name"></span>
+          <span id="li5-gs-tally-1" class="li5-gate-marks"></span>
+          <span id="li5-gs-pts-1" class="li5-gate-pts">0</span>
         </div>
       </div>
-      <div class="flex items-center justify-between">
-        <p id="li5-guess-scores" class="text-stone-500 text-sm font-semibold"></p>
-        <p id="li5-guess-clock" class="text-3xl font-bold text-stone-800 tabular-nums"></p>
-      </div>
-      <div class="bg-white rounded-2xl p-6 shadow-sm text-center flex flex-col gap-2">
-        <p class="text-7xl font-bold text-stone-300" aria-hidden="true">?</p>
-        <p id="li5-guess-up" class="text-stone-700 text-lg font-semibold"></p>
-        <p id="li5-guess-streak" class="text-stone-500 text-sm"></p>
-      </div>
-      <ul id="li5-guess-feed" class="flex flex-wrap gap-2 justify-center"></ul>
-      <p id="li5-guess-status" class="text-stone-400 text-sm text-center"></p>
+
+      <div class="li5-desc-tray li5-tray-bare"></div>
     </div>
   </section>
 
