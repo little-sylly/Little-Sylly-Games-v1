@@ -242,8 +242,8 @@ function etaMakeBoard(root, opts) {
     setT(R.rider, 'left', (p * 100).toFixed(2) + '%', ms, ease);
     R.tag.textContent = etaDur(v);
     R.tag.classList.toggle('is-in', p > 0.62);
-    R.tag.style.left = p > 0.62 ? '' : `calc(${(p * 100).toFixed(2)}% + 17px)`;
-    R.tag.style.right = p > 0.62 ? `calc(${(100 - p * 100).toFixed(2)}% + 17px)` : '';
+    R.tag.style.left = p > 0.62 ? '' : `calc(${(p * 100).toFixed(2)}% + 7px)`;
+    R.tag.style.right = p > 0.62 ? `calc(${(100 - p * 100).toFixed(2)}% + 21px)` : '';
     R.end = v;
   }
 
@@ -270,8 +270,7 @@ function etaMakeBoard(root, opts) {
       el.dataset.etaRow = String(i);
       el.setAttribute('aria-label', `${r.name}, ${r.ride}`);
       el.innerHTML = `<span class="eta-row-name eta-sten">${etaKitEsc(r.name)}${i === B.mine ? ' <i>(you)</i>' : ''}</span>
-        <span class="eta-row-ride">${etaKitEsc(r.ride)}</span>
-        <span class="eta-row-km eta-mark"></span>
+        <span class="eta-row-ride"><span class="eta-row-badge"></span><span class="eta-row-ridename">${etaKitEsc(r.ride)}</span></span>
         <span class="eta-vstamp"><b class="eta-sten"></b><small></small></span>
         <span class="eta-mystamp" aria-hidden="true">STAMPED</span>
         <span class="eta-track">
@@ -285,7 +284,7 @@ function etaMakeBoard(root, opts) {
           <span class="eta-banner eta-sten"></span>
           <span class="eta-amend eta-mark"></span>
         </span>
-        <span class="eta-res" aria-hidden="true"><span class="eta-res-said"></span><span class="eta-res-true"></span></span>
+        <span class="eta-res" aria-hidden="true"><span class="eta-res-line"><span class="eta-res-said"></span><span class="eta-res-true"></span></span><span class="eta-row-km eta-mark"></span></span>
         <span class="eta-place eta-sten" aria-hidden="true"></span>`;
       rowsEl.appendChild(el);
       const q = s => el.querySelector(s);
@@ -294,8 +293,9 @@ function etaMakeBoard(root, opts) {
         gap: q('.eta-gap'), drop: q('.eta-dropline'), parcel: q('.eta-parcel'), puff: q('.eta-puff'), star: q('.eta-star'),
         vst: q('.eta-vstamp'), km: q('.eta-row-km'), banner: q('.eta-banner'), amend: q('.eta-amend'), ride: q('.eta-row-ride'),
         resSaid: q('.eta-res-said'), resTrue: q('.eta-res-true'), place: q('.eta-place') };
-      const badge = etaRenderBadge(r.mode, { unreg: r.unreg, size: 28 });
-      R.rider.firstElementChild.appendChild(badge);
+      // The vehicle's badge lives under the courier's name; the bar's end carries the parcel.
+      q('.eta-row-badge').appendChild(etaRenderBadge(r.mode, { unreg: r.unreg, size: 15 }));
+      R.rider.firstElementChild.innerHTML = '<span class="eta-endbox" aria-hidden="true"></span>';
       R.rider.firstElementChild.classList.add('eta-mv-' + (r.mode || 'land'));
       setT(R.tape, 'width', '0%');
       setT(R.rider, 'left', '0%');

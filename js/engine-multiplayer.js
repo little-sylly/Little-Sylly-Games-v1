@@ -1115,7 +1115,7 @@ function mpSerialiseSettings(abbr) {
       combSeason, combLayout, combWasp, combOverflow, combWaggle, combDaylight, combBounty,
     };
     case 'eta': return {
-      etaRange, etaShiftLength, etaGps, etaOffMap, etaSyllyMode,
+      etaRange, etaShiftLength, etaGps, etaOffMap, etaVote, etaSyllyMode,
     };
     case 'cld': return {
       cldIceConditions, cldFloeSize, cldFishToWin, cldAimAssist,
@@ -1840,6 +1840,7 @@ function mpApplySettings(abbr, s) {
       if (s.etaShiftLength !== undefined) etaShiftLength = s.etaShiftLength;
       if (s.etaGps         !== undefined) etaGps         = s.etaGps;
       if (s.etaOffMap      !== undefined) etaOffMap      = s.etaOffMap;
+      if (s.etaVote        !== undefined) etaVote        = s.etaVote;
       if (s.etaSyllyMode   !== undefined) etaSyllyMode   = s.etaSyllyMode;
       if (typeof etaSyncSettingsUI === 'function') etaSyncSettingsUI();
       break;

@@ -146,6 +146,12 @@
       "artist": "Sylly House Band",
       "gain": 1.0
     },
+    "eta": {
+      "file": "jukebox/handle-with-care-or-not.mp3",
+      "title": "Handle with Care (Or Not)",
+      "artist": "Sylly House Band",
+      "gain": 1.0
+    },
     "comb": {
       "file": "jukebox/harmonium-hums.mp3",
       "title": "Harmonium Hums",

@@ -2,7 +2,7 @@
 
 **Game 21** · `activeGameId: eta` · plugin `js/games/eta.js` · world kit `js/games/eta-scene.js` · `css/eta.css`
 **Emoji:** 🛵 · **Brand:** hi-vis orange `#EA580C` (custom `eta-cta` / `pill-active-eta`) · **Players:** 3–8 · **Modes:** MDLM only
-**Status:** built SW v272, 10 November 2026; playtest round 1 reworked SW v273 (Dotty, the name E.T.A., the docket, the Stamp prompt, the reveal). The content set is **provisional** (T9).
+**Status:** built SW v272, 10 November 2026; playtest round 1 reworked SW v273 (Dotty, the name E.T.A., the docket, the Stamp prompt, the reveal); round 2 SW v274 (row layout, Everywhere, Community Vote). The content set is **provisional** (T9).
 
 > **Change contract.** Each section is tagged **free** (reword freely — but it must stay true),
 > **paired** (change the doc and the code together, or you open a gap between them), or **derived**
@@ -145,9 +145,10 @@ The settings overlay is titled **The Dispatch Desk 📋** — *"Set the shift be
 
 | Setting | Options | Default | What it does in play |
 |---|---|---|---|
-| **Dispatch Range** | Local · Mixed · Cosmic | Mixed | Which Route tiers come up: human-scale, all, or orbit and beyond. ETA's difficulty dial (exempt from the word-tier item — not a `words.json` game). |
+| **Dispatch Range** | Local · Everywhere | Everywhere | Which Route tiers come up: everyday human-scale only, or the lot out to orbit and beyond. ETA's difficulty dial (exempt from the word-tier item — not a `words.json` game). |
 | **Shift Length** | Short (3) · Standard (5) · Long (7) | Standard | Runs per Shift. |
 | **GPS** | ON / OFF | ON | OFF hides the distance, so couriers estimate it too. |
+| **Community Vote** | ON / OFF | ON | ON: after the pitches everyone Stamps a favourite. OFF: no Stamps; the table talks and the host taps **Call Proof of Delivery**. Dimmed (value kept) while Sylly Mode is on — Course Corrections replace Stamps. |
 | **Off the Map** | ON / OFF | OFF | Fantastical Routes (Atlantis, the Underworld) join the draw — about 1 in 4. Flips ON when Sylly Mode turns on, and can still be turned off. |
 | **✨ Sylly Mode** | OFF / ON | OFF | Backseat Drivers. See T8. |
 
@@ -177,7 +178,7 @@ motion shows every final state immediately.
 
 | Overlay | Opened from | What it is |
 |---|---|---|
-| `eta-settings-overlay` | Menu | The Dispatch Desk — five settings |
+| `eta-settings-overlay` | Menu | The Dispatch Desk — six settings |
 | `eta-how-to-overlay` | Menu, every `[?]` | How to Play — tabs **Rules · Practice · Ranks** |
 | `eta-doubletake-overlay` | Log ETA | Dotty's Double-Take — Lock it in / Re-dial |
 | `eta-quit-overlay` | Any mid-Shift ✕ | Clock off early? (ends the Shift for everyone) |
@@ -249,6 +250,7 @@ Lock it in
 Hands off
 See the Odometer
 Waiting for Proof of Delivery…
+Call Proof of Delivery
 YOUR RESULT
 ```
 
@@ -281,11 +283,14 @@ Clock Off
 The Dispatch Desk 📋
 Set the shift before the roller door goes up.
 Dispatch Range
-Which jobs come in: everyday distances, a mix, or the solar system and beyond.
+Which jobs come in: everyday distances only, or the lot.
 Shift Length
 How many Runs before End of Shift.
 GPS
 Shows each Route's distance. Off, you estimate the distance as well.
+Community Vote
+After the pitches, everyone stamps their favourite for a few bonus km. Off, the table just talks and the host calls the reveal.
+Backseat Drivers swaps Stamps for Course Corrections. Your choice is kept for next time.
 Off the Map
 ✨ Sylly Mode
 Backseat Drivers
@@ -366,7 +371,7 @@ gained, by push size); a wrong-way push pays a **Detour Penalty**. If it ended u
 pushed that way shares a Detour Penalty (40% of the loss). A pile-on of two or more that loses 3,000+
 stamps **SPIN-OUT**; corrections that gain 3,000+ and land within 1.25× stamp **BACK ON COURSE** —
 both only at Proof of Delivery, because they need the truth. **Unregistered Rides** (no rego — a flying
-carpet, a giant eagle, a witch's broomstick) join the shed and pay **Hazard Pay** (4,000 km); each
+carpet, a giant eagle, a witch's broomstick, a flux-capacitor car) are all that's left in the shed, so they pay **Hazard Pay** (4,000 km); each
 carries a fair hint in the shared Briefing. Off the Map defaults ON. A Run total can't go below zero.
 
 ---
@@ -383,8 +388,9 @@ four **mode badges** are inline SVG drawn through one render seam, `etaRenderBad
 self-hosted in `fonts/eta-*.woff2` (~88 KB, precached; owner ceiling 120 KB; OFL / Apache 2.0). Scene
 text only.
 
-**Lobby sticker.** None yet — ETA is in `LB_NO_STICKER`, so the Board and TV draw its emoji disc
-until `data/stickers/eta.png` lands. **Music:** no track yet; the lobby track plays.
+**Lobby sticker.** `data/stickers/eta.png` — a die-cut kraft parcel stamped E.T.A. with a FRAGILE tag, wind lines and a
+dust puff (SW v274; `LB_NO_STICKER` is empty again). **Music:** *Handle with Care (Or Not)* — `data/music/jukebox/`,
+the `eta` track, with its cover (3:24).
 
 **Content.** `data/eta-data.json` — Routes (headline, km, tier, Briefing, `useMax` / `limitKmh`,
 `offMap`) and Rides (name, mode, tier, cruise / max km/h, reveal, quip, Unregistered + hint).

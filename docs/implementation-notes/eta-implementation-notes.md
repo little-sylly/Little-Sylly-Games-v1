@@ -107,6 +107,21 @@ on the Run Sheet. The Stamp prompt uses it too: *best **pitch** — not the best
 
 ---
 
+### DD-13 — Playtest round 2: tidier rows, Everywhere, Community Vote (owner, 10 Nov 2026, SW v274)
+
+- **Rows.** The vehicle badge moved off the bar to sit under the courier's name (`.eta-row-ride`); the bar's end carries a small
+  parcel (`.eta-endbox`, still animated by Ride mode) instead of a floating badge. At Proof the track and ticks inset 48 px
+  (`.is-proof`) so the 1st–3rd medal sits in its own column **level with the bar**; SAID and TRUE share one line and the km sits under
+  them (row 80 → 76 px). Measured at 375×667, 375×548 and 320×452: no overlap, no sideways scroll.
+- **Range** is Local / Everywhere. `etaRangeHas` is now `range !== 'local' || tier === 'local'`, so a stale `mixed`/`cosmic` still plays as
+  Everywhere; the astro-only draw is gone.
+- **Community Vote** (`etaVote`, default ON, in SETTINGS_SYNC). Off: the Stamp bar and row taps are gone, `etaApplyStamp` refuses, and the
+  host gets **Call Proof of Delivery** (`btn-eta-callproof`, direct `etaHostResolve()`, no packet). Clients learn the flag from
+  `ETA_SHEET.vote`, so a late SETTINGS_SYNC can't split a Run. Superseded by Sylly Mode (dimmed, value kept, amber reason line).
+  Loopback § 8b.
+- **Sticker + music.** The owner's sticker came as a JPEG with a checkerboard **painted into the pixels** (fake transparency). `data/sticker-masters/eta.png` (git-ignored) was cut from it: non-grey/dark pixels = artwork, dilated 24 px for the white die-cut rim, everything else alpha 0; `tools/convert-stickers.js` then wrote the 512 px palette PNG (67 KB). Music went through `tools/encode-music.js` from `data/music/pending/` (192 → 128 kbps, 6.7 → 3.2 MB, cover extracted to 400 px) with one line each in the jukebox catalogue and `data/music/manifest.json`; the stickerbook manifest gained `eta`.
+- **Content.** Unregistered `timecar` is now the **Flux-capacitor car** (a direct DeLorean nod without the brand name or film title).
+
 ## Bug Index
 
 **BUG-01 — "12.5 days" displayed as "13 days". [10 Nov 2026, build]**

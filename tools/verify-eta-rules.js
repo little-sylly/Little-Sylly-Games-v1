@@ -167,7 +167,7 @@ head('5. The curated deal + the route draw (seeded)');
   let bad = 0, dup = 0, unreg = 0, spread = 0, deals = 0;
   for (let t = 0; t < 3000; t++) {
     const n = 3 + Math.floor(rng() * 6), sylly = rng() < 0.5;
-    const range = ['local', 'mixed', 'cosmic'][Math.floor(rng() * 3)];
+    const range = ['local', 'all'][Math.floor(rng() * 2)];
     const route = S.etaDrawRoute(DATA, { range, used: [], seats: n, sylly, offMap: rng() < 0.5 }, rng);
     if (!route) { bad++; continue; }
     const rides = S.etaDealRun(DATA, route, n, { sylly }, rng);
@@ -185,7 +185,7 @@ head('5. The curated deal + the route draw (seeded)');
   ok(spread / deals < 0.05, 'drawn for spread: fastest ÷ slowest ≥ 10× in ≥ 95% of Runs', spread / deals);
 }
 {
-  ['local', 'mixed', 'cosmic'].forEach(range => {
+  ['local', 'all'].forEach(range => {
     const rng = seeded(7);
     const used = [];
     for (let r = 0; r < 7; r++) { const rt = S.etaDrawRoute(DATA, { range, used, seats: 8, sylly: false, offMap: false }, rng); used.push(rt.id); }
@@ -195,7 +195,7 @@ head('5. The curated deal + the route draw (seeded)');
   });
   const rng = seeded(11);
   let off = 0;
-  for (let t = 0; t < 2000; t++) if (S.etaDrawRoute(DATA, { range: 'mixed', used: [], seats: 5, sylly: true, offMap: true }, rng).offMap) off++;
+  for (let t = 0; t < 2000; t++) if (S.etaDrawRoute(DATA, { range: 'all', used: [], seats: 5, sylly: true, offMap: true }, rng).offMap) off++;
   ok(off > 350 && off < 650, 'Off the Map: about 1 Route in 4', off / 2000);
   // Rides held earlier this Shift are avoided where possible.
   const r2 = seeded(5), route = DATA.routes.find(x => x.id === 'italy');

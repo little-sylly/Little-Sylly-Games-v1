@@ -54,7 +54,7 @@ ok(new Set(kms).size === kms.length, 'no two real Routes share a distance (the o
   ok(sb.etaRouteOk(D, r, 8, sylly), `route ${r.id}: ≥ 8 eligible Rides across ≥ 3 tiers (${sylly ? 'Sylly' : 'Standard'})`);
 }));
 // A 7-Run Shift never runs dry in any Range.
-['local', 'mixed', 'cosmic'].forEach(range => {
+['local', 'all'].forEach(range => {
   const n = (D.routes || []).filter(r => !r.offMap && sb.etaRangeHas(range, r)).length;
   ok(n >= 7, `${range}: at least 7 real Routes (has ${n})`);
 });

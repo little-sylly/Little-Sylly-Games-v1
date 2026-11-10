@@ -80,7 +80,7 @@ async function etaMatch(names, opts) {
   addEta(host, opts.seed || 7);
   host.S.localStorage.setItem('sylly_nickname', names[0]);
   useEta(host);
-  host.run(`etaShiftLength = ${opts.runs || 3}; etaSyllyMode = ${!!opts.sylly}; etaOffMap = ${!!opts.offMap}; etaGps = ${opts.gps !== false}; etaRange = '${opts.range || 'mixed'}';`);
+  host.run(`etaShiftLength = ${opts.runs || 3}; etaSyllyMode = ${!!opts.sylly}; etaOffMap = ${!!opts.offMap}; etaGps = ${opts.gps !== false}; etaVote = ${opts.vote !== false}; etaRange = '${opts.range || 'all'}';`);
   host.run('mpHostCreateRoom()');
   await flush();
   const code = host.run('mpActiveRoomCode');
@@ -293,6 +293,21 @@ async function socialRound(M, plan, sylly) {
   ERR.push(...errorsOf(N.all));
 
   // ═════════════════════════════════════════════════════════════════════════
+  section('8b. Community Vote OFF — the table talks, the host calls Proof of Delivery');
+  const V = await etaMatch(['Ada', 'Boris', 'Chloe'], { runs: 3, seed: 9, vote: false });
+  await playRun(V, (seat, _, truths) => ({ log: Math.round(truths[seat] * 2) }));
+  advance(1000); await flush();                                     // the board's reveal -> talk
+  V.all.forEach(d => check(`${d.name}: the Run's vote flag reached the device`, d.run('etaVote'), false));
+  V.all.forEach(d => ok(`${d.name}: no Stamp bar`, d.el('eta-stamp-bar').style.display === 'none'));
+  check('only the host gets the Call Proof button', V.all.map(d => d.el('btn-eta-callproof').style.display !== 'none'), [true, false, false]);
+  V.clients[0].run(`etaSendHost({ action: 'ETA_STAMP', run: etaRun, target: 2 })`); await flush();
+  check('a forged Stamp is refused (still in the talk phase, nothing recorded)', [V.host.run('etaHostPhase'), J(V.host, 'etaStamps')], ['social', [-1, -1, -1]]);
+  V.host.el('btn-eta-callproof').click(); await flush();
+  advance(20000); await flush();
+  V.all.forEach(d => check(`${d.name}: Proof landed and settled`, d.run('etaPhase'), 'done'));
+  check('no Stamps paid', J(V.host, 'etaProof.stampsIn'), [0, 0, 0]);
+  ERR.push(...errorsOf(V.all));
+
   section('9. The Mid-Game Quit Contract');
   const Q = await etaMatch(['Ada', 'Boris', 'Chloe'], { runs: 3, seed: 5 });
   advance(8000); await flush();

@@ -18,5 +18,6 @@
   { "id": "pko",    "label": "Pecking Order",     "image": "pko.png",    "unlocked": true },
   { "id": "cjar",   "label": "Cookie Jar",        "image": "cjar.png",   "unlocked": true },
   { "id": "cld",    "label": "Cold Shoulder",     "image": "cld.png",    "unlocked": true },
-  { "id": "comb",   "label": "Honeycomb Hills",   "image": "comb.png",   "unlocked": true }
+  { "id": "comb",   "label": "Honeycomb Hills",   "image": "comb.png",   "unlocked": true },
+  { "id": "eta",    "label": "E.T.A.",            "image": "eta.png",    "unlocked": true }
 ] }

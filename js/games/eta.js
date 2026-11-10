@@ -54,10 +54,11 @@ const ETA_MAX_MINUTES  = 1e12 * 525960;   // longer than the universe — refuse
 const ETA_MODE_NAME    = { land: 'Land', sea: 'Sea', air: 'Air', space: 'Space' };
 
 // ── Settings (persist between play-agains; host-only, SETTINGS_SYNC) ─────────
-let etaRange       = 'mixed';   // 'local' | 'mixed' | 'cosmic'
+let etaRange       = 'all';     // 'local' | 'all' (Everywhere)
 let etaShiftLength = 5;         // 3 | 5 | 7
 let etaGps         = true;
 let etaOffMap      = false;     // flips ON when Sylly turns ON — a default, never a lock
+let etaVote        = true;      // Community Vote: Stamps of Approval after the pitches (Sylly Mode replaces them either way)
 let etaSyllyMode   = false;     // Backseat Drivers
 
 // ── Roster (from mpPlayerSlots at entry — no setup screen, MDLM only) ────────
@@ -349,7 +350,7 @@ function etaRouteOk(data, route, seats, sylly) {
 }
 
 function etaRangeHas(range, route) {
-  return range === 'mixed' || (range === 'local' ? route.tier === 'local' : route.tier === 'astro');
+  return range !== 'local' || route.tier === 'local';   // 'local' = everyday tiers only; anything else = Everywhere
 }
 
 // The Route for the next Run: Range filter, never a repeat, Off the Map share.
@@ -591,13 +592,14 @@ function etaHostOpenSheet() {
     action: 'ETA_SHEET',
     run: etaRun,
     rows: etaRunRides.map((d, i) => ({ ride: d.name, mode: d.mode, unreg: !!d.unregistered, logged: etaLogged[i] > 0 ? etaLogged[i] : -1 })),
+    vote: etaVote,
   };
   etaSend(p);
   etaApplySheet(p);
 }
 
 function etaApplyStamp(seat, run, target) {
-  if (run !== etaRun || etaHostPhase !== 'social' || etaSylly) return false;
+  if (run !== etaRun || etaHostPhase !== 'social' || etaSylly || !etaVote) return false;
   const n = etaN();
   if (!(seat >= 0 && seat < n) || !(target >= 0 && target < n) || target === seat) return false;
   etaStamps[seat] = target;
@@ -757,6 +759,7 @@ function etaApplySheet(p) {
     ride: String(r.ride || ''), mode: r.mode || 'land', unreg: r.unreg === true, logged: r.logged > 0 ? Number(r.logged) : null,
   } : { ride: '', mode: 'land', unreg: false, logged: null }));
   etaLogged = etaSheetRows.map(r => r.logged);
+  if (p.vote !== undefined) etaVote = p.vote !== false;   // the host's call for this Run, whatever SETTINGS_SYNC said
   etaLogReady = Array(n).fill(true);
   etaSocialReady = Array(n).fill(false);
   etaStallEndsAt = 0;
@@ -976,7 +979,7 @@ function etaRenderLog() {
       txt.className = 'eta-ride-text';
       txt.innerHTML = `<span class="eta-ride-eyebrow">YOUR RIDE</span>`
         + `<span class="eta-ride-name">${etaEsc(etaMyRide.name)}${etaMyRide.emoji ? ' <span aria-hidden="true">' + etaEsc(etaMyRide.emoji) + '</span>' : ''}</span>`
-        + `<span class="eta-ride-mode">${etaEsc(ETA_MODE_NAME[etaMyRide.mode] || '')}${etaMyRide.unreg ? ' · <b>NO REGO</b> — Hazard Pay if you take it' : ''}</span>`;
+        + `<span class="eta-ride-mode">${etaEsc(ETA_MODE_NAME[etaMyRide.mode] || '')}${etaMyRide.unreg ? " · <b>NO REGO</b> — it's all we've got left. Hazard Pay's yours. <b>GOOD LUCK!</b>" : ''}</span>`;
       wrap.appendChild(txt);
       card.appendChild(wrap);
       card.classList.toggle('is-unreg', !!etaMyRide.unreg);
@@ -1124,7 +1127,7 @@ function etaShowSheet() {
 function etaTalkNote() {
   return etaSylly
     ? ['Talk me through it, then.', "Then grab someone's wheel."]
-    : ['Talk me through it, then.', 'Best pitch gets my stamp.'];
+    : ['Talk me through it, then.', etaVote ? 'Best pitch gets my stamp.' : 'Defend your number.'];
 }
 
 // Drives the board for the current etaPhase. Every phase has a settled end state
@@ -1189,6 +1192,7 @@ function etaClosest(places, verdicts, nameOf) {
 
 function etaRowTap(i) {
   if (etaPhase !== 'talk') return;
+  if (!etaSylly && !etaVote) return;   // no vote: nothing to tap
   const me = etaMySeat();
   if (i === me) return;
   if (etaSylly && !(etaLogged[i] > 0)) return;
@@ -1232,7 +1236,7 @@ function etaRenderSheetControls() {
   etaShow('btn-eta-sheet-skip', anim, 'flex');
   etaShow('btn-eta-odometer', etaPhase === 'done', 'flex');
   // Selection + my own ghost only — never anyone else's, never the truth.
-  if (b && talk) {
+  if (b && talk && (etaSylly || etaVote)) {
     b.setSelectable(i => i !== me && (!etaSylly || etaLogged[i] > 0));
     b.setSelected(etaMySelect);
     b.setStamped(!etaSylly ? etaMySent : -1);
@@ -1240,7 +1244,9 @@ function etaRenderSheetControls() {
   } else if (b) b.setSelectable(null);
 
   // Standard: the stamp bar
-  const stampOn = talk && !etaSylly;
+  const stampOn = talk && !etaSylly && etaVote;
+  // No vote: the table just talks, and the host calls Proof of Delivery when they're done.
+  etaShow('btn-eta-callproof', talk && !etaSylly && !etaVote && etaIsHost(), 'flex');
   etaShow('eta-stamp-bar', stampOn);
   if (stampOn) {
     const sel = etaMySelect;
@@ -1281,7 +1287,8 @@ function etaRenderSheetControls() {
   const k = etaSocialReady.filter(Boolean).length, n = etaN();
   let status = '';
   if (talk) status = etaSylly ? (etaSocialStage === 'sent' ? `Recalculating… ${k} of ${n} in` : `${k} of ${n} in`)
-                              : `${k} of ${n} stamped`;
+                   : etaVote ? `${k} of ${n} stamped`
+                   : (etaIsHost() ? 'Talk it through, then call Proof of Delivery.' : 'Talk it through. The host calls Proof of Delivery.');
   if (etaPhase === 'shove-done') status = 'Waiting for Proof of Delivery…';
   etaSetText('eta-social-status', status);
   etaShow('eta-social-status', !!status);
@@ -1409,7 +1416,7 @@ function etaShowGameover() {
 // ═══════════════════════════════════════════════════════════════════════════
 // Settings
 // ═══════════════════════════════════════════════════════════════════════════
-const ETA_RANGE_LINE = { local: 'Local — marathons to countries', mixed: 'Mixed — everything', cosmic: 'Cosmic — orbit and beyond' };
+const ETA_RANGE_LINE = { local: 'Local — marathons to countries', all: 'Everywhere — right out to orbit and beyond' };
 
 function etaToggle(id, on) {
   const el = etaEl(id);
@@ -1425,7 +1432,12 @@ function etaSyncSettingsUI() {
   etaSetText('eta-val-shift', `${etaShiftLength} Runs`);
   etaToggle('btn-eta-gps-toggle', etaGps);
   etaToggle('btn-eta-offmap-toggle', etaOffMap);
+  etaToggle('btn-eta-vote-toggle', etaVote);
   etaToggle('btn-eta-sylly-toggle', etaSyllyMode);
+  // Superseded, not changed: Sylly Mode swaps Stamps for Course Corrections, so the stored choice just waits.
+  const vc = etaEl('eta-vote-controls');
+  if (vc) { vc.classList.toggle('opacity-50', etaSyllyMode); vc.classList.toggle('pointer-events-none', etaSyllyMode); }
+  etaShow('eta-vote-reason', etaSyllyMode);
 }
 
 // Secret Mode hook (checklist): settings-only overrides; ETA is in no pack yet.
@@ -1685,6 +1697,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }));
   on('btn-eta-gps-toggle',    () => { playPillClick(); etaGps = !etaGps; etaSyncSettingsUI(); });
   on('btn-eta-offmap-toggle', () => { playPillClick(); etaOffMap = !etaOffMap; etaSyncSettingsUI(); });
+  on('btn-eta-vote-toggle',   () => { playPillClick(); etaVote = !etaVote; etaSyncSettingsUI(); });
   on('btn-eta-sylly-toggle',  () => {
     etaSyllyMode = !etaSyllyMode;
     if (etaSyllyMode) { etaOffMap = true; if (typeof playSyllyOn === 'function') playSyllyOn(); }   // a visible default, not a lock
@@ -1742,6 +1755,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // The Run Sheet
   on('btn-eta-sheet-skip', () => { playPillClick(); if (etaBoard) etaBoard.skip(); });
+  on('btn-eta-callproof', () => {
+    if (!etaIsHost() || etaVote || etaSylly) return;
+    playSuccess();
+    if (typeof playHullThud === 'function') playHullThud();
+    etaHostResolve();
+  });
   on('btn-eta-stamp', () => {
     if (etaMySelect < 0) return;
     playSuccess();

@@ -12038,6 +12038,7 @@ Reboot
       </div>
       <div id="eta-sheet-board"></div>
       <!-- CONTROLS — one of these at a time, by etaPhase -->
+      <button id="btn-eta-callproof" style="display:none" class="btn-mp-action eta-cta min-h-14 w-full rounded-2xl active:scale-95 text-xl font-semibold transition-transform duration-150">Call Proof of Delivery</button>
       <button id="btn-eta-sheet-skip" style="display:none" class="eta-btn-paper min-h-11 w-full rounded-2xl text-base font-semibold active:scale-95 transition-transform duration-150">Skip</button>
       <div id="eta-stamp-bar" style="display:none" class="eta-clip eta-controls">
         <p id="eta-stamp-prompt" class="eta-controls-prompt"></p>
@@ -12134,13 +12135,12 @@ Reboot
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
           <div>
             <p class="text-stone-800 font-semibold">Dispatch Range</p>
-            <p class="text-stone-400 text-sm mt-0.5">Which jobs come in: everyday distances, a mix, or the solar system and beyond.</p>
+            <p class="text-stone-400 text-sm mt-0.5">Which jobs come in: everyday distances only, or the lot.</p>
           </div>
           <div class="flex flex-col gap-2">
             <div class="flex gap-2">
               <button class="pill" data-group="eta-range" data-val="local">Local</button>
-              <button class="pill pill-active-eta" data-group="eta-range" data-val="mixed">Mixed</button>
-              <button class="pill" data-group="eta-range" data-val="cosmic">Cosmic</button>
+              <button class="pill pill-active-eta" data-group="eta-range" data-val="all">Everywhere</button>
             </div>
             <p id="eta-val-range" class="text-stone-400 text-xs"></p>
           </div>
@@ -12178,12 +12178,23 @@ Reboot
         </div>
 
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <div id="eta-vote-controls" class="flex flex-col gap-2">
+            <div class="flex items-center justify-between">
+              <p class="text-stone-800 font-semibold">Community Vote</p>
+              <button id="btn-eta-vote-toggle" class="game-toggle-on-eta shrink-0">ON</button>
+            </div>
+            <p class="text-stone-400 text-sm">After the pitches, everyone stamps their favourite for a few bonus km. Off, the table just talks and the host calls the reveal.</p>
+          </div>
+          <p id="eta-vote-reason" style="display:none" class="text-amber-600 text-xs">Backseat Drivers swaps Stamps for Course Corrections. Your choice is kept for next time.</p>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
           <div class="flex items-center justify-between">
             <p class="text-stone-800 font-semibold">✨ Sylly Mode</p>
             <button id="btn-eta-sylly-toggle" class="game-toggle-off shrink-0">OFF</button>
           </div>
           <p class="text-stone-600 text-sm font-semibold">Backseat Drivers</p>
-          <p class="text-stone-400 text-sm">Instead of Stamps, everyone makes one secret Course Correction to another courier's ETA. Corrections multiply, so a pile-on can spin out. Unregistered Rides join the shed and pay Hazard Pay.</p>
+          <p class="text-stone-400 text-sm">Instead of Stamps, everyone makes one secret Course Correction to another courier's ETA. Corrections multiply, so a pile-on can spin out. Unregistered Rides are all that's left in the shed, so they pay Hazard Pay.</p>
         </div>
 
         <button id="btn-eta-settings-close" class="eta-cta min-h-14 w-full rounded-2xl text-xl font-semibold active:scale-95 transition-transform duration-150">Got it</button>
@@ -12224,7 +12235,7 @@ Reboot
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
           <p class="text-xs font-semibold uppercase tracking-widest eta-label">Step 4</p>
           <p class="font-bold text-stone-800">Talk Me Through It</p>
-          <p class="text-stone-500 text-sm">Defend your number out loud. Then give one <span class="font-semibold text-stone-700">Stamp of Approval</span> to the best <span class="font-semibold text-stone-700">pitch</span>, not the best guess — funny or convincing, your call. Each Stamp pays that courier a <span class="font-semibold text-stone-700">Depot Tip</span>. You can't stamp yourself, and you can change your Stamp until everyone's in.</p>
+          <p class="text-stone-500 text-sm">Defend your number out loud. Then give one <span class="font-semibold text-stone-700">Stamp of Approval</span> to the best <span class="font-semibold text-stone-700">pitch</span>, not the best guess — funny or convincing, your call. Each Stamp pays that courier a <span class="font-semibold text-stone-700">Depot Tip</span>. You can't stamp yourself, and you can change your Stamp until everyone's in. (The Community Vote is a setting: switch it off and the table just talks, then the host calls the reveal.)</p>
         </div>
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
           <p class="text-xs font-semibold uppercase tracking-widest eta-label">Step 5</p>
@@ -12248,7 +12259,7 @@ Reboot
         <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
           <p class="text-xs font-semibold uppercase tracking-widest eta-label">✨ Sylly Mode</p>
           <p class="font-bold text-stone-800">Backseat Drivers</p>
-          <p class="text-stone-500 text-sm">Instead of Stamps, grab one other courier's wheel and make one secret <span class="font-semibold text-stone-700">Course Correction</span> to their ETA. Fixing a big miss pays big, but corrections multiply, so a pile-on can overshoot into a <span class="font-semibold text-stone-700">Spin-out</span>. <span class="font-semibold text-stone-700">Unregistered Rides</span> (no rego!) join the shed and pay Hazard Pay. Corrections never change the target's own accuracy score.</p>
+          <p class="text-stone-500 text-sm">Instead of Stamps, grab one other courier's wheel and make one secret <span class="font-semibold text-stone-700">Course Correction</span> to their ETA. Fixing a big miss pays big, but corrections multiply, so a pile-on can overshoot into a <span class="font-semibold text-stone-700">Spin-out</span>. <span class="font-semibold text-stone-700">Unregistered Rides</span> (no rego!) are all that's left in the shed, so they pay Hazard Pay. Corrections never change the target's own accuracy score.</p>
         </div>
         <button id="btn-eta-howto-close" class="eta-cta min-h-14 w-full rounded-2xl text-xl font-semibold active:scale-95 transition-transform duration-150">Got it</button>
       </div>

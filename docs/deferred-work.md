@@ -14,6 +14,8 @@ the discovery record is kept there, not deleted. A section with nothing left ope
 
 ## E.T.A. (was ETA?) — built, what is open (10 Nov 2026, SW v272)
 
+**Playtest round 2 — done SW v274** (`eta-implementation-notes` DD-13). Sticker and music **installed** (SW v274: `data/stickers/eta.png`, jukebox track *Handle with Care (Or Not)*) — still to do: look at both on a phone.
+
 **Playtest round 1 — done SW v273** (moved to `deferred-work-log.md`). Still open from it:
 - **Re-play round 1 on phones** — Dotty in the Intro at real size, the docket's read time, whether SAID / TRUE
   and the 1st–3rd stamps make the reveal land, the Stamp prompt's km line.
