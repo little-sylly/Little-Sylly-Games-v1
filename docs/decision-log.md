@@ -19,6 +19,11 @@ Detail: pointer to the canonical doc (snapshot / impl note / spec / memory).
 ```
 
 
+## 2026-11-11 — E.T.A. gets a per-phone KM / MI chip: the first exception to metric-only (Strategy)
+**Decision:** each phone can show E.T.A.'s distances and speeds in miles via a chip in play; content stays metric, Mileage stays km, nothing is synced.
+**Why:** owner request — mixed tables; a display preference can't change an answer because the truth is km on both sides of distance ÷ speed.
+**Changed:** `js/games/eta{,-scene}.js`, `css/eta.css`, `src/screens/eta.html`, CLAUDE.md metric line, `verify-eta-content.js`. **Detail:** `eta-implementation-notes.md` DD-15.
+
 ## 2026-11-10 — ETA? becomes E.T.A.; Dot becomes Dotty, Head of Dispatch (Strategy)
 **Decision:** after the first 3-phone session the game takes the company's name **E.T.A.** (menu subtitle = the motto *Every Thing, Anywhere. Eventually.*) and the narrator becomes **Dotty, Head of Dispatch** — upper management, strict tough love; the reveal now places 1st / 2nd / 3rd by accuracy on the Logged ETA, derived on every device rather than sent.
 **Why:** owner playtest — the question mark was an in-joke nobody needed, Dot read as hands-on staff rather than the boss, and the reveal didn't say who was closest.

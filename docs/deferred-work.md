@@ -30,6 +30,10 @@ the discovery record is kept there, not deleted. A section with nothing left ope
 - **Log the playtest data the maths round asked for** — every Logged ETA against its truth (by Dispatch
   Range), every Stamp, every Course Correction with its target — then refit the `[MATHS]` numbers and the
   `[UNTESTED]` Spin-out / Back on Course thresholds (`docs/new-ideas/eta/for archive/eta-maths-round-1.md` + `eta_sim.py`).
+- **The Ride `reveal` lines are sent but never shown** (found 11 Nov 2026, content rebuild). `ETA_PROOF.reveal` carries each
+  Ride's fact ("Seven leagues is about 34 km a stride…"), but the Proof note builds its own line from the speed. The
+  Unregistered explanations are the ones that matter. Show it as the note's second line, or drop it from the packet.
+- **🔊 / ✕ on the Log + Run Sheet headers are under 44 px** (27×28 / 16×28 at 320 px, measured SW v276; pre-existing).
 - **Phase gate** — Protocol A, phase snapshot, archive the brief + spec + boards to the owner's external archive.
 
 ## UI revamp — Stage 0 shipped, what is parked (9 Nov 2026, SW v264)

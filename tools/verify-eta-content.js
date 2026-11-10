@@ -69,5 +69,12 @@ ok(!badMark.length, 'every **bold** marker in a Briefing line or hint pairs up',
 const unbold = [...new Set((D.routes || []).map(r => (r.briefing || []).join(' ')))].filter(l => !/\*\*[^*]+\*\*/.test(l));
 ok(!unbold.length, "every Route's Briefing bolds its load-bearing words", unbold);
 
+// The KM / MI chip (SW v276): every headline, Briefing line and hint must convert with no metric
+// left over and no NaN — a unit the converter doesn't know ("metres", "km/hr") would leak through.
+const shown = [...new Set([].concat(...(D.routes || []).map(r => [r.headline, ...(r.briefing || [])]), (D.rides || []).filter(d => d.hint).map(d => d.hint)))];
+const leak = shown.map(l => sb.etaImperial(l)).filter(l => /\d\s?(km|m|cm|mm|metres?|kilometres?)\b|km\/h|kph|NaN/i.test(l));
+ok(!leak.length, 'every content string converts to miles with no metric left over (write units as km, km/h, m, cm, mm)', leak);
+ok(sb.etaImperial('**held to 60 km/h**') === '**held to 37.3 mph**' && sb.etaImperial('a million kilometres') === '621,000 miles', 'the converter keeps **bold** and re-scales million/billion');
+
 console.log(`\n${fail ? `FAILED — ${fail} check(s)` : 'ALL CHECKS PASSED'} (${pass} passed)`);
 process.exit(fail ? 1 : 0);

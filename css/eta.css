@@ -47,6 +47,10 @@
 .eta-desk-title { color: var(--eta-cream); font-size: 1.5rem; line-height: 1; }
 .eta-desk-sub { color: #F3E3CC; font-family: 'EtaType', 'Courier New', monospace; font-size: .8rem; margin-top: .25rem; }
 .eta-chrome { color: #F3E3CC; }
+/* this phone's KM / MI display toggle — a tag-shaped chip inside a 44 px hit area */
+.eta-units-chip { display: inline-flex; align-items: center; justify-content: center; padding: 0 8px; letter-spacing: .08em;
+  border-radius: 8px; box-shadow: inset 0 0 0 1.5px rgba(243,227,204,.55); transition: transform .1s ease-out; }
+.eta-units-chip:active { transform: scale(.92); }
 .eta-status { text-align: center; font-family: 'EtaType', 'Courier New', monospace; font-weight: 700; font-size: .85rem; color: #F3E3CC; }
 .eta-btn-paper { background: var(--eta-cream); color: var(--eta-ink-o); border: 2px solid var(--eta-brand); display: flex; align-items: center; justify-content: center; }
 
@@ -459,13 +463,13 @@
 .eta-dotty-pony { transform-box: fill-box; transform-origin: 0% 15%; animation: eta-pony 2.4s ease-in-out infinite; }
 @keyframes eta-pony { 0%, 100% { transform: rotate(-3deg); } 50% { transform: rotate(5deg); } }
 .eta-intro.is-talking .eta-dot-body { animation: eta-sway 2.4s ease-in-out infinite; }
-.eta-dot-arm { transform-box: fill-box; transform-origin: 50% 0; transform: rotate(-25deg); }
+.eta-dot-arm { transform-box: fill-box; transform-origin: 50% 0; transform: rotate(-145deg); }
 .eta-intro.is-talking .eta-dot-arm { animation: eta-point .9s ease-in-out infinite; }
 .eta-dot-mouth { transform-box: fill-box; transform-origin: 50% 0; }
 .eta-intro.is-talking .eta-dot-mouth { animation: eta-talk .16s ease-in-out infinite; }
 @keyframes eta-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
 @keyframes eta-sway { 0%, 100% { transform: rotate(-2deg); } 50% { transform: rotate(2deg); } }
-@keyframes eta-point { 0%, 100% { transform: rotate(-25deg); } 50% { transform: rotate(-55deg); } }
+@keyframes eta-point { 0%, 100% { transform: rotate(-145deg); } 50% { transform: rotate(-168deg); } }
 @keyframes eta-talk { 0%, 100% { transform: scaleY(.35); } 50% { transform: scaleY(1); } }
 .eta-intro-board { position: relative; background: var(--eta-cream); margin: 0 10px 10px; border-radius: 3px; box-shadow: 0 10px 22px rgba(0,0,0,.4); font-family: 'EtaType', 'Courier New', monospace; }
 .eta-intro-board .eta-hv { height: 9px; }

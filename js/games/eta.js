@@ -76,6 +76,12 @@ let etaUsedRoutes  = [];        // HOST: route ids this Shift
 let etaUsedRides   = [];        // HOST: per seat, ride ids held this Shift
 let etaShiftEnd    = null;      // the applied ETA_SHIFT_END payload
 
+// ── This phone's display units (owner, 11 Nov 2026) ─────────────────────────
+// 'km' | 'mi' — a per-device DISPLAY preference, toggled in play (the KM / MI chip). Never sent,
+// never in SETTINGS_SYNC, never touches a truth or Mileage: the truth is km, so units can't change
+// an answer. Memory only; survives Shifts, not a reload.
+let etaUnits       = 'km';
+
 // ── Run state (reset each Run) ───────────────────────────────────────────────
 let etaRoute       = null;      // public docket { headline, km|null, briefing[], offMap }
 let etaFlavour     = '';
@@ -943,7 +949,7 @@ function etaShowDocket() {
   const root = etaEl('eta-docket-board');
   if (root && typeof etaDocketInto === 'function') {
     etaDocketInto(root, {
-      runLabel: etaRunLabel(), jobNo: etaJobNo(), route: etaRoute, flavour: etaFlavour,
+      runLabel: etaRunLabel(), jobNo: etaJobNo(), route: etaUnitRoute(etaRoute, etaUnits), flavour: etaFlavour,
     }, { reducedMotion: etaReduced(), compact: false });
   }
   showScreen('screen-eta-docket');
@@ -953,12 +959,28 @@ function etaShowDocket() {
   etaLater(() => etaShowLog(), ETA_DOCKET_MS + (etaRoute && etaRoute.offMap ? ETA_OFFMAP_MS : 0));
 }
 
+// ── Units chip: flip this phone's km / mi and repaint what shows a distance ──
+function etaRenderLogDocket() {
+  const root = etaEl('eta-log-docket');
+  if (root && etaRoute && typeof etaDocketInto === 'function') {
+    etaDocketInto(root, { runLabel: etaRunLabel(), jobNo: etaJobNo(), route: etaUnitRoute(etaRoute, etaUnits), flavour: '' }, { reducedMotion: true, compact: true });
+  }
+}
+function etaSyncUnitsUI() {
+  document.querySelectorAll('.btn-eta-units').forEach(b => {
+    b.textContent = etaUnits === 'mi' ? 'MI' : 'KM';
+    b.setAttribute('aria-label', etaUnits === 'mi' ? 'Showing miles — tap for kilometres' : 'Showing kilometres — tap for miles');
+  });
+}
+function etaToggleUnits() {
+  etaUnits = etaUnits === 'mi' ? 'km' : 'mi';
+  etaSyncUnitsUI();
+  etaRenderLogDocket();   // the Proof's speed line reads etaUnits when its note shows (a getter)
+}
+
 // ── Your Ride + Log ETA ─────────────────────────────────────────────────────
 function etaShowLog() {
-  const root = etaEl('eta-log-docket');
-  if (root && typeof etaDocketInto === 'function') {
-    etaDocketInto(root, { runLabel: etaRunLabel(), jobNo: etaJobNo(), route: etaRoute, flavour: '' }, { reducedMotion: true, compact: true });
-  }
+  etaRenderLogDocket();
   etaSetText('eta-log-run', etaRunLabel());
   const dial = etaEl('eta-dial');
   if (dial && etaLogStage === 'entry') etaDialReset(dial);
@@ -1166,9 +1188,12 @@ function etaPlaySheetPhase() {
         verdict: P.verdicts[i],
         kmLabel: `+${etaFmtInt(P.runTotals[i])} km`,
         banner: P.banners[i],
-        fact: P.truths[i] > 0
-          ? `${etaSheetRows[i] ? etaSheetRows[i].ride : 'The Ride'} at ~${etaFmtInt(P.speeds[i])} km/h: about ${etaDur(t)}.`
-          : '',
+        // a getter: the note reads it as each parcel drops, so a mid-Proof KM / MI flip shows at once
+        get fact() {
+          return P.truths[i] > 0
+            ? `${etaSheetRows[i] ? etaSheetRows[i].ride : 'The Ride'} at ~${etaSpeedText(P.speeds[i], etaUnits)}: about ${etaDur(t)}.`
+            : '';
+        },
         quip: P.quips[i],
         said: P.logged[i] > 0 ? etaDur(P.logged[i]) : '',
         trueLabel: etaDur(t),
@@ -1705,6 +1730,10 @@ document.addEventListener('DOMContentLoaded', () => {
     etaSyncSettingsUI();
   });
   on('btn-eta-settings-close', () => { playDone(); etaEl('eta-settings-overlay').style.display = 'none'; });
+
+  // This phone's units (in play, not Settings — a display preference, never synced)
+  document.querySelectorAll('.btn-eta-units').forEach(b => b.addEventListener('click', () => { playPillClick(); etaToggleUnits(); }));
+  etaSyncUnitsUI();
 
   // How to Play
   document.querySelectorAll('.btn-eta-how-to').forEach(b => b.addEventListener('click', () => { playDone(); etaOpenHowTo('rules'); }));

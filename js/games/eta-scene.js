@@ -21,6 +21,44 @@ function etaFmtInt(n) {
 // One decimal under 100 ("12.5 days", brief Sample 1), whole numbers above ("167 days").
 function etaNum(x) { return x < 100 ? String(Math.round(x * 10) / 10) : etaFmtInt(x); }
 
+// ── Units: each phone's own km / mi display (SW v276). The truth is always km — 'mi' only
+//    rewrites what a phone SHOWS, so two phones on different units get identical answers. ──
+const ETA_MI_PER_KM = 0.621371;
+// 3 significant figures, commas from 100 up ("0.0298", "37.3", "17,400").
+function etaSig3(x) {
+  x = Number(x) || 0;
+  if (!(x > 0)) return '0';
+  const p = Math.floor(Math.log10(x)), f = Math.pow(10, p - 2), r = Math.round(x / f) * f;
+  return r >= 100 ? etaFmtInt(r) : String(Number(r.toFixed(Math.max(0, 2 - p))));
+}
+// A speed in words for the Proof line: "0.048" → "0.048 km/h" / "0.0298 mph".
+function etaSpeedText(kmh, units) {
+  return units === 'mi' ? `${etaSig3(kmh * ETA_MI_PER_KM)} mph` : `${etaSig3(kmh)} km/h`;
+}
+// Rewrites every metric quantity in a content string: km/h → mph, km → mi, m → ft, cm/mm → in.
+// "(a|N) (million|billion) km|kilometres" keeps its word. **bold** markers pass through untouched.
+const ETA_IMP = { 'km/h': [ETA_MI_PER_KM, 'mph'], km: [ETA_MI_PER_KM, 'mi'], kilometres: [ETA_MI_PER_KM, 'miles'],
+  m: [3.28084, 'ft'], cm: [0.393701, 'in'], mm: [0.0393701, 'in'] };
+function etaImperial(s) {
+  return String(s == null ? '' : s).replace(
+    /\b(a|\d[\d,]*(?:\.\d+)?)(\s(?:million|billion))?\s?(km\/h|kilometres|km|mm|cm|m)(?![\w/])/g,
+    (all, num, big, unit) => {
+      const v = num === 'a' ? 1 : Number(num.replace(/,/g, ''));
+      if (!(v > 0) || (num === 'a' && !big)) return all;
+      const [k, out] = ETA_IMP[unit];
+      if (!big) return `${etaSig3(v * k)} ${out}`;
+      // re-scale the word after converting: "a million km" → "621,000 mi", not "0.621 million mi"
+      const n = v * k * (/billion/.test(big) ? 1e9 : 1e6);
+      return `${n >= 1e9 ? etaSig3(n / 1e9) + ' billion' : n >= 1e6 ? etaSig3(n / 1e6) + ' million' : etaSig3(n)} ${out}`;
+    });
+}
+// The docket's Route in this phone's units (km stays the stored truth).
+function etaUnitRoute(route, units) {
+  if (!route || units !== 'mi') return route;
+  return Object.assign({}, route, { headline: etaImperial(route.headline), briefing: (route.briefing || []).map(etaImperial),
+    km: route.km > 0 ? route.km * ETA_MI_PER_KM : route.km, unit: 'mi' });
+}
+
 // Minutes → friendly words, covering a few seconds to billions of years (board dur()).
 function etaDur(min) {
   if (!(min > 0)) return '—';
@@ -110,7 +148,7 @@ function etaDocketInto(root, d, opts) {
   const anim = !opts.reducedMotion && !compact;
   const r = d.route || {};
   const off = !!r.offMap;
-  const dist = r.km > 0 ? `≈ ${etaNum(r.km)} km` : 'GPS off — guess the distance too';
+  const dist = r.km > 0 ? `≈ ${etaNum(r.km)} ${r.unit || 'km'}` : 'GPS off — guess the distance too';
   const lines = (r.briefing || []).map(l => `<li>${etaKitRich(l)}</li>`).join('');
   root.innerHTML = `<div class="eta-clip eta-docket${compact ? ' is-compact' : ''}${anim ? ' is-anim' : ''}${off ? ' is-offmap' : ''}">
       ${compact ? `<div class="eta-docket-mini"><span>${etaKitEsc(d.runLabel || '')}</span><span class="eta-sten">${etaKitEsc(d.jobNo || '')}</span></div>`
@@ -592,14 +630,26 @@ const EtaScene = (() => {
       <rect x="54" y="128" width="58" height="8" fill="url(#etaHaz)" transform="rotate(-6 83 132)"/>
       <text x="58" y="146" class="eta-sten" font-size="7" fill="#FFC21A" transform="rotate(-6 70 144)">NO REGO</text>
       <path d="M258 152 q0 -36 31 -36 q31 0 31 36 z" fill="#6E5A7A"/>
-      <rect x="134" y="186" width="70" height="14" rx="7" fill="#A13A52" stroke="#E2B54A" stroke-width="2" transform="rotate(-4 169 193)"/>
+      <g transform="translate(52 211)"><path d="M14 9 V14 M50 9 V14" stroke="#8D9299" stroke-width="3"/><circle cx="14" cy="16" r="4" fill="#E7EBEE" stroke="#22201B" stroke-width="1.4"/><circle cx="50" cy="16" r="4" fill="#E7EBEE" stroke="#22201B" stroke-width="1.4"/><rect x="0" y="2" width="64" height="9" rx="4.5" fill="#C2362B" stroke="#FF6A13" stroke-width="2"/></g>
       <g fill="none" stroke="#B9BCC1" stroke-width="2.5" stroke-linejoin="round" transform="translate(234 194)"><path d="M2 4 H10 L16 26 H46 L51 10 H13"/><path d="M16 26 L18 32 H44"/><circle cx="21" cy="36" r="3" fill="#B9BCC1"/><circle cx="41" cy="36" r="3" fill="#B9BCC1"/></g>
       <g transform="translate(304 174)" fill="none" stroke-linecap="round"><path d="M1 3 H13" stroke="#B9BCC1" stroke-width="2.5"/><path d="M7 3 V44" stroke="#B9BCC1" stroke-width="2"/><path d="M2 38 H12" stroke="#FF6A13" stroke-width="2.5"/><path d="M7 44 L4 47 L10 50 L4 53 L7 56 V60" stroke="#B9BCC1" stroke-width="1.6"/></g>
       <circle class="eta-mote" cx="150" cy="200" r="1.6" fill="#FFD9A0"/><circle class="eta-mote eta-mote2" cx="220" cy="230" r="1.2" fill="#FFD9A0"/><circle class="eta-mote eta-mote3" cx="100" cy="240" r="1.2" fill="#FFD9A0"/>
     </g>
     <rect x="0" y="262" width="375" height="38" fill="#5A5D62"/>
-    <g transform="translate(152 228)"><rect width="70" height="40" fill="#A97D4D" stroke="#6E4E2C" stroke-width="2"/><path d="M20 0 V40 M42 0 V40" stroke="#6E4E2C" stroke-width="2"/><text x="7" y="25" class="eta-sten" font-size="9" fill="#3E2A16">FRAGILE</text></g>
-    <g class="eta-dot" transform="translate(157 120)">
+    <!-- The crate = the lobby sticker: kraft parcel, orange/white tape band, navy E.T.A. stamp, red FRAGILE -->
+    <g transform="translate(148 220)" stroke-linejoin="round">
+      <path d="M0 8 L9 0 H85 L76 8 Z" fill="#CFA571" stroke="#6E4E2C" stroke-width="1.6"/>
+      <path d="M76 8 L85 0 V40 L76 48 Z" fill="#8E6538" stroke="#6E4E2C" stroke-width="1.6"/>
+      <rect x="0" y="8" width="76" height="40" fill="#B98A55" stroke="#6E4E2C" stroke-width="1.6"/>
+      <path d="M5 14 q8 3 16 -1 M50 40 q9 -3 20 1 M30 12 l6 7" stroke="#9C7243" stroke-width=".9" fill="none" opacity=".7"/>
+      <path d="M10 8 L19 0 H31 L22 8 Z" fill="#FF6A13"/><path d="M14 8 L23 0 H27 L18 8 Z" fill="#F1EEE6"/>
+      <rect x="10" y="8" width="12" height="40" fill="#FF6A13"/><rect x="14" y="8" width="4" height="40" fill="#F1EEE6"/>
+      <g transform="rotate(-5 50 26)"><rect x="29" y="14" width="42" height="21" rx="3.5" fill="none" stroke="#22355E" stroke-width="1.8"/>
+        <text x="50" y="30" text-anchor="middle" class="eta-sten" font-size="13" fill="#22355E">E.T.A.</text></g>
+      <g transform="rotate(-5 61 41)"><rect x="49" y="37" width="23" height="7" rx="1" fill="none" stroke="#B03A2E" stroke-width=".9"/>
+        <text x="60.5" y="42.6" text-anchor="middle" class="eta-sten" font-size="5" fill="#B03A2E">FRAGILE</text></g>
+    </g>
+    <g class="eta-dot" transform="translate(157 114)">
       <!-- Dotty, Head of Dispatch: navy blazer, pencil skirt, heels, a high ponytail with an
            orange scrunchie, the E.T.A. lanyard. Upper management — no hi-vis. -->
       <g class="eta-dot-body">
@@ -613,20 +663,27 @@ const EtaScene = (() => {
         <path d="M23 38 L30 53 L21 47 Z M37 38 L30 53 L39 47 Z" fill="#22304A"/>
         <path d="M25.5 39 L29 59 M34.5 39 L31 59" stroke="#FF6A13" stroke-width="1.6" fill="none"/>
         <rect x="26" y="58" width="8" height="10" rx="1" fill="#FFFCF3" stroke="#22201B" stroke-width=".8"/><rect x="26" y="58" width="8" height="3" fill="#FF6A13"/>
-        <g transform="rotate(-20 47.5 42)"><rect x="44" y="42" width="8" height="28" rx="4" fill="#2B3A55"/><circle cx="48" cy="71" r="3.5" fill="#E9B98E"/></g>
-        <g transform="rotate(-10 11 67)"><rect x="0" y="54" width="22" height="26" rx="2" fill="#C99459" stroke="#6E4E2C" stroke-width="2"/><rect x="6" y="50" width="8" height="5" rx="2" fill="#8D9299"/><rect x="3" y="59" width="12" height="14" fill="#FFFCF3"/></g>
-        <g class="eta-dot-arm"><rect x="6" y="42" width="8" height="24" rx="4" fill="#2B3A55"/><circle cx="10" cy="67" r="3.5" fill="#E9B98E"/></g>
+        <!-- clipboard arm: elbow bent, the board gripped by its edge in one hand -->
+        <path d="M10 44 L7 60 L13 66" stroke="#2B3A55" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+        <g transform="rotate(-12 4 66)"><rect x="-10" y="54" width="21" height="27" rx="2" fill="#C99459" stroke="#6E4E2C" stroke-width="1.8"/><rect x="-4" y="51" width="9" height="5" rx="2" fill="#8D9299"/><rect x="-7" y="59" width="15" height="18" fill="#FFFCF3"/><path d="M-5 63 h11 M-5 67 h11 M-5 71 h8" stroke="#B9BCC1" stroke-width="1"/></g>
+        <circle cx="13" cy="66" r="3.6" fill="#E9B98E"/><path d="M10.5 64.5 h3.5 M10.5 67 h3.5" stroke="#C98A6A" stroke-width=".8"/>
+        <!-- the other arm: a fist pump (pumps while she talks) -->
+        <g class="eta-dot-arm"><rect x="44" y="42" width="8" height="26" rx="4" fill="#2B3A55"/><circle cx="48" cy="69" r="4.2" fill="#E9B98E"/></g>
         <rect x="26" y="29" width="8" height="10" fill="#E9B98E"/>
         <circle cx="30" cy="18" r="15" fill="#E9B98E"/>
         <path d="M15 19 C13 5, 23 -1, 31 -1 C41 -1, 47 5, 45 16 C41 9, 33 6, 23 9 C19 11, 17 15, 15 19 Z" fill="#4A2E1F"/>
         <circle cx="44" cy="8" r="2.6" fill="#FF6A13"/>
-        <circle cx="15.6" cy="21" r="1.3" fill="#E2B54A"/><circle cx="44.4" cy="21" r="1.3" fill="#E2B54A"/>
-        <path d="M20 13.5 l7 -1.6 M33 11.9 l7 1.6" stroke="#3A2416" stroke-width="1.5" stroke-linecap="round"/>
+        <circle cx="44.4" cy="21" r="1.3" fill="#E2B54A"/>
+        <!-- dispatch headset: band over the head, one ear cup, boom mic to the mouth -->
+        <path d="M15.5 17 C15 1, 45 1, 44.5 15" stroke="#22201B" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+        <rect x="11.5" y="15" width="6.5" height="10" rx="3" fill="#22201B"/><rect x="12.6" y="17" width="2" height="6" rx="1" fill="#FF6A13"/>
+        <path d="M15 24 Q16 30 23.5 28.2" stroke="#22201B" stroke-width="1.4" fill="none" stroke-linecap="round"/><circle cx="24" cy="28" r="1.6" fill="#FF6A13"/>
+        <path d="M20 12.8 q3.5 -2.4 7 -.8 M33 12 q3.5 -1.6 7 .8" stroke="#3A2416" stroke-width="1.5" stroke-linecap="round" fill="none"/>
         <ellipse cx="24" cy="17.5" rx="1.6" ry="1.9" fill="#22201B"/><ellipse cx="36" cy="17.5" rx="1.6" ry="1.9" fill="#22201B"/>
         <path d="M22 15.6 l-1.6 -1 M38 15.6 l1.6 -1" stroke="#22201B" stroke-width="1" stroke-linecap="round"/>
         <circle cx="21" cy="22.5" r="3" fill="#F09A8E" opacity=".45"/><circle cx="39" cy="22.5" r="3" fill="#F09A8E" opacity=".45"/>
         <path d="M30.5 18.5 q1.4 2.6 -.6 3.6" stroke="#C98A6A" stroke-width="1" fill="none" stroke-linecap="round"/>
-        <path class="eta-dot-mouth" d="M26 25.4 q4 2.4 8 0 q-4 3.8 -8 0 z" fill="#B8435A"/>
+        <path class="eta-dot-mouth" d="M25.6 24.6 q4.4 1 8.8 0 q-4.4 5.6 -8.8 0 z" fill="#B8435A"/><path d="M26.6 25 q3.4 .7 6.8 0 v.9 q-3.4 .7 -6.8 0 z" fill="#FFFCF3"/>
       </g>
     </g>
     <g class="eta-door">

@@ -141,9 +141,25 @@ quoted lines (Wallaby Way, infinity, galaxy) were flagged as the riskiest and ke
 (Back to the Future) kept. Not legal advice was given or taken — a swap is one JSON line.
 **Verified:** content 1,441 · rules 423 · loopback 190; 24 true ETAs spot-checked by hand (distance ÷ speed).
 
+### DD-15 — Dotty redrawn; the KM / MI chip is per phone (owner, 11 Nov 2026, SW v276)
+**Art.** The owner's screenshot: Dotty's clipboard floated beside her arm. Now the clipboard arm is a bent stroke ending in a
+hand gripping the board's edge (drawn over it), the other arm is the animated `.eta-dot-arm` fist pump (rest −145°, talk
+−145° ↔ −168°, origin = shoulder), and a headset (band, ear cup, boom mic) replaces the near earring. The skateboard got
+wheels and moved to the left shelf; the crate is the lobby sticker (top + side faces, tape band, E.T.A. / FRAGILE stamps).
+Checked by screenshotting the real `EtaScene.mount` with reduced motion.
+**Units.** The owner asked for imperial, then chose: **each phone, a toggle in play, not a setting**; distances + speeds only,
+Mileage stays km. So `etaUnits` is device-local memory, never in SETTINGS_SYNC or a packet — the truth is km and both sides
+of distance ÷ speed scale by the same factor, so a phone on miles gets identical answers. Content stays metric; the kit's
+`etaImperial` rewrites any `N km/h|km|kilometres|m|cm|mm` (and "a/N million|billion …", re-scaled) at render, keeping
+`**bold**`. **Why a rewrite, not tokens in the JSON:** 249 strings already read naturally; a converter plus a content-harness
+check (*no metric left over*) keeps authors writing plain metric. The Proof's `fact` is a getter, so a mid-Proof flip shows on
+the next parcel's note. Practice stays metric (a tutorial, not play).
+
 ---
 
 ## Bug Index
+
+- **BUG — a slow Ride's Proof line read "~0 km/h"** (SW v276). `etaFmtInt(0.048)` rounds to 0; the line now uses `etaSig3` (3 significant figures) in both units. Found while adding the KM / MI chip.
 
 **BUG-01 — "12.5 days" displayed as "13 days". [10 Nov 2026, build]**
 **What happened:** the board's own `num()` rounds anything ≥ 10 to an integer, so the brief's

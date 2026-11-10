@@ -26,8 +26,9 @@ const DATA   = JSON.parse(fs.readFileSync(path.join(ROOT, 'data/eta-data.json'),
 const ALL_RIDES = DATA.rides.map(d => d.name);
 
 // The pure formatting half of the kit is loaded for real; the DOM half is faked.
-const KIT_PURE = ['etaFmtInt', 'etaNum', 'etaDur', 'etaKitEsc', 'etaKitTrim']
-  .map(n => (new RegExp(`^function ${n}\\(.*\\}$`, 'm').exec(KIT) || new RegExp(`function ${n}\\([\\s\\S]*?\\n\\}\\n`).exec(KIT))[0]).join('\n');
+const KIT_PURE = [/^const ETA_MI_PER_KM .*$/m.exec(KIT)[0], /^const ETA_IMP = [\s\S]*?\};$/m.exec(KIT)[0]].concat(
+  ['etaFmtInt', 'etaNum', 'etaDur', 'etaKitEsc', 'etaKitTrim', 'etaSig3', 'etaSpeedText', 'etaImperial', 'etaUnitRoute']
+  .map(n => (new RegExp(`^function ${n}\\(.*\\}$`, 'm').exec(KIT) || new RegExp(`function ${n}\\([\\s\\S]*?\\n\\}\\n`).exec(KIT))[0])).join('\n');
 
 const FAKE_KIT = `
   const __board = { calls: [], rowsSeen: [], ghosts: [], proofRows: null };

@@ -154,6 +154,10 @@ The settings overlay is titled **The Dispatch Desk 📋** — *"Set the shift be
 
 Settings are host-only: they're set on the menu before the room exists and travel by SETTINGS_SYNC.
 
+**Not a setting — the KM / MI chip.** Each phone has its own chip in the Log and Run Sheet headers that switches the
+docket and the Proof's speed line between kilometres and miles. It is a display preference only: never synced, it changes
+no answer, and Mileage stays in km (owner, 11 Nov 2026).
+
 ---
 
 ## T7 — The Player's Journey · *mixed — 7a derived, 7b paired, 7c free*
@@ -378,7 +382,8 @@ carries a fair hint in the shared Briefing. Off the Map defaults ON. A Run total
 ## T9 — Art & Assets · *derived*
 
 **Everything is drawn in code — no binaries beyond fonts.** The Intro scene (dawn sky, the E.T.A.
-roller door, the shed, Dotty on her FRAGILE crate) is one inline SVG plus HTML; the clipboard, the
+roller door, the shed, Dotty — clipboard in one hand, a fist pump, a dispatch headset — on the E.T.A. parcel crate drawn
+from the lobby sticker, the skateboard on the left shelf) is one inline SVG plus HTML; the clipboard, the
 hi-vis tape, the parcel, the stamps, the Courier of the Month frame and the confetti are CSS. The
 four **mode badges** are inline SVG drawn through one render seam, `etaRenderBadge` (asset kind
 `eta-badge`, id = the mode) — skinnable later with no logic change; no core art pack in v1.
