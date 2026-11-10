@@ -94,8 +94,10 @@ no verifier change). The engine clones nothing else from it:
 **What the engine does.** Beats are local (tap or 5 s) — the host may **Skip** for every device. Then
 the brief (re-picked when the seat's team changes), the Line-up or a roll call, and **Ready**: a
 client sends `MP_INTRO_READY`; the host marks its own slot directly; bots are pre-ready. **Start**
-needs everyone ready **and** a valid Line-up; **Start anyway** appears for the host 20 s after the
-Intro opens and waives readiness only. Start is refused while a seat is Away. Pass-the-Phone is one
+needs only a valid Line-up (SW v271) — the host can start before everyone is ready. Tapping it warns:
+players with no team → *Auto-assign and start*; players not ready → *Start anyway* / *Wait*. The Line-up also
+has **Auto-assign the rest** and **Shuffle teams**. Start is refused while a seat is Away. **Read
+`docs/ui-revamp-lessons.md` at R1 and add to it at R13.** Pass-the-Phone is one
 tap — **Let's go**, no readiness, no Line-up.
 
 **The Line-up** (`type: 'teams'` — the only type until a `'seats'` beat is designed at its first

@@ -12,10 +12,6 @@ the discovery record is kept there, not deleted. A section with nothing left ope
 
 ---
 
-## LI5 pilot — Extra Credit's 10-word list scrolls at ≤548 px tall (10 Nov 2026, SW v269) — for R14
-
-On the describer / tattle boards, Extra Credit's ten No-No words (two columns) push the tray below the fold at 375×548 and 320×452, so the board scrolls. Logged from the S6 handoff (not re-measured in S6); not fixed in the pilot. R14 (the phone pass) decides: a smaller list font, a collapsible list, or accepting the scroll. Also parked: LI5's `quit-overlay` copy (*The duster's coming for your tally!*) and the identity-doc screen table rows for the S6 screens.
-
 ## UI revamp — Stage 0 shipped, what is parked (9 Nov 2026, SW v264)
 
 The programme's own line items (lobby roster retirement, the `'seats'` Line-up type, TV mode, size

@@ -19,6 +19,11 @@ Detail: pointer to the canonical doc (snapshot / impl note / spec / memory).
 ```
 
 
+## 2026-11-10 — A revamp lessons doc; the host can start before everyone is ready (Process)
+**Decision:** `docs/ui-revamp-lessons.md` holds short, growing entries on what bit us in revamp passes (read at R1, add at R13); the Intro's Start no longer needs everyone ready — it warns instead (unplaced players, unready players).
+**Why:** the LI5 playthrough surfaced old styling, stale copy and a stalling Start that a checklist would have caught; the same will recur in the next nineteen games.
+**Changed:** `docs/ui-revamp-lessons.md`, `js/engine-intro.js`, `src/screens/_shell.html`, `verify/mutate-game-intro`. **Detail:** `shared-implementation-notes.md` DD-68.
+
 ## 2026-11-09 — LI5 gets MDLM; TLM folds into the same host-authoritative path (Architecture)
 **Decision:** Like I'm Five plays in Multi-Device Lobby Mode (4–12, two groups) and its Team Lobby is the same code with one device per group: the host owns deck/scores/clock, each seat's screen is its role this turn (up the front / guessing / tattletales), the word travels only privately to up + tattletales, and the host renders itself through the same appliers as every client. The TLM monitor, `isClientTurn` and the engine's inline LI5 block are deleted. **Why:** pilot spec § 5 — one path instead of two, and a guesser's phone that can never show the word. Owner took all five § 5.13 recommendations (incl. Miss picks the first group, reconnect adopted). **Changed:** `li5.js` § Lobby Mode, `engine-multiplayer.js` (config + one dispatch line), `engine.js`, `li5.html`, `_mp.html`; scene `beat` hook in `engine-intro.js`; `MP_PROTOCOL_VERSION` v265. Screens plain until S3–S6. **Detail:** `li5-implementation-notes.md` DD-14; `shared-implementation-notes.md` DD-67.
 

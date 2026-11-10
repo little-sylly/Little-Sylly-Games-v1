@@ -173,3 +173,9 @@ When both devices in TLM need to swap active/passive roles per round, add a bool
 - **Privacy rule relaxed on purpose:** a *resolved* word (any outcome) rides `LI5_CARD.last.word`; the current and next card still never travel. The loopback's privacy check now strips `last.word` for any outcome. Risk to watch: if the deck ever re-circulates a skipped word inside a match, guessers have seen it.
 - **Extra Credit is pink + gold,** not purple: `.li5-sylly` sparkles are ::before/::after glyphs (opacity/transform only; reduced motion handled by the global block).
 - **Auto-assign** (`mpIntroHostAutoAssign`, engine-generic) complements Shuffle: only the Unassigned move, into the smallest team (random among ties).
+
+## S8 — Start rules, quit overlay, Extra Credit re-measure (10 Nov 2026, SW v271)
+
+- **Start** is the engine's now (DD-68): a valid Line-up is the only gate; unplaced and unready players are warned about on the tap. LI5's loopback is unchanged (it starts with everyone ready).
+- **Quit overlay** takes `li5-modal` and the copy *The duster's coming for your tally!* (identity-doc block updated).
+- **Extra Credit scroll: did not reproduce.** Describer board with 10 words (even 15-letter ones) at 320×452 / 375×548 / 375×667: tray inside the viewport, no scroll. Only a 2 px page overflow at 320×452 — fixed with `.li5-desc-screen { padding-bottom: 0 }` at ≤500 px. The general lesson (measure worst-case strings first) is in `ui-revamp-lessons.md` L7.

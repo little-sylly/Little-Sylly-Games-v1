@@ -22,7 +22,6 @@
 // Firebase erases empty values: every array is rebuilt on receipt (mpIntroWireArr).
 // ═══════════════════════════════════════════════════════════════════════════
 
-const MP_INTRO_START_ANYWAY_MS = 20000;  // owner, 8 Nov 2026 — waives readiness, never a Line-up rule
 const MP_INTRO_BEAT_MS         = 5000;   // a narrator line auto-advances; a tap goes sooner
 const MP_INTRO_NAME_MAX        = 20;
 
@@ -152,7 +151,7 @@ function mpIntroOpen(cfg) {
   mpIntro = {
     cfg, abbr: mpActiveGame, mode, copy, lineup,
     beat: 0, waiting: mode === 'client', shown: false,
-    scene: null, sceneBeat: null, beatTimer: null, anyway: false, readySent: false,
+    scene: null, sceneBeat: null, beatTimer: null, readySent: false,
     state: null,
   };
 
@@ -172,7 +171,6 @@ function mpIntroOpen(cfg) {
       skipped: returning,
     };
     if (returning) mpIntro.beat = copy.lines.length;
-    mpIntroLater(() => { if (!mpIntro) return; mpIntro.anyway = true; mpIntroRender(); }, MP_INTRO_START_ANYWAY_MS);
     mpIntroBroadcast();
   }
   if (!mpIntro.waiting) mpIntroShow();
@@ -198,6 +196,8 @@ function mpIntroStop() {
   mpIntro = null;
   const q = document.getElementById('game-intro-quit-overlay');
   if (q) q.style.display = 'none';
+  const sc = document.getElementById('game-intro-start-overlay');
+  if (sc) sc.style.display = 'none';
 }
 
 // From resetToLobby(): a fresh session plays the Intro again.
@@ -378,16 +378,54 @@ function mpIntroProblem() {
   return mpIntro && mpIntro.state ? mpIntroLineupProblem(mpIntro.state.team, mpIntro.lineup) : null;
 }
 
-// Host: Start (everyone ready) or Start anyway (20 s in). Neither waives a Line-up rule,
-// and neither starts a table that is waiting on a dropped seat.
-function mpIntroStart(anyway) {
+// Host: Start. `force` waives readiness only (the Start tap's own confirmation has already
+// warned the host); it never waives a Line-up rule, and never starts a table that is waiting
+// on a dropped seat.
+function mpIntroStart(force) {
   if (!mpIntro || mpIntro.mode !== 'host' || !mpIntro.state) return false;
   if (mpIntroInBeats()) return false;
-  if (!mpIntroAllReady() && !(anyway && mpIntro.anyway)) return false;
+  if (!mpIntroAllReady() && !force) return false;
   if (mpIntroProblem()) return false;
   if (mpAwaySeats.size) return false;
   mpIntroFinishHost();
   return true;
+}
+
+// The Start tap (SW v271). Once the Line-up is valid the host can start whenever — no waiting for
+// every "I'm ready". Two warnings stand in the way, in this order:
+//   1. players with no team → offer to auto-assign them, then carry on;
+//   2. players not yet confirmed → warn, and start only on a second tap.
+function mpIntroConfirm(heading, body, goLabel, backLabel, onGo) {
+  const $ = id => document.getElementById(id);
+  if (!mpIntro || !$('game-intro-start-overlay')) { onGo(); return; }
+  $('game-intro-start-head').textContent = heading;
+  $('game-intro-start-sub').textContent  = body;
+  $('btn-game-intro-start-go').textContent   = goLabel;
+  $('btn-game-intro-start-cancel').textContent = backLabel;
+  mpIntro.confirmGo = onGo;
+  $('game-intro-start-overlay').style.display = 'flex';
+}
+
+function mpIntroPlural(n, one, many) { return n === 1 ? one : many; }
+
+function mpIntroHostStartTap() {
+  if (!mpIntro || mpIntro.mode !== 'host' || !mpIntro.state || mpIntroInBeats()) return;
+  if (mpIntroProblem() || mpAwaySeats.size) return;
+  const go = () => { if (mpIntroStart(true)) playLaunch(); };
+  const askReady = () => {
+    const n = mpIntro && mpIntro.state ? mpIntro.state.ready.filter(r => !r).length : 0;
+    if (!n) { go(); return; }
+    mpIntroConfirm('Not everyone is ready',
+      `${n} ${mpIntroPlural(n, "player hasn't", "players haven't")} tapped I'm ready yet. Start without ${mpIntroPlural(n, 'them', 'them')}?`,
+      'Start anyway', 'Wait', go);
+  };
+  const unplaced = mpIntro.lineup ? mpIntro.state.team.filter(t => !(t >= 0)).length : 0;
+  if (unplaced) {
+    mpIntroConfirm('Not everyone has a team',
+      `${unplaced} ${mpIntroPlural(unplaced, "player hasn't", "players haven't")} picked a team. Auto-assign ${mpIntroPlural(unplaced, 'them', 'them')} and start?`,
+      'Auto-assign and start', 'Back',
+      () => { mpIntroHostAutoAssign(); if (!mpIntroProblem()) askReady(); });
+  } else askReady();
 }
 
 // Settle the WHOLE transition — teams placed, slots reordered, seats re-frozen,
@@ -597,19 +635,17 @@ function mpIntroRender() {
     : `min-h-14 w-full rounded-2xl ${brand} active:scale-95 text-white text-xl font-semibold transition-transform duration-150`;
   show('btn-game-intro-shuffle', !beats && host && !!it.lineup);
   show('btn-game-intro-autoassign', !beats && host && !!it.lineup && !!s && s.team.some(t => !(t >= 0)));
-  const canStart = allReady && !problem;
+  const canStart = !problem && !mpAwaySeats.size;   // readiness and unplaced players are warned about on the tap
   show('btn-game-intro-start', !beats && host);
   const sb = $('btn-game-intro-start');
   sb.disabled = !canStart;
   sb.className = `min-h-14 w-full rounded-2xl ${brand} active:scale-95 text-white text-xl font-semibold transition-transform duration-150${canStart ? '' : ' opacity-50'}`;
-  show('btn-game-intro-anyway', !beats && host && it.anyway && !allReady);
-  $('btn-game-intro-anyway').disabled = !!problem;
 
   // Status + reason (amber = unavailable — ui-style.md § Mutually-exclusive settings)
   const n = s ? s.ready.length : 0, k = s ? s.ready.filter(Boolean).length : 0;
   let status = '';
   if (beats || ptp) status = '';                  // the narrator card carries its own "tap" hint
-  else if (host) status = allReady ? 'Everyone is ready.' : `${k} / ${n} ready`;
+  else if (host) status = allReady ? 'Everyone is ready.' : `${k} / ${n} ready — you can start any time.`;
   else status = ready ? `${k} / ${n} ready — waiting for the host to start.` : `${k} / ${n} ready`;
   $('game-intro-status').textContent = status;
   const pr = $('game-intro-problem');
@@ -669,8 +705,17 @@ function mpWireIntro() {
   $('btn-game-intro-ready').addEventListener('click', () => { playSuccess(); mpIntroReady(); });
   $('btn-game-intro-shuffle').addEventListener('click', () => { playPillClick(); mpIntroHostRandomise(); });
   $('btn-game-intro-autoassign').addEventListener('click', () => { playPillClick(); mpIntroHostAutoAssign(); });
-  $('btn-game-intro-start').addEventListener('click', () => { if (mpIntroStart(false)) playLaunch(); });
-  $('btn-game-intro-anyway').addEventListener('click', () => { if (mpIntroStart(true)) playLaunch(); });
+  $('btn-game-intro-start').addEventListener('click', () => { mpIntroHostStartTap(); });
+  $('btn-game-intro-start-go').addEventListener('click', () => {
+    const f = mpIntro && mpIntro.confirmGo;
+    $('game-intro-start-overlay').style.display = 'none';
+    if (mpIntro) mpIntro.confirmGo = null;
+    if (typeof f === 'function') f();
+  });
+  $('btn-game-intro-start-cancel').addEventListener('click', () => {
+    $('game-intro-start-overlay').style.display = 'none';
+    if (mpIntro) mpIntro.confirmGo = null;
+  });
   $('btn-game-intro-go').addEventListener('click', () => {
     if (!mpIntro || mpIntro.mode !== 'ptp') return;
     playLaunch();

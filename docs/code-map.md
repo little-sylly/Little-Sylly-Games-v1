@@ -2306,12 +2306,13 @@ answers a mid-Intro rejoin with `ACCEPT { intro: true }` + a private `MP_INTRO_S
 | Screen / overlay | Notes |
 |---|---|
 | `screen-game-intro` (`_shell.html`, `data-tv="private"`) | Header (`game-intro-eyebrow`, 🔊, `btn-game-intro-quit`) · `game-intro-scene` · `game-intro-narrator` (`-who`, `-line`, `-beat-count`) · `game-intro-brief` (`-brief-list`) · `game-intro-lineup-wrap` (`-lineup-prompt`, `game-intro-lineup` — innerHTML, delegated clicks `data-intro-join` / `data-intro-chip` / `data-intro-rename`) · `game-intro-roll` · `game-intro-status` / `game-intro-problem` · `btn-game-intro-{ready,go,start,anyway,shuffle,skip}` |
+| `game-intro-start-overlay` (z-[80], SW v271) | Host Start warnings: `game-intro-start-head` / `-sub`, `btn-game-intro-start-go` (the confirm — *Auto-assign and start* / *Start anyway*) / `btn-game-intro-start-cancel`. Also `btn-game-intro-autoassign` (*Auto-assign the rest*, host, while anyone is Unassigned) beside `btn-game-intro-shuffle` |
 | `game-intro-quit-overlay` (z-[80]) | `btn-game-intro-quit-confirm` (MP: `mpNotifyPlayerLeft` → `resetToLobby`; PTP: game menu) / `btn-game-intro-quit-cancel` |
 
 | State | Purpose |
 |---|---|
-| `mpIntro` | The open Intro: `{ cfg, abbr, mode: 'ptp'\|'host'\|'client', copy, lineup, beat, waiting, shown, scene, beatTimer, anyway, readySent, state }`; `state = { ready[], team[] (-1 = Unassigned), names[], skipped }` (host-authoritative) |
-| `mpIntroTimers` | The one timer bag — beat auto-advance (`MP_INTRO_BEAT_MS` 5000), Start-anyway reveal (`MP_INTRO_START_ANYWAY_MS` 20000) |
+| `mpIntro` | The open Intro: `{ cfg, abbr, mode: 'ptp'\|'host'\|'client', copy, lineup, beat, waiting, shown, scene, beatTimer, readySent, confirmGo, state }`; `state = { ready[], team[] (-1 = Unassigned), names[], skipped }` (host-authoritative) |
+| `mpIntroTimers` | The one timer bag — beat auto-advance (`MP_INTRO_BEAT_MS` 5000), no Start-anyway timer since SW v271 |
 | `mpIntroSeen` / `mpIntroLastTeams` | Play-again flag (set by `mpReturnToLobby`, cleared by `resetToLobby`) / host's `{ uid: team }` kept for the returning form |
 
 | Function | Role |
@@ -2320,8 +2321,9 @@ answers a mid-Intro rejoin with `ACCEPT { intro: true }` + a private `MP_INTRO_S
 | `mpIntroReadTemplate(id)` | Copy from `<template id="intro-[abbr]">`: `data-intro-narrator/-role/-line/-brief="key"/-lineup` |
 | `mpIntroAdvance()` / `mpIntroSkip()` | Local beat step / host (or PTP) skips for every device |
 | `mpIntroReady()` / `mpIntroPick(team)` | Ready (host marks its own slot; client sends `MP_INTRO_READY` once) / Line-up pick (`MP_LINEUP_PICK`) |
-| `mpIntroHostMove(seat)` / `mpIntroHostRandomise()` / `mpIntroHostRename(t, name)` | Host powers |
-| `mpIntroStart(anyway)` → `mpIntroFinishHost()` | Gate (ready or 20 s, Line-up valid, nobody Away) → place, reorder, `mpIntroRefreeze`, roster, **then** `MP_INTRO_DONE`, then `onPassThePhone()` |
+| `mpIntroHostMove(seat)` / `mpIntroHostRandomise()` / `mpIntroHostAutoAssign()` / `mpIntroHostRename(t, name)` | Host powers (Auto-assign moves only the Unassigned, into the smallest team) |
+| `mpIntroHostStartTap()` / `mpIntroConfirm(…)` | The Start button: warns about players with no team, then players not ready, then `mpIntroStart(true)` |
+| `mpIntroStart(force)` → `mpIntroFinishHost()` | Gate (ready, or `force` after the Start tap's confirmation; Line-up valid; nobody Away) → place, reorder, `mpIntroRefreeze`, roster, **then** `MP_INTRO_DONE`, then `onPassThePhone()` |
 | `mpIntroPlace(team, n)` / `mpIntroLineupProblem(team, lineup)` | Pure: auto-place into the smallest team / the gate's reason string |
 | `mpIntroHandleEnvelope(env)` | Routed from `mpHandleEnvelope` before per-game code; consumes every `MP_INTRO_*`/`MP_LINEUP_PICK` |
 | `mpIntroApplyState(p)` / `mpIntroApplyDone(p)` | Client appliers — normalise with `mpIntroWireArr` / `mpIntroWireRoster` (Firebase erases empties) |

@@ -364,7 +364,7 @@ Got it
 ```copy
 # quit-overlay
 Done explaining already? 🧒
-Your stars will disappear!
+The duster's coming for your tally!
 Yeah, pack up!
 Keep going!
 ```
@@ -452,7 +452,9 @@ any edit to an animal entry's `nono_list[0]` affects both games at once.
 **Modes.** Pass-the-Phone (recommended), Team Lobby Mode and — since the LI5 pilot S1 (9 Nov 2026) —
 Multi-Device Lobby Mode. TLM and MDLM are one code path: the host runs the match and each device's
 screen is its role this turn (*up the front* / *guessing* / *tattletales*). The Intro's Line-up forms
-the two groups in MDLM; a Team Lobby has no Line-up (a device is a group).
+the two groups in MDLM; a Team Lobby has no Line-up (a device is a group). The host can **Auto-assign the
+rest** or **Shuffle teams**, and can start as soon as both groups are valid — starting with players
+unplaced or not yet ready asks first (*Auto-assign and start* / *Start anyway*).
 
 **Players.** PTP: two groups on one phone. TLM: exactly 2 devices. MDLM: 4–12 players, two groups of
 at least 2 each, unbalanced allowed (a 3-v-2 plays fine — the smaller group describes more often).

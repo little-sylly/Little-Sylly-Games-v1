@@ -384,8 +384,6 @@ Rock Paper Scissors
           class="min-h-14 w-full rounded-2xl bg-stone-700 text-white text-xl font-semibold">Let's go</button>
         <button id="btn-game-intro-start" style="display:none"
           class="min-h-14 w-full rounded-2xl bg-stone-700 text-white text-xl font-semibold">Start</button>
-        <button id="btn-game-intro-anyway" style="display:none"
-          class="min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 text-xl font-semibold transition-transform duration-150">Start anyway</button>
         <button id="btn-game-intro-autoassign" style="display:none"
           class="min-h-12 w-full rounded-2xl bg-stone-700 hover:bg-stone-800 active:scale-95 text-white text-base font-semibold transition-transform duration-150">Auto-assign the rest</button>
         <button id="btn-game-intro-shuffle" style="display:none"
@@ -400,6 +398,20 @@ Rock Paper Scissors
        session it is the Mid-Game Quit Contract (mpNotifyPlayerLeft → resetToLobby);
        Pass-the-Phone goes back to the game menu. Engine-owned, so the border is the
        neutral stone rung rather than a game's brand. -->
+  <!-- Host Start warnings: players without a team / players not yet ready (SW v271) -->
+  <div id="game-intro-start-overlay" style="display:none"
+    class="fixed inset-0 z-[80] overlay-modal-backdrop flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-stone-300">
+      <p class="text-4xl">👥</p>
+      <h3 id="game-intro-start-head" class="text-lg font-bold text-stone-800"></h3>
+      <p id="game-intro-start-sub" class="text-stone-500 text-sm"></p>
+      <button id="btn-game-intro-start-go"
+        class="min-h-14 w-full rounded-2xl bg-stone-700 hover:bg-stone-800 active:scale-95 text-white font-semibold text-lg transition-all duration-150"></button>
+      <button id="btn-game-intro-start-cancel"
+        class="min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-lg transition-all duration-150"></button>
+    </div>
+  </div>
+
   <div id="game-intro-quit-overlay" style="display:none"
     class="fixed inset-0 z-[80] overlay-modal-backdrop flex items-center justify-center px-6">
     <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-stone-300">

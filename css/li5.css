@@ -499,3 +499,6 @@ button.li5-sheet-flip:active { transform: scale(0.98); }
 /* Scrolling lists keep a gutter so the points never hug the scrollbar */
 .li5-sheet-list { scrollbar-gutter: stable; padding-right: 0.5rem; }
 .li5-paper-body { scrollbar-gutter: stable; padding-right: 0.9rem; }
+
+/* Tiny phones: the page itself must not scroll (a 2 px overflow at 320×452) */
+@media (max-height: 500px) { .li5-desc-screen { padding-bottom: 0; } }

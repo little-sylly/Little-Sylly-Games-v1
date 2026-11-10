@@ -864,3 +864,9 @@ specifically rather than assuming it went away with the rest.
   fly a token down, none flies left, matching the scare-off's real behaviour (the pool never sits in the
   pile when a Dobber is absent). Presentational only; `verify-cjar-dd.js` (47 checks) and
   `verify-cjar-loop.js` re-run clean, confirming the resolver logic itself was never wrong.
+
+## LI5 pilot — Extra Credit's 10-word list scrolls at ≤548 px tall (10 Nov 2026, SW v269) — RESOLVED 10 Nov 2026
+
+On the describer / tattle boards, Extra Credit's ten No-No words (two columns) push the tray below the fold at 375×548 and 320×452, so the board scrolls. Logged from the S6 handoff (not re-measured in S6); not fixed in the pilot. R14 (the phone pass) decides: a smaller list font, a collapsible list, or accepting the scroll. Also parked: LI5's `quit-overlay` copy (*The duster's coming for your tally!*) and the identity-doc screen table rows for the S6 screens.
+
+**RESOLVED 10 Nov 2026 (SW v271):** re-measured with the worst-case list at 320×452, 375×548 and 375×667 — no scroll (tray inside the viewport); a 2 px overflow at 320×452 fixed. The `quit-overlay` copy was done in the same pass. Lesson: `docs/ui-revamp-lessons.md` L7.

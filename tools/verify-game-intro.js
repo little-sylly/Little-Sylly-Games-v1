@@ -206,7 +206,7 @@ const tap      = (d, id) => d.el(id).click();
       check('a forged playerIdx is ignored — originId u2 readies seat 2, not seat 0', st(H).ready, [false, true, true, true]);
       H.run(`mpHandleEnvelope({ type: 'ACTION', originId: 'uZ', payload: { action: 'MP_INTRO_READY' } })`);
       check('a uid not on the roster changes nothing', st(H).ready, [false, true, true, true]);
-      check('Start is still disabled — the host itself is not ready', H.el('btn-game-intro-start').disabled, true);
+      check('Start is live although not everyone is ready (a valid Line-up is the only gate — SW v271)', H.el('btn-game-intro-start').disabled, false);
       tap(H, 'btn-game-intro-ready'); await flush();
       check('the host marked its OWN slot directly', st(H).ready, [true, true, true, true]);
       ok('  …without sending itself an ACTION (the dedup guard would drop it)',
@@ -248,6 +248,8 @@ const tap      = (d, id) => d.el(id).click();
     {
       const reds = st(H).team;
       tap(H, 'btn-game-intro-start'); await flush();
+      check('Start with the bot unassigned asks first', [H.el('game-intro-start-overlay').style.display, H.el('game-intro-start-head').textContent], ['flex', 'Not everyone has a team']);
+      tap(H, 'btn-game-intro-start-go'); await flush();
       check('the plan: Reds = Ali, Bec; Blues = Cam + the bot (auto-placed)', reds, [0, 0, 1, -1]);
       check('onPassThePhone ran once on every device', M.all.map(passes), [1, 1, 1]);
       check('every device has the same seat order, team by team', M.all.map(d => d.run('mpPlayerSlots.map(s => s.nickname)')),
@@ -283,26 +285,39 @@ const tap      = (d, id) => d.el(id).click();
       check('  …by name', h.el('mp-away-heading').textContent, 'Waiting for Dee…');
     }
 
-    section('9. Start anyway — 20 s after the Intro opens, waives readiness only');
+    section('9. Start without waiting — the two warnings (SW v271)');
     {
       const R = await startIntro('introgame', ['Ali', 'Bec', 'Cam', 'Dee']);
       const h = R.host;
       h.run('mpIntroSkip()'); await flush();
       h.run('mpIntroPick(0)'); R.clients[0].run('mpIntroPick(0)'); R.clients[1].run('mpIntroPick(1)'); R.clients[2].run('mpIntroPick(1)');
       h.run('mpIntroReady()'); await flush();
-      ok('Start anyway is hidden at first', h.el('btn-game-intro-anyway').style.display === 'none');
-      check('…and refuses before its time', h.run('mpIntroStart(true)'), false);
-      advance(19999);
-      ok('still hidden at 19.999 s', h.el('btn-game-intro-anyway').style.display === 'none');
-      advance(1);
-      ok('shown at 20 s', h.el('btn-game-intro-anyway').style.display === '');
-      ok('  …to the host only', R.clients.every(c => c.el('btn-game-intro-anyway').style.display === 'none'));
+      const ovl = () => h.el('game-intro-start-overlay').style.display;
+      check('Start is live with one of four ready', h.el('btn-game-intro-start').disabled, false);
+      tap(h, 'btn-game-intro-start'); await flush();
+      check('everyone has a team, so the only warning is readiness', [ovl(), h.el('game-intro-start-head').textContent], ['flex', 'Not everyone is ready']);
+      ok('  …and it counts the three who have not confirmed', h.el('game-intro-start-sub').textContent.startsWith('3 players'));
+      tap(h, 'btn-game-intro-start-cancel'); await flush();
+      check('Wait closes it and starts nothing', [ovl(), R.all.map(passes)], ['none', [0, 0, 0, 0]]);
       R.clients[2].run('mpIntroPick(0)'); await flush();     // Reds 3, Blues 1 — lopsided
-      check('a lopsided Line-up blocks Start anyway too', [h.el('btn-game-intro-anyway').disabled, h.run('mpIntroStart(true)')], [true, false]);
+      tap(h, 'btn-game-intro-start'); await flush();
+      check('a lopsided Line-up still blocks Start (no dialog, no start)', [h.el('btn-game-intro-start').disabled, ovl(), h.run('mpIntroStart(true)')], [true, 'none', false]);
       R.clients[2].run('mpIntroPick(1)'); await flush();
-      check('fixed: Start anyway goes, though three are not ready', h.run('mpIntroStart(true)'), true);
-      await flush();
-      check('every device entered the game', R.all.map(passes), [1, 1, 1, 1]);
+      tap(h, 'btn-game-intro-start'); tap(h, 'btn-game-intro-start-go'); await flush();
+      check('Start anyway goes, though three are not ready', R.all.map(passes), [1, 1, 1, 1]);
+    }
+    {
+      const R = await startIntro('introgame', ['Ali', 'Bec', 'Cam', 'Dee']);
+      const h = R.host;
+      h.run('mpIntroSkip()'); await flush();
+      h.run('mpIntroPick(0)'); R.clients[0].run('mpIntroPick(0)'); R.clients[1].run('mpIntroPick(1)'); await flush();
+      const ovl = () => h.el('game-intro-start-overlay').style.display;
+      tap(h, 'btn-game-intro-start'); await flush();
+      check('one player has no team: offered auto-assign first', [ovl(), h.el('game-intro-start-head').textContent, h.el('btn-game-intro-start-go').textContent], ['flex', 'Not everyone has a team', 'Auto-assign and start']);
+      tap(h, 'btn-game-intro-start-go'); await flush();
+      check('auto-assign placed everyone, then the readiness warning follows', [h.run('mpIntro.state.team.every(t => t >= 0)'), h.el('game-intro-start-head').textContent], [true, 'Not everyone is ready']);
+      tap(h, 'btn-game-intro-start-go'); await flush();
+      check('and the second confirmation starts the game on every device', R.all.map(passes), [1, 1, 1, 1]);
     }
 
     section('10. Play again — the returning form: beats skipped, Line-up + Ready still run');
