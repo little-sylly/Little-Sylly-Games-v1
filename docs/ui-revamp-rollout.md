@@ -55,7 +55,7 @@ Status column** — a row turns ✅ only when R12 is really done. The Game cell 
 | — | **CJAR** Cookie Jar | batch | ☐ | 0/16 | ☐ | Reconnect adopter |
 | — | **CLD** Cold Shoulder | batch | ☐ | 0/16 | ✅ carried over | Bots + Solo — the Intro's bot pre-ready is live from here |
 | — | **COMB** Honeycomb Hills | batch | ☐ | 0/16 | ☐ | Reconnect adopter; no Sylly Mode |
-| new | **ETA** E.T.A. | new game, world-first (Stage 1b) | 🔨 | 15/16 | ✅ built | Built SW v272 (10 Nov) from the Clipboard board — R12 done (`data-tv` + TV line). Playtest round 1 + R11 `/impeccable` pass SW v273. Owed: R15 owner hardware re-play (≥ 3 phones). Content is provisional |
+| new | **ETA** E.T.A. | new game, world-first (Stage 1b) | 🔨 | 15/16 | ✅ built | Built SW v272 (10 Nov) from the Clipboard board — R12 done (`data-tv` + TV line). Playtest round 1 + R11 `/impeccable` pass SW v273. Owed: R15 owner hardware re-play (≥ 3 phones). Content rebuilt + signed off SW v275 |
 
 Batch order and grouping (by shape) are set at Stage 2's departures review.
 

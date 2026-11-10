@@ -55,7 +55,7 @@ Insurance, the floor. Each receipt line is geared (5 ÷ Runs) and rounded to 10 
 receipt always adds up; a negative Sylly Run gets an explicit **Floor** line. Practice uses the same
 function. `verify-eta-rules.js` asserts the brief's three sample rounds to ±10–40 km.
 
-### DD-07 — Provisional content, generated, one entry per line
+### DD-07 — Provisional content, generated, one entry per line *(superseded by DD-14, SW v275)*
 **What:** `data/eta-data.json` is the October proof-of-concept set with its faults fixed (duplicate
 100 km, Suez in the wrong tier, vertical Routes with no ramp), 44 Routes / 36 Rides (9 Unregistered, 9
 Off the Map), flagged `"provisional": true`. Every Route deals a full 8-courier table across ≥ 3 tiers in
@@ -121,6 +121,27 @@ on the Run Sheet. The Stamp prompt uses it too: *best **pitch** — not the best
   Loopback § 8b.
 - **Sticker + music.** The owner's sticker came as a JPEG with a checkerboard **painted into the pixels** (fake transparency). `data/sticker-masters/eta.png` (git-ignored) was cut from it: non-grey/dark pixels = artwork, dilated 24 px for the white die-cut rim, everything else alpha 0; `tools/convert-stickers.js` then wrote the 512 px palette PNG (67 KB). Music went through `tools/encode-music.js` from `data/music/pending/` (192 → 128 kbps, 6.7 → 3.2 MB, cover extracted to 400 px) with one line each in the jukebox catalogue and `data/music/manifest.json`; the stickerbook manifest gained `eta`.
 - **Content.** Unregistered `timecar` is now the **Flux-capacitor car** (a direct DeLorean nod without the brand name or film title).
+
+### DD-14 — The content rebuild (owner sign-off 11 Nov 2026, SW v275)
+**What:** `data/eta-data.json` replaced wholesale: 100 real Routes (50 Local / 35 worldwide / 15 space — the owner's mix,
+raised from a first pass of 41), 30 Off the Map, 35 registered Rides + 14 Unregistered, 5 quips per verdict, 10 docket lines;
+`provisional` cleared. Ids `italy`, `carpet`, `heli` kept — `verify-eta-rules.js` § 5 names them.
+**Answer-key faults the old set carried:** "Everest, base camp to the summit" stored 8.8 km (that is sea level; base camp
+is 3.5); Sydney–Melbourne, coast-to-coast USA and Britain stored *road* distances under a "perfectly straight corridor"
+Briefing. **Engine-shaped content traps (now guide rules):** (1) `etaSpeedFor` uses a Ride's `max` on every `useMax`
+Route, so the flying carpet's 500 km/h overrode its own *gentle ride* hint — an Unregistered Ride whose hint names a
+gentler speed carries `max: null`; (2) `etaQuip` returns a Ride's quip for **dead-on** as well as fast/slow, so a quip must
+comment on the Ride, never the guess ("Not at that pace" told a courier who nailed it they were slow).
+**New Route shapes:** *sum Routes* state their unit in the Briefing ("Each card is **85.6 mm** long") so GPS-off is
+still workable; *pop-culture Off the Map Routes* describe the place and never name the property. **Owner-signed nods:**
+wardrobe → Narnia · chocolate factory → Willy Wonka · under the bed → Monsters, Inc. · pineapple → SpongeBob · ogre's
+swamp → Shrek · wizard school → Harry Potter · dinosaur island → Jurassic Park · fire mountain → Lord of the Rings · 42
+Wallaby Way → Finding Nemo · *To infinity and beyond* → Toy Story · *a galaxy far, far away* → Star Wars; the three
+quoted lines (Wallaby Way, infinity, galaxy) were flagged as the riskiest and kept. Unregistered **Flux-capacitor car**
+(Back to the Future) kept. Not legal advice was given or taken — a swap is one JSON line.
+**Verified:** content 1,441 · rules 423 · loopback 190; 24 true ETAs spot-checked by hand (distance ÷ speed).
+
+---
 
 ## Bug Index
 

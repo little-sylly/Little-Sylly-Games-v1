@@ -30,10 +30,6 @@ the discovery record is kept there, not deleted. A section with nothing left ope
 - **Log the playtest data the maths round asked for** — every Logged ETA against its truth (by Dispatch
   Range), every Stamp, every Course Correction with its target — then refit the `[MATHS]` numbers and the
   `[UNTESTED]` Spin-out / Back on Course thresholds (`docs/new-ideas/eta/for archive/eta-maths-round-1.md` + `eta_sim.py`).
-- **The content rebuild** — `data/eta-data.json` is provisional. Target: `docs/eta-content-guide.md`;
-  the old handoff's §4 has the task. Opus or Sonnet, high effort, its own session.
-- **Lobby sticker** `data/stickers/eta.png` (then drop `eta` from `LB_NO_STICKER`) and a **music track**
-  (brief §16: ukulele over a ticking shaker; never an alarm or a radio).
 - **Phase gate** — Protocol A, phase snapshot, archive the brief + spec + boards to the owner's external archive.
 
 ## UI revamp — Stage 0 shipped, what is parked (9 Nov 2026, SW v264)

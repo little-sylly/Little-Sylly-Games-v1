@@ -2,7 +2,7 @@
 
 **Game 21** · `activeGameId: eta` · plugin `js/games/eta.js` · world kit `js/games/eta-scene.js` · `css/eta.css`
 **Emoji:** 🛵 · **Brand:** hi-vis orange `#EA580C` (custom `eta-cta` / `pill-active-eta`) · **Players:** 3–8 · **Modes:** MDLM only
-**Status:** built SW v272, 10 November 2026; playtest round 1 reworked SW v273 (Dotty, the name E.T.A., the docket, the Stamp prompt, the reveal); round 2 SW v274 (row layout, Everywhere, Community Vote). The content set is **provisional** (T9).
+**Status:** built SW v272, 10 November 2026; playtest round 1 reworked SW v273 (Dotty, the name E.T.A., the docket, the Stamp prompt, the reveal); round 2 SW v274 (row layout, Everywhere, Community Vote). Content rebuilt and signed off SW v275 (T9).
 
 > **Change contract.** Each section is tagged **free** (reword freely — but it must stay true),
 > **paired** (change the doc and the code together, or you open a gap between them), or **derived**
@@ -338,10 +338,9 @@ Stay here
 
 **◇ judgement, not spec.**
 
-**The content is provisional.** The 44 Routes and 36 Rides are the October proof-of-concept set with
-its known faults fixed (the duplicate 100 km, tier mistakes, vertical Routes without a ramp, a 5 km
-twin). The content-rebuild session replaces `data/eta-data.json` wholesale against
-`docs/eta-content-guide.md`; nothing in code changes.
+**The content is signed off but unplayed.** 100 real Routes and 30 Off the Map, 49 Rides (SW v275). Every
+answer key is checked, but nobody has yet raced a container ship to Mars at a real table: the first sessions
+should note which Routes and Rides land, which fall flat and which start an argument the docket can't end.
 
 **Every number is a first-pass value.** The scoring (maths round 1) was tuned on *simulated* couriers.
 The first playtests should log every Logged ETA against its truth by Range, every Stamp and every

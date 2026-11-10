@@ -9,6 +9,9 @@ game abbreviation, function or screen id. Items keep their original section head
 
 ## E.T.A. (was ETA?) — built, what is open (10 Nov 2026, SW v272)
 
+- **The content rebuild** — RESOLVED 11 Nov 2026 (SW v275): `data/eta-data.json` rebuilt (100 real Routes + 30 Off the Map, 49 Rides) and signed off. `eta-implementation-notes` DD-14.
+- **Lobby sticker + music track** — RESOLVED 10 Nov 2026 (SW v274): both installed (`eta-implementation-notes` DD-13); the phone look stays open under Playtest round 2.
+
 **RESOLVED 10 Nov 2026 (SW v273, playtest round 1):** the four owner items below — Dotty, Head of Dispatch
 (title settled by the owner; the game renamed **E.T.A.** at the same time); the docket as a form with
 `**bold**` Briefing key words; the Stamp prompt saying *pitch, not guess* and its km; the reveal with SAID /

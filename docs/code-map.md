@@ -3184,7 +3184,7 @@ does layout** — that is `visual-check`'s tier, and it is what caught both BUG-
 
 Spec: `docs/new-game-tech-eta.md` (confirmed 10 Nov 2026). Brief: `docs/new-game-brief-eta.md` (v4).
 Identity doc: `docs/game-identities/eta.md`. Impl notes: `docs/implementation-notes/eta-implementation-notes.md`.
-Content: `data/eta-data.json` (**provisional**) — guide `docs/eta-content-guide.md`.
+Content: `data/eta-data.json` (rebuilt SW v275, 130 Routes / 49 Rides) — guide `docs/eta-content-guide.md`.
 **MDLM-only, 3–8 players, host-authoritative, host-as-participant. The first NEW game built world-first**
 (Stage 1b, direction 1 · Clipboard) and the second adopter of the engine Intro (roll call, no Line-up).
 **Brand:** `#EA580C` — `.eta-cta`, `.pill-active-eta`, `.game-toggle-on-eta`, `.eta-range`, `.eta-label` (`#C2410C`, text) in `styles.css`; the world's palette in `css/eta.css`.
