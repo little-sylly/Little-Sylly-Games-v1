@@ -61,6 +61,13 @@ ok(new Set(kms).size === kms.length, 'no two real Routes share a distance (the o
 ok((D.routes || []).some(r => r.offMap), 'at least one Off the Map Route');
 ok(((D.quips || {}).dead || []).length && ((D.quips || {}).fast || []).length && ((D.quips || {}).slow || []).length && ((D.quips || {}).close || []).length, 'a quip pool for every verdict');
 ok((D.flavour || []).length >= 3, 'at least three docket flavour lines');
+// **bold** marks the Briefing's load-bearing words (content guide § Briefing): markers pair up,
+// never wrap nothing, and every Briefing line and hint bolds something.
+const brief = [].concat(...(D.routes || []).map(r => r.briefing || []), (D.rides || []).filter(d => d.hint).map(d => d.hint));
+const badMark = [...new Set(brief)].filter(l => ((l.match(/\*\*/g) || []).length % 2) || /\*\*\s*\*\*/.test(l));
+ok(!badMark.length, 'every **bold** marker in a Briefing line or hint pairs up', badMark);
+const unbold = [...new Set((D.routes || []).map(r => (r.briefing || []).join(' ')))].filter(l => !/\*\*[^*]+\*\*/.test(l));
+ok(!unbold.length, "every Route's Briefing bolds its load-bearing words", unbold);
 
 console.log(`\n${fail ? `FAILED — ${fail} check(s)` : 'ALL CHECKS PASSED'} (${pass} passed)`);
 process.exit(fail ? 1 : 0);

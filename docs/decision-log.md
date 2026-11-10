@@ -19,6 +19,11 @@ Detail: pointer to the canonical doc (snapshot / impl note / spec / memory).
 ```
 
 
+## 2026-11-10 — ETA? becomes E.T.A.; Dot becomes Dotty, Head of Dispatch (Strategy)
+**Decision:** after the first 3-phone session the game takes the company's name **E.T.A.** (menu subtitle = the motto *Every Thing, Anywhere. Eventually.*) and the narrator becomes **Dotty, Head of Dispatch** — upper management, strict tough love; the reveal now places 1st / 2nd / 3rd by accuracy on the Logged ETA, derived on every device rather than sent.
+**Why:** owner playtest — the question mark was an in-joke nobody needed, Dot read as hands-on staff rather than the boss, and the reveal didn't say who was closest.
+**Changed:** name in `MP_GAME_CONFIGS`, `lobby-games.js`, `_shell.html`, `games.raw.json`; `js/games/eta{,-scene}.js`, `css/eta.css`, `src/screens/eta.html`, `data/eta-data.json`; identity doc, brief. **Detail:** `eta-implementation-notes.md` DD-09–DD-12.
+
 ## 2026-11-10 — ETA? built (SW v272): provisional content, engine Intro skin hooks (Architecture)
 **Decision:** ETA? is built and integrated on a flagged provisional content set (swapped wholesale later, no code change); the engine Intro gains two optional text hooks (`data-intro-roll`, `data-intro-ready-tag`) rather than any render callback; a lobby count reads `GAMES.length`, never a literal.
 **Why:** the content rebuild is its own task and shouldn't block engine/UI/harness work; text hooks + a CSS variable let an engine screen wear a world while keeping every other game byte-identical (promoted to revamp lesson L10).

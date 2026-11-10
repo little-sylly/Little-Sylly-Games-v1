@@ -46,6 +46,10 @@ arrays, feed text — then the identity doc's copy blocks.
 **Why:** `verify-identity-docs.js` proves the doc's strings exist in source; it cannot tell you a stale
 string *isn't* still there.
 **Seen:** LI5, 10 Nov 2026 — *New Playgroup!* survived in a click handler after the overlay copy changed.
+**Seen again:** E.T.A., 10 Nov 2026 — renaming the narrator (*Dot → Dotty*) and the game (*ETA? → E.T.A.*) reached
+`data/eta-data.json` quips (the old voice's "love"), `lobby-games.js` (`pitch`, `howItGoes`), a generated file
+(`games.raw.json` ← `build-games.js` ← the identity doc) and a harness pin (the rank name). **Underneath:** a
+world rename is a sweep across **content and registries**, not just copy — grep `js/ src/ data/ tools/data/`.
 
 ### L4 — Overlays and modals are part of the screen set
 **Do:** list every overlay in R3 (quit, play-again, history, Report Card, tips, how-to) and give each a

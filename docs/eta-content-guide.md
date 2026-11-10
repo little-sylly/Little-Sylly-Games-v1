@@ -1,6 +1,6 @@
-# ETA? — Content Guide (`data/eta-data.json`)
+# E.T.A. — Content Guide (`data/eta-data.json`)
 
-**Who reads this:** whoever builds or extends ETA?'s Routes and Rides — the owner, or the
+**Who reads this:** whoever builds or extends E.T.A.'s Routes and Rides — the owner, or the
 content-rebuild session. **Status:** the shipped file is a **provisional starter set**
 (`"provisional": true`): the October proof-of-concept list with its known faults fixed. The
 content rebuild (old handoff §4, `docs/new-ideas/eta/for archive/eta-handoff-content-and-board.md`)
@@ -13,7 +13,7 @@ replaces it wholesale. No code changes are needed for that: edit the JSON, run t
 
 ## 1. Why every number matters
 
-ETA? scores **accuracy against a stored truth**: `true ETA = distance ÷ speed`. Every distance and
+E.T.A. scores **accuracy against a stored truth**: `true ETA = distance ÷ speed`. Every distance and
 every speed in this file is a graded answer. A wrong number is a wrong answer key.
 
 ## 2. The file
@@ -40,7 +40,7 @@ every speed in this file is a graded answer. A wrong number is a wrong answer ke
 | `headline` | what couriers read on the job docket ("The length of Italy") |
 | `km` | the distance — the answer key's top half |
 | `tier` | `local` (human-scale) · `geo` (countries, rivers, the Earth) · `astro` (orbit and beyond). Dispatch Range filters on it: Local → `local`, Cosmic → `astro`, Mixed → all |
-| `briefing` | 1–2 sentences of **assumptions** — the corridor ("a cleared space lane runs the whole way"). Shared by everyone |
+| `briefing` | 1–2 sentences of **assumptions** — the corridor ("a cleared space lane runs the whole way"). Shared by everyone. Wrap the **load-bearing words** — the ones that change the answer — in `**double asterisks**`: they render bold on a highlighter stroke ("A perfectly smooth ramp runs `**straight up**`…"). One to three spans a line; the check fails on an unpaired marker or a Briefing with none (playtest round 1: the docket was hard to read) |
 | `useMax` | `true` = "no speed limit": Rides with a `max` use it |
 | `limitKmh` | a speed limit every Ride is capped at (e.g. 60 — "the safety car is out") |
 | `offMap` | a fantastical Route (Atlantis, the Underworld) — only with the **Off the Map** setting. It states its own made-up distance in the Briefing |
@@ -57,9 +57,9 @@ every speed in this file is a graded answer. A wrong number is a wrong answer ke
 | `cruise` | the steady speed in km/h — always present, always finite and positive |
 | `max` | optional top speed, used only on a `useMax` Route |
 | `reveal` | the one-line fact shown at Proof of Delivery, stating what was assumed |
-| `quip` | optional Dot line used on a fast / slow / dead-on verdict ("Launch prep not included, love.") |
+| `quip` | optional Dotty line used on a fast / slow / dead-on verdict ("Launch prep not included. Read the docket."). **Voice:** Dotty, Head of Dispatch — strict, energetic, tough love; short sentences, Aussie worksite English, never "love" |
 | `unregistered` | `true` = a no-rego Ride (Sylly Mode only; pays Hazard Pay; hazard-striped badge) |
-| `hint` | **required for Unregistered Rides**: a fair, slightly buried Briefing line telling a sharp reader which speed to use ("Wind speeds perfect for a gentle ride." → the carpet's cruise) |
+| `hint` | **required for Unregistered Rides**: a fair, slightly buried Briefing line telling a sharp reader which speed to use ("Wind speeds perfect for a `**gentle ride**`." → the carpet's cruise). Bold its key words like any Briefing line |
 
 ## 3. Ground rules for the truth (brief §10)
 
@@ -98,4 +98,5 @@ default. Any trademarked name needs a deliberate sign-off. No real courier brand
 - [ ] `node tools/verify-eta-rules.js` — still green (it deals thousands of Runs from this file)
 - [ ] Spot-check a dozen true ETAs by hand (distance ÷ speed)
 - [ ] Every name passes the naming policy; every Unregistered Ride has a fair hint
+- [ ] Every Briefing line and hint bolds its load-bearing words (`**…**`), and Dotty's lines pass the voice note (no "love")
 - [ ] Drop `"provisional": true` when the rebuild is final

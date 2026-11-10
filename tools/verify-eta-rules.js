@@ -140,14 +140,25 @@ head('4. Gear Ratio (hidden), ranks, formatting');
   ok(S.etaGeared(10000, 7) === 7140, 'Long Shift gears ×0.714 (10,000 → 7,140)');
 }
 ok(S.etaRankIdx(0) === 0 && S.etaRankIdx(24999) === 0 && S.etaRankIdx(25000) === 1 && S.etaRankIdx(194999) === 6 && S.etaRankIdx(500000) === 7, 'rank thresholds');
-ok(E.get('ETA_RANKS')[7].name === "Dot's Favourite" && E.get('ETA_RANKS')[0].name === 'Work-Experience Kid', 'the grounded rank ladder');
+ok(E.get('ETA_RANKS')[7].name === "Dotty's Favourite" && E.get('ETA_RANKS')[0].name === 'Work-Experience Kid', 'the grounded rank ladder');
 ok(S.etaDur(288) === '4.8 hrs' && S.etaDur(18000) === '12.5 days' && S.etaDur(1200 / 28000 * 60) === '2.6 min', 'friendly durations (brief Sample 1)', [S.etaDur(288), S.etaDur(18000)]);
 ok(/years$/.test(S.etaDur(525960 * 5000)) && /million years$/.test(S.etaDur(525960 * 3e6)), 'very large durations stay in words');
-ok(/^4,000 hours — about .+\. Lock it in\?$/.test(S.etaDoubleTakeText(4000, 'hr', 1, 240000)), "Dot's Double-Take repeats the entry in other words (brief §14 B)", S.etaDoubleTakeText(4000, 'hr', 1, 240000));
+ok(/^4,000 hours — about .+\. Lock it in\?$/.test(S.etaDoubleTakeText(4000, 'hr', 1, 240000)), "Dotty's Double-Take repeats the entry in other words (brief §14 B)", S.etaDoubleTakeText(4000, 'hr', 1, 240000));
 ok(S.etaDoubleTakeText(30, 'day', 1, 43200).startsWith('30 days'), 'the Double-Take repeats the unit the courier picked');
 ok(S.etaToMinutes(2.5, 'hr', 1) === 150 && S.etaToMinutes(3, 'yr', 1e6) === 3 * 525960 * 1e6 && S.etaToMinutes(0, 'hr', 1) === null, 'the Time Dial converts to minutes');
 const v1 = S.etaVerdict(300, 288), v2 = S.etaVerdict(5760, 18000), v3 = S.etaVerdict(30240, 12000);
 ok(v1.kind === 'dead' && v2.kind === 'fast' && v2.top === '×3.1' && v3.kind === 'slow', 'verdicts: dead on / ×3.1 too fast / too slow', [v1, v2, v3]);
+ok(S.etaOffWords(v1) === 'within 5%' && S.etaOffWords(v2) === '×3.1 too fast' && S.etaOffWords(S.etaVerdict(110, 100)) === '×1.1 too slow' && S.etaOffWords(null) === 'no ETA',
+  'the miss in words: within 5% / ×3.1 too fast / ×1.1 too slow (close) / no ETA', [S.etaOffWords(v2), S.etaOffWords(S.etaVerdict(110, 100))]);
+// Placings (playtest round 1): by accuracy on the LOGGED ETA — times out, never the gap; ties share; no ETA = 0.
+{
+  const pl = S.etaPlacings([200, 50, 100, null, 400], [100, 100, 100, 100, 100]);
+  ok(JSON.stringify(pl) === '[2,2,1,0,4]', 'placings: dead on 1st, ×2 slow and ×2 fast tie 2nd, ×4 4th, no ETA unplaced', pl);
+  const ratio = S.etaPlacings([2, 1e6 * 1.5], [1, 1e6]);
+  ok(ratio[1] === 1 && ratio[0] === 2, 'placings judge the ratio, not the gap (×1.5 on a million beats ×2 on one)', ratio);
+  ok(JSON.stringify(S.etaPlacings([null, null], [10, 10])) === '[0,0]', 'placings: nobody logged → nobody placed');
+  ok(S.etaOrdinal(1) === '1st' && S.etaOrdinal(2) === '2nd' && S.etaOrdinal(3) === '3rd' && S.etaOrdinal(4) === '4th' && S.etaOrdinal(11) === '11th', 'ordinals');
+}
 
 // ═══════════════════════════════════════════════════════════════════════════
 head('5. The curated deal + the route draw (seeded)');
@@ -196,7 +207,7 @@ head('5. The curated deal + the route draw (seeded)');
   }
   ok(repeats / 2000 < 0.05, 'a courier rarely gets the same Ride twice in a Shift', repeats / 2000);
   const hint = S.etaBuildBriefing(route, [DATA.rides.find(d => d.id === 'carpet'), DATA.rides.find(d => d.id === 'heli')]);
-  ok(hint.includes('Wind speeds perfect for a gentle ride.') && hint[0] === route.briefing[0], "an Unregistered Ride's hint joins the shared Briefing");
+  ok(hint.includes(DATA.rides.find(d => d.id === 'carpet').hint) && hint[0] === route.briefing[0], "an Unregistered Ride's hint joins the shared Briefing");
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

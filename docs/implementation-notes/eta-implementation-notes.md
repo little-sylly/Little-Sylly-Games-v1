@@ -1,4 +1,4 @@
-# ETA? — Implementation Notes
+# E.T.A. — Implementation Notes
 
 Game 21 · `eta` · built SW v272 (10 Nov 2026) from `docs/new-game-tech-eta.md` (confirmed the same day).
 Design decisions and bugs found while building. Engine-side entries live in
@@ -66,6 +66,45 @@ Saira Stencil One, Courier Prime 400/700, Permanent Marker — Google Fonts lati
 under a 120 KB ceiling, precached (`fonts/eta-*.woff2`; OFL / Apache 2.0). Scene text only: **Fredoka
 stays on every control** — see BUG-04 for how that nearly slipped.
 
+### DD-09 — Playtest round 1: Dotty, and the game takes the company's name (owner, 10 Nov 2026, SW v273)
+**What:** *Dot, Depot Manager* became **Dotty, Head of Dispatch** — early forties, upper management, strict
+tough love (blazer, pencil skirt, ponytail, the E.T.A. lanyard; no hi-vis), and the game *ETA?* became
+**E.T.A.**, with the motto as the menu subtitle. **Why:** the owner's first 3-phone session — Dot read as a
+hands-on lifer; the boss should look and sound like one. **How:** a paired rename (template, every JS string,
+`ETA_NOTE_FROM`, rank *Dotty's Favourite*, identity doc T4/T5 + copy blocks, brief §0, `MP_GAME_CONFIGS`,
+`lobby-games.js`, `_shell.html`, `games.raw.json` via `build-games.js`), and a voice pass: every "love" in
+code and content went (`Need a number. A real one.`). The menu title splits `E.T.A.` with brand-orange
+stops (`aria-label` carries the whole name, so `verify-identity-docs` still finds it).
+
+### DD-10 — Placings are derived, not sent (playtest round 1)
+**What:** the reveal now stamps **1st / 2nd / 3rd** (gold / silver / bronze) by accuracy on the **Logged** ETA
+— `etaPlacings(logged, truths)`, times-out (|log₁₀ ratio|), ties share (1, 1, 3), no ETA = 0.
+**Why not a packet field:** every device already holds both inputs the moment `ETA_PROOF` lands (`etaLogged`
+from `ETA_SHEET`, `truths` in the Proof), and a pure function of them cannot diverge — so the payload stays
+as it was and nothing new crosses the wire before the Proof. In Backseat Drivers it deliberately ignores the
+Revised ETA: placings judge *your* estimate, the corrections are paid separately. **Asserted:** rules (ties,
+ratio-not-gap, nobody logged) and loopback (parity on every device; Sylly ranks Logged, never Revised — a
+mutant that ranks Revised goes red).
+
+### DD-11 — The reveal says it in words; the rows grow once (playtest round 1)
+**What:** the owner's "the reveal doesn't land" — the truth was only ever a parcel and a passing note. Every
+Proof row now carries **SAID** / **TRUE** in words under its track, the verdict stamp keeps ×N too fast /
+slow, the sign-off names the closest (`etaClosest`), and **Your result** (`#eta-my-result`, Controls zone,
+phase `done`) reads *You said 4 days. True ETA: 8.3 days. · 3RD · ×2.1 too fast · +20,000 km*.
+**How:** the board adds `.is-proof` at the Proof's first event, so all rows grow 54 → 80 px **once**, under the
+big stamp — never row by row, which would bounce the centred Stack on every parcel (ui-style § Transient
+animations). Rows get their full result as an `aria-label` (the stamps are drawn, `aria-hidden`).
+
+### DD-12 — The docket is a form, and the Briefing marks its own key words
+**What:** ROUTE and DISTANCE are stacked fields with large values (19 / 17 px; was 12 px uppercase,
+right-aligned, wrapping in 70% width); the Briefing is upright 13 px ink, and its **load-bearing words** are
+written `**like this**` in `data/eta-data.json` and rendered bold on a highlighter stroke (`etaKitRich`).
+**Why markup in content, not a keyword list:** what is load-bearing depends on the sentence ("held to 60 km/h",
+"straight up"); the content author knows, a regex doesn't. `verify-eta-content.js` fails an unpaired marker or a
+Route Briefing with none. The highlighter means *look here* everywhere — the Briefing's words and your own line
+on the Run Sheet. The Stamp prompt uses it too: *best **pitch** — not the best guess … pays **+3,500 km***
+(`etaStampTip`, geared like the receipt).
+
 ---
 
 ## Bug Index
@@ -106,6 +145,19 @@ then the phase guard refused it anyway, so a mutant that deleted the per-seat gu
 check now runs while the log phase is open. **Lesson:** a refusal test must be set up so that *only* the
 guard under test can refuse.
 
+**BUG-07 — "≈ 9 km" for Everest's 8.8 km. [10 Nov 2026, playtest round 1 visual-check]**
+**What happened:** the docket printed every distance through `etaFmtInt`, so a sub-10 km Route lost its
+decimal. **Root cause:** an integer formatter used for a value that is not always an integer. **Fix:**
+`etaNum` (one decimal under 100). **Lesson:** BUG-01 again — check every formatter against the smallest real value.
+
+**BUG-08 — The bigger docket pushed Log ETA below the fold at 375×667. [10 Nov 2026, visual-check]**
+**What happened:** making the compact docket readable added ~45 px; Log ETA's bottom went 711 px on a 667 px
+screen. **Fix:** compact-only sizes (14 px route, 12 px Briefing, 2–4 px paddings), ride card and dial padding
+trimmed, badge 56 → 48 px, the section `py-5`: bottom now 667 at 375×667. 320×452 scrolls to it, as before.
+A `max-height: 600px` rule also drops the full docket's flavour note (it's an interstitial — no time to
+scroll); the extreme Sylly docket (Off the Map + three hints) still spills 51 px at 320×452 — deferred.
+**Lesson:** a readability fix is a height change — re-measure the fold on the screen that *reuses* the component.
+
 ---
 
 ## Multiplayer Lessons
@@ -128,6 +180,10 @@ ends (`etaPhase === 'shove'` guard in `etaApplyProof`).
 ---
 
 ## Template Gaps
+
+- **A rename is a registry sweep.** The name lives in seven places, one of them generated (`games.raw.json` ←
+  `build-games.js` ← the identity doc's menu copy block) and one a hand list (`lobby-games.js` `pitch` /
+  `howItGoes`). Grep the old name in `js/`, `src/`, `tools/data/`, `data/` and the identity doc, then rebuild.
 
 - **The suite size is hard-coded in places** — the lobby's fit sentence (shared BUG-29) and four harness
   pins. The new-game checklist could name "grep for the literal suite size" as an item.

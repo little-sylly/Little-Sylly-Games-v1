@@ -1,8 +1,8 @@
-# ETA?
+# E.T.A.
 
 **Game 21** · `activeGameId: eta` · plugin `js/games/eta.js` · world kit `js/games/eta-scene.js` · `css/eta.css`
 **Emoji:** 🛵 · **Brand:** hi-vis orange `#EA580C` (custom `eta-cta` / `pill-active-eta`) · **Players:** 3–8 · **Modes:** MDLM only
-**Status:** built SW v272, 10 November 2026 — awaiting its first real multi-device session. The content set is **provisional** (T9).
+**Status:** built SW v272, 10 November 2026; playtest round 1 reworked SW v273 (Dotty, the name E.T.A., the docket, the Stamp prompt, the reveal). The content set is **provisional** (T9).
 
 > **Change contract.** Each section is tagged **free** (reword freely — but it must stay true),
 > **paired** (change the doc and the code together, or you open a gap between them), or **derived**
@@ -28,13 +28,13 @@ finding out who was dreaming.
 
 ## T2 — The Premise · *free*
 
-Each **Run**, Dot the Depot Manager hands out a **job docket**: a **Route** everyone shares ("The
+Each **Run**, Dotty, Head of Dispatch, hands out a **job docket**: a **Route** everyone shares ("The
 length of Italy", about 1,200 km) and a **Dispatch Briefing** of assumptions that make the answer
 unambiguous ("a perfectly straight, empty corridor — no stops, no traffic"). Each courier is privately
 given a **Ride** and estimates how long it would take, as one number on the **Time Dial**. Every
 **Logged ETA** then fills in at once on **The Run Sheet**; the table talks it through and hands out
 **Stamps of Approval** for the best pitch; then **Proof of Delivery** reveals every Ride's true speed
-and the true ETA. **Mileage** is earned mostly for accuracy — judged by how many *times* out you
+and the true ETA, and stamps the three closest **1st**, **2nd** and **3rd**. **Mileage** is earned mostly for accuracy — judged by how many *times* out you
 were, never by the gap — plus a little for the Stamps. Most Mileage at **End of Shift** is **Courier of
 the Month**.
 
@@ -46,39 +46,45 @@ The accuracy scoring, the Ride / Route pairing and Backseat Drivers are the suit
 ## T3 — How to Play · *free*
 
 **Clocking on.** The host sets the Shift on the menu's Dispatch Desk, opens a room, and everyone
-joins on their own phone. Dot's toolbox talk plays on the loading dock, then the timesheet roll call —
+joins on their own phone. Dotty's toolbox talk plays on the loading dock, then the timesheet roll call —
 everyone taps *I'm ready* (their line is stamped CLOCKED ON) and the host starts.
 
 **A Run.** The job docket slides in (JOB number, the Route, its distance unless GPS is off, the
 Briefing, an URGENT stamp). Each phone then shows its own Ride and the Time Dial: type a number,
-pick a unit, tap Log ETA, and **Dot's Double-Take** repeats it in plain words before you lock it in.
+pick a unit, tap Log ETA, and **Dotty's Double-Take** repeats it in plain words before you lock it in.
 When everyone's in, the Run Sheet fills in as a time-lapse — hi-vis tape unrolling along a log scale,
 quickest on the left. Talk it through out loud, then tap the courier whose pitch you liked best to
-Stamp it (never your own; you can change it until everyone's in). The big PROOF OF DELIVERY stamp
-lands, a parcel drops on every true ETA, the gap is hatched red (too fast) or blue (too slow), each
-verdict is stamped in the margin and Dot's note gives the speed and a Reality Check. **See the
+Stamp it — the pitch, not the guess; the prompt says how many km a Stamp pays them (never your own; you
+can change it until everyone's in). The big PROOF OF DELIVERY stamp
+lands, every line opens up to show what you **SAID**, a parcel drops on every true ETA and its **TRUE**
+ETA is written in words beside it, the gap is hatched red (too fast) or blue (too slow), each verdict
+(×N too fast / slow) is stamped in the margin and Dotty's note gives the speed and a Reality Check.
+Then the three closest are stamped **1st / 2nd / 3rd** in gold, silver and bronze, Dotty's sign-off
+names the closest, and **Your result** sits under the sheet: said, true, how far off, your place, your km. **See the
 Odometer** opens the receipts; the host hands out the next job.
 
 **How it ends.** After 3, 5 or 7 Runs, End of Shift names the Courier of the Month (a tie shares
-it), the standings and Dot's Notes.
+it), the standings and Dotty's Notes.
 
 ---
 
 ## T4 — Theme & Flavour · *free*
 
 **The world.** E.T.A. Couriers — *Every Thing, Anywhere. Eventually.* — a small, overstretched
-suburban depot at 6 am. The vans are all out, so couriers take whatever's left under the tarps in the
-back shed. E.T.A. says yes to every job, including the Moon and Atlantis. The question mark in the
-game's name is the company's in-joke.
+suburban depot at 6 am. The game takes the company's name, **E.T.A.**, and its motto is the menu's subtitle. The vans are all out, so couriers take whatever's left under the tarps in the
+back shed. E.T.A. says yes to every job, including the Moon and Atlantis.
 
-**The narrator.** **Dot, Depot Manager** — hi-vis vest, clipboard, biro behind her ear, glasses on a
-chain. Warm, harried, a lifer; never admits the depot is chaos. Short sentences, Aussie worksite
-English ("righto", "toolbox talk", "love"). She runs the Intro, the dockets, the Run Sheet and the
-sign-off.
+**The narrator.** **Dotty, Head of Dispatch** — early forties, upper management rather than the dock
+floor: navy blazer over a white blouse, pencil skirt, heels, a high ponytail with an orange scrunchie,
+light make-up, the E.T.A. lanyard. No hi-vis — that's for the couriers. Strict, energetic, tough love:
+she expects the paperwork done properly and says so. Short sentences, Aussie worksite English
+("righto", "toolbox talk", "chop chop") — never "love". She runs the Intro, the dockets, the Run Sheet
+and the sign-off.
 
-**The look — direction 1 · Clipboard.** Dot's clipboard on a kraft-brown desk: a cream sheet, the
+**The look — direction 1 · Clipboard.** Dotty's clipboard on a kraft-brown desk: a cream sheet, the
 E.T.A. letterhead, a JOB box, a hi-vis orange band with a silver reflective stripe, typed fields, a
-"From Dot" note in marker. The signature moment is the **hi-vis tape**: every Logged ETA is a strip of
+"From Dotty" note in marker. Marker **highlighter** means *look here*: the Briefing's key words and
+your own line on the Run Sheet. The signature moment is the **hi-vis tape**: every Logged ETA is a strip of
 it, and a sheen sweeps across the stripe as it lands. Then the **parcel drop** and the **rubber stamp**.
 Three self-hosted faces carry the scene text (a stencil, a typewriter, a marker); Fredoka stays on
 every control.
@@ -86,7 +92,7 @@ every control.
 **Mood words:** can-do · paper-trail · cheeky.
 
 **What it is NOT.** Not Just Enough Cooks (a kitchen shift — ETA's shift words are courier words).
-Not Like I'm Five (Dot is a boss, not a teacher: ink and stamps, never chalk). Not Great Minds — no
+Not Like I'm Five (Dotty is a boss, not a teacher: ink and stamps, never chalk). Not Great Minds — no
 radio, airwaves or frequencies anywhere (hence *Talk Me Through It*). Not a racing game: vehicles
 never race; the bars are paperwork filling in.
 
@@ -108,16 +114,18 @@ Australian English, metric only — Mileage is in km, never miles.
 | **Mode badge** | A Ride's marker: Land, Sea, Air or Space; a hazard-striped ring means Unregistered. |
 | **Time Dial** | The entry: a number plus a unit chip (min · hrs · days · wks · months · yrs; ×1,000 / ×1M for years). |
 | **Logged ETA** | Your estimate. |
-| **Dot's Double-Take** | The confirmation box that repeats your entry in plain words. Never compares with the truth. |
+| **Dotty's Double-Take** | The confirmation box that repeats your entry in plain words. Never compares with the truth. |
 | **The Run Sheet** | The shared chart of every Logged ETA on a log scale. Was *Dispatch Board*. |
 | **Talk Me Through It** | The out-loud pitch phase. Was *Radio Defense*. |
 | **Stamp of Approval** | Your one vote for the best pitch. |
 | **Depot Tips** | Mileage paid per Stamp received. |
 | **Sweep Bonus** | One extra tip for being stamped by everyone else (5+ couriers). |
 | **Proof of Delivery** | The truth reveal. |
-| **Reality Check** | Dot's one-liner on each Ride's real speed. |
+| **Reality Check** | Dotty's one-liner on each Ride's real speed. |
+| **Placings** | The **1st / 2nd / 3rd** rubber stamps (gold / silver / bronze) at Proof of Delivery — by accuracy on the **Logged** ETA, ties share. |
+| **Your result** | The card under the Run Sheet after Proof: said, true, how far off, your place, your km. |
 | **Mileage** / **The Odometer** | The score (km) / the running total. |
-| **Promotion** | Climbing the eight-rank ladder (Work-Experience Kid → Dot's Favourite), this Shift only. |
+| **Promotion** | Climbing the eight-rank ladder (Work-Experience Kid → Dotty's Favourite), this Shift only. |
 | **End of Shift** / **Courier of the Month** | The gameover / the winner. |
 | **The timesheet** | The Intro's roll call — *Sign the timesheet.*; ready = **CLOCKED ON**. |
 | **The Dispatch Desk 📋** | The settings overlay. |
@@ -125,7 +133,8 @@ Australian English, metric only — Mileage is in km, never miles.
 | **Clock Off?** / **Next Shift?** | Quit / play again. |
 
 **Retired (never use):** Dispatch Board, Radio Defense, Dispatcher's Double-Take, Clock Out?, Stars,
-Driver of the Month, Underdog Bonus, "radio", "airwaves". The **Gear Ratio** (5 ÷ Runs, so every
+Driver of the Month, Underdog Bonus, "radio", "airwaves", **ETA?** (the old name — now **E.T.A.**), **Dot**
+and **Depot Manager** (now **Dotty, Head of Dispatch**), "love" in Dotty's mouth. The **Gear Ratio** (5 ÷ Runs, so every
 Shift Length shares one rank ladder) is real but hidden — it is never named on screen.
 
 ---
@@ -153,13 +162,13 @@ Settings are host-only: they're set on the menu before the room exists and trave
 | # | Screen | Beat | Type | Duration | Chrome |
 |---|--------|------|------|----------|--------|
 | 1 | `screen-eta-menu` | Menu | Menu | — | 🔊 |
-| 2 | `screen-game-intro` | *(engine)* Dot's toolbox talk on the dock at dawn → the brief → *Sign the timesheet.* | Intro | — | 🔊 ✕ |
+| 2 | `screen-game-intro` | *(engine)* Dotty's toolbox talk on the dock at dawn → the brief → *Sign the timesheet.* | Intro | — | 🔊 ✕ |
 | 3 | `screen-eta-standby` | A client waits for the first docket | Wait | — | 🔊 ✕ |
 | 4 | `screen-eta-docket` | The job docket — typed in, URGENT stamp, GPS Signal Lost first for Off the Map | Interstitial | 4.2 s (+1.2 s) | none (rule 5) |
 | 5 | `screen-eta-log` | **Private.** Your Ride, the Time Dial, Log ETA → Double-Take → *Clocked on: k of n* | Interactive | — | `[?]` 🔊 ✕ |
-| 6 | `screen-eta-sheet` | The Run Sheet time-lapse → Talk Me Through It + Stamps (or Course Corrections) → (Corrections reveal) → Proof of Delivery → sign-off | Interactive | — | `[?]` 🔊 ✕ |
+| 6 | `screen-eta-sheet` | The Run Sheet time-lapse → Talk Me Through It + Stamps (or Course Corrections) → (Corrections reveal) → Proof of Delivery (SAID / TRUE, verdicts, 1st–3rd) → sign-off + Your result | Interactive | — | `[?]` 🔊 ✕ |
 | 7 | `screen-eta-tally` | The Odometer — a receipt per courier, Promotion stamps; host: Next job | Result | — | `[?]` 🔊 ✕ |
-| 8 | `screen-eta-gameover` | End of Shift — Courier of the Month, standings, Dot's Notes | Result | — | 🔊 ✕ |
+| 8 | `screen-eta-gameover` | End of Shift — Courier of the Month, standings, Dotty's Notes | Result | — | 🔊 ✕ |
 
 Rows 4–7 loop for the Shift Length. Every animated beat has a **Skip** that settles it at once; reduced
 motion shows every final state immediately.
@@ -170,7 +179,7 @@ motion shows every final state immediately.
 |---|---|---|
 | `eta-settings-overlay` | Menu | The Dispatch Desk — five settings |
 | `eta-how-to-overlay` | Menu, every `[?]` | How to Play — tabs **Rules · Practice · Ranks** |
-| `eta-doubletake-overlay` | Log ETA | Dot's Double-Take — Lock it in / Re-dial |
+| `eta-doubletake-overlay` | Log ETA | Dotty's Double-Take — Lock it in / Re-dial |
 | `eta-quit-overlay` | Any mid-Shift ✕ | Clock off early? (ends the Shift for everyone) |
 | `eta-new-shift-overlay` | End of Shift | Next Shift? |
 
@@ -180,8 +189,8 @@ motion shows every final state immediately.
 
 ```copy
 # screen-eta-menu
-ETA
-Skateboard to the Moon? Show your working.
+E.T.A.
+Every Thing, Anywhere. Eventually.
 Clock On
 How to Play
 Settings
@@ -192,8 +201,8 @@ Settings
 
 ```copy
 # intro-eta
-Dot
-Depot Manager
+Dotty
+Head of Dispatch
 Right, gather round. Toolbox talk.
 Welcome to E.T.A. Every Thing, Anywhere. We say yes to every job.
 Bit of a hiccup: the vans are all out. You're taking whatever's left in the shed.
@@ -214,14 +223,14 @@ CLOCKED ON
 YOUR LOGGED ETA
 For the really long ones:
 Log ETA
-Need a number, love.
+Need a number. A real one.
 That's longer than the universe. Try again.
-Dot's finding you something in the shed…
+Dotty's finding you something in the shed…
 ```
 
 ```copy
 # eta-doubletake-overlay
-DOT'S DOUBLE-TAKE
+DOTTY'S DOUBLE-TAKE
 Lock it in
 Re-dial
 ```
@@ -240,6 +249,7 @@ Lock it in
 Hands off
 See the Odometer
 Waiting for Proof of Delivery…
+YOUR RESULT
 ```
 
 #### The Odometer
@@ -248,7 +258,7 @@ Waiting for Proof of Delivery…
 # screen-eta-tally
 THE ODOMETER
 Next job
-Waiting for Dot (the host) to hand out the next job…
+Waiting for the host to hand out the next job…
 Top of the ladder
 ```
 
@@ -259,7 +269,7 @@ Top of the ladder
 END OF SHIFT 🏁
 E.T.A. COURIER OF THE MONTH
 THE ODOMETER
-DOT'S NOTES
+DOTTY'S NOTES
 Next Shift?
 Clock Off
 ```
@@ -345,7 +355,7 @@ button), but worth watching at the first session.
 **Backseat Drivers.** Everyone becomes a backseat driver. Instead of Stamps, each courier may grab
 **one other courier's wheel** and make one secret **Course Correction** — a multiplier on their ETA
 from ÷10 to ×10, on a compressed dial (÷10 and ×10 feel the same size) — or keep their **Hands off**.
-Corrections **multiply**: three couriers each saying "double it" make ×8. After everyone's in, Dot's
+Corrections **multiply**: three couriers each saying "double it" make ×8. After everyone's in, Dotty's
 red-pen amendments shove each tape to its **Revised ETA** (a ghost stays at the Logged one), then
 Proof of Delivery.
 
@@ -364,7 +374,7 @@ carries a fair hint in the shared Briefing. Off the Map defaults ON. A Run total
 ## T9 — Art & Assets · *derived*
 
 **Everything is drawn in code — no binaries beyond fonts.** The Intro scene (dawn sky, the E.T.A.
-roller door, the shed, Dot on her FRAGILE crate) is one inline SVG plus HTML; the clipboard, the
+roller door, the shed, Dotty on her FRAGILE crate) is one inline SVG plus HTML; the clipboard, the
 hi-vis tape, the parcel, the stamps, the Courier of the Month frame and the confetti are CSS. The
 four **mode badges** are inline SVG drawn through one render seam, `etaRenderBadge` (asset kind
 `eta-badge`, id = the mode) — skinnable later with no logic change; no core art pack in v1.

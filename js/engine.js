@@ -101,7 +101,7 @@ const allScreens = [
   // Honeycomb Hills
   'screen-comb-menu', 'screen-comb-standby', 'screen-comb-meadow',
   'screen-comb-gameover',
-  // ETA?
+  // E.T.A.
   'screen-eta-menu', 'screen-eta-standby', 'screen-eta-docket', 'screen-eta-log',
   'screen-eta-sheet', 'screen-eta-tally', 'screen-eta-gameover',
   // Arcade cabinets (js/lobby/arcade.js, SW v254) — not Sylly Games, but still real screens.
@@ -896,7 +896,7 @@ function resetToLobby() {
     const el = document.getElementById(id); if (el) el.style.display = 'none';
   });
   if (typeof combResetState === 'function') combResetState();
-  // ETA? teardown. etaTeardown() owns every ETA timer — the choreography bag, both
+  // E.T.A. teardown. etaTeardown() owns every ETA timer — the choreography bag, both
   // stall countdowns, the countdown ticker, the board, the Practice run.
   ['eta-settings-overlay','eta-how-to-overlay','eta-quit-overlay',
    'eta-new-shift-overlay','eta-doubletake-overlay'].forEach(id => {

@@ -123,13 +123,13 @@ const GAMES = [
     shelves: ['board'], // Strategy shelf — owner decision, see SHELF_NOTES
   },
   {
-    id: 'eta', gameName: 'ETA?', emoji: '🛵', brandHex: '#EA580C',
+    id: 'eta', gameName: 'E.T.A.', emoji: '🛵', brandHex: '#EA580C',
     minPlayers: 3, maxPlayers: 8, playerRangeDisplay: null,
     supportedModes: ["mdlm"],
-    pitch: "Skateboard to the Moon? Show your working.",
+    pitch: "Every Thing, Anywhere. Eventually.",
     playCtaLabel: "Clock On",
     syllyModeName: 'Backseat Drivers',
-    howItGoes: ['Dot hands you a Ride — nobody tells you its speed', 'Log your ETA, then talk the table through it', 'A parcel drops on the truth — closest earns the Mileage'],
+    howItGoes: ['Dotty hands you a Ride — nobody tells you its speed', 'Log your ETA, then talk the table through it', 'A parcel drops on the truth — closest earns the Mileage'],
     minutes: '~15 min',  // brief §5: a 5-Run Shift ≈ 14 min Standard at five couriers (stopwatch estimate)
     shelves: ['talk', 'guess-draw'], // estimate (guess) + defend it out loud (talk)
   },

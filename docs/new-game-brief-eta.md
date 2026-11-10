@@ -1,4 +1,4 @@
-# New Game Brief — ETA?
+# New Game Brief — E.T.A.
 **Document type:** Phase 1 — Design Brief (non-technical), **v4**: the v3 brief moved onto the November 2026 template (§0 world first) with Stage 1b complete.
 **Supersedes:** `new-game-brief-eta-v3.md` (10 Oct 2026). Every mechanic, setting and scoring number from v3 is carried across unchanged unless §0d names it as changed.
 **What happens next:** Stage 2 — Claude Code fills in `new-game-technical-template.md` from this brief, the picked board (`boards/depot-directions/`) and the Stage 2 appendix at the end, then presents the spec for confirmation. **No game code before the owner confirms the spec.**
@@ -8,13 +8,13 @@
 | Field | Answer |
 |---|---|
 | **Draft number and date** | v4 — 10 November 2026 (Stage 1b session) |
-| **Locked** | Name **ETA?**, abbreviation `eta`, emoji 🛵. The world: **E.T.A. Couriers — "Every Thing, Anywhere."** (motto line "*Eventually.*"). Narrator **Dot, Depot Manager**. Brand colour **hi-vis safety orange** (§1, §11). Direction **1 · Clipboard** (§0d). Rank ladder (§6). *Talk Me Through It* and *The Run Sheet* (§9) |
+| **Locked** | Name **E.T.A.** *(was ETA?)*, abbreviation `eta`, emoji 🛵. The world: **E.T.A. Couriers — "Every Thing, Anywhere."** (motto line "*Eventually.*"). Narrator **Dotty, Head of Dispatch**. Brand colour **hi-vis safety orange** (§1, §11). Direction **1 · Clipboard** (§0d). Rank ladder (§6). *Talk Me Through It* and *The Run Sheet* (§9) |
 | **Stage 1b** | **Picked** — direction 1, Clipboard. Canvas: "ETA? Depot Directions" (https://claude.ai/artifact/XbRGjGcNHhoE9HkfPWhd8W); board files in `boards/depot-directions/` |
-| **Soft-locked** | Scoring numbers (maths round 1, `[MATHS]`); Ride **mode badges** replacing emoji as the Ride marker (§10, §11); *Dot's Double-Take* (§9); Practice form = Arena (§24); controls shade `#EA580C` pending the contrast check (§11) |
-| **Still open** | The content set (Routes, Rides, Briefing lines) — **not rebuilt yet** (§10); Dot's surname and look beyond the sketch; Time Dial details; stall countdown length; share of Off the Map Routes; Spin-out / Back on Course thresholds (`[UNTESTED]`) |
+| **Soft-locked** | Scoring numbers (maths round 1, `[MATHS]`); Ride **mode badges** replacing emoji as the Ride marker (§10, §11); *Dotty's Double-Take* (§9); Practice form = Arena (§24); controls shade `#EA580C` pending the contrast check (§11) |
+| **Still open** | The content set (Routes, Rides, Briefing lines) — **not rebuilt yet** (§10); Dotty's surname and look beyond the sketch; Time Dial details; stall countdown length; share of Off the Map Routes; Spin-out / Back on Course thresholds (`[UNTESTED]`) |
 | **Supersedes an earlier version?** | Yes — v3 (October 2026, 21-section template). v3's mockup round (four reveal boards, 16 Oct) is kept as reference in `boards/reveal-mockups-round1/` |
 
-**Terminology note:** the game is **ETA?** (written "ETA" in running text). The company in the fiction is **E.T.A.** (with full stops). The question mark is the company's in-joke: it promises *Every Thing, Anywhere* — eventually.
+**Terminology note:** the game is **E.T.A.** — the company's own name, full stops and all (renamed from *ETA?* after playtest round 1, 10 Nov 2026); "ETA" in running text means the estimate. The menu subtitle is the motto: *Every Thing, Anywhere. Eventually.*
 
 The marker key is the template's: `[ASSUMPTION]`, `[CLARIFICATION NEEDED]`, `[PLACEHOLDER]`, `[SOFT-LOCKED]`, `[OPEN FOR BUILD]`, `[MATHS]` / `[UNTESTED]`, `[DEVIATION]`.
 
@@ -26,14 +26,14 @@ The marker key is the template's: `[ASSUMPTION]`, `[CLARIFICATION NEEDED]`, `[PL
 
 | Field | Answer |
 |---|---|
-| **The place and the moment** | The loading dock of **E.T.A. Couriers**, a small, overstretched suburban depot, at **6 am on a weekday**. The roller door is going up, the sky is still pink, Dot is standing on a crate marked FRAGILE with her clipboard, and behind her the shed is full of odd vehicles under tarps — because **every van is already out**. E.T.A. has said yes to every job, including the Moon and Atlantis |
+| **The place and the moment** | The loading dock of **E.T.A. Couriers**, a small, overstretched suburban depot, at **6 am on a weekday**. The roller door is going up, the sky is still pink, Dotty is standing on a crate marked FRAGILE with her clipboard, and behind her the shed is full of odd vehicles under tarps — because **every van is already out**. E.T.A. has said yes to every job, including the Moon and Atlantis |
 | **Who the players are in it** | **Couriers** on today's shift. Each is handed whatever is left in the back shed (a shopping trolley, a pogo stick, a horse someone dropped off, a rolled-up rug that might fly) and has to tell the customer how long the job will take |
-| **The narrator** | **Dot, Depot Manager.** Hi-vis vest, clipboard, biro behind her ear, reading glasses on a chain, a mug of instant coffee somewhere. Warm, harried, a lifer; never admits the depot is chaos ("no worries" while it clearly is). Calls everyone "love" or by surname. Short sentences, Aussie worksite English ("righto", "toolbox talk", "sign the timesheet"). She runs the Intro, the job dockets, the Run Sheet and the sign-off |
+| **The narrator** | **Dotty, Head of Dispatch** *(revised after playtest round 1, 10 Nov 2026 — was Dot, Depot Manager)*. Early forties, upper management rather than the dock floor: navy blazer, white blouse, pencil skirt, heels, a high ponytail with an orange scrunchie, light make-up, the E.T.A. lanyard — no hi-vis. Strict, energetic, tough love; expects the paperwork done properly and says so. Calls people by name, never "love". Short sentences, Aussie worksite English ("righto", "toolbox talk", "chop chop"). She runs the Intro, the job dockets, the Run Sheet and the sign-off |
 | **Three mood words** | **Can-do · Paper-trail · Cheeky** |
-| **The scene** | Drawn in code. **Intro:** dawn sky, corrugated roller door (E.T.A. logo) that rolls up, the shed behind (tarped shapes, one with hazard tape and "NO REGO", a trolley outline, a pogo stick leaning on the wall), Dot on her crate. **Action screens:** Dot's clipboard on a brown desk — a cream sheet with the E.T.A. letterhead, a JOB number box, a hi-vis band, typed fields, the Run Sheet, and a "From Dot" note at the bottom. Fonts on the board: a stencil face for headings, a typewriter face for fields, a marker face for Dot's handwriting (the suite's Fredoka stays on every control) |
+| **The scene** | Drawn in code. **Intro:** dawn sky, corrugated roller door (E.T.A. logo) that rolls up, the shed behind (tarped shapes, one with hazard tape and "NO REGO", a trolley outline, a pogo stick leaning on the wall), Dotty on her crate. **Action screens:** Dotty's clipboard on a brown desk — a cream sheet with the E.T.A. letterhead, a JOB number box, a hi-vis band, typed fields, the Run Sheet, and a "From Dotty" note at the bottom. Fonts on the board: a stencil face for headings, a typewriter face for fields, a marker face for Dotty's handwriting (the suite's Fredoka stays on every control) |
 | **The world's palette** (scene only) | Safety orange `#FF6A13` with a reflective silver stripe (`#D9DEE3`–`#F4F6F8`); clipboard cream `#FFFCF3`; desk/kraft brown `#7A5232`; ink `#22201B`; parcel card `#C99459`; stamp red `#C42A1E` (too fast); carbon blue `#1F4FA6` (too slow); dawn `#1B2A44` → `#E9895A` (Intro only) |
 | **The signature moment** | **The hi-vis tape.** Every Logged ETA is drawn as a strip of hi-vis orange tape with a silver reflective stripe; when a bar lands, a **sheen** sweeps across the stripe. Then at Proof of Delivery a **parcel drops** onto the true ETA and squashes, and a **rubber stamp** slams the verdict into the margin |
-| **What this world is NOT** | Not **Just Enough Cooks** (a kitchen shift — steel, orders, "New Shift"): ETA is paperwork and vehicles, not food, and its shift words are courier words (Run, Odometer). Not **Like I'm Five** (a teacher with chalk): Dot is a boss, not a teacher; ink and stamps, never chalk. Not **Great Minds** (which dropped its radio language): no radio, airwaves or frequencies anywhere in ETA (hence *Talk Me Through It*). Not a racing game: vehicles never race; the bars are paperwork filling in (see §0d — the race-style boards were rejected) |
+| **What this world is NOT** | Not **Just Enough Cooks** (a kitchen shift — steel, orders, "New Shift"): ETA is paperwork and vehicles, not food, and its shift words are courier words (Run, Odometer). Not **Like I'm Five** (a teacher with chalk): Dotty is a boss, not a teacher; ink and stamps, never chalk. Not **Great Minds** (which dropped its radio language): no radio, airwaves or frequencies anywhere in ETA (hence *Talk Me Through It*). Not a racing game: vehicles never race; the bars are paperwork filling in (see §0d — the race-style boards were rejected) |
 
 ### 0b. The Intro
 
@@ -51,9 +51,9 @@ The scene for the Intro is board `Intro.dc.html` (§0d). The engine owns the nar
 
 | Field | Answer |
 |---|---|
-| **The repeated beat** | **The job docket.** Each Run opens with a new docket sliding onto Dot's clipboard: **JOB #00NN** (a running number), the Route headline (and distance unless GPS is off), the Dispatch Briefing lines being typed in, and an **URGENT** stamp slamming on. It moves on by itself into the private Ride screen. Off the Map Routes open with the **📡 GPS Signal Lost…** banner across the docket first |
+| **The repeated beat** | **The job docket.** Each Run opens with a new docket sliding onto Dotty's clipboard: **JOB #00NN** (a running number), the Route headline (and distance unless GPS is off), the Dispatch Briefing lines being typed in, and an **URGENT** stamp slamming on. It moves on by itself into the private Ride screen. Off the Map Routes open with the **📡 GPS Signal Lost…** banner across the docket first |
 | **Flavour lines** (host picks one) | "Righto, next job." · "Another one's come in. Don't ask how." · "Customer says it's urgent. They all say that." · "Paperwork's the easy bit, love." · "Back of the shed's looking thin. Good luck." · "Sign here, here and… here." |
-| **Other moments** | **Run Sheet reveal:** a time-lapse counter types upward (min → hrs → days → years) while hi-vis tape strips unroll, each with the Ride's mode badge riding the end; landmark ticks turn orange as the clock passes them; each strip lands with a thunk and a sheen. **Talk Me Through It:** Dot's note says "Talk me through it, then." **Proof of Delivery:** a big red **PROOF OF DELIVERY** rubber stamp slams the clipboard (it jolts), then per courier: a parcel drops on the truth, the gap is hatched (red dashed = too fast, blue solid = too slow), the verdict stamp slams into the margin, the Mileage chip writes in, Dot's note gives the speed fact and a Reality Check line. **Bullseye:** gold star under the parcel, confetti, Dot signs off ("Received in good order"). **Sylly:** correction chips fly in as **Dot's red-pen amendments**; a Spin-out stamps **SPIN-OUT** in red, Back on Course stamps **BACK ON COURSE** in blue — both **at Proof of Delivery**, never before (§8). **Promotion:** the courier's new rank is stamped onto their timesheet line. **End of Shift:** the depot's **Courier of the Month** frame on the office wall |
+| **Other moments** | **Run Sheet reveal:** a time-lapse counter types upward (min → hrs → days → years) while hi-vis tape strips unroll, each with the Ride's mode badge riding the end; landmark ticks turn orange as the clock passes them; each strip lands with a thunk and a sheen. **Talk Me Through It:** Dotty's note says "Talk me through it, then." **Proof of Delivery:** a big red **PROOF OF DELIVERY** rubber stamp slams the clipboard (it jolts), then per courier: a parcel drops on the truth, the gap is hatched (red dashed = too fast, blue solid = too slow), the verdict stamp slams into the margin, the Mileage chip writes in, Dotty's note gives the speed fact and a Reality Check line. **Bullseye:** gold star under the parcel, confetti, Dotty signs off ("Received in good order"). **Sylly:** correction chips fly in as **Dotty's red-pen amendments**; a Spin-out stamps **SPIN-OUT** in red, Back on Course stamps **BACK ON COURSE** in blue — both **at Proof of Delivery**, never before (§8). **Promotion:** the courier's new rank is stamped onto their timesheet line. **End of Shift:** the depot's **Courier of the Month** frame on the office wall |
 
 ### 0d. The direction
 
@@ -61,14 +61,14 @@ The scene for the Intro is board `Intro.dc.html` (§0d). The engine owns the nar
 |---|---|
 | **Directions canvas** | "ETA? Depot Directions" — https://claude.ai/artifact/XbRGjGcNHhoE9HkfPWhd8W · files in `boards/depot-directions/` (open each `.dc.html` source for exact values) |
 | **Picked** | **1 · Clipboard** (`Main.dc.html`), with the Intro board (`Intro.dc.html`) in the same world. Why: it grew out of round 1's board B (Waybill), which the owner picked; paperwork keeps ETA from reading as a racing game (boards A/D) or a sci-fi one (board C). **Owner's change on picking:** keep the **parcel drop** for the truth, and stop relying on emoji for Rides — each Ride's marker is a **mode badge** (Land / Sea / Air / Space; hazard-striped ring for Unregistered) |
-| **What it changed in this brief** | **§1** brand colour → hi-vis safety orange; tagline line added; world line. **§9** *Dispatch Board* → **The Run Sheet**; *Radio Defense* → **Talk Me Through It** (clash with Great Minds' retired radio language); *Dispatcher's Double-Take* → **Dot's Double-Take** `[SOFT-LOCKED]`; rank ladder rewritten (grounded); new terms Job docket, Timesheet, Mode badge. **§6** rank names and flavour lines. **§8** Spin-out / Back on Course banners move to Proof of Delivery. **§10** Rides gain a **mode** field; emoji become optional. **§11** rewritten (palette, primitive, art inventory). **§12** Q8–Q12 added. **§13** Intro, job docket and TV labels added. **§16–§18, §20** re-voiced. **§22–§24** added (template). Mechanics and numbers: **nothing changed** |
+| **What it changed in this brief** | **§1** brand colour → hi-vis safety orange; tagline line added; world line. **§9** *Dispatch Board* → **The Run Sheet**; *Radio Defense* → **Talk Me Through It** (clash with Great Minds' retired radio language); *Dispatcher's Double-Take* → **Dotty's Double-Take** `[SOFT-LOCKED]`; rank ladder rewritten (grounded); new terms Job docket, Timesheet, Mode badge. **§6** rank names and flavour lines. **§8** Spin-out / Back on Course banners move to Proof of Delivery. **§10** Rides gain a **mode** field; emoji become optional. **§11** rewritten (palette, primitive, art inventory). **§12** Q8–Q12 added. **§13** Intro, job docket and TV labels added. **§16–§18, §20** re-voiced. **§22–§24** added (template). Mechanics and numbers: **nothing changed** |
 
 ### Re-check against the world
 - [x] §1 name, tagline, emoji still fit; brand colour set from the world (hi-vis)
 - [x] §9 every term re-voiced or deliberately kept; retired terms listed
 - [x] §11 scene drawn in code; art inventory lists it
 - [x] §12 Q12 / §13: no teams; the Intro's roll call replaces any setup screen
-- [x] §17 / §18 written in Dot's voice
+- [x] §17 / §18 written in Dotty's voice
 
 ---
 
@@ -76,17 +76,17 @@ The scene for the Intro is board `Intro.dc.html` (§0d). The engine owns the nar
 
 | Field | Answer |
 |---|---|
-| **Full game name** | **ETA?** — the question every customer asks, and the question mark is E.T.A.'s own honesty |
+| **Full game name** | **E.T.A.** — the courier company's name *(was ETA? until playtest round 1)* |
 | **Short abbreviation** | `eta` (in the taken list as this game) |
 | **One-sentence tagline** | "Skateboard to the Moon? Show your working." |
-| **The world in one line** | The 6 am shift at E.T.A. Couriers — *Every Thing, Anywhere. Eventually.* — where the vans are all out and Dot hands you whatever's left in the shed |
+| **The world in one line** | The 6 am shift at E.T.A. Couriers — *Every Thing, Anywhere. Eventually.* — where the vans are all out and Dotty hands you whatever's left in the shed |
 | **Emoji / icon** | 🛵 *(alt considered: 📦)* |
 | **Brand colour** | **Hi-vis safety orange** — controls `#EA580C` (orange-600) with white ink; scene art `#FF6A13` with a silver reflective stripe. Locked by the owner (10 Nov 2026). Audit in §11 |
 | **Core type** | Estimation + persuasion |
 | **The fun moment in 10 words** | A pogo stick to Italy, defended with a straight face, then exposed. |
 | **If based on a real game** | Inspired by the estimating of Wits & Wagers and the defending of Balderdash; the accuracy scoring, the Ride/Route pairing and Backseat Drivers are original |
 | **Overlap check** | Nearest: You Get It? (social polling) and Just Enough Cooks (hit the sweet spot). Neither asks players to estimate a hidden true value and then argue for it; ETA's score is accuracy against a real number |
-| **IP and naming check** | E.T.A. Couriers and Dot are original. No real courier brand, livery or logo is imitated. Unregistered Rides and Off the Map Routes use generic or folklore names (a giant eagle, a flying carpet, Atlantis); any trademarked name needs a deliberate sign-off and lives in data |
+| **IP and naming check** | E.T.A. Couriers and Dotty are original. No real courier brand, livery or logo is imitated. Unregistered Rides and Off the Map Routes use generic or folklore names (a giant eagle, a flying carpet, Atlantis); any trademarked name needs a deliberate sign-off and lives in data |
 
 ---
 
@@ -211,7 +211,7 @@ Ranks are earned by total Mileage in the current Shift. A promotion fanfare play
 | 5 | Senior Courier | Gets first pick of the shed. Sometimes. |
 | 6 | Leading Hand | Signs other people's paperwork. Loves it. |
 | 7 | Shift Supervisor | Has a lanyard. Uses it. |
-| 8 | Dot's Favourite | Gold star on the Run Sheet. Don't tell the others. |
+| 8 | Dotty's Favourite | Gold star on the Run Sheet. Don't tell the others. |
 
 *(Ladder rewritten 10 Nov 2026 to be grounded in the depot; thresholds unchanged.)*
 
@@ -276,7 +276,7 @@ Spin-out and Back on Course are judged **against the truth**, so they can only a
 
 ## 9. Thematic Vocabulary
 
-Every term is something Dot would say on the dock or write on her clipboard.
+Every term is something Dotty would say on the dock or write on her clipboard.
 
 | Generic term | ETA? calls it | Notes |
 |---|---|---|
@@ -299,7 +299,7 @@ Every term is something Dot would say on the dock or write on her clipboard.
 | Bonus for an Unregistered Ride | **Hazard Pay** | |
 | Your estimate | **Logged ETA** | |
 | Unit chips | **The Time Dial** | |
-| Entry confirmation box | **Dot's Double-Take** | "400 years on a skateboard? Lock it in?" `[SOFT-LOCKED]` |
+| Entry confirmation box | **Dotty's Double-Take** | "400 years on a skateboard? Lock it in?" `[SOFT-LOCKED]` |
 | The chart | **The Run Sheet** | Was *Dispatch Board* |
 | Discussion phase | **Talk Me Through It** | Was *Radio Defense* |
 | Vote | **Stamp of Approval** | Best Pitch |
@@ -314,7 +314,7 @@ Every term is something Dot would say on the dock or write on her clipboard.
 | Pile-on that makes it worse | **Spin-out** | Stamp, at Proof of Delivery |
 | Pile-on that rescues it | **Back on Course** | Stamp, at Proof of Delivery |
 | Truth reveal | **Proof of Delivery** | |
-| Comedy line | **The Reality Check** | Spoken by Dot in her note |
+| Comedy line | **The Reality Check** | Spoken by Dotty in her note |
 | Tally screen | **Odometer tally** | |
 | Intro roll call | **The timesheet** | "Sign the timesheet." Ready = **CLOCKED ON** |
 | Game over screen | **End of Shift 🏁** | |
@@ -402,7 +402,7 @@ Accuracy scoring makes every stored distance and speed a graded answer, so these
 | Role | Name | Hex | Notes |
 |---|---|---|---|
 | Brand colour (controls) | Hi-vis orange | `#EA580C` | White ink 3.56:1 — passes for large/bold button text only. **Stage 2 check:** if any brand-filled control carries text under 18.66 px bold, darken to `#C2410C` (5.18:1). `[SOFT-LOCKED]` |
-| Scene orange | Safety orange | `#FF6A13` | Tape, hi-vis bands, Dot's vest — never under white text |
+| Scene orange | Safety orange | `#FF6A13` | Tape, hi-vis bands, Dotty's vest — never under white text |
 | Reflective stripe | Silver | `#D9DEE3` → `#F4F6F8` → `#AEB5BD` | The signature sheen |
 | Paper / ink | Clipboard cream / ink | `#FFFCF3` / `#22201B` | |
 | Desk | Kraft brown | `#7A5232` | |
@@ -430,9 +430,9 @@ Accuracy scoring makes every stored distance and speed a graded answer, so these
 
 | Image | How many | Size on a phone | Shape | Default look |
 |---|---|---|---|---|
-| Intro scene (dock at dawn, roller door, shed, Dot) | 1 | full screen | portrait | drawn in code (`Intro.dc.html`) |
+| Intro scene (dock at dawn, roller door, shed, Dotty) | 1 | full screen | portrait | drawn in code (`Intro.dc.html`) |
 | Clipboard board (letterhead, hi-vis band, fields, Run Sheet, note) | 1 | full screen | portrait | drawn in code (`Main.dc.html`) |
-| Dot | 1 figure, 3 states (idle, talking, pointing) | ~60×110 px | portrait | code-drawn shapes |
+| Dotty | 1 figure, 3 states (idle, talking, pointing) | ~60×110 px | portrait | code-drawn shapes |
 | Mode badges | 4 + Unregistered ring | 28 px | circle | inline SVG |
 | Parcel (truth marker) | 1 | 26×22 px | box | CSS |
 | Rubber stamps (verdicts, PROOF OF DELIVERY, URGENT, SPIN-OUT, BACK ON COURSE, CLOCKED ON, ranks) | ~12 strings | small to 300 px | rectangle | CSS border + stencil text; text drawn by the game |
@@ -472,21 +472,21 @@ Text the game draws itself: every name, time, verdict, Mileage and rank — neve
 | # | Screen | Public / private |
 |---|---|---|
 | 1 | **Game menu** — Play button "**Clock On**" | public |
-| 2 | **The Intro** — Dot's toolbox talk, the brief, the timesheet roll call (§0b) | private (the brief can differ by mode) |
+| 2 | **The Intro** — Dotty's toolbox talk, the brief, the timesheet roll call (§0b) | private (the brief can differ by mode) |
 | 3 | **Job docket** (round intro) — JOB number, Route, distance unless GPS off, Briefing, URGENT; GPS Signal Lost banner for Off the Map | public |
 | 4 | **Your Ride + Log ETA** — your Ride (name, mode badge, emoji if any, Unregistered frame), the Time Dial, number field, Log ETA | private |
-| 5 | **Dot's Double-Take** (small centred box) | private |
+| 5 | **Dotty's Double-Take** (small centred box) | private |
 | 6 | **Waiting** — "Clocked on: 3 of 5" with timesheet ticks, never anyone's ETA | private |
 | 7 | **The Run Sheet** — time-lapse reveal of every Logged ETA; stays up through Talk Me Through It | public |
 | 8 | **Stamp screen** (Standard) — tap a courier's line to give your Stamp of Approval; change until all locked; stall countdown | private |
 | 9 | **Course Correction** (Sylly) — tap a line, the Grab the Wheel slide-up panel with the dial, ghost of your own correction only, Hands off | private |
-| 10 | **Corrections reveal** (Sylly) — Dot's red-pen amendments shove each tape to its Revised ETA; ghosts stay at the Logged ETA | public |
-| 11 | **Proof of Delivery** — big stamp, parcel drops, verdict stamps, speed facts and Reality Checks in Dot's note; Spin-out / Back on Course stamps (Sylly) | public |
+| 10 | **Corrections reveal** (Sylly) — Dotty's red-pen amendments shove each tape to its Revised ETA; ghosts stay at the Logged ETA | public |
+| 11 | **Proof of Delivery** — big stamp, parcel drops, verdict stamps, speed facts and Reality Checks in Dotty's note; Spin-out / Back on Course stamps (Sylly) | public |
 | 12 | **Odometer tally** — itemised receipt per courier, Promotion stamps, "next rank in X km"; tap to skip | public |
 | 13 | **End of Shift** — Courier of the Month frame, standings, awards, Next Shift? / Clock Off? | public |
 | — | Overlays: The Dispatch Desk 📋 (settings), How to Play (Rules / Practice / gallery), Rank & Scoring card, Clock Off? confirm, Next Shift? | — |
 
-Every screen keeps the suite chrome (🔊 / ✕ / `[?]`). The action screens (3, 4, 7–12) follow the Clipboard board's layout `[DEVIATION: the Run Sheet uses the full clipboard as its stage rather than the default three-zone stack; header = letterhead + docket, stage = Run Sheet, controls = Dot's note + action button]`.
+Every screen keeps the suite chrome (🔊 / ✕ / `[?]`). The action screens (3, 4, 7–12) follow the Clipboard board's layout `[DEVIATION: the Run Sheet uses the full clipboard as its stage rather than the default three-zone stack; header = letterhead + docket, stage = Run Sheet, controls = Dotty's note + action button]`.
 
 ---
 
@@ -511,7 +511,7 @@ Three interactions are more than tap-to-choose. All popups use one of the two ex
 
 **Input methods:** type with the keypad; tap a unit chip; tap "+ add" to enter a second unit (for example 2 hours **and** 30 minutes); tap a multiplier chip for cosmic-scale answers. `[ASSUMPTION: one number plus a unit chip is the default for speed; the compound entry is optional. Precision beyond a few percent adds nothing because the true speeds are rough]`.
 
-### B. Dot's Double-Take (small centred confirmation box)
+### B. Dotty's Double-Take (small centred confirmation box)
 
 On every submit, the box repeats the entry in plain words — *"4,000 hours — about 167 days. Lock it in?"* — with **Lock it in** and **Re-dial**. It never compares to the truth, so it cannot leak the answer. `[ASSUMPTION: no truth-based sanity flag, because repeated attempts could be used to probe the answer]`.
 
@@ -573,7 +573,7 @@ On every submit, the box repeats the entry in plain words — *"4,000 hours — 
 
 ```
 🏁  END OF SHIFT — 5 Runs clocked
-"That's the lot. Sign off and go home." — Dot
+"That's the lot. Sign off and go home." — Dotty
 
   ┌─ E.T.A. COURIER OF THE MONTH ───────────┐
   │   BORIS                                  │
@@ -602,8 +602,8 @@ On every submit, the box repeats the entry in plain words — *"4,000 hours — 
 
 ## 18. How to Play — Teaching Points
 
-1. **Clock on** — You're a courier at E.T.A. Each Run, Dot hands out a job docket (the Route and its Briefing) and you're secretly given a Ride. Nobody tells you its speed.
-2. **Log your ETA** — Estimate how long your Ride would take, pick a unit on the Time Dial, and lock it in. Dot's Double-Take repeats it in plain words to catch slips.
+1. **Clock on** — You're a courier at E.T.A. Each Run, Dotty hands out a job docket (the Route and its Briefing) and you're secretly given a Ride. Nobody tells you its speed.
+2. **Log your ETA** — Estimate how long your Ride would take, pick a unit on the Time Dial, and lock it in. Dotty's Double-Take repeats it in plain words to catch slips.
 3. **The Run Sheet** — Everyone's ETAs fill in on one sheet, quickest at the top of the scale. Each Ride's mode badge shows how it travels.
 4. **Talk Me Through It** — Defend your number out loud. Then give one Stamp of Approval to the best pitch — funny or convincing, your call. *(Edge: you can't stamp yourself, and you can change your Stamp until everyone has locked in.)*
 5. **Proof of Delivery** — A parcel drops on the true ETA for every Ride and its real speed is revealed. Closer means more Mileage. *(Edge: it's judged by how many times out you were, not by the gap — 2× off on a 5-minute trip scores the same as 2× off on 10 years.)*
@@ -644,10 +644,10 @@ On every submit, the box repeats the entry in plain words — *"4,000 hours — 
 Pass-the-phone mode · free-text assumption capture · a persistent rank or profile · Re-dial · TV / host-only mode (noted as a future fit) · bots.
 
 ### Decisions added in v4 (10 Nov 2026, Stage 1b)
-- **World:** E.T.A. Couriers — *Every Thing, Anywhere. Eventually.* The vans are all out, so couriers take whatever's left in the shed (why Rides are absurd). Narrator **Dot, Depot Manager**; Intro is a toolbox talk. Alternatives considered: *Eastern Trading Association* (colonial echo, rejected), *Everyday Transport Association* (flat).
+- **World:** E.T.A. Couriers — *Every Thing, Anywhere. Eventually.* The vans are all out, so couriers take whatever's left in the shed (why Rides are absurd). Narrator **Dotty, Head of Dispatch**; Intro is a toolbox talk. Alternatives considered: *Eastern Trading Association* (colonial echo, rejected), *Everyday Transport Association* (flat).
 - **Direction 1 · Clipboard picked** over Docket Wall and Loading Dock; round-1 boards A/D read as racing, C as sci-fi.
 - **Brand colour hi-vis safety orange** (`#EA580C` controls, `#FF6A13` scene); yellow and green rejected (§11).
-- **Renames:** Run Sheet → The Run Sheet; Talk Me Through It → Talk Me Through It (Great Minds' retired radio language); Dot's Double-Take → Dot's Double-Take; Clock Off? → Clock Off?; rank ladder rewritten.
+- **Renames:** Run Sheet → The Run Sheet; Talk Me Through It → Talk Me Through It (Great Minds' retired radio language); Dotty's Double-Take → Dotty's Double-Take; Clock Off? → Clock Off?; rank ladder rewritten.
 - **Mode badges** replace emoji as the Ride marker; the parcel drop stays as the truth marker.
 - **Spin-out / Back on Course move to Proof of Delivery** (they need the truth).
 - `[DEVIATION: Run Sheet uses the full clipboard as its stage — §13]`.
@@ -659,7 +659,7 @@ Pass-the-phone mode · free-text assumption capture · a persistent rank or prof
 | Field | Answer |
 |---|---|
 | **Real-world games** | Wits & Wagers (estimating), Balderdash (defending), The Price Is Right (a hidden number) |
-| **References** | A real courier's run sheet and proof-of-delivery docket (layout, stamps, signatures — not any brand's livery); hi-vis vests (the orange and silver stripe); an Aussie worksite toolbox talk (Dot's voice); a corrugated roller door at dawn. **Must not copy:** any real courier company's name, logo, colours or uniform |
+| **References** | A real courier's run sheet and proof-of-delivery docket (layout, stamps, signatures — not any brand's livery); hi-vis vests (the orange and silver stripe); an Aussie worksite toolbox talk (Dotty's voice); a corrugated roller door at dawn. **Must not copy:** any real courier company's name, logo, colours or uniform |
 | **Tone** | Fast, loud, argumentative, warm — the comedy of scale, of conviction, and of getting caught, all signed for in triplicate |
 | **Should NOT feel like** | A quiet maths quiz; a racing game; sci-fi mission control; a radio game |
 | **Copy already written** | "Skateboard to the Moon? Show your working." · "Every Thing, Anywhere. *Eventually.*" · "Right, gather round. Toolbox talk." · "Talk me through it, then." · "Received in good order." · "Launch prep not included, love." · "You're dreaming, Boris." |
@@ -775,7 +775,7 @@ N/A — ETA's fun is the spoken Talk Me Through It phase, and a bot can't pitch.
 **Chosen form: Arena.**
 - **Why:** the key action is a free estimate scored for real; fixing the *other* couriers' moves lets the player see a full Run Sheet and Proof of Delivery around their own free answer.
 - **Key actions:** read the docket → read your Ride → log an ETA with the Time Dial → read the Run Sheet → see Proof of Delivery and the tally.
-- **Content:** Route *The Length of Italy (~1,200 km)*, corridor Briefing. The player gets the **Helicopter**; three fixed couriers (Boris — pogo stick, 4 days; Chloe — shopping trolley, 21 days; Dev — rocket, 20 minutes, as in Sample 1). The player's ETA is free; Dot's note explains each verdict. Talk Me Through It is shown as one scripted line per courier, and the Stamp step is a single tap on a suggested pitch.
+- **Content:** Route *The Length of Italy (~1,200 km)*, corridor Briefing. The player gets the **Helicopter**; three fixed couriers (Boris — pogo stick, 4 days; Chloe — shopping trolley, 21 days; Dev — rocket, 20 minutes, as in Sample 1). The player's ETA is free; Dotty's note explains each verdict. Talk Me Through It is shown as one scripted line per courier, and the Stamp step is a single tap on a suggested pitch.
 - **Hidden information:** only the player's own Ride is hidden until the Run Sheet, exactly as in play; the truth appears only at Proof of Delivery.
 - **Sylly Mode:** not covered in v1 (the How to Play card explains it).
 - **Length / exit:** about 90 seconds; ✕ leaves at any point.
@@ -789,17 +789,17 @@ N/A — ETA's fun is the spoken Talk Me Through It phase, and a bot can't pitch.
 1. **[BLOCKER for Stage 3, not Stage 2]** The **content set** (Routes, Rides with modes and speeds, Briefing lines, Unregistered hints, Off the Map Routes) has not been rebuilt. Stage 2 specifies the data format; the content itself is a separate task (old handoff §4, now plus the `mode` field). The game can't ship without it.
 2. **[NON-BLOCKER]** Fonts: self-host three faces or substitute system stacks (§11).
 3. **[NON-BLOCKER]** Controls shade `#EA580C` vs `#C2410C` after the contrast check (§11).
-4. **[NON-BLOCKER]** Dot's look beyond the sketch (hair, glasses, mug) and whether she appears on the action screens or only in the Intro (boards: Intro only, her voice in the note elsewhere).
+4. **[NON-BLOCKER]** Dotty's look beyond the sketch (hair, glasses, mug) and whether she appears on the action screens or only in the Intro (boards: Intro only, her voice in the note elsewhere).
 5. **[NON-BLOCKER]** Time Dial details (seconds; ×1,000 / ×1M chips; compound entry).
 6. **[NON-BLOCKER]** Stall countdown length (30 s assumed).
 7. **[NON-BLOCKER]** Share of Off the Map Routes when on (≈1 in 4 assumed).
 8. **[NON-BLOCKER]** Sylly checks: 3 couriers, Hands off attractiveness for loose couriers, stacking at 7–8.
 
 ### Locked
-Name, abbreviation, emoji; world (E.T.A., Dot, the dock); hi-vis orange brand; Clipboard direction; *The Run Sheet*; *Talk Me Through It*; rank ladder names; no hidden Range factor; hidden Gear Ratio; Briefing shared; Off the Map default rules; Ride speed hidden until Proof of Delivery.
+Name, abbreviation, emoji; world (E.T.A., Dotty, the dock); hi-vis orange brand; Clipboard direction; *The Run Sheet*; *Talk Me Through It*; rank ladder names; no hidden Range factor; hidden Gear Ratio; Briefing shared; Off the Map default rules; Ride speed hidden until Proof of Delivery.
 
 ### Soft-locked
-All scoring numbers `[MATHS]`; mode badges; Dot's Double-Take; Clock Off? wording; Arena practice; job-docket flavour lines.
+All scoring numbers `[MATHS]`; mode badges; Dotty's Double-Take; Clock Off? wording; Arena practice; job-docket flavour lines.
 
 ### Open for build
 How much of the clipboard skin the engine-owned Intro panel can take; exact animation timings (boards are the reference, reduced motion always honoured); the static tier on slow phones.
@@ -819,7 +819,7 @@ TV / host-only mode (the Run Sheet and Proof of Delivery are public and suit a b
 |---|---|
 | `new-game-brief-eta-v4.md` | This brief — the source of truth |
 | `boards/depot-directions/Main.dc.html` | **Picked board** — Run Sheet + Proof of Delivery, Standard Mode, 5 couriers. Every value inline; the timeline and maths live in its `<script type="text/x-dc">` block |
-| `boards/depot-directions/Intro.dc.html` | Intro scene — dock, roller door, Dot, toolbox talk, brief, timesheet |
+| `boards/depot-directions/Intro.dc.html` | Intro scene — dock, roller door, Dotty, toolbox talk, brief, timesheet |
 | `boards/depot-directions/DocketWall.dc.html`, `LoadingDock.dc.html` | Not picked — do not build from them |
 | `boards/reveal-mockups-round1/Backseat.dc.html` | Sylly corrections reveal **mechanics** reference (flying correction chips, ghosts, skid trails, Spin-out logic, Navigation Assist / Detour / Insurance payouts with the maths-round credit scheme implemented in JS) |
 | `boards/reveal-mockups-round1/*` (others) | Round-1 history only |
@@ -833,13 +833,13 @@ The `.dc.html` files are design-canvas components, not suite code: read them for
 **Screen map** (fate: all new):
 | Screen (§13) | Board source | States | Motion (board timings at speed 1) |
 |---|---|---|---|
-| Intro scene | `Intro.dc.html` | door closed → up; Dot idle / talking / pointing | door roll 1.2 s; Dot sway + mouth while a line shows; `beat(i, text)` drives talking |
+| Intro scene | `Intro.dc.html` | door closed → up; Dotty idle / talking / pointing | door roll 1.2 s; Dotty sway + mouth while a line shows; `beat(i, text)` drives talking |
 | Job docket | `Main.dc.html` header | docket in; Briefing typed; URGENT | type-on 0.5 s per field, URGENT stamp 0.7 s; GPS Signal Lost banner first if Off the Map |
 | Ride + Log ETA | (not drawn — derive from clipboard style) | entry, Double-Take, waiting | stamp-and-click on lock |
 | Run Sheet | `Main.dc.html` rows | per row: idle → driving → landed | time-lapse sweep ≈ 4.6 s on a log scale (1 min → 10 yr in the board; scale range picked per Run from the min/max of Logged ETAs and truths with landmark ticks 1 min · 1 hr · 1 day · 1 wk · 1 mo · 1 yr · 10 yr · 100 yr · 1,000 yr · 1M yr); each strip's width eases linearly so it lands when the counter passes its value; thunk + sheen on landing; tag pops |
 | Stamp / Course Correction | (not drawn) | select line, panel, locked | slide-up panel per §14 |
 | Corrections reveal (Sylly) | `Backseat.dc.html` mechanics, restyled | per correction: chip flies, tape shoves, ghost stays | chip arc 0.52 s, shove 0.46 s spring; chips are **red-pen amendments** on the clipboard |
-| Proof of Delivery | `Main.dc.html` phases 4–6 | big stamp; per courier: parcel → gap → verdict stamp → km | big stamp 1.75 s with board jolt; per courier step 1.35 s: parcel 0.85 s, gap 0.45 s, stamp 1.2 s, km chip 0.45 s; bullseye star + confetti; Dot's sign-off draws on |
+| Proof of Delivery | `Main.dc.html` phases 4–6 | big stamp; per courier: parcel → gap → verdict stamp → km | big stamp 1.75 s with board jolt; per courier step 1.35 s: parcel 0.85 s, gap 0.45 s, stamp 1.2 s, km chip 0.45 s; bullseye star + confetti; Dotty's sign-off draws on |
 | Spin-out / Back on Course (Sylly) | `Backseat.dc.html` | stamp after that target's parcel lands | stamp + shake (Spin-out) / hop (Back on Course) |
 | Odometer tally | (not drawn) | receipt lines, Promotion stamp | tap-to-skip |
 | End of Shift | (not drawn — §17) | frame, standings | roller door comes down at the end |
@@ -848,6 +848,6 @@ The `.dc.html` files are design-canvas components, not suite code: read them for
 
 **Data:** every Ride gains `mode: 'land'|'sea'|'air'|'space'` (+ the existing Unregistered flag drives the hazard ring); `emoji` becomes optional.
 
-**Privacy (unchanged from v3):** the truth and every Ride speed stay on the host until Proof of Delivery; a ghost bar previews only the local courier's correction; Dot's Double-Take never compares with the truth. The Run Sheet scale range must be computed from Logged ETAs only before Proof of Delivery (if it used the truths, the axis would leak them), then may widen to fit the truths at Proof of Delivery with a short re-scale tween `[OPEN FOR BUILD]`.
+**Privacy (unchanged from v3):** the truth and every Ride speed stay on the host until Proof of Delivery; a ghost bar previews only the local courier's correction; Dotty's Double-Take never compares with the truth. The Run Sheet scale range must be computed from Logged ETAs only before Proof of Delivery (if it used the truths, the axis would leak them), then may widen to fit the truths at Proof of Delivery with a short re-scale tween `[OPEN FOR BUILD]`.
 
 **Departures to log at build:** the Run Sheet's full-clipboard stage (three-zone default); custom fonts (pending decision); stamp and parcel motion beyond the Motion Standard's caps.

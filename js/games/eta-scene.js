@@ -1,15 +1,15 @@
 // ═══════════════════════════════════════════════════════════════════════════
-// eta-scene.js — ETA?'s world kit: E.T.A. Couriers, the Clipboard direction.
+// eta-scene.js — E.T.A.'s world kit: E.T.A. Couriers, the Clipboard direction.
 // Depends on: css/eta.css (classes), js/engine-intro.js (calls EtaScene.mount/beat/stop)
 //
 // Game-owned and PURE in the li5-scene.js sense: inputs in, DOM out, reads no eta*
 // game state. Pieces:
 //   etaFmtInt(n), etaDur(minutes)          number + friendly-duration formatting
 //   etaRenderBadge(mode, {unreg,size})     THE render seam for the Ride mode badge
-//   etaNoteInto(el, a, b)                  Dot's note ("FROM DOT · DEPOT MANAGER")
+//   etaNoteInto(el, a, b)                  Dotty's note ("FROM DOTTY · HEAD OF DISPATCH")
 //   etaDocketInto(root, d, {compact,…})    the job docket (letterhead, URGENT, fields)
 //   etaMakeBoard(root, {onRowTap})         the Run Sheet: time-lapse, shoves, Proof
-//   EtaScene { mount, beat, stop }         the Intro: the dock at dawn, Dot, the door
+//   EtaScene { mount, beat, stop }         the Intro: the dock at dawn, Dotty, the door
 // Boards: docs/new-ideas/eta/for archive/boards/depot-directions/{Main,Intro}.dc.html (the
 // source of truth for every value and timing below).
 // ═══════════════════════════════════════════════════════════════════════════
@@ -41,6 +41,11 @@ function etaDur(min) {
 function etaKitEsc(s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
+// Escaped text with **bold** spans — the Briefing's load-bearing words
+// (docs/eta-content-guide.md). A stray ** is dropped, never shown.
+function etaKitRich(s) {
+  return etaKitEsc(s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/\*\*/g, '');
+}
 function etaKitReduced() {
   try { return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); }
   catch (_) { return false; }
@@ -49,6 +54,7 @@ function etaKitReduced() {
 // ── The render seam: the Ride mode badge (spec §10) ─────────────────────────
 // The ONLY place a badge is built — Run Sheet rows, the Ride card, the tally, the
 // how-to. A skin (asset kind 'eta-badge', id = the mode) needs no logic change.
+const ETA_NOTE_FROM = 'FROM DOTTY · HEAD OF DISPATCH';
 const ETA_BADGE_SVG = {
   land:  '<svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6" fill="none" stroke="#22201B" stroke-width="1.8"/><circle cx="8" cy="8" r="1.8" fill="#EA580C"/><path d="M8 2.5 V6 M8 10 V13.5 M2.5 8 H6 M10 8 H13.5" fill="none" stroke="#22201B" stroke-width="1.3"/></svg>',
   air:   '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1.5 8.5 L14.5 2.5 L10.5 14 L7.8 9.8 Z" fill="#EA580C" stroke="#22201B" stroke-width="1.3" stroke-linejoin="round"/><path d="M7.8 9.8 L14.5 2.5" fill="none" stroke="#22201B" stroke-width="1.1"/></svg>',
@@ -76,11 +82,11 @@ function etaRenderBadge(mode, opts) {
   return el;
 }
 
-// ── Dot's note ──────────────────────────────────────────────────────────────
+// ── Dotty's note ────────────────────────────────────────────────────────────
 function etaNoteInto(el, a, b, opts) {
   if (!el) return;
   const anim = !(opts && opts.instant) && !etaKitReduced();
-  el.innerHTML = `<span class="eta-note-from">FROM DOT · DEPOT MANAGER</span>`
+  el.innerHTML = `<span class="eta-note-from">${ETA_NOTE_FROM}</span>`
     + `<span class="eta-note-a${anim ? ' eta-type-a' : ''}">${etaKitEsc(a || '')}</span>`
     + (b ? `<span class="eta-note-b eta-mark${anim ? ' eta-type-b' : ''}">${etaKitEsc(b)}</span>` : '');
 }
@@ -104,15 +110,15 @@ function etaDocketInto(root, d, opts) {
   const anim = !opts.reducedMotion && !compact;
   const r = d.route || {};
   const off = !!r.offMap;
-  const dist = r.km > 0 ? `≈ ${etaFmtInt(r.km)} KM` : 'GPS OFF — your guess';
-  const lines = (r.briefing || []).map(l => `<li>${etaKitEsc(l)}</li>`).join('');
+  const dist = r.km > 0 ? `≈ ${etaNum(r.km)} km` : 'GPS off — guess the distance too';
+  const lines = (r.briefing || []).map(l => `<li>${etaKitRich(l)}</li>`).join('');
   root.innerHTML = `<div class="eta-clip eta-docket${compact ? ' is-compact' : ''}${anim ? ' is-anim' : ''}${off ? ' is-offmap' : ''}">
       ${compact ? `<div class="eta-docket-mini"><span>${etaKitEsc(d.runLabel || '')}</span><span class="eta-sten">${etaKitEsc(d.jobNo || '')}</span></div>`
                 : etaLetterheadHtml(d.runLabel, d.jobNo) + '<span class="eta-urgent eta-sten">URGENT</span>'}
       <div class="eta-hv${anim ? ' eta-sheen-loop' : ''}"></div>
       ${off ? '<div class="eta-gpslost"><span aria-hidden="true">📡</span> GPS Signal Lost…</div>' : ''}
-      <div class="eta-field eta-f1"><b>ROUTE</b><span class="eta-dots"></span><b class="eta-field-val">${etaKitEsc(r.headline || '')}</b></div>
-      <div class="eta-field eta-f2"><b>DISTANCE</b><span class="eta-dots"></span><b class="eta-field-val">${etaKitEsc(dist)}</b></div>
+      <div class="eta-field eta-f1"><span class="eta-field-label">ROUTE</span><b class="eta-route">${etaKitEsc(r.headline || '')}</b></div>
+      <div class="eta-field eta-field-row eta-f2"><span class="eta-field-label">DISTANCE</span><b class="eta-dist${r.km > 0 ? '' : ' is-off'}">${etaKitEsc(dist)}</b></div>
       <div class="eta-briefing eta-f3"><span class="eta-briefing-label">DISPATCH BRIEFING</span><ul>${lines}</ul></div>
       ${compact ? '' : '<div class="eta-note eta-f4" data-eta-note></div>'}
     </div>`;
@@ -253,6 +259,7 @@ function etaMakeBoard(root, opts) {
     fx.innerHTML = '';
     clip.classList.remove('eta-jolt');
     B.revealed = false;
+    clip.classList.remove('is-proof');
     B.mine = o && o.mine >= 0 ? o.mine : -1;
     B.sc = etaScaleFor(rows.map(r => r.logged));
     rowsEl.innerHTML = '';
@@ -277,13 +284,16 @@ function etaMakeBoard(root, opts) {
           <span class="eta-tag"></span>
           <span class="eta-banner eta-sten"></span>
           <span class="eta-amend eta-mark"></span>
-        </span>`;
+        </span>
+        <span class="eta-res" aria-hidden="true"><span class="eta-res-said"></span><span class="eta-res-true"></span></span>
+        <span class="eta-place eta-sten" aria-hidden="true"></span>`;
       rowsEl.appendChild(el);
       const q = s => el.querySelector(s);
       const R = { el, data: r, logged: r.logged, end: null, truth: null,
         tape: q('.eta-tape'), rider: q('.eta-rider'), tag: q('.eta-tag'), ghost: q('.eta-ghost'), myghost: q('.eta-myghost'),
         gap: q('.eta-gap'), drop: q('.eta-dropline'), parcel: q('.eta-parcel'), puff: q('.eta-puff'), star: q('.eta-star'),
-        vst: q('.eta-vstamp'), km: q('.eta-row-km'), banner: q('.eta-banner'), amend: q('.eta-amend'), ride: q('.eta-row-ride') };
+        vst: q('.eta-vstamp'), km: q('.eta-row-km'), banner: q('.eta-banner'), amend: q('.eta-amend'), ride: q('.eta-row-ride'),
+        resSaid: q('.eta-res-said'), resTrue: q('.eta-res-true'), place: q('.eta-place') };
       const badge = etaRenderBadge(r.mode, { unreg: r.unreg, size: 28 });
       R.rider.firstElementChild.appendChild(badge);
       R.rider.firstElementChild.classList.add('eta-mv-' + (r.mode || 'land'));
@@ -410,12 +420,23 @@ function etaMakeBoard(root, opts) {
   }
 
   // ── Proof of Delivery ──
-  // rows[i]: { truth, verdict:{top,bot,kind}, kmLabel, banner:'spin'|'back'|null, fact, quip }
+  // rows[i]: { truth, verdict:{top,bot,kind}, kmLabel, banner:'spin'|'back'|null, fact, quip,
+  //            said (the Logged ETA in words), trueLabel (the truth in words), place (1-based; 0 = none) }
+  // best: { name, line } — the closest courier(s), named in the sign-off; null when nobody logged.
   B.proof = function (prow, best, done) {
     B.settleReveal();
     const ev = [];
     const vals = B.rows.map((R, i) => [R.logged, R.end, prow[i] && prow[i].truth]).flat();
-    ev.push({ at: 0, fn: inst => { refit(vals, inst ? 0 : 400); } });
+    ev.push({ at: 0, fn: inst => {
+      // The rows grow once, here, under the big stamp — never row by row (the Stack would bounce).
+      clip.classList.add('is-proof');
+      B.rows.forEach((R, i) => {
+        const pr = prow[i];
+        R.resSaid.innerHTML = pr && pr.said ? `<i>SAID</i> ${etaKitEsc(pr.said)}` : '<i>SAID</i> —';
+        R.resTrue.innerHTML = '';
+      });
+      refit(vals, inst ? 0 : 400);
+    } });
     const P = 450;
     ev.push({ at: P, fn: inst => {
       if (inst) return;
@@ -438,6 +459,7 @@ function etaMakeBoard(root, opts) {
         if (!(pr.truth > 0)) return;
         R.parcel.style.left = pct(pr.truth); R.drop.style.left = pct(pr.truth); R.puff.style.left = pct(pr.truth);
         R.el.classList.add('s-parcel');
+        R.resTrue.innerHTML = `<i>TRUE</i> <b>${etaKitEsc(pr.trueLabel || etaDur(pr.truth))}</b>`;
         if (!inst) {
           etaKitRetrigger(R.parcel, 'eta-anim-drop'); etaKitRetrigger(R.puff, 'eta-anim-puff');
           if (typeof playHullThud === 'function') playHullThud();
@@ -478,11 +500,32 @@ function etaMakeBoard(root, opts) {
       } });
     });
     ev.push({ at: Q + B.rows.length * step + 200, fn: inst => {
-      noteEl.innerHTML = `<span class="eta-note-from">FROM DOT · DEPOT MANAGER</span>
+      // The placings: 3rd, then 2nd, then 1st — gold / silver / bronze rubber stamps.
+      const PLACE = ['', '1ST', '2ND', '3RD'];
+      B.rows.forEach((R, i) => {
+        const pl = prow[i] && prow[i].place;
+        if (!(pl >= 1 && pl <= 3)) return;
+        R.place.textContent = PLACE[pl];
+        R.place.className = `eta-place eta-sten is-p${pl}`;
+        R.place.style.setProperty('--pd', `${(3 - pl) * 260}ms`);
+        R.el.classList.add('s-place');
+        if (!inst) etaKitRetrigger(R.place, 'eta-anim-place');
+      });
+      // The stamps are drawn (aria-hidden); a screen reader gets the whole result per line.
+      B.rows.forEach((R, i) => {
+        const pr = prow[i];
+        if (!pr) return;
+        const v = pr.verdict || {};
+        const off = v.kind === 'none' ? 'no ETA' : `${v.top || ''} ${v.bot || ''}`.replace('★', '').trim().toLowerCase();
+        R.el.setAttribute('aria-label', [`${R.data.name}, ${R.data.ride}`, pr.said ? `said ${pr.said}` : 'no ETA',
+          pr.truth > 0 ? `true ETA ${pr.trueLabel || etaDur(pr.truth)}` : '', pr.said ? off : '',
+          pr.place >= 1 && pr.place <= 3 ? PLACE[pr.place].toLowerCase() + ' place' : '', pr.kmLabel || ''].filter(Boolean).join(', '));
+      });
+      noteEl.innerHTML = `<span class="eta-note-from">${ETA_NOTE_FROM}</span>
         <div class="eta-signoff"><div><span class="eta-signoff-head">RECEIVED IN GOOD ORDER</span>
-        <span class="eta-mark eta-signoff-best">${best ? `Bullseye: ${etaKitEsc(best.name)} · ${etaKitEsc(best.km)}` : "No bullseyes. Paperwork's paperwork."}</span></div>
+        <span class="eta-mark eta-signoff-best">${best ? `Closest: ${etaKitEsc(best.name)} — ${etaKitEsc(best.line)}` : "No ETAs, no paperwork. Next."}</span></div>
         <svg class="eta-sig${inst ? '' : ' eta-anim-sign'}" viewBox="0 0 104 40" aria-hidden="true"><path d="M6 30 C10 8, 22 6, 20 22 C18 34, 6 34, 10 22 C14 12, 28 14, 30 26 C32 34, 40 30, 42 20 C44 12, 50 14, 50 24 C50 32, 58 30, 62 18 L64 10 M58 18 L70 16 C76 16, 78 26, 86 24 S98 14, 100 22" fill="none" stroke="#1F4FA6" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>`;
-      if (best && !inst) confetti(B.rows.findIndex(R => R.el.classList.contains('s-bull')));
+      if (best && !inst) confetti(prow.findIndex(pr => pr && pr.place === 1));
     } });
     play(ev, done);
   };
@@ -523,7 +566,7 @@ function etaKitRetrigger(el, cls) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// The Intro — Dot's toolbox talk on the loading dock at dawn (Intro.dc.html)
+// The Intro — Dotty's toolbox talk on the loading dock at dawn (Intro.dc.html)
 // ═══════════════════════════════════════════════════════════════════════════
 const EtaScene = (() => {
   let root = null, raf = 0, timers = [];
@@ -557,23 +600,33 @@ const EtaScene = (() => {
     <rect x="0" y="262" width="375" height="38" fill="#5A5D62"/>
     <g transform="translate(152 228)"><rect width="70" height="40" fill="#A97D4D" stroke="#6E4E2C" stroke-width="2"/><path d="M20 0 V40 M42 0 V40" stroke="#6E4E2C" stroke-width="2"/><text x="7" y="25" class="eta-sten" font-size="9" fill="#3E2A16">FRAGILE</text></g>
     <g class="eta-dot" transform="translate(157 120)">
+      <!-- Dotty, Head of Dispatch: navy blazer, pencil skirt, heels, a high ponytail with an
+           orange scrunchie, the E.T.A. lanyard. Upper management — no hi-vis. -->
       <g class="eta-dot-body">
-        <rect x="17" y="82" width="10" height="28" rx="2" fill="#2E3F5E"/><rect x="33" y="82" width="10" height="28" rx="2" fill="#2E3F5E"/>
-        <rect x="14" y="106" width="14" height="6" rx="2" fill="#1C1D20"/><rect x="32" y="106" width="14" height="6" rx="2" fill="#1C1D20"/>
-        <rect x="10" y="38" width="40" height="50" rx="10" fill="#E5DABE"/>
-        <rect x="10" y="38" width="13" height="50" rx="6" fill="#FF6A13"/><rect x="37" y="38" width="13" height="50" rx="6" fill="#FF6A13"/>
-        <rect x="10" y="66" width="13" height="8" fill="#E7EBEE"/><rect x="37" y="66" width="13" height="8" fill="#E7EBEE"/>
-        <rect x="44" y="42" width="7" height="32" rx="3.5" fill="#E9B98E" transform="rotate(-20 47.5 42)"/>
+        <path class="eta-dotty-pony" d="M43 5 C57 2, 63 16, 57 33 C55 39, 50 40, 51 32 C53 22, 50 14, 41 11 Z" fill="#4A2E1F"/>
+        <rect x="21" y="90" width="7" height="17" rx="3" fill="#D39C78"/><rect x="32" y="90" width="7" height="17" rx="3" fill="#D39C78"/>
+        <path d="M18 106 h11 v4 h-2 l-1 -2 h-8 z M31 106 h11 v4 h-2 l-1 -2 h-8 z" fill="#1C1D20"/>
+        <rect x="18" y="108" width="2" height="5" fill="#1C1D20"/><rect x="31" y="108" width="2" height="5" fill="#1C1D20"/>
+        <path d="M14 66 H46 L43 94 H17 Z" fill="#2F3542"/><path d="M36 85 V94" stroke="#1E232D" stroke-width="1.2"/>
+        <path d="M12 46 q0 -8 9 -8 h18 q9 0 9 8 v24 H12 z" fill="#2B3A55"/>
+        <path d="M24 38 L30 53 L36 38 Z" fill="#F4F1EA"/>
+        <path d="M23 38 L30 53 L21 47 Z M37 38 L30 53 L39 47 Z" fill="#22304A"/>
+        <path d="M25.5 39 L29 59 M34.5 39 L31 59" stroke="#FF6A13" stroke-width="1.6" fill="none"/>
+        <rect x="26" y="58" width="8" height="10" rx="1" fill="#FFFCF3" stroke="#22201B" stroke-width=".8"/><rect x="26" y="58" width="8" height="3" fill="#FF6A13"/>
+        <g transform="rotate(-20 47.5 42)"><rect x="44" y="42" width="8" height="28" rx="4" fill="#2B3A55"/><circle cx="48" cy="71" r="3.5" fill="#E9B98E"/></g>
         <g transform="rotate(-10 11 67)"><rect x="0" y="54" width="22" height="26" rx="2" fill="#C99459" stroke="#6E4E2C" stroke-width="2"/><rect x="6" y="50" width="8" height="5" rx="2" fill="#8D9299"/><rect x="3" y="59" width="12" height="14" fill="#FFFCF3"/></g>
-        <g class="eta-dot-arm"><rect x="6" y="42" width="7" height="26" rx="3.5" fill="#E9B98E"/></g>
-        <rect x="25" y="30" width="10" height="10" fill="#E9B98E"/>
-        <circle cx="30" cy="18" r="16" fill="#E9B98E"/>
-        <path d="M10 14 q0 -18 20 -18 q20 0 20 18 v-4 h-40 z" fill="#8A8F98"/>
-        <ellipse cx="12.5" cy="11" rx="4.5" ry="7" fill="#8A8F98"/><ellipse cx="47.5" cy="11" rx="4.5" ry="7" fill="#8A8F98"/>
-        <rect x="45" y="0" width="3" height="16" rx="1" fill="#1F4FA6" transform="rotate(30 46.5 8)"/>
-        <rect x="20" y="16" width="8" height="6" rx="2" fill="none" stroke="#22201B" stroke-width="1.5"/><rect x="31" y="16" width="8" height="6" rx="2" fill="none" stroke="#22201B" stroke-width="1.5"/>
-        <rect x="28" y="18" width="3" height="1.5" fill="#22201B"/>
-        <path class="eta-dot-mouth" d="M26 25 h8 v1 a4 3 0 0 1 -8 0 z" fill="#7A3A2A"/>
+        <g class="eta-dot-arm"><rect x="6" y="42" width="8" height="24" rx="4" fill="#2B3A55"/><circle cx="10" cy="67" r="3.5" fill="#E9B98E"/></g>
+        <rect x="26" y="29" width="8" height="10" fill="#E9B98E"/>
+        <circle cx="30" cy="18" r="15" fill="#E9B98E"/>
+        <path d="M15 19 C13 5, 23 -1, 31 -1 C41 -1, 47 5, 45 16 C41 9, 33 6, 23 9 C19 11, 17 15, 15 19 Z" fill="#4A2E1F"/>
+        <circle cx="44" cy="8" r="2.6" fill="#FF6A13"/>
+        <circle cx="15.6" cy="21" r="1.3" fill="#E2B54A"/><circle cx="44.4" cy="21" r="1.3" fill="#E2B54A"/>
+        <path d="M20 13.5 l7 -1.6 M33 11.9 l7 1.6" stroke="#3A2416" stroke-width="1.5" stroke-linecap="round"/>
+        <ellipse cx="24" cy="17.5" rx="1.6" ry="1.9" fill="#22201B"/><ellipse cx="36" cy="17.5" rx="1.6" ry="1.9" fill="#22201B"/>
+        <path d="M22 15.6 l-1.6 -1 M38 15.6 l1.6 -1" stroke="#22201B" stroke-width="1" stroke-linecap="round"/>
+        <circle cx="21" cy="22.5" r="3" fill="#F09A8E" opacity=".45"/><circle cx="39" cy="22.5" r="3" fill="#F09A8E" opacity=".45"/>
+        <path d="M30.5 18.5 q1.4 2.6 -.6 3.6" stroke="#C98A6A" stroke-width="1" fill="none" stroke-linecap="round"/>
+        <path class="eta-dot-mouth" d="M26 25.4 q4 2.4 8 0 q-4 3.8 -8 0 z" fill="#B8435A"/>
       </g>
     </g>
     <g class="eta-door">
@@ -610,7 +663,7 @@ const EtaScene = (() => {
       root.className = 'eta-intro' + (opts.reducedMotion ? ' is-reduced' : '');
       root.innerHTML = DOCK_SVG + `<div class="eta-intro-board"><div class="eta-hv"></div>
         <div class="eta-intro-head"><span data-eta-intro-head>TOOLBOX TALK</span><span class="eta-intro-dots" data-eta-intro-dots></span></div>
-        <div class="eta-intro-line" data-eta-intro-line><span class="eta-sten eta-intro-who">DOT · DEPOT MANAGER</span><span class="eta-intro-text" data-eta-intro-text></span></div></div>`;
+        <div class="eta-intro-line" data-eta-intro-line><span class="eta-sten eta-intro-who">DOTTY · HEAD OF DISPATCH</span><span class="eta-intro-text" data-eta-intro-text></span></div></div>`;
       el.innerHTML = '';
       el.appendChild(root);
       if (opts.reducedMotion) root.classList.add('door-up');
@@ -631,7 +684,7 @@ const EtaScene = (() => {
         if (dots) dots.innerHTML = [0, 1, 2, 3].map(k => `<i class="${k <= i ? 'on' : ''}"></i>`).join('');
       } else {
         if (head) head.textContent = 'ROLL CALL';
-        if (line) { line.textContent = 'Sign the timesheet, love.'; line.classList.remove('eta-type-line'); }
+        if (line) { line.textContent = 'Sign the timesheet. Chop chop.'; line.classList.remove('eta-type-line'); }
         if (dots) dots.innerHTML = '';
       }
     },

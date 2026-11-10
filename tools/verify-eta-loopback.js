@@ -212,6 +212,12 @@ async function socialRound(M, plan, sylly) {
   all.forEach(d => check(`${d.name}: the sheet settled ('done')`, d.run('etaPhase'), 'done'));
   all.forEach(d => ok(`${d.name}: the board was handed truths only at Proof`, J(d, '__board.proofRows').length === 4));
   check('Dev scored no Accuracy (No ETA)', J(host, 'etaProof.receipts[3][0]'), { key: 'acc', label: 'Accuracy (no ETA)', km: 0 });
+  // Placings (playtest round 1): derived on every device from the Proof — never sent before it.
+  all.forEach(d => check(`${d.name}: same placings as the host`, J(d, 'etaProof.places'), J(host, 'etaProof.places')));
+  check('Dev (No ETA) is unplaced; someone is 1st', [J(host, 'etaProof.places[3]'), J(host, 'etaProof.places').includes(1)], [0, true]);
+  all.forEach(d => check(`${d.name}: the board got each row's place`, J(d, '__board.proofRows.map(r => r.place)'), J(host, 'etaProof.places')));
+  all.forEach(d => ok(`${d.name}: the board got SAID / TRUE in words`, J(d, '__board.proofRows').every((r, i) => r.trueLabel && (i === 3 ? r.said === '' : !!r.said))));
+  all.forEach(d => ok(`${d.name}: Your result is shown once the sheet settles`, d.el('eta-my-result').style.display !== 'none' && /YOUR RESULT/.test(d.el('eta-my-result').innerHTML)));
 
   section('5. Tally → Next job (host only)');
   all.forEach(d => d.el('btn-eta-odometer').click());
@@ -272,6 +278,9 @@ async function socialRound(M, plan, sylly) {
   N.all.forEach(d => ok(`${d.name}: the board shoved before the Proof`, J(d, '__board.calls').indexOf('shove:4') >= 0 && J(d, '__board.calls').lastIndexOf('proof') > J(d, '__board.calls').indexOf('shove:4')));
   N.all.forEach(d => check(`${d.name}: same totals`, J(d, 'etaTotals'), J(N.host, 'etaTotals')));
   check('Eli (Hands off) has no Navigation Assist or Detour', J(N.host, 'etaProof.receipts[4].filter(l => l.key === "nav" || l.key === "det").length'), 0);
+  ok('a correction moved at least one ETA (so the next check means something)', J(N.host, 'etaRevised.some((r, i) => r && Math.abs(r - etaLogged[i]) > 1e-6)'));
+  check('placings rank the Logged ETA, never the Revised one', J(N.host, 'etaProof.places'), J(N.host, 'etaPlacings(etaLogged, etaProof.truths)'));
+  N.all.forEach(d => check(`${d.name}: same placings`, J(d, 'etaProof.places'), J(N.host, 'etaProof.places')));
 
   section('8. Backseat Drivers — everyone Hands off (an empty list over the wire)');
   N.all.forEach(d => d.el('btn-eta-odometer').click());

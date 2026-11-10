@@ -1,11 +1,11 @@
 // ═══════════════════════════════════════════════════════════════════════════
-// ETA? (eta) — estimation + persuasion. Each courier is handed a Ride nobody
+// E.T.A. (eta) — estimation + persuasion. Each courier is handed a Ride nobody
 // knows the speed of, logs an ETA for the shared Route, talks the table through
 // it, and watches a parcel drop on the truth. MDLM-only, 3–8 couriers,
 // host-authoritative, host-as-participant.
 // Sylly Mode = Backseat Drivers — secret Course Corrections that multiply.
-// World: E.T.A. Couriers ("Every Thing, Anywhere. Eventually."), Dot the Depot
-// Manager, the Clipboard direction.
+// World: E.T.A. Couriers ("Every Thing, Anywhere. Eventually."), Dotty, Head of
+// Dispatch, the Clipboard direction.
 // Spec: docs/new-game-tech-eta.md (Stage 2 confirmed 10 Nov 2026)
 // Depends on: engine.js (showScreen, play*, resetToLobby, activeGameId, openSoundOverlay),
 //             engine-multiplayer.js (mpShowModeScreen, mpPlayerSlots, mpMyPlayerIdx,
@@ -39,7 +39,7 @@ const ETA_RANKS = [
   { km: 115000, name: 'Senior Courier',      line: 'Gets first pick of the shed. Sometimes.' },
   { km: 145000, name: 'Leading Hand',        line: "Signs other people's paperwork. Loves it." },
   { km: 170000, name: 'Shift Supervisor',    line: 'Has a lanyard. Uses it.' },
-  { km: 195000, name: "Dot's Favourite",     line: "Gold star on the Run Sheet. Don't tell the others." },
+  { km: 195000, name: "Dotty's Favourite",   line: "Gold star on the Run Sheet. Don't tell the others." },
 ];
 const ETA_STALL_MS     = 30000;   // Stamp / Correction: once all but one are in [ASSUMPTION]
 const ETA_LOG_STALL_MS = 60000;   // Log ETA: once all but one are in (spec §16 Q6)
@@ -105,7 +105,7 @@ let etaMyLogged     = null;     // this device's own entry { minutes, label }
 let etaMySelect     = -1;       // the row my Stamp / Correction points at (local)
 let etaMySent       = -1;       // the row my last sent Stamp / Correction points at
 let etaMyMult       = 1;        // my dial (local ghost only)
-let etaPendingEntry = null;     // the entry waiting on Dot's Double-Take
+let etaPendingEntry = null;     // the entry waiting on Dotty's Double-Take
 let etaTimers       = [];       // EVERY choreography timer — etaClearTimers()
 let etaTickInterval = null;     // stall-countdown text
 let etaBoard        = null;     // the Run Sheet board (eta-scene.js)
@@ -153,7 +153,7 @@ function etaEntryLabel(value, unit, mult) {
   return `${shown}${big} ${etaPlural(big ? 2 : v, ETA_UNIT_WORD[unit])}`;
 }
 
-// Dot's Double-Take — repeats the entry in plain words. NEVER reads a truth.
+// Dotty's Double-Take — repeats the entry in plain words. NEVER reads a truth.
 function etaDoubleTakeText(value, unit, mult, minutes) {
   const entry = etaEntryLabel(value, unit, mult);
   const friendly = etaDur(minutes);
@@ -169,6 +169,25 @@ function etaVerdict(logged, truth) {
   if (f <= 1.05) return { top: 'DEAD ON ★', bot: 'WITHIN 5%', kind: 'dead', factor: f };
   if (f <= 1.25) return { top: 'CLOSE!', bot: `×${fs} ${dir}`, kind: 'close', factor: f };
   return { top: `×${fs}`, bot: dir, kind: r < 1 ? 'fast' : 'slow', factor: f };
+}
+
+// The miss in plain words, from a verdict: "within 5%", "×3.1 too fast".
+function etaOffWords(v) {
+  if (!v || v.kind === 'none') return 'no ETA';
+  if (v.kind === 'dead') return 'within 5%';
+  return (v.kind === 'close' ? v.bot : `${v.top} ${v.bot}`).toLowerCase();
+}
+
+// Placings by accuracy on the LOGGED ETA (never a Revised one): how many times out,
+// 1-based, ties share (1, 1, 3); 0 = no ETA. The 1st / 2nd / 3rd stamps at Proof.
+function etaPlacings(logged, truths) {
+  const off = logged.map((l, i) => (l > 0 && truths[i] > 0 ? Math.abs(Math.log10(l / truths[i])) : null));
+  return off.map(d => (d == null ? 0 : 1 + off.filter(x => x != null && x < d - 1e-9).length));
+}
+
+function etaOrdinal(n) {
+  const t = n % 100;
+  return n + ((t >= 11 && t <= 13) ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' }[n % 10] || 'th'));
 }
 
 // Backseat Drivers credit for ONE target (spec §6; eta_sim.py credit_pts).
@@ -261,7 +280,7 @@ function etaScoreRun(inp) {
   return { raw, receipts, runTotals, banners, stampsIn, finals };
 }
 
-// End of Shift: who wins (ties share) and Dot's Notes.
+// End of Shift: who wins (ties share) and Dotty's Notes.
 function etaComputeEnd(names, totals, history, sylly) {
   const best = Math.max(...totals);
   const winners = totals.map((t, i) => (t === best ? i : -1)).filter(i => i >= 0);
@@ -462,7 +481,7 @@ const ETA_FALLBACK_DATA = {
     { id: 'fb-rocket', name: 'Rocket', mode: 'space', tier: 'sky', cruise: 28000, reveal: 'A rocket in orbit does about 28,000 km/h.' },
     { id: 'fb-carpet', name: 'Flying carpet', mode: 'air', tier: 'unreg', cruise: 50, max: 500, unregistered: true, hint: 'Wind speeds perfect for a gentle ride.', reveal: 'A flying carpet cruises at about 50 km/h.' },
   ],
-  quips: { dead: ['Dead on. Gold star.'], close: ['Close enough for the paperwork.'], fast: ["You're dreaming."], slow: ["It's quicker than that, love."] },
+  quips: { dead: ['Dead on. Gold star.'], close: ['Close enough for the paperwork.'], fast: ["You're dreaming."], slow: ["It's quicker than that. Keep up."] },
   flavour: ['Righto, next job.'],
 };
 
@@ -645,7 +664,7 @@ function etaHostResolve() {
     truths: etaRunTruths.slice(),
     speeds: etaRunRides.map(d => etaSpeedFor(etaRunRoute, d)),
     reveal: etaRunRides.map(d => d.reveal || ''),
-    quips: verdicts.map((v, i) => (v ? etaQuip(data, etaRunRides[i], v.kind, etaRng) : "No ETA, no paperwork, love.")),
+    quips: verdicts.map((v, i) => (v ? etaQuip(data, etaRunRides[i], v.kind, etaRng) : "No ETA, no paperwork, no pay.")),
     verdicts: verdicts.map(v => (v ? { top: v.top, bot: v.bot, kind: v.kind } : { top: 'NO ETA', bot: 'NOTHING LOGGED', kind: 'none' })),
     stampsIn: sc.stampsIn,
     banners: sc.banners.map(b => b || ''),
@@ -786,6 +805,7 @@ function etaApplyProof(p) {
     ranksAfter:  etaWireArr(p.ranksAfter, n, 0).map(Number),
     logged:      etaLogged.slice(),
   };
+  etaProof.places = etaPlacings(etaProof.logged, etaProof.truths);
   etaTotals = etaProof.totals.slice();
   etaHistory = etaHistory.filter(h => h.run !== etaRun).concat([etaProof]);
   etaSocialReady = Array(n).fill(true);
@@ -948,7 +968,7 @@ function etaRenderLog() {
   if (card) {
     card.innerHTML = '';
     if (etaMyRide) {
-      const badge = typeof etaRenderBadge === 'function' ? etaRenderBadge(etaMyRide.mode, { unreg: etaMyRide.unreg, size: 56 }) : null;
+      const badge = typeof etaRenderBadge === 'function' ? etaRenderBadge(etaMyRide.mode, { unreg: etaMyRide.unreg, size: 48 }) : null;
       const wrap = document.createElement('div');
       wrap.className = 'eta-ride-card-inner';
       if (badge) wrap.appendChild(badge);
@@ -961,7 +981,7 @@ function etaRenderLog() {
       card.appendChild(wrap);
       card.classList.toggle('is-unreg', !!etaMyRide.unreg);
     } else {
-      card.innerHTML = `<p class="eta-ride-wait">Dot's finding you something in the shed…</p>`;
+      card.innerHTML = `<p class="eta-ride-wait">Dotty's finding you something in the shed…</p>`;
     }
   }
   const locked = etaLogStage === 'locked';
@@ -1043,7 +1063,7 @@ function etaDialRead(root) {
   const raw = num ? String(num.value).replace(/,/g, '').trim() : '';
   const v = Number(raw);
   const st = etaDialState(root);
-  if (!raw || !isFinite(v) || v <= 0) return { error: 'Need a number, love.' };
+  if (!raw || !isFinite(v) || v <= 0) return { error: 'Need a number. A real one.' };
   const minutes = etaToMinutes(v, st.unit, st.mult);
   if (!minutes || minutes > ETA_MAX_MINUTES) return { error: "That's longer than the universe. Try again." };
   return { value: v, unit: st.unit, mult: st.mult, minutes, label: etaEntryLabel(v, st.unit, st.mult) };
@@ -1147,10 +1167,11 @@ function etaPlaySheetPhase() {
           ? `${etaSheetRows[i] ? etaSheetRows[i].ride : 'The Ride'} at ~${etaFmtInt(P.speeds[i])} km/h: about ${etaDur(t)}.`
           : '',
         quip: P.quips[i],
+        said: P.logged[i] > 0 ? etaDur(P.logged[i]) : '',
+        trueLabel: etaDur(t),
+        place: P.places[i],
       }));
-      const bi = P.verdicts.findIndex(v => v && v.kind === 'dead');
-      const best = bi >= 0 ? { name: etaName(bi), km: `+${etaFmtInt(P.runTotals[bi])} km` } : null;
-      b.proof(rows, best, () => {
+      b.proof(rows, etaClosest(P.places, P.verdicts, etaName), () => {
         if (etaPhase !== 'proof') return;
         etaPhase = 'done';
         etaRenderSheetControls();
@@ -1158,6 +1179,12 @@ function etaPlaySheetPhase() {
     }
   }
   etaRenderSheetControls();
+}
+
+// The sign-off's "Closest:" line — every courier sharing 1st, and how close they were.
+function etaClosest(places, verdicts, nameOf) {
+  const firsts = places.map((p, i) => (p === 1 ? i : -1)).filter(i => i >= 0);
+  return firsts.length ? { name: firsts.map(nameOf).join(' & '), line: etaOffWords(verdicts[firsts[0]]) } : null;
 }
 
 function etaRowTap(i) {
@@ -1217,10 +1244,17 @@ function etaRenderSheetControls() {
   etaShow('eta-stamp-bar', stampOn);
   if (stampOn) {
     const sel = etaMySelect;
-    let prompt = "Tap a courier's line to give your Stamp of Approval — best pitch, funny or convincing.";
-    if (etaMySent >= 0 && sel === etaMySent) prompt = `You stamped ${etaName(etaMySent)}. Tap another line to change it — until everyone's in.`;
-    else if (sel >= 0) prompt = `Stamp ${etaName(sel)}'s pitch?`;
-    etaSetText('eta-stamp-prompt', prompt);
+    const tip = `+${etaFmtInt(etaStampTip())} km`;
+    const bar = etaEl('eta-stamp-prompt');
+    if (bar) {
+      if (etaMySent >= 0 && sel === etaMySent) {
+        bar.innerHTML = `You stamped <b>${etaEsc(etaName(etaMySent))}</b> — ${tip} to them. Tap another line to change it, until everyone's in.`;
+      } else if (sel >= 0) {
+        bar.innerHTML = `Stamp <b>${etaEsc(etaName(sel))}</b>'s pitch? It pays them <b>${tip}</b>.`;
+      } else {
+        bar.innerHTML = `Stamp the best <b>pitch</b> — not the best guess. Each Stamp pays that courier <b>${tip}</b>. Tap their line.`;
+      }
+    }
     const btn = etaEl('btn-eta-stamp');
     if (btn) {
       btn.style.display = sel >= 0 && sel !== etaMySent ? 'flex' : 'none';
@@ -1252,6 +1286,37 @@ function etaRenderSheetControls() {
   etaSetText('eta-social-status', status);
   etaShow('eta-social-status', !!status);
   etaRenderStall('eta-sheet-stall', talk);
+  // Your result, at a glance, once Proof of Delivery has settled.
+  const mineOn = etaPhase === 'done' && !!etaProof;
+  etaShow('eta-my-result', mineOn);
+  if (mineOn) etaRenderMyResult();
+}
+
+// One Stamp's Depot Tip as the receipt will show it (geared to the Shift Length).
+function etaStampTip() {
+  return etaGeared(ETA_TIP_BY_N[etaN()] || ETA_TIP_BY_N[8], etaRuns);
+}
+
+function etaRenderMyResult() {
+  const el = etaEl('eta-my-result');
+  const P = etaProof;
+  if (!el || !P) return;
+  const i = etaMySeat();
+  const l = P.logged[i], t = P.truths[i], pl = P.places[i] || 0;
+  const v = P.verdicts[i] || { kind: 'none' };
+  const km = `+${etaFmtInt(P.runTotals[i] || 0)} km`;
+  let html = '<p class="eta-myresult-eye eta-sten">YOUR RESULT</p>';
+  if (l > 0 && t > 0) {
+    const place = pl >= 1 && pl <= 3
+      ? `<span class="eta-place-chip is-p${pl}">${etaOrdinal(pl).toUpperCase()}</span>`
+      : `<span class="eta-myresult-rank">${etaOrdinal(pl)} closest</span>`;
+    const keep = m => etaEsc(etaDur(m)).replace(/ /g, ' ');   // "8.3 days" never splits across lines
+    html += `<p class="eta-myresult-line">You said <b>${keep(l)}</b>. True ETA: <b>${keep(t)}</b>.</p>`
+      + `<p class="eta-myresult-sub">${place}<span class="eta-myresult-off is-${etaEsc(v.kind)}">${etaEsc(etaOffWords(v))}</span><span class="eta-myresult-km">${km}</span></p>`;
+  } else {
+    html += `<p class="eta-myresult-line">No ETA logged — no Accuracy this Run.</p><p class="eta-myresult-sub"><span class="eta-myresult-km">${km}</span></p>`;
+  }
+  el.innerHTML = html;
 }
 
 // ── Odometer tally ──────────────────────────────────────────────────────────
@@ -1320,7 +1385,7 @@ function etaShowGameover() {
   if (cotm) cotm.textContent = win.length > 1 ? `Shared: ${win.map(etaName).join(' & ')}` : etaName(win[0]);
   const w0 = win[0] >= 0 ? win[0] : 0;
   etaSetText('eta-cotm-line', `${ETA_RANKS[etaRankIdx(E.totals[w0])].name} · ${etaFmtInt(E.totals[w0])} km`);
-  etaSetText('eta-go-sub', `${etaRuns} Runs clocked. "That's the lot. Sign off and go home." — Dot`);
+  etaSetText('eta-go-sub', `${etaRuns} Runs clocked. "That's the lot. Sign off and go home." — Dotty`);
   const order = Array.from({ length: n }, (_, i) => i).sort((a, b) => E.totals[b] - E.totals[a] || a - b);
   const medals = ['🥇', '🥈', '🥉'];
   let place = 0, prev = null;
@@ -1409,7 +1474,7 @@ function etaRenderRanks() {
 // instance) and the REAL scoring. Touches no match state; no multiplayer.
 // ═══════════════════════════════════════════════════════════════════════════
 const ETA_PRACTICE = {
-  route: { headline: 'The length of Italy', km: 1200, briefing: ['A brand-new, perfectly straight, empty corridor runs end to end.', 'No stops, no traffic.'], offMap: false },
+  route: { headline: 'The length of Italy', km: 1200, briefing: ['A brand-new, perfectly **straight, empty corridor** runs end to end.', '**No stops, no traffic.**'], offMap: false },
   you:   { ride: 'Helicopter', mode: 'air', speed: 250, emoji: '🚁' },
   others: [
     { name: 'Boris', ride: 'Pogo stick',       mode: 'land',  logged: 4 * 1440,  speed: 4,     pitch: 'Four days of non-stop bouncing. No bathroom breaks.' },
@@ -1481,7 +1546,7 @@ function etaPracticeSheet(root, entry) {
   const holder = q('[data-eta-prac-board]');
   holder.style.display = '';
   const step = q('[data-eta-prac-step]');
-  step.textContent = `Dot's Double-Take: ${etaDoubleTakeText(entry.value, entry.unit, entry.mult, entry.minutes)} Locked. Here comes the Run Sheet.`;
+  step.textContent = `Dotty's Double-Take: ${etaDoubleTakeText(entry.value, entry.unit, entry.mult, entry.minutes)} Locked. Here comes the Run Sheet.`;
   const rows = [{ name: 'You', ride: P.you.ride, mode: P.you.mode, unreg: false, logged: entry.minutes }]
     .concat(P.others.map(o => ({ name: o.name, ride: o.ride, mode: o.mode, unreg: false, logged: o.logged })));
   const b = etaMakeBoard(holder, { onRowTap: i => {
@@ -1530,23 +1595,26 @@ function etaPracticeProof(root, target) {
   const stamps = [target, P.stamps[1], P.stamps[2], P.stamps[3]];
   const sc = etaScoreRun({ n, runs: 5, sylly: false, logged, truths, stamps, unreg: [false, false, false, false] });
   const rides = [P.you.ride].concat(P.others.map(o => o.ride));
+  const places = etaPlacings(logged, truths);
   const rows = truths.map((t, i) => {
     const v = etaVerdict(logged[i], t);
     return { truth: t, verdict: v, kmLabel: `+${etaFmtInt(sc.runTotals[i])} km`, banner: null,
+      said: etaDur(logged[i]), trueLabel: etaDur(t), place: places[i],
       fact: `${rides[i]} at ~${etaFmtInt(speeds[i])} km/h: about ${etaDur(t)}.`,
-      quip: v.kind === 'dead' ? 'Dead on. Gold star.' : v.kind === 'close' ? 'Close enough for the paperwork.' : v.kind === 'fast' ? "You're dreaming." : "It's quicker than that, love." };
+      quip: v.kind === 'dead' ? 'Dead on. Gold star.' : v.kind === 'close' ? 'Close enough for the paperwork.' : v.kind === 'fast' ? "You're dreaming." : "It's quicker than that. Keep up." };
   });
-  const bi = rows.findIndex(r => r.verdict.kind === 'dead');
   const step = root.querySelector('[data-eta-prac-step]');
-  step.textContent = 'Proof of Delivery: a parcel drops on each true ETA. Closer means more Mileage — judged by how many times out, not the gap.';
-  b.proof(rows, bi >= 0 ? { name: bi === 0 ? 'You' : P.others[bi - 1].name, km: rows[bi].kmLabel } : null, () => {
+  step.textContent = 'Proof of Delivery: a parcel drops on each true ETA, and the three closest are stamped 1st, 2nd and 3rd. Closer means more Mileage — judged by how many times out, not the gap.';
+  const names = ['You'].concat(P.others.map(o => o.name));
+  b.proof(rows, etaClosest(places, rows.map(r => r.verdict), i => names[i]), () => {
     if (!etaPrac || etaPrac.board !== b) return;
     const v = rows[0].verdict;
     const lines = sc.receipts[0].map(l => `${l.label} +${etaFmtInt(l.km)}`).join(' · ');
     const after = root.querySelector('[data-eta-prac-after]');
     after.style.display = '';
     after.innerHTML = `<b>Your receipt:</b> ${etaEsc(lines)} = <b>${etaFmtInt(sc.runTotals[0])} km</b>. `
-      + (v.kind === 'dead' ? 'Dead on — within 5% is full marks.' : `You were ${v.top.replace('★', '').trim()} ${v.bot.toLowerCase()}. Helicopters cruise at about 250 km/h: 1,200 ÷ 250 ≈ 4.8 hours.`)
+      + `You came ${etaOrdinal(places[0])} of 4. `
+      + (v.kind === 'dead' ? 'Dead on — within 5% is full marks.' : `You were ${etaOffWords(v)}. Helicopters cruise at about 250 km/h: 1,200 ÷ 250 ≈ 4.8 hours.`)
       + ' <button type="button" class="eta-unit" data-eta-prac-again>Try again</button>';
     after.querySelector('[data-eta-prac-again]').addEventListener('click', () => { playPillClick(); etaPracticeOpen(); });
   });
@@ -1649,7 +1717,7 @@ document.addEventListener('DOMContentLoaded', () => {
     etaShowMenu();
   });
 
-  // Log ETA → Dot's Double-Take
+  // Log ETA → Dotty's Double-Take
   const dial = etaEl('eta-dial');
   if (dial) {
     etaDialWire(dial);

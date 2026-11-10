@@ -609,7 +609,7 @@ const MP_GAME_CONFIGS = {
     },
   },
   eta: {
-    gameName:       'ETA?',
+    gameName:       'E.T.A.',
     emoji:          '\u{1F6F5}',
     brandBtnClass:  'eta-cta',
     // No ctaTextClass: .eta-cta carries white ink (owner, 10 Nov 2026 — #EA580C kept).
@@ -2499,7 +2499,7 @@ function mpHandleEnvelope(env) {
     if (typeof combHandleEnvelope === 'function') combHandleEnvelope(env);
   }
 
-  // ── ETA? SYNC + the private Ride (host→seat) and entries (seat→host) ──────
+  // ── E.T.A. SYNC + the private Ride (host→seat) and entries (seat→host) ──────
   if (mpActiveGame === 'eta') {
     if (typeof etaHandleEnvelope === 'function') etaHandleEnvelope(env);
   }

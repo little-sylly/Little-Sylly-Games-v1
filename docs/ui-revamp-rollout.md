@@ -55,7 +55,7 @@ Status column** — a row turns ✅ only when R12 is really done. The Game cell 
 | — | **CJAR** Cookie Jar | batch | ☐ | 0/16 | ☐ | Reconnect adopter |
 | — | **CLD** Cold Shoulder | batch | ☐ | 0/16 | ✅ carried over | Bots + Solo — the Intro's bot pre-ready is live from here |
 | — | **COMB** Honeycomb Hills | batch | ☐ | 0/16 | ☐ | Reconnect adopter; no Sylly Mode |
-| new | **ETA** ETA? | new game, world-first (Stage 1b) | 🔨 | 14/16 | ✅ built | Built SW v272 (10 Nov) from the Clipboard board — R12 done (`data-tv` + TV line). Owed: R11 `/impeccable` pass, R15 owner hardware pass (≥ 3 phones). Content is provisional |
+| new | **ETA** E.T.A. | new game, world-first (Stage 1b) | 🔨 | 15/16 | ✅ built | Built SW v272 (10 Nov) from the Clipboard board — R12 done (`data-tv` + TV line). Playtest round 1 + R11 `/impeccable` pass SW v273. Owed: R15 owner hardware re-play (≥ 3 phones). Content is provisional |
 
 Batch order and grouping (by shape) are set at Stage 2's departures review.
 
@@ -134,14 +134,15 @@ Each card: **shape** (modes · players · roster today) · **Line-up** (the R2 c
 
 A batch game graduates to its own card here at its R1.
 
-### ETA — ETA? · new game (world-first) · 🔨
+### ETA — E.T.A. (was ETA?) · new game (world-first) · 🔨
 - **Shape:** MDLM only · 3–8 · roster `none` · Intro roll call (no Line-up) · no reconnect, no bots.
-- **World (Stage 1b, picked 10 Nov):** E.T.A. Couriers, narrator Dot; direction 1 · Clipboard. Boards:
+- **World (Stage 1b, picked 10 Nov):** E.T.A. Couriers, narrator Dotty, Head of Dispatch (was Dot, Depot Manager — playtest round 1, SW v273); direction 1 · Clipboard. Boards:
   https://claude.ai/artifact/XbRGjGcNHhoE9HkfPWhd8W (archived with the brief at the phase gate).
 - **Built:** R4 Intro (+ the engine roll-call hooks), R5 the job docket, R6–R7 Run Sheet → Proof → Odometer → End of
   Shift, R8–R10 menu, settings, How to Play (Rules · Practice · Ranks), R12 TV labels, R13 departures below, R14
   harnesses green + `visual-check` at 320×452 / 375×548 / 375×667 + reduced motion.
-- **Owed:** R11 (`/impeccable critique → audit → polish`), R15 (a real 3-phone session; `?fps`), the content rebuild.
+- **R11 done SW v273** (single-context `/impeccable` critique → audit → polish, after the owner's round-1 rework).
+- **Owed:** R15 (re-play round 1 on ≥ 3 phones; `?fps`), the content rebuild.
 
 ## 6. Departures log
 
@@ -154,4 +155,4 @@ promoted (the rule changes; the skill learns it), kept (a per-game exception), o
 | ETA | Motion Standard 300 ms cap | Board timings: 4.6 s sweep, 1.75 s PROOF stamp, 1.35 s per courier, 0.85 s parcel drop (D-ETA-2) | Blocking choreography IS the reveal; every beat has Skip; reduced motion → final state | — |
 | ETA | Fredoka everywhere | Three self-hosted faces (stencil / typewriter / marker, ~88 KB) on scene text only (D-ETA-3) | The paperwork world; controls stay Fredoka | — |
 | ETA | Pickers as slide-up overlays (brief §14) | The Course Correction wheel in the Controls zone (D-ETA-4) | A control used while reading the Stage belongs in the Stack (ui-style) | — |
-| ETA | The engine Intro scene box is 16:10 | `#game-intro-scene:has(> .eta-intro) { aspect-ratio: auto }` (D-ETA-5) | The dock + Dot's clipboard need their own height once the narrator line goes sr-only; second sighting of the "engine screens vs a skin" candidate | — |
+| ETA | The engine Intro scene box is 16:10 | `#game-intro-scene:has(> .eta-intro) { aspect-ratio: auto }` (D-ETA-5) | The dock + Dotty's clipboard need their own height once the narrator line goes sr-only; second sighting of the "engine screens vs a skin" candidate | — |

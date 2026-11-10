@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-10T08:10:31.552Z",
+  "generatedAt": "2026-11-10T10:14:15.738Z",
   "games": [
     {
       "id": "bld",
@@ -301,7 +301,7 @@
     },
     {
       "id": "eta",
-      "gameName": "ETA?",
+      "gameName": "E.T.A.",
       "emoji": "🛵",
       "brandHex": "#EA580C",
       "minPlayers": 3,
@@ -311,7 +311,7 @@
         "mdlm"
       ],
       "multiplayerOnly": true,
-      "pitch": "Skateboard to the Moon? Show your working.",
+      "pitch": "Every Thing, Anywhere. Eventually.",
       "playCtaLabel": "Clock On",
       "howToTitle": null,
       "howToStepsRaw": null,

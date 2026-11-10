@@ -7,6 +7,35 @@ game abbreviation, function or screen id. Items keep their original section head
 
 ---
 
+## E.T.A. (was ETA?) — built, what is open (10 Nov 2026, SW v272)
+
+**RESOLVED 10 Nov 2026 (SW v273, playtest round 1):** the four owner items below — Dotty, Head of Dispatch
+(title settled by the owner; the game renamed **E.T.A.** at the same time); the docket as a form with
+`**bold**` Briefing key words; the Stamp prompt saying *pitch, not guess* and its km; the reveal with SAID /
+TRUE in words, 1st / 2nd / 3rd stamps, the closest named and **Your result**. Detail:
+`eta-implementation-notes.md` DD-09–DD-12, BUG-07–08.
+**RESOLVED 10 Nov 2026:** the R11 `/impeccable` pass ran over the reworked screens — single-context (no
+sub-agents, per the project's subagent rule); detector: two advisories, both verified non-defects; polish:
+the Stamp prompt's weight, unbreakable durations, per-row aria results, a row focus ring.
+
+**Owner's first 3-phone session (10 Nov 2026) — the next ETA session's task list:**
+- **Dot → Dotty.** Much younger and full of energy: early-40s, a mature beauty, professionally dressed —
+  upper management, not delivery (no hi-vis vest): ponytail, light makeup, pencil skirt. Strict, tough
+  love. Rename everywhere (Intro template + narrator/role, "FROM DOT", "Dot's Double-Take", "Dot's Notes",
+  "Dot's Favourite" rank, "Waiting for Dot", every Dot line in `eta.js`), redraw her in `EtaScene`, and
+  carry it through brief §0 / identity doc T4–T5 (paired) + `verify-identity-docs`. Her job title is
+  open (Depot Manager reads hands-on): settle it at the start of that session.
+- **The docket is hard to read.** Bold the key dispatch info (Route, distance, the Briefing's load-bearing
+  words) so it's obvious what's going on.
+- **Say what the vote is for and what it pays.** The Stamp prompt must make "best pitch, not best
+  guess" and "+N km per Stamp" explicit.
+- **The reveal doesn't land.** State each **true ETA** in words beside the Logged one (and how far off:
+  ×N too fast / slow), make "who was closest" obvious, and stamp **1st / 2nd / 3rd** (gold / silver /
+  bronze) by accuracy. Polish the Run Sheet so a player can read their own result at a glance.
+- **R11 `/impeccable` pass** (critique → audit → polish) over the new screens.
+
+---
+
 ## LI5 gaps found while writing its identity doc (23 Aug 2026)
 
 **RESOLVED 9 Nov 2026 (LI5 pilot S1):** L6, L7 and L8 marked resolved in

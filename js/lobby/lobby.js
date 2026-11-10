@@ -122,7 +122,7 @@ function lbEl(tag, cls, html) {
 // Games whose sticker art does not exist yet — they draw the emoji disc instead.
 // Empty since Bailed's badge landed (bld.png, 27 Sep 2026); kept so the next game
 // that ships before its art needs one line, not a new code path.
-// ETA? (SW v272) ships before its sticker art — the emoji disc until data/stickers/eta.png lands.
+// E.T.A. (SW v272) ships before its sticker art — the emoji disc until data/stickers/eta.png lands.
 const LB_NO_STICKER = new Set(['eta']);
 function lbBadgeInner(g) {
   const emoji = typeof g === 'string' ? g : g.emoji;
