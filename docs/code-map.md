@@ -3180,15 +3180,15 @@ does layout** — that is `visual-check`'s tier, and it is what caught both BUG-
 
 ---
 
-## E.T.A. (ETA) — game 21 · **BUILT (SW v272)**, playtest round 1 reworked (SW v273)
+## E.T.A. (ETA) — game 21 · **BUILT (SW v272)**, playtests SW v273–v274, content SW v275 · phase 44 gate SW v277
 
-Spec: `docs/new-game-tech-eta.md` (confirmed 10 Nov 2026). Brief: `docs/new-game-brief-eta.md` (v4).
+Spec + brief: archived at the phase-44 gate (owner's archive, `2026-11-11 eta-gate/`); what the spec decided lives on in the impl notes § Changes from spec.
 Identity doc: `docs/game-identities/eta.md`. Impl notes: `docs/implementation-notes/eta-implementation-notes.md`.
 Content: `data/eta-data.json` (rebuilt SW v275, 130 Routes / 49 Rides) — guide `docs/eta-content-guide.md`.
 **MDLM-only, 3–8 players, host-authoritative, host-as-participant. The first NEW game built world-first**
 (Stage 1b, direction 1 · Clipboard) and the second adopter of the engine Intro (roll call, no Line-up).
 **Brand:** `#EA580C` — `.eta-cta`, `.pill-active-eta`, `.game-toggle-on-eta`, `.eta-range`, `.eta-label` (`#C2410C`, text) in `styles.css`; the world's palette in `css/eta.css`.
-**Lobby button:** `#btn-eta` (in `LB_NO_STICKER` until `data/stickers/eta.png` exists).
+**Lobby button:** `#btn-eta`; sticker `data/stickers/eta.png` (SW v274 — `LB_NO_STICKER` is empty again).
 
 **TV public state (eta):** run, jobNo, route headline / distance / Briefing, flavour line, logged count, (from `ETA_SHEET`) every row's name / Ride / mode / Logged ETA, stamp-or-correction lock counts, (Sylly, from `ETA_CORRECTIONS`) corrections + Revised ETAs, (from `ETA_PROOF`) truths, speeds, verdicts, receipts, totals, ranks, placings (derived on every device — `etaPlacings`); (from `ETA_SHIFT_END`) winners + awards.
 
@@ -3209,11 +3209,25 @@ two roll-call skin hooks it added (`data-intro-roll`, `data-intro-ready-tag` —
 ### Overlays
 | ID | Pattern | Notes |
 |----|---------|-------|
-| `eta-settings-overlay` | data z-80 | The Dispatch Desk — `data-group="eta-range"` / `"eta-shift"` pills, `#btn-eta-gps-toggle`, `#btn-eta-offmap-toggle`, `#btn-eta-sylly-toggle` |
+| `eta-settings-overlay` | data z-80 | The Dispatch Desk — `data-group="eta-range"` / `"eta-shift"` pills, `#btn-eta-gps-toggle`, `#btn-eta-vote-toggle` (Community Vote), `#btn-eta-offmap-toggle`, `#btn-eta-sylly-toggle` |
 | `eta-how-to-overlay` | data z-90 | Tabs `#btn-eta-howto-tab-{rules,practice,ranks}` → `#eta-how-to-{rules,practice,ranks}`; Practice mounts into `#eta-practice` |
 | `eta-doubletake-overlay` | modal z-90 | Dotty's Double-Take — `#btn-eta-doubletake-confirm` / `-cancel` |
 | `eta-quit-overlay` | modal z-80 | Clock off early? — the Mid-Game Quit Contract (`mpNotifyPlayerLeft`) |
 | `eta-new-shift-overlay` | modal z-90 | Next Shift? — `mpReturnToLobby()` |
+
+### State (`js/games/eta.js`)
+| Group | Variables |
+|-------|-----------|
+| Settings — host, `SETTINGS_SYNC` | `etaRange` (`'local'` / `'all'` = Everywhere), `etaShiftLength`, `etaGps`, `etaOffMap`, `etaVote`, `etaSyllyMode` |
+| Roster | `etaPlayerCount`, `etaPlayerNames` |
+| Shift — frozen at `ETA_SHIFT_START` | `etaRun`, `etaRuns`, `etaSylly`, `etaJobBase`, `etaTotals`, `etaHistory`, `etaShiftEnd`; host only: `etaUsedRoutes`, `etaUsedRides` |
+| Run — public | `etaRoute`, `etaFlavour`, `etaLogged`, `etaLogReady`, `etaSheetRows`, `etaSocialReady`, `etaCorrList`, `etaRevised`, `etaProof` |
+| Run — this device's private | `etaMyRide`, `etaPendingRide` (a Ride that beat its Run — ML-02) |
+| Run — **host only**, never sent before Proof | `etaRunRides`, `etaRunRoute`, `etaRunTruths`, `etaStamps`, `etaCorrections`, `etaHostPhase`, `etaStallEndsAt`, `etaStallTimer`, `etaLogStallTimer` |
+| Local UI | `etaPhase`, `etaLogStage`, `etaSocialStage`, `etaMyLogged`, `etaMySelect`, `etaMySent`, `etaMyMult`, `etaPendingEntry`, `etaUnits` (KM / MI, never sent) |
+| Handles + data | `etaTimers` (`etaClearTimers`), `etaTickInterval`, `etaBoard`, `etaPrac` (Practice), `etaData`, `etaDataPromise`, `etaRng` (a harness pins it) |
+
+Teardown: `etaTeardown()` (from `resetToLobby`) clears every handle above, stops the board, the scene and Practice, then `etaResetShift()`.
 
 ### Files and key functions
 | Where | What |

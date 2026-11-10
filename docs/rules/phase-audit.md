@@ -84,7 +84,7 @@ Static checklist — verify by reading the HTML and CSS, not by running a browse
 - [ ] **Decision modal borders** — every `overlay-modal-inner` div has `border border-[brand]-300`. Grep the game's HTML for `overlay-modal-inner` and verify each instance has the border class. Data overlays (`overlay-data-inner`) are exempt.
 
 ### 5. Close out — archive what the build has finished with (added 28 Sep 2026)
-Once the gate passes, the game's record is its identity doc, implementation notes, `code-map.md` and the code. Move these out of the repo into a dated folder in the owner's external archive (`D:\Coding Projects\Documents archive\`), listed in that folder's `MANIFEST.md`:
+Once the gate passes, the game's record is its identity doc, implementation notes, `code-map.md` and the code. Move these out of the repo into a dated folder in the owner's external archive (`D:\Coding Projects\archive\Documents archive\`), listed in that folder's `MANIFEST.md`:
 - [ ] the tech spec `docs/new-game-tech-[name].md` — first fold anything the impl notes lack into them (§ Changes from spec); the impl notes win where the two differ
 - [ ] its `docs/superpowers/plans/…` file, if any (games built before 30 Sep 2026; the **spec** under `docs/superpowers/specs/` stays — code cites it)
 - [ ] its Stage 1 brief from `docs/new-ideas/`

@@ -1,6 +1,7 @@
 # E.T.A. — Implementation Notes
 
-Game 21 · `eta` · built SW v272 (10 Nov 2026) from `docs/new-game-tech-eta.md` (confirmed the same day).
+Game 21 · `eta` · built SW v272 (10 Nov 2026) from the tech spec (confirmed the same day; archived at the phase-44 gate,
+SW v277 — § Changes from spec below carries what it decided that these notes didn't).
 Design decisions and bugs found while building. Engine-side entries live in
 `shared-implementation-notes.md` (DD-69 the roll-call hooks, BUG-29 the lobby's literal 20, ML-10 the
 mock DOM) — pointers only here.
@@ -159,8 +160,6 @@ the next parcel's note. Practice stays metric (a tutorial, not play).
 
 ## Bug Index
 
-- **BUG — a slow Ride's Proof line read "~0 km/h"** (SW v276). `etaFmtInt(0.048)` rounds to 0; the line now uses `etaSig3` (3 significant figures) in both units. Found while adding the KM / MI chip.
-
 **BUG-01 — "12.5 days" displayed as "13 days". [10 Nov 2026, build]**
 **What happened:** the board's own `num()` rounds anything ≥ 10 to an integer, so the brief's
 *12.5 days* (Sample 1's pogo stick) read *13 days*. **Root cause:** a mockup helper ported verbatim.
@@ -210,6 +209,18 @@ A `max-height: 600px` rule also drops the full docket's flavour note (it's an in
 scroll); the extreme Sylly docket (Off the Map + three hints) still spills 51 px at 320×452 — deferred.
 **Lesson:** a readability fix is a height change — re-measure the fold on the screen that *reuses* the component.
 
+**BUG-09 — A slow Ride's Proof line read "~0 km/h". [11 Nov 2026, SW v276]**
+`etaFmtInt(0.048)` rounds the snail to 0. **Fix:** the line uses `etaSig3` (3 significant figures) in both units.
+Found while adding the KM / MI chip. **Lesson:** BUG-01 and BUG-07 again — the smallest real value, every formatter.
+
+**BUG-10 — 🔊 and ✕ were under 44 px on every game screen. [11 Nov 2026, phase-44 gate]**
+**What happened:** the five game-screen headers carried `min-h-11 min-w-11` on `[?]` and the KM chip only; 🔊
+measured 27×28 and ✕ 16×28 at 320 px. **Fix:** both take `min-h-11 min-w-11` on standby, Log, Run Sheet, Odometer
+and End of Shift; the two four-button headers (Log, Run Sheet) close to `gap-1`; below 360 px the desk title steps
+to 20 px so END OF SHIFT keeps its 🏁 on one line (THE ODOMETER already broke over two lines at 320 px and still
+does, cleanly). Measured at 320 and 375: every target 44×44, no sideways scroll. **Lesson:** a world's own chrome
+class (`.eta-chrome`) is where the size belongs — set it once with the colour, not per button.
+
 ---
 
 ## Multiplayer Lessons
@@ -228,6 +239,42 @@ opens.
 **ML-03 — The Proof can arrive mid-shove.** In Backseat Drivers the host sends `ETA_CORRECTIONS` and
 `ETA_PROOF` back to back; a client still animating the shove stores the Proof and plays it when the shove
 ends (`etaPhase === 'shove'` guard in `etaApplyProof`).
+
+**ML-04 — Display preferences stay off the wire.** The KM / MI chip (DD-15) is per device and never in
+`SETTINGS_SYNC` or a packet: the truth is km on both sides of distance ÷ speed, so a phone on miles reads the same
+answer. Before syncing a preference, ask whether it can change an answer — if it can't, it is a device's business.
+
+---
+
+## Changes from spec (folded in at the phase-44 gate, 11 Nov 2026)
+
+The spec (confirmed 10 Nov 2026) is archived. This is what it decided that the entries above don't already carry;
+where the two differ, these notes and the code win.
+
+- **Deviations from the brief (spec §17).** #1 provisional content → DD-07 / DD-14; #2 one Run Sheet screen → DD-01;
+  #3 the wheel in the Controls zone → DD-05. Also: **#4** the brief's Rank & Scoring card is the How-to's third tab
+  (**Ranks**), not its own overlay; **#5** the brief's sounds (tape-gun rip, roller door, crumple) map onto existing
+  `play*()` — no new engine audio; **#6** settings are host-only on the menu before the room exists, like every MDLM
+  game; **#7** a Promotion stamps the courier's **Odometer receipt**, not the timesheet (that exists only in the Intro).
+- **Clarifications (spec §16, all answered 10 Nov).** Fonts self-hosted under a 120 KB ceiling (DD-08). Controls
+  keep `#EA580C` with white ink (contrast accepted, as for FRT / YGI / COMB / CLD); `#C2410C` is the text rung,
+  `eta-label`. The scale re-fits at Proof (DD-03). The two Intro hooks were added (DD-04; the spec called the
+  heading hook `data-intro-lineup`, the engine ships `data-intro-roll`). A **60 s log stall** once all but one
+  have logged: *No ETA* scores 0 Accuracy, can still be Stamped, can't be corrected. Practice was built in the first
+  pass. *Shift* / *Next Shift?* kept beside JEC's *New Shift?*.
+- **The Time Dial.** One number (decimals allowed) + six unit chips — min · hrs · days · wks · months · yrs — with
+  ×1,000 / ×1M appearing under yrs. No compound "+ minutes" entry, no seconds (the window starts at 2 min); anything
+  over 10¹² years is refused.
+- **Audio (spec §9), as shipped across `eta.js` and the kit.** `playTick` docket typing + the Odometer ·
+  `playHullThud` every rubber stamp and parcel · `playPillClick` the dial · `playDone` Log ETA / Lock it in ·
+  `playBoing` Re-dial / a bad entry · `playSliderTick` each tape landing · `playSuccess` a Stamp / a correction ·
+  `playWhoosh` the shove · `playAbyssThud` PROOF OF DELIVERY · `playClashWin` a bullseye / Back on Course ·
+  `playSplash` Spin-out · `playStampede` End of Shift · `playExit` quit.
+- **Changed since the spec.** The music: the spec shipped no `eta` track; *Handle with Care (Or Not)* arrived SW v274
+  (DD-13). The quit sub-line is *The Shift ends for everyone. Nobody else gets paid either.* (the spec's *Your
+  Mileage stays on the Run Sheet* didn't describe the Mid-Game Quit Contract). Dot, Depot Manager → Dotty, Head of
+  Dispatch, and "love" gone from her lines (DD-09). Range → Local / Everywhere; Community Vote added (DD-13). The
+  content (DD-14) and the KM / MI chip (DD-15).
 
 ---
 

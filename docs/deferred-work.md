@@ -23,18 +23,18 @@ the discovery record is kept there, not deleted. A section with nothing left ope
   hints; measured). It auto-advances, and the Log screen repeats it, so nothing is lost — but if it bites,
   stretch `ETA_DOCKET_MS` per Briefing line or drop the letterhead on that size. `eta-implementation-notes` BUG-08.
 
-- **The first real multi-device session** (≥ 3 phones; revamp R15). Nothing here has met a real Firebase,
-  a real thumb or real banter. Watch: Talk Me Through It's length (no clock — it ends when everyone has
+- **R15 — re-play on ≥ 3 phones.** Round 1 was played on three phones (SW v272); nothing since — round 2, the
+  rebuilt content, Dotty's redraw, the KM / MI chip — has met a real table. This is the one item that keeps
+  phase 44 open (`docs/phase44-snapshot.md`). Watch: Talk Me Through It's length (no clock — it ends when everyone has
   Stamped), the 30 s / 60 s stall countdowns, the Run Sheet's reading time on an iPhone SE, `?fps` on the
   time-lapse.
 - **Log the playtest data the maths round asked for** — every Logged ETA against its truth (by Dispatch
   Range), every Stamp, every Course Correction with its target — then refit the `[MATHS]` numbers and the
-  `[UNTESTED]` Spin-out / Back on Course thresholds (`docs/new-ideas/eta/for archive/eta-maths-round-1.md` + `eta_sim.py`).
+  `[UNTESTED]` Spin-out / Back on Course thresholds (`eta-maths-round-1.md` + `eta_sim.py`, archived at the phase-44 gate:
+  `D:\Coding Projects\archive\Documents archive\2026-11-11 eta-gate\new-ideas\eta\for archive\`).
 - **The Ride `reveal` lines are sent but never shown** (found 11 Nov 2026, content rebuild). `ETA_PROOF.reveal` carries each
   Ride's fact ("Seven leagues is about 34 km a stride…"), but the Proof note builds its own line from the speed. The
   Unregistered explanations are the ones that matter. Show it as the note's second line, or drop it from the packet.
-- **🔊 / ✕ on the Log + Run Sheet headers are under 44 px** (27×28 / 16×28 at 320 px, measured SW v276; pre-existing).
-- **Phase gate** — Protocol A, phase snapshot, archive the brief + spec + boards to the owner's external archive.
 
 ## UI revamp — Stage 0 shipped, what is parked (9 Nov 2026, SW v264)
 

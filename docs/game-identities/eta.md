@@ -2,7 +2,7 @@
 
 **Game 21** · `activeGameId: eta` · plugin `js/games/eta.js` · world kit `js/games/eta-scene.js` · `css/eta.css`
 **Emoji:** 🛵 · **Brand:** hi-vis orange `#EA580C` (custom `eta-cta` / `pill-active-eta`) · **Players:** 3–8 · **Modes:** MDLM only
-**Status:** built SW v272, 10 November 2026; playtest round 1 reworked SW v273 (Dotty, the name E.T.A., the docket, the Stamp prompt, the reveal); round 2 SW v274 (row layout, Everywhere, Community Vote). Content rebuilt and signed off SW v275 (T9).
+**Status:** built SW v272, 10 November 2026; playtest round 1 reworked SW v273 (Dotty, the name E.T.A., the docket, the Stamp prompt, the reveal); round 2 SW v274 (row layout, Everywhere, Community Vote). Content rebuilt and signed off SW v275 (T9). Phase 44 gate (Protocol A) passed SW v277 — open only on the ≥ 3-phone re-play.
 
 > **Change contract.** Each section is tagged **free** (reword freely — but it must stay true),
 > **paired** (change the doc and the code together, or you open a gap between them), or **derived**
@@ -11,8 +11,9 @@
 >
 > **Where the technical detail lives.** Screen and overlay IDs, state variables, key functions and
 > MP packet tables are in `docs/code-map.md` — Grep the game's name or an element ID, never
-> full-read it. This document deliberately does not duplicate them. The design history is
-> `docs/new-game-brief-eta.md` (brief v4) and `docs/new-game-tech-eta.md` (the confirmed spec).
+> full-read it. This document deliberately does not duplicate them. The design history (brief v4, the
+> confirmed spec, the boards, the maths round) was archived at the phase-44 gate; what the spec decided
+> lives on in `docs/implementation-notes/eta-implementation-notes.md` § Changes from spec.
 
 ---
 
@@ -96,7 +97,8 @@ Not Like I'm Five (Dotty is a boss, not a teacher: ink and stamps, never chalk).
 radio, airwaves or frequencies anywhere (hence *Talk Me Through It*). Not a racing game: vehicles
 never race; the bars are paperwork filling in.
 
-Australian English, metric only — Mileage is in km, never miles.
+Australian English, metric only — Mileage is in km, never miles. (Each phone's KM / MI chip can show the
+docket in miles: a display preference, never a setting — T6.)
 
 ---
 

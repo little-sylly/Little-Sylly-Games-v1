@@ -55,7 +55,7 @@ Status column** — a row turns ✅ only when R12 is really done. The Game cell 
 | — | **CJAR** Cookie Jar | batch | ☐ | 0/16 | ☐ | Reconnect adopter |
 | — | **CLD** Cold Shoulder | batch | ☐ | 0/16 | ✅ carried over | Bots + Solo — the Intro's bot pre-ready is live from here |
 | — | **COMB** Honeycomb Hills | batch | ☐ | 0/16 | ☐ | Reconnect adopter; no Sylly Mode |
-| new | **ETA** E.T.A. | new game, world-first (Stage 1b) | 🔨 | 15/16 | ✅ built | Built SW v272 (10 Nov) from the Clipboard board — R12 done (`data-tv` + TV line). Playtest round 1 + R11 `/impeccable` pass SW v273. Owed: R15 owner hardware re-play (≥ 3 phones). Content rebuilt + signed off SW v275 |
+| new | **ETA** E.T.A. | new game, world-first (Stage 1b) | 🔨 | 15/16 | ✅ built | Built SW v272 (10 Nov) from the Clipboard board — R12 done (`data-tv` + TV line). Playtest round 1 + R11 `/impeccable` pass SW v273. Owed: R15 owner hardware re-play (≥ 3 phones). Content rebuilt + signed off SW v275. Phase 44 gate SW v277 |
 
 Batch order and grouping (by shape) are set at Stage 2's departures review.
 
@@ -142,7 +142,7 @@ A batch game graduates to its own card here at its R1.
   Shift, R8–R10 menu, settings, How to Play (Rules · Practice · Ranks), R12 TV labels, R13 departures below, R14
   harnesses green + `visual-check` at 320×452 / 375×548 / 375×667 + reduced motion.
 - **R11 done SW v273** (single-context `/impeccable` critique → audit → polish, after the owner's round-1 rework).
-- **Owed:** R15 (re-play round 1 on ≥ 3 phones; `?fps`), the content rebuild.
+- **Owed:** R15 (re-play on ≥ 3 phones; `?fps`). Content rebuilt SW v275; phase 44 gate passed SW v277 (`docs/phase44-snapshot.md`).
 
 ## 6. Departures log
 

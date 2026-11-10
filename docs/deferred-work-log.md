@@ -10,6 +10,8 @@ game abbreviation, function or screen id. Items keep their original section head
 ## E.T.A. (was ETA?) — built, what is open (10 Nov 2026, SW v272)
 
 - **The content rebuild** — RESOLVED 11 Nov 2026 (SW v275): `data/eta-data.json` rebuilt (100 real Routes + 30 Off the Map, 49 Rides) and signed off. `eta-implementation-notes` DD-14.
+- **Phase gate** — RESOLVED 11 Nov 2026 (SW v277): Protocol A passed; `docs/phase44-snapshot.md`; brief, spec, boards and the maths round archived (`2026-11-11 eta-gate/`). Phase 44 stays open on R15 only.
+- **🔊 / ✕ on the Log + Run Sheet headers under 44 px** (27×28 / 16×28 at 320 px, measured SW v276) — RESOLVED 11 Nov 2026 (SW v277, at the gate): every game-screen 🔊 and ✕ is 44×44. `eta-implementation-notes` BUG-10.
 - **Lobby sticker + music track** — RESOLVED 10 Nov 2026 (SW v274): both installed (`eta-implementation-notes` DD-13); the phone look stays open under Playtest round 2.
 
 **RESOLVED 10 Nov 2026 (SW v273, playtest round 1):** the four owner items below — Dotty, Head of Dispatch

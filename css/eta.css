@@ -45,6 +45,8 @@
 }
 .eta-desk-eyebrow { font-family: 'EtaType', 'Courier New', monospace; font-weight: 700; font-size: .75rem; letter-spacing: .14em; color: #F3E3CC; }
 .eta-desk-title { color: var(--eta-cream); font-size: 1.5rem; line-height: 1; }
+/* 44 px chrome (SW v277) leaves ~184 px beside the title at 320 px: step down so END OF SHIFT keeps its flag. */
+@media (max-width: 359px) { .eta-desk-title { font-size: 1.25rem; } }
 .eta-desk-sub { color: #F3E3CC; font-family: 'EtaType', 'Courier New', monospace; font-size: .8rem; margin-top: .25rem; }
 .eta-chrome { color: #F3E3CC; }
 /* this phone's KM / MI display toggle — a tag-shaped chip inside a 44 px hit area */

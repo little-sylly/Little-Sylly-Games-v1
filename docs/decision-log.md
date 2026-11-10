@@ -19,6 +19,11 @@ Detail: pointer to the canonical doc (snapshot / impl note / spec / memory).
 ```
 
 
+## 2026-11-11 (Phase 44) — E.T.A.'s phase gate passes; the phase stays open on the 3-phone re-play (Process)
+**Decision:** Protocol A passed for E.T.A.; the brief, spec, boards and maths round leave the repo; phase 44 stays open until R15 (≥ 3 phones on the current build).
+**Why:** every check is green, but round 1 is the only real table it has met — the content, Dotty and the units chip are unplayed (the phase-40 precedent).
+**Changed:** `src/screens/eta.html` + `css/eta.css` (44 px chrome), `docs/code-map.md`, the identity doc, impl notes (§ Changes from spec, BUG-09/10, ML-04), SW v277. **Detail:** `docs/phase44-snapshot.md`.
+
 ## 2026-11-11 — E.T.A. gets a per-phone KM / MI chip: the first exception to metric-only (Strategy)
 **Decision:** each phone can show E.T.A.'s distances and speeds in miles via a chip in play; content stays metric, Mileage stays km, nothing is synced.
 **Why:** owner request — mixed tables; a display preference can't change an answer because the truth is km on both sides of distance ÷ speed.
