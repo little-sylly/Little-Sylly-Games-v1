@@ -1,0 +1,1738 @@
+// ═══════════════════════════════════════════════════════════════════════════
+// wavelink.js — ARCADE CABINET 0N. Keep your bead on your partner's wave; two minds fuse. Procedural canvas art.
+// (v3 of the cabinet formerly called TUNE IN. v2 is kept beside it as tunein.js; never load both in one page,
+//  they share the `syn` prefix.)
+// NOT a Sylly Game: no multiplayer, no settings, no Sylly Mode, no gameplay
+// harness (registration is checked by tools/verify-arcade.js; launch + exit by
+// tools/smoke-arcade.js — both run when Claude Code integrates it).
+// Depends on: engine.js (showScreen, resetToLobby), secret-mode.js (playSecretBeep),
+// arcade.js (arcExitCabinet)
+//  - Prefix `syn`. Screen id: screen-arcade-wavelink. DOM: #syn-stage (pointer
+//    target, touch-action:none) wrapping #syn-canvas, plus #btn-syn-exit.
+//  - Teardown is wired by the ARC_CABINETS entry's `stop` field, NOT by editing
+//    engine.js — resetToLobby() iterates the registry and calls every stop().
+//  - NO setTimeouts: every delayed effect is scheduled on synClock via synEvents.
+// ═══════════════════════════════════════════════════════════════════════════
+// ── HAND-OFF ────────────────────────────────────────────────────────────────
+//  File     js/arcade/wavelink.js
+//  Genre    abstract tracking game (fishing bar / seismograph pen), rhythm-game presentation
+//  World    Great Minds
+//  Label    WAVELINK         Blurb  Follow your partner's wave and build a Neural Link
+//  Accent   #8B5CF6
+//  State    attract -> playing -> over -> nameEntry -> leaderboard (session top 5, 3 initials)
+//  Entry    synStart()       Teardown  resetArcadeWavelink()
+//  Floor    synPreview() fy 0.45 (the attract scene, card off)    synBest()
+//  Screen   screen-arcade-wavelink   DOM  #syn-stage, #syn-canvas, #btn-syn-exit
+//  Decisions
+//   - v3 renamed TUNE IN to WAVELINK (same wavelength + link). Prefix `syn` is kept (reserved in the roster,
+//     and it reads as "sync"); file, screen id and teardown follow the new name. The boot line still says
+//     "Finding Wavelength" (Great Minds' own phrase), the title is WAVELINK.
+//   - BALANCE: every dial now lives in SYN_TUNE (v2 values in its comments). Difficulty is a smooth curve from
+//     Link 1 (no table plateaus): the window tightens and tempo rises every Link, the connection starts to bleed
+//     at Link 4, halo time costs signal, a Link refills only 7. Unlocks come earlier (leap 3, fog 5, snap 7, storm 9).
+//     Headless bots (calibrated so v2 reproduces the v2 notes): kid 167 s -> 58 s, teen 253 s -> 80 s,
+//     pro 286 s -> ~177 s. Edge parity exact (0.0%). Fairness: 0 violations over 19,432 hazards.
+//   - ENERGY: one `synCharge` value (0..1) builds with held sync and streak and drives everything: braided
+//     filaments, orbiting sparks, energy packets up the ribbon, star speed-lines, aurora, bloom, HUD shake.
+//   - DESYNC (the edge turn): the dial overshoots and settles, the world (stars) turns with it, the picture
+//     lurches in, RGB split and tear, Psychic Echo afterimages of the old scope, a dial arc around the centre.
+//   - Every Boost and interference has its own look and sound: RESONANT ripples, HIGH FIDELITY gold gem and
+//     diamonds, ENTANGLED finger-ghost joined by a rope of light; Mental Fog vapour, Frequency Leap ice gates,
+//     Phase Slip pink gates, Neural Storm lightning and bead arcs.
+//   - HUD: neon capsules with slanted cells (reference-inspired, in our violet/green). Thumb rail: neon slider
+//     with a charge fill, a partner marker and a speed streak.
+//   - v3.1 POLISH (Sam's notes): (1) supplementary waves: 3 to 7 thin fluctuating filaments play around the matched
+//     signal, driven by `synMatch` (core, smoothed) x `synAura` (unbroken Link: streak time, 0..1); stronger, wider,
+//     faster and wilder as it grows; clipped to the scope; purely visual, the match bands are untouched. The main
+//     ribbon is also thicker. (2) Mental Fog is now about twice as long (1.7 to 2.7 s, on a longer sine), shows two
+//     decoy traces inside the bank, fills the screen with static while NOW is inside it, and has entry/exit hits.
+//     Neural Storm gets a surge every 2.6 to 4.4 s (white-out, a blink of dark, three bolts, a rumble).
+//     (3) First-sight tips (SYN_TIPS) fire the first time each element is actually on the scope (spark, each Boost
+//     kind on pickup, Leap, Phase Slip, Fog, Storm, gold zone, low signal, the turn tell), once per RUN (reset by every new run, so
+//     they return after a pass or a break), with a pictogram. Boost pickups and hazard landings are much flashier (per-kind bursts, tinted flash, shockwaves).
+//     (4) The transmitter's face is gone: a lock-on core (ring meter + live wave glyph, clean when locked, torn when
+//     not) driven by `synLock`, a continuous smoothed value, so it glides instead of flipping.
+//     (5) The out-of-sync screen has a CONTINUE button (also Enter/Space) that goes on to the high score or board.
+//     An early tap fast-forwards to the stats; nothing auto-advances (a 40 s safety net only).
+//  Open
+//   - Real-phone play-test (left-edge thumb comfort, iPad travel cap). The balance dial is SYN_TUNE.bleedSlope.
+//   - Bloom, stars and strands are skipped automatically when synLowFx trips (frame time > 24 ms for 2 s).
+// ───────────────────────────────────────────────────────────────────────────
+
+const SYN_W = 360, SYN_H = 640;
+const SYN_TITLE = 'WAVELINK';
+const SYN_TOP_N = 5;
+const SYN_EDGE_EVERY = 2;          // Links per edge. Tune with a child (brief v2).
+const SYN_MAX_TRAVEL_CSS = 420;    // the thumb never needs to sweep further than this
+const SYN_MAX_PIXELS = 1.4e6;      // backing-store cap: a 4K monitor costs no more than a tablet
+const SYN_BAND = 160;              // steering band: u in [-160, +160]
+const SYN_CENTRE_LIM = 130;        // the ribbon's centre stays inside +/-130
+const SYN_SLEW = 0.22;             // leap and snap slew time (never scales)
+const SYN_PING = 0.6;              // leap ping tell (never scales)
+const SYN_TURN_SECS = 0.75;        // the dial turn (desync) swing
+
+// ── The balance dials, all in one place (v3). The v2 values are in the comments. ──────────────
+const SYN_TUNE = {
+  linkSecs: 4.0,      // seconds of core sync to fill the Link meter                 (v2: 5)
+  startSignal: 60,    // signal at the start of a run                                (v2: 70)
+  recover: 3,         // signal regained per second in the core                      (v2: 6)
+  haloDrain: 4,       // signal lost per second in the halo (sloppy is no longer free) (v2: 0)
+  offDrain: 20,       // signal lost per second off the ribbon                       (v2: 16)
+  grace: 0.15,        // seconds off the ribbon before the drain starts              (v2: 0.25)
+  linkBonus: 7,       // signal gained on a Link                                     (v2: 20)
+  hazLand: 2.0,       // no leap or snap lands sooner than this after a round starts (v2: 3.0)
+  haloLink: 0.35,     // Link fill rate while in the halo
+  bleedFrom: 4, bleedSlope: 0.13,   // from this round the connection itself degrades (v2: 20, 0.45)
+  shuffleFrom: 9,     // edges are shuffled from this round                          (v2: 11)
+  sparkGap: [9, 13],  // seconds between Signal Boost sparks                         (v2: 10-14)
+  fixedEdge: -1,      // bench only: pin the scope to one edge
+};
+
+// Palette: violet is Great Minds, the house green is YOU, gold is score. Magenta is the energy colour.
+const SYN_BG = '#07040F', SYN_GRID = '#2E1065', SYN_GRID_HI = '#4C1D95',
+      SYN_VIOLET = '#8B5CF6', SYN_VIOLET_HI = '#C4B5FD', SYN_PURPLE = '#A855F7',
+      SYN_MAGENTA = '#E879F9', SYN_PINK = '#F472B6', SYN_HOT = '#F5F3FF',
+      SYN_GREEN = '#4ADE80', SYN_MINT = '#86EFAC', SYN_TEAL = '#2DD4BF',
+      SYN_YELLOW = '#FDE68A', SYN_GOLD = '#FBBF24', SYN_STATIC = '#94A3B8', SYN_RED = '#F87171',
+      SYN_ICE = '#7DD3FC';
+
+const SYN_SOUND = {
+  select:    () => synBeep(660, true),
+  highScore: () => synBeep(1046, true),
+  link:      () => synBeep(988, true),
+  ping:      () => synBeep(1200),
+  snap:      () => synBeep(1568),
+  buzz:      () => synBeep(110),
+  tell:      () => synBeep(784),
+  beat:      () => synBeep(196),
+  boost:     () => synBeep(1318, true),
+};
+const SYN_OVER_JINGLE = [523, 440, 349, 262, 196];
+const SYN_PENTA = [262, 294, 330, 392, 440, 523, 587, 659];
+
+// Edges (bottom, right, top, left): the scope's NOW origin, ribbon length L, thumb guide, how far
+// behind NOW the scope frame reaches (sMin). Each step turns the whole scope 90 degrees anticlockwise.
+const SYN_EDGES = [
+  { name: 'bottom', ox: 180, oy: 470, L: 396, sMin: -140, strip: { x: 20,  y: 520, w: 320, h: 88 } },
+  { name: 'right',  ox: 262, oy: 320, L: 218, sMin: -88,  strip: { x: 290, y: 160, w: 56,  h: 320 } },
+  { name: 'top',    ox: 180, oy: 170, L: 396, sMin: -112, strip: { x: 20,  y: 66,  w: 320, h: 60 } },
+  { name: 'left',   ox: 98,  oy: 320, L: 218, sMin: -88,  strip: { x: 14,  y: 160, w: 56,  h: 320 } },
+];
+const SYN_TX_RX = 136, SYN_TX_RY = 246;   // the transmitter orbits this ellipse around the screen centre
+
+// Frequency Range is the ladder, authored as smooth curves from Link 1 (v3: no table, no plateau).
+// look = seconds of future you can see; core and halo are steering half-widths in px.
+function synParams(r) {
+  const T = SYN_TUNE;
+  const look = Math.max(1.2, 3.3 * Math.pow(0.955, r - 1));
+  const core = Math.max(8.5, 16 - 0.5 * (r - 1));
+  const halo = Math.max(core + 7.5, 34 - 0.9 * (r - 1));
+  return { r, range: r <= 3 ? 'Stable' : r <= 8 ? 'Unstable' : 'Chaotic', look, core, halo, k: 3.3 / look,
+    ampLo: Math.min(40, 26 + 1.2 * (r - 1)), ampHi: Math.min(80, 44 + 2.2 * (r - 1)),
+    bleed: r >= T.bleedFrom ? T.bleedSlope * (r - T.bleedFrom + 1) : 0,   // signal lost per second, whatever you do
+    noiseAmp: r >= 7 ? Math.min(6, 0.45 * core, 3 + 0.5 * (r - 7)) : 0,
+    leaps: r >= 3, fog: r >= 5, saw: r >= 7, noise: r >= 7, storm: r >= 9, boost: r >= 2,
+    bright: r <= 4 ? 1 : Math.max(0.55, 1 - (r - 4) * 0.045) };
+}
+
+// ── State ────────────────────────────────────────────────────────────────────
+let synCanvas = null, synCtx = null, synScale = 1, synPx = 1;
+let synRafHandle = null, synLastT = 0;
+let synState = 'attract';          // attract | playing | over | nameEntry | leaderboard
+let synClock = 0;                  // ms of un-paused time
+let synEvents = [];                // [{ at, fn }]  replaces setTimeout
+let synParts = [], synRings = [], synBolts = [];
+let synShake = 0, synHitStop = 0, synRGB = 0, synTear = 0, synFlash = 0;
+let synScore = 0, synLastScore = 0;
+let synPtrId = null, synPress = null;
+let synScores = [];                // session leaderboard: NOT cleared by teardown
+const SYN_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+let synInitials = [0, 0, 0];
+let synPreviewing = false, synDemo = false, synDemoT = 0;
+let synCoached = {};               // first-sight tips already shown THIS RUN (cleared by every new run, so tips return after a pass, a break or a retry)
+let synLastBeep = -999;
+let synSeed = (Date.now() & 0xffffff) | 1;
+let synLowFx = false;
+
+// Sim state
+let synT = 0;                      // sim seconds this run (stops during hit-stop)
+let synRound = 1, synRP = synParams(1);
+let synEdge = 0, synNextEdge = 0;
+let synScope = { ox: 180, oy: 470, phi: -Math.PI / 2, L: 396 };   // animated; matches synEdge when still
+let synTurn = null;                // { t, f, fe, to, edge } dial turn in flight
+let synBead = 0, synTarget = 0, synHasTouched = false, synGlide = false, synFingerDown = false;
+let synSignal = 60, synLink = 0, synStreak = 1, synStreakT = 0, synHaloT = 0, synOffT = 0;
+let synLinkRoundHalo = 0, synBestStreak = 1, synLinks = 0;
+let synDrainPause = 0, synTellT = 0, synTelling = false, synLinkFxT = 0;
+let synBoost = null;               // { kind, t, age }
+let synCoreMul = 1, synHaloMul = 1;
+let synState3 = 'core';            // core | halo | off
+let synTrail = [], synKeys = {}, synKeyV = 0;
+let synBanners = [], synBannerCur = null, synCoachQ = [], synCoachCur = null;
+let synSamples = [], synSampT = 0, synSampDt = 0.1;
+let synOverT = 0, synOverSkip = false, synOverDone = false;
+let synEff = 0, synRc = 0, synLastNote = 0, synHeart = 0, synLastPtr = null, synTxTheta = -Math.PI / 2;
+// v3 energy state: what the visuals read
+let synCharge = 0;                 // 0..1, builds with held sync (Link progress and streak), drains when you slip
+let synHist = [];                  // your bead's recent path in time, drawn behind the NOW line
+let synPulses = [], synPulseT = 0; // energy packets that run up the ribbon
+let synGhosts = [];                // Psychic Echo copies of the old scope after a desync
+let synDesyncT = 0;                // seconds since the last dial turn began (0 = none)
+let synBoltT = 0, synPts = new Float32Array(120), synPtsN = 0;
+// v3.1 polish state (read by the visuals)
+let synLock = 1;                   // 0..1 smoothed lock-on: drives the transmitter's status ring. Continuous, so it glides instead of flipping.
+let synMatch = 0, synAura = 0;     // smoothed "matched" and the unbroken-link strength (0..1) that feeds the supplementary waves
+let synFogNow = 0;                 // 0..1: how deep inside a Mental Fog bank NOW is
+let synBoostFx = null, synHazFx = [], synFlashRGB = '245,243,255', synSurgeT = 1.2, synDip = 0;
+
+// ── Scope maths: the only place that knows about screen x,y ─────────────────
+function synEdgePhi(i) { return -Math.PI / 2 - i * Math.PI / 2; }
+// u axis: (-sin phi, cos phi)   s axis: (cos phi, sin phi)
+function synToScreen(u, s, sc) {
+  sc = sc || synScope;
+  const c = Math.cos(sc.phi), n = Math.sin(sc.phi);
+  return { x: sc.ox - n * u + c * s, y: sc.oy + c * u + n * s };
+}
+function synUAxisOf(edge) { const p = synEdgePhi(edge); return { x: -Math.sin(p), y: Math.cos(p) }; }
+function synTxPos(theta) { return { x: 180 + SYN_TX_RX * Math.cos(theta), y: 320 + SYN_TX_RY * Math.sin(theta) }; }
+function synSetScopeTo(i) {
+  const e = SYN_EDGES[i];
+  synScope = { ox: e.ox, oy: e.oy, phi: synEdgePhi(i), L: e.L };
+}
+function synEase(q) { q = Math.max(0, Math.min(1, q)); return q * q * (3 - 2 * q); }
+function synEaseOut(q) { q = Math.max(0, Math.min(1, q)); return 1 - Math.pow(1 - q, 3); }
+function synBack(q) { q = Math.max(0, Math.min(1, q)); const c1 = 1.45, c3 = c1 + 1; return 1 + c3 * Math.pow(q - 1, 3) + c1 * Math.pow(q - 1, 2); }   // ease-out with a little overshoot: the dial overshoots, then settles
+function synClamp(v, a, b) { return v < a ? a : v > b ? b : v; }
+function synSpeed() { return synScope.L / synRP.look; }
+
+// ── The wave: authored in (u, time). Every edge and every screen shares it. ──
+let synSegs = [], synOld = null, synOldFrom = 0, synGenT = 0, synGenU = 0;
+let synFog = [], synSparks = [], synHaz = [], synNoHazT = 0, synNextSparkT = 0, synRoundT0 = 0;
+
+function synRng() {
+  synSeed = (synSeed + 0x6D2B79F5) | 0;
+  let t = Math.imul(synSeed ^ (synSeed >>> 15), 1 | synSeed);
+  t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+}
+function synR(a, b) { return a + (b - a) * synRng(); }
+
+function synSegU(s, t) {
+  const x = t - s.t0; let u;
+  switch (s.k) {
+    case 'straight': u = s.u0; break;
+    case 'ease': u = s.u0 + (s.u1 - s.u0) * synEase(x / (s.t1 - s.t0)); break;
+    case 'sine': u = s.c + s.A * Math.sin(s.w * x + s.ph); break;
+    case 'steps': {
+      const per = s.h + SYN_SLEW, i = Math.min(s.lv.length - 2, Math.max(0, Math.floor(x / per)));
+      const xx = x - i * per;
+      u = xx < s.h ? s.lv[i] : s.lv[i] + (s.lv[i + 1] - s.lv[i]) * synEase((xx - s.h) / SYN_SLEW);
+      if (x >= s.n * per) u = s.lv[s.n];
+      break;
+    }
+    default: { // saw: ramp, then snap back
+      const per = s.R + SYN_SLEW, i = Math.min(s.n - 1, Math.max(0, Math.floor(x / per)));
+      const xx = x - i * per, d = s.dirs[i] * s.amps[i];
+      u = xx < s.R ? s.a + d * (xx / s.R) : s.a + d * (1 - synEase((xx - s.R) / SYN_SLEW));
+      if (x >= s.n * per) u = s.a;
+    }
+  }
+  if (s.ns) {
+    const env = Math.min(1, x / 0.35, (s.t1 - t) / 0.35);
+    if (env > 0) u += s.ns * env * Math.sin(2 * Math.PI * 6 * t + s.nph);
+  }
+  return u;
+}
+function synWaveIn(segs, t) {
+  for (let i = segs.length - 1; i >= 0; i--) if (t >= segs[i].t0) return synSegU(segs[i], Math.min(t, segs[i].t1));
+  return segs.length ? synSegU(segs[0], segs[0].t0) : 0;
+}
+function synWave(t) { return synWaveIn(synSegs, t); }
+
+function synMakeSeg(t0, u0) {
+  const P = synRP, k = P.k;
+  const hazOK = t0 + 0.68 >= synNoHazT;   // the first leap or snap lands at t0 + 0.68 s or later
+  const pool = ['sine'];
+  if (P.leaps && hazOK) pool.push('steps', 'steps');
+  if (P.saw && hazOK) pool.push('saw', 'saw');
+  const kind = pool[Math.floor(synRng() * pool.length)];
+  const noisy = P.noise && synRng() < (P.r > 10 ? 0.8 : 0.5) ? P.noiseAmp : 0;
+  if (kind === 'steps') {
+    const n = 2 + Math.floor(synRng() * 3), h = Math.max(0.9, 2.0 / k) - SYN_SLEW;
+    const lv = [u0];
+    for (let i = 0; i < n; i++) {
+      const cur = lv[i], jump = synR(60, 140);
+      const okUp = cur + jump <= SYN_CENTRE_LIM, okDn = cur - jump >= -SYN_CENTRE_LIM;
+      const dir = okUp && okDn ? (synRng() < 0.5 ? 1 : -1) : okUp ? 1 : -1;
+      lv.push(cur + dir * jump);
+    }
+    const per = h + SYN_SLEW;
+    for (let i = 0; i < n; i++) synHaz.push({ t: t0 + i * per + h, type: 'leap', du: Math.abs(lv[i + 1] - lv[i]), u: lv[i + 1], from: lv[i] });
+    return { k: 'steps', t0, t1: t0 + n * per, u0, n, h, lv, ns: noisy, nph: synR(0, 6.28) };
+  }
+  if (kind === 'saw') {
+    const n = 2 + Math.floor(synRng() * 2), R = Math.max(0.9, 1.5 / k), per = R + SYN_SLEW;
+    const a = u0, dirs = [], amps = [];
+    for (let i = 0; i < n; i++) {
+      const up = SYN_CENTRE_LIM - a, dn = a + SYN_CENTRE_LIM;
+      const dir = up >= 100 && dn >= 100 ? (synRng() < 0.5 ? 1 : -1) : up >= 100 ? 1 : -1;
+      dirs.push(dir); amps.push(synR(100, Math.min(150, dir > 0 ? up : dn)));
+      synHaz.push({ t: t0 + i * per + R, type: 'snap', du: amps[i], u: a + dirs[i] * amps[i], from: a });
+    }
+    return { k: 'saw', t0, t1: t0 + n * per, a, n, R, dirs, amps, ns: noisy, nph: synR(0, 6.28) };
+  }
+  // sine: continuous from u0. The opening sine runs only until hazards are allowed.
+  const fogWanted = hazOK && P.fog && synRng() < 0.62;   // a fog run is a longer sine, so the bank can be about twice as long as v3.0's
+  const dur = hazOK ? (fogWanted ? synR(4.2, 5.6) : synR(2.4, 3.8)) : Math.max(1.2, Math.min(5, synNoHazT - 0.68 - t0 + 0.05)), A = synR(P.ampLo, P.ampHi), P0 = 3.6 / k;
+  const lo = Math.max(-SYN_CENTRE_LIM + A, u0 - A), hi = Math.min(SYN_CENTRE_LIM - A, u0 + A);
+  const c = lo <= hi ? synR(lo, hi) : synClamp(u0, -SYN_CENTRE_LIM + A, SYN_CENTRE_LIM - A);
+  const sn = synClamp((u0 - c) / A, -1, 1), ph0 = Math.asin(sn), ph = synRng() < 0.5 ? ph0 : Math.PI - ph0;
+  const seg = { k: 'sine', t0, t1: t0 + dur, u0, c, A, w: 2 * Math.PI / P0, ph, ns: noisy, nph: synR(0, 6.28) };
+  // fog banks and Boost sparks live only on sine runs, 1.0 s clear of any leap or snap
+  const a0 = Math.max(t0 + 1.0, synRoundT0 + 1.5), a1 = seg.t1 - 1.0, f0 = t0 + 0.9, f1 = seg.t1 - 0.9;
+  if (fogWanted && f1 - f0 >= 1.7) {
+    const len = synR(1.7, Math.min(2.7, f1 - f0)), ta = synR(f0, f1 - len), sg = synRng() < 0.5 ? -1 : 1;
+    synFog.push({ ta, tb: ta + len, d1: sg * synR(42, 72), d2: -sg * synR(42, 72), ph: synR(0, 6.28) });   // d1, d2: two decoy traces that live only inside the bank
+  }
+  if (P.boost && a1 > a0 && a1 > synNextSparkT) {
+    const te = synR(Math.max(a0, synNextSparkT), a1), uc = synSegU(seg, te), halo = P.halo;
+    const side = uc > 60 ? -1 : uc < -60 ? 1 : (synRng() < 0.5 ? 1 : -1);
+    const kinds = ['resonant', 'fidelity', 'entangled'];
+    synSparks.push({ te, u: uc + side * (halo + 8), kind: kinds[Math.floor(synRng() * 3)], taken: false });
+    synNextSparkT = te + synR(SYN_TUNE.sparkGap[0], SYN_TUNE.sparkGap[1]);
+  }
+  return seg;
+}
+function synGenerate(until) {
+  while (synGenT < until) {
+    const seg = synMakeSeg(synGenT, synGenU);
+    synSegs.push(seg);
+    synGenT = seg.t1; synGenU = synSegU(seg, seg.t1 - 1e-6);
+  }
+  const keep = synT - 3;
+  while (synSegs.length > 2 && synSegs[1].t0 < keep) synSegs.shift();
+}
+// Start a round's pattern at sim time tL. rotating = the axis is about to turn: the breather is longer.
+function synBeginPattern(tL, rotating, first) {
+  const u0 = first ? 0 : synWave(tL);
+  if (synSegs.length) { synOld = synSegs; synOldFrom = tL; }
+  synSegs = []; synFog = []; synSparks = []; synHaz = [];
+  synRoundT0 = tL; synNoHazT = tL + SYN_TUNE.hazLand;
+  if (first) synNextSparkT = tL + 6;     // the next spark time carries over between rounds, so quick Links still meet Boosts
+  else synNextSparkT = Math.max(synNextSparkT, tL + 1.5);
+  let t = tL;
+  if (first) { synSegs.push({ k: 'straight', t0: t, t1: t + 4, u0: 0 }); t += 4; }
+  else {
+    const ez = rotating ? 0.7 : 0.8;
+    synSegs.push({ k: 'ease', t0: t, t1: t + ez, u0, u1: 0 }); t += ez;
+    if (rotating) { synSegs.push({ k: 'straight', t0: t, t1: tL + 1.5, u0: 0 }); t = tL + 1.5; }
+  }
+  synGenT = t; synGenU = 0;
+  synGenerate(tL + synRP.look + 1.5);
+}
+
+// ── Helpers: sound, events, particles, banners, coach boxes ────────────────
+function synBeep(f, force) {
+  if (synPreviewing) return;
+  if (!force && synClock - synLastBeep < 120) return;
+  synLastBeep = synClock; playSecretBeep(f);
+}
+function synSchedule(ms, fn) { synEvents.push({ at: synClock + ms, fn }); }
+function synBurst(x, y, n, cols, sp, life, grav) {
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * 6.283, v = sp * (0.35 + Math.random() * 0.65);
+    synParts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: life * (0.6 + Math.random() * 0.4), max: life,
+      col: cols[Math.floor(Math.random() * cols.length)], sz: 1.5 + Math.random() * 2.2, grav: grav || 0 });
+  }
+  const cap = synLowFx ? 90 : 200;
+  if (synParts.length > cap) synParts.splice(0, synParts.length - cap);
+}
+function synRing(x, y, r1, dur, col, w) { synRings.push({ x, y, r1, t: 0, dur, col, w: w || 3 }); if (synRings.length > 12) synRings.shift(); }
+function synBanner(text, col, sub, subCol) {
+  if (synDemo) return;
+  synBanners.push({ text, col: col || SYN_HOT, sub: sub || '', subCol: subCol || SYN_VIOLET_HI, t: 0, dur: 1.05 });
+  while (synBanners.length > 2) synBanners.shift();     // quick Links must never queue a backlog of words
+}
+// First-sight tips: each shows once per session, the first time that element actually appears on the scope.
+const SYN_TIPS = {
+  boost: ['Steer through the glowing spark to grab a Signal Boost.', 'boost', SYN_VIOLET_HI],
+  resonant: ['RESONANT: your match zone is much wider for a few seconds.', 'resonant', SYN_VIOLET_HI],
+  fidelity: ['HIGH FIDELITY: a tighter zone, but Links charge faster and score triples.', 'fidelity', SYN_GOLD],
+  entangled: ['ENTANGLED: the bead follows their wave. Nudge it, do not fight it.', 'entangled', SYN_MAGENTA],
+  leap: ['That line is a LEAP. When the signal reaches it, it jumps. Jump with it.', 'leap', SYN_ICE],
+  snap: ['That line is a PHASE SLIP. The signal drifts, then snaps back.', 'snap', SYN_PINK],
+  fog: ['MENTAL FOG ahead. The signal hides. Remember where it was heading.', 'fog', SYN_STATIC],
+  storm: ['NEURAL STORM: your bead shakes. Hold steady.', 'storm', SYN_RED],
+  halo: ['Gold zone: still linked, but weak and your Signal drains. Get back to the core.', 'halo', SYN_GOLD],
+  low: ['Signal fading! Stay in the bright core to recharge.', 'low', SYN_RED],
+  tell: ['The dial turns after this Link. Be ready to slide a new way.', 'rot', SYN_YELLOW],
+  rot: ['The signal is coming from a new side. Slide your thumb the new way.', 'rot', SYN_PINK],
+};
+function synCoach(key, text, icon, col) {
+  if (synCoached[key] || synDemo) return;
+  synCoached[key] = true; synCoachQ.push({ text, icon: icon || key, col: col || SYN_VIOLET_HI, t: 0, dur: 4.8 });
+}
+function synTip(key) { const q = SYN_TIPS[key]; if (q) synCoach(key, q[0], q[1], q[2]); }
+function synFogHit(on) {   // Mental Fog rolls over NOW (on) or lifts (off): the whole picture reacts
+  if (synDemo) return;
+  synFlash = Math.max(synFlash, on ? 0.3 : 0.14); synFlashRGB = '148,163,184'; synShake = Math.max(synShake, on ? 0.18 : 0.08); synRGB = Math.max(synRGB, on ? 0.9 : 0.4);
+  synRing(180, 320, on ? 380 : 260, 0.5, SYN_STATIC, on ? 6 : 3);
+  synBurst(180, 320, on ? 40 : 20, [SYN_STATIC, SYN_HOT, SYN_ICE], 260, 0.6);
+  if (on) { synBeep(110, true); synSchedule(70, () => synBeep(98, true)); synSchedule(150, () => synBeep(87, true)); } else synBeep(660, true);
+}
+function synBandY() {   // where text lives: away from the bead and the near ribbon on every edge
+  return synEdge === 0 ? 132 : synEdge === 2 ? 512 : 598;
+}
+
+// ── A new run ───────────────────────────────────────────────────────────────
+function synPickNextEdge() {
+  const r = synRound + 1;
+  if (SYN_TUNE.fixedEdge >= 0) { synNextEdge = SYN_TUNE.fixedEdge; return; }
+  if (r < SYN_TUNE.shuffleFrom) synNextEdge = Math.floor((r - 1) / SYN_EDGE_EVERY) % 4;
+  else { let e; do { e = Math.floor(synRng() * 4); } while (e === synEdge); synNextEdge = e; }
+}
+function synNewRun(demo) {
+  synDemo = !!demo; if (!demo) synCoached = {}; synT = 0; synRound = demo ? 3 : 1; synRP = synParams(synRound);
+  if (demo) { synRP.boost = false; synRP.leaps = false; }
+  synEdge = SYN_TUNE.fixedEdge >= 0 && !demo ? SYN_TUNE.fixedEdge : 0; synSetScopeTo(synEdge); synTurn = null; synTxTheta = synEdgePhi(synEdge);
+  synBead = 0; synTarget = 0; synHasTouched = false; synGlide = false; synFingerDown = false;
+  synSignal = demo ? 100 : SYN_TUNE.startSignal; synLink = 0; synStreak = 1; synStreakT = 0; synHaloT = 0; synOffT = 0;
+  synLinkRoundHalo = 0; synBestStreak = 1; synLinks = 0; synScore = 0;
+  synDrainPause = 0; synTellT = 0; synTelling = false; synLinkFxT = 0;
+  synBoost = null; synCoreMul = 1; synHaloMul = 1; synState3 = 'core';
+  synTrail = []; synBanners = []; synBannerCur = null; synCoachQ = []; synCoachCur = null;
+  synSamples = []; synSampT = 0; synSampDt = 0.1; synOverT = 0; synOverSkip = false; synOverDone = false;
+  synSegs = []; synOld = null; synSparks = []; synFog = []; synHaz = [];
+  synCharge = 0; synHist = []; synPulses = []; synPulseT = 0; synGhosts = []; synDesyncT = 0; synBolts = []; synBoltT = 0;
+  synLock = 1; synMatch = 0; synAura = 0; synFogNow = 0; synBoostFx = null; synHazFx = []; synSurgeT = 1.2; synDip = 0; synFlashRGB = '245,243,255';
+  synBeginPattern(0, false, !demo);
+  if (demo) { synGenerate(8); }
+  synPickNextEdge(); synHeart = 0; synTarget = 0;
+}
+
+// ── Input maths ─────────────────────────────────────────────────────────────
+function synToLogical(e) {
+  const r = synCanvas.getBoundingClientRect();
+  return { x: (e.clientX - r.left) * SYN_W / r.width, y: (e.clientY - r.top) * SYN_H / r.height };
+}
+function synHit(r, p) { return p.x >= r.x && p.x <= r.x + r.w && p.y >= r.y && p.y <= r.y + r.h; }
+// pointer offset from the canvas centre, in CSS px: this is what the capped travel is measured in
+function synPtrOffset(e) {
+  const r = synCanvas.getBoundingClientRect();
+  return { x: e.clientX - (r.left + r.width / 2), y: e.clientY - (r.top + r.height / 2), sc: r.width / SYN_W };
+}
+function synTargetFrom(off, edge) {
+  const ax = synUAxisOf(edge), o = off.x * ax.x + off.y * ax.y;
+  const travel = Math.min(SYN_MAX_TRAVEL_CSS, 2 * SYN_BAND * off.sc);
+  return synClamp(o * (2 * SYN_BAND / travel), -SYN_BAND, SYN_BAND);
+}
+function synSteer(e) {
+  const off = synPtrOffset(e);
+  if (!(off.sc > 0)) return;
+  synLastPtr = off; synTarget = synTargetFrom(off, synEdge); synHasTouched = true;
+}
+
+// ── Scoring and the Link ────────────────────────────────────────────────────
+const SYN_UNLOCKS = {   // banners at the round a thing unlocks; the tips themselves fire the first time the thing is seen (synTip)
+  3: { banner: 'Frequency Leap', col: SYN_ICE },
+  5: { banner: 'Static Interference: Mental Fog', col: SYN_STATIC },
+  7: { banner: 'Phase Slip', col: SYN_PINK },
+  9: { banner: 'Static Interference: Neural Storm', col: SYN_RED, coach: 'storm' },
+};
+function synDoLink() {
+  const perfect = synLinkRoundHalo < 0.05;
+  const bonus = 500 * synRound * (perfect ? 2 : 1);
+  synScore += bonus; synLinks++; synSignal = Math.min(100, synSignal + SYN_TUNE.linkBonus);
+  const rc = synWave(synT), p = synToScreen(rc, 0);
+  synHitStop = 90; synRGB = 1; synFlash = 0.5; synShake = 0.25; synLinkFxT = 0.9;
+  synRing(p.x, p.y, 460, 0.7, SYN_HOT, 5); synRing(p.x, p.y, 300, 0.55, SYN_MAGENTA, 4); synRing(p.x, p.y, 200, 0.45, SYN_GREEN, 3);
+  synBurst(p.x, p.y, 44, [SYN_VIOLET, SYN_GREEN, SYN_YELLOW, SYN_HOT, SYN_MAGENTA], 280, 0.95, 80);
+  SYN_SOUND.link();
+  [1175, 1397, 1568, 2093].forEach((f, i) => synSchedule(110 + i * 90, () => synBeep(f, true)));
+  const prevRange = synRP.range;
+  synRound++; synLink = 0; synLinkRoundHalo = 0; synTelling = false; synTellT = 0;
+  synCharge *= 0.75;
+  const rotating = synNextEdge !== synEdge;
+  synRP = synParams(synRound);
+  if (rotating) {
+    const prev = synEdge; synEdge = synNextEdge; synStartTurn(prev, synEdge);
+    synDrainPause = 2.0; synGlide = true; synDesyncT = 0.001;
+    if (synLastPtr) synTarget = synTargetFrom(synLastPtr, synEdge);
+    synSchedule(SYN_TURN_SECS * 1000 * 0.85, () => { const q = synToScreen(0, synScope.L); synRing(q.x, q.y, 80, 0.45, SYN_VIOLET_HI, 3); synBurst(q.x, q.y, 18, [SYN_VIOLET, SYN_HOT, SYN_MAGENTA], 140, 0.5); synBeep(880, true); });
+  } else synDrainPause = 0.3;
+  synBeginPattern(synT, rotating, false);
+  synPickNextEdge();
+  const un = SYN_UNLOCKS[synRound];
+  let sub = '', subCol = SYN_VIOLET_HI;
+  if (un && un.banner) { sub = un.banner; subCol = un.col; }
+  else if (synRP.range !== prevRange) sub = 'Frequency Range: ' + synRP.range;
+  else if (rotating) sub = 'DESYNC: new signal acquired';
+  synBanner(perfect ? 'PERFECT LINK  x2' : 'NEURAL LINK!', perfect ? SYN_YELLOW : SYN_HOT, sub, subCol);
+  if (rotating) synTip('rot');
+  if (un && un.coach) synTip(un.coach);
+}
+function synStartTurn(from, to) {
+  const f = { ...synScope }, tp = synEdgePhi(to);
+  let d = ((tp - f.phi) % (2 * Math.PI) + 3 * Math.PI) % (2 * Math.PI) - Math.PI;
+  if (d > Math.PI - 1e-6) d = -Math.PI;
+  const e = SYN_EDGES[to];
+  if (synPtsN > 2) synGhosts.push({ sc: { ...f }, pts: synPts.slice(0, synPtsN), n: synPtsN, age: 0 });
+  if (synGhosts.length > 2) synGhosts.shift();
+  synTurn = { t: 0, f, fe: from, to: { ox: e.ox, oy: e.oy, phi: f.phi + d, L: e.L }, edge: to };
+}
+function synGrab(sp) {
+  sp.taken = true;
+  synBoost = { kind: sp.kind, t: 6, age: 0 };
+  const p = synToScreen(sp.u, (sp.te - synT) * synSpeed());
+  const col = sp.kind === 'fidelity' ? SYN_GOLD : sp.kind === 'entangled' ? SYN_MAGENTA : SYN_VIOLET_HI;
+  synRing(p.x, p.y, 110, 0.5, col, 4); synRing(p.x, p.y, 60, 0.35, SYN_HOT, 2);
+  synBurst(p.x, p.y, 26, sp.kind === 'fidelity' ? [SYN_GOLD, SYN_YELLOW, SYN_HOT] : sp.kind === 'entangled' ? [SYN_MAGENTA, SYN_PINK, SYN_HOT] : [SYN_VIOLET_HI, SYN_PURPLE, SYN_HOT], 190, 0.65);
+  // each Boost has its own motif, so it is known by ear as well as by eye
+  const motif = sp.kind === 'resonant' ? [523, 659, 784, 1047] : sp.kind === 'fidelity' ? [1568, 2093, 2637] : [880, 884, 1175, 1180];
+  motif.forEach((f, i) => synSchedule(i * 70, () => synBeep(f, true)));
+  synBanner('Signal Boost', SYN_YELLOW, sp.kind === 'resonant' ? 'RESONANT' : sp.kind === 'fidelity' ? 'HIGH FIDELITY' : 'ENTANGLED', col);
+  synTip(sp.kind);
+  synBoostFx = { kind: sp.kind, t: 0, x: p.x, y: p.y };
+  if (sp.kind === 'resonant') { synRing(p.x, p.y, 320, 0.75, SYN_VIOLET_HI, 6); synRing(p.x, p.y, 220, 0.6, SYN_ICE, 4); }
+  else if (sp.kind === 'fidelity') synBurst(p.x, p.y, 40, [SYN_GOLD, SYN_YELLOW, SYN_HOT], 250, 1.2, 230);
+  else synBurst(p.x, p.y, 30, [SYN_MAGENTA, SYN_PINK, SYN_HOT], 220, 0.8);
+  synScore += 100; synFlash = Math.max(synFlash, 0.42); synFlashRGB = sp.kind === 'fidelity' ? '251,191,36' : sp.kind === 'entangled' ? '232,121,249' : '196,181,253';
+  synRGB = Math.max(synRGB, 0.7); synShake = Math.max(synShake, 0.22);
+}
+
+function synGameOver() {
+  synLastScore = Math.floor(synScore);
+  synState = 'over'; synOverT = 0; synOverDone = false; synFlash = 0.35; synShake = 0.3; synRGB = 1;
+  SYN_SOUND.buzz();
+  SYN_OVER_JINGLE.forEach((f, k) => synSchedule(900 + k * 150, () => synBeep(f, true)));
+}
+function synFinishOver() {
+  if (synOverDone) return; synOverDone = true;
+  if (synQualifies(synLastScore)) { synInitials = [0, 0, 0]; SYN_SOUND.highScore(); synEnterState('nameEntry'); }
+  else synEnterState('leaderboard');
+}
+function synQualifies(s) { return s > 0 && (synScores.length < SYN_TOP_N || s > synScores[synScores.length - 1].score); }
+function synSubmit(name, score) {
+  synScores.push({ name, score }); synScores.sort((a, b) => b.score - a.score); synScores = synScores.slice(0, SYN_TOP_N);
+}
+
+// ── The sim: one step of a run (or of the attract demo) ─────────────────────
+function synSim(dt) {
+  if (synHitStop > 0) { synHitStop = Math.max(0, synHitStop - dt * 1000); return; }
+  synT += dt;
+  const P = synRP, spd = synSpeed(), T = SYN_TUNE;
+  synGenerate(synT + P.look + 1.5);
+  if (synTurn) {
+    synTurn.t += dt; const x = synTurn.t / SYN_TURN_SECS, q = synEaseOut(x), qp = synBack(x), f = synTurn.f, o = synTurn.to;
+    synScope = { ox: f.ox + (o.ox - f.ox) * q, oy: f.oy + (o.oy - f.oy) * q, phi: f.phi + (o.phi - f.phi) * qp, L: f.L + (o.L - f.L) * q };
+    if (x >= 1) { synSetScopeTo(synTurn.edge); synTurn = null; }
+  }
+  if (synDesyncT > 0) { synDesyncT += dt; if (synDesyncT > 1.6) synDesyncT = 0; }
+  // finger and keys
+  if (synKeys.l || synKeys.r || synKeys.u || synKeys.d) {
+    const ax = synUAxisOf(synEdge), vx = (synKeys.r ? 1 : 0) - (synKeys.l ? 1 : 0), vy = (synKeys.d ? 1 : 0) - (synKeys.u ? 1 : 0);
+    const want = (vx * ax.x + vy * ax.y) * 520;
+    synKeyV += (want - synKeyV) * Math.min(1, 12 * dt);
+  } else synKeyV += (0 - synKeyV) * Math.min(1, 12 * dt);
+  if (Math.abs(synKeyV) > 1) { synTarget = synClamp(synTarget + synKeyV * dt, -SYN_BAND, SYN_BAND); synHasTouched = true; }
+  const rc = synWave(synT);
+  if (synDemo) synTarget = rc + 5 * Math.sin(synT * 2.3);
+  const ent = synBoost && synBoost.kind === 'entangled';
+  const tgt = ent ? rc + 0.12 * (synTarget - rc) : synTarget;
+  const step = 1600 * dt, dd = tgt - synBead;
+  synBead += synClamp(dd, -step, step);
+  if (synGlide && Math.abs(tgt - synBead) < 3) synGlide = false;
+  // boost
+  if (synBoost) { synBoost.t -= dt; synBoost.age += dt; if (synBoost.t <= 0) synBoost = null; }
+  const kind = synBoost ? synBoost.kind : '';
+  const cT = kind === 'resonant' ? 1.4 : kind === 'fidelity' ? 0.65 : 1, hT = kind === 'resonant' ? 2 : 1;
+  synCoreMul += (cT - synCoreMul) * Math.min(1, 10 * dt); synHaloMul += (hT - synHaloMul) * Math.min(1, 10 * dt);
+  const coreHW = P.core * synCoreMul, haloHW = P.halo * synHaloMul;
+  const jit = P.storm && !synDemo ? 0.6 * coreHW * (0.6 * Math.sin(synT * 56) + 0.4 * Math.sin(synT * 86 + 1)) : 0;
+  const eff = synBead + jit;
+  synEff = eff; synRc = rc;
+  const d = Math.abs(eff - rc), fid = kind === 'fidelity';
+  synState3 = d <= coreHW ? 'core' : d <= haloHW ? 'halo' : 'off';
+  if (synDrainPause > 0) synDrainPause -= dt;
+  const canDrain = synDrainPause <= 0 && !synGlide;
+  if (synState3 === 'core') {
+    synOffT = 0; synHaloT = 0; synLink += (100 / T.linkSecs) * dt * (fid ? 1.5 : 1);
+    if (!synDemo) synSignal = Math.min(100, synSignal + T.recover * dt);
+    synStreakT += dt; if (synStreakT >= 1.5) { synStreakT = 0; synStreak = Math.min(8, synStreak + 1); synBestStreak = Math.max(synBestStreak, synStreak); }
+    synScore += 50 * synStreak * dt * (fid ? 3 : 1);
+  } else if (synState3 === 'halo') {
+    synOffT = 0; synHaloT += dt; synLinkRoundHalo += dt; if (synHaloT > 0.4) synTip('halo'); synLink += T.haloLink * (100 / T.linkSecs) * dt * (fid ? 1.5 : 1);
+    if (synHaloT > 1) { synStreak = 1; synStreakT = 0; }
+    if (canDrain && !synDemo) synSignal -= T.haloDrain * dt;
+    synScore += 10 * dt * (fid ? 3 : 1);
+  } else {
+    synOffT += dt; synLinkRoundHalo += dt;
+    if (synOffT > T.grace && canDrain) { if (!synDemo) synSignal -= T.offDrain * dt; synStreak = 1; synStreakT = 0; }
+  }
+  if (P.bleed > 0 && canDrain && !synDemo) synSignal -= P.bleed * dt;
+  // energy: builds the longer you hold the Link, drains when you slip
+  const held = (0.55 * synLink / 100 + 0.45 * (synStreak - 1) / 7) * (synState3 === 'halo' ? 0.6 : 1);
+  const chT = synState3 === 'off' ? 0 : held, chR = chT > synCharge ? 3.5 : 2.5;
+  synCharge += (chT - synCharge) * Math.min(1, chR * dt);
+  {   // lock-on and unbroken-link strength: continuous and smoothed, so nothing the eye sees can flicker
+    const span = Math.max(1, haloHW - coreHW), lockT = d <= coreHW ? 1 : Math.max(0, 0.55 * (1 - (d - coreHW) / span));
+    synLock += (lockT - synLock) * Math.min(1, (lockT > synLock ? 4.5 : 2.4) * dt);
+    const holdN = synClamp(((synStreak - 1) * 1.5 + synStreakT) / 10.5, 0, 1), auraT = synState3 === 'off' ? 0 : holdN * (synState3 === 'halo' ? 0.7 : 1);
+    synAura += (auraT - synAura) * Math.min(1, (auraT > synAura ? 1.6 : 3.5) * dt);
+    synMatch += ((synState3 === 'core' ? 1 : 0) - synMatch) * Math.min(1, (synState3 === 'core' ? 5 : 3) * dt);
+    synFogNow += ((synFog.some(f => synT >= f.ta && synT <= f.tb) ? 1 : 0) - synFogNow) * Math.min(1, 7 * dt);
+  }
+  // your own path, kept so the picture can show how well you tracked their wave
+  synHist.push({ t: synT, u: eff }); if (synHist.length > 260) synHist.shift();
+  // energy packets run from you up the ribbon toward the transmitter
+  synPulseT += dt;
+  if (synState3 === 'core' && synCharge > 0.1 && synPulseT > 0.85 - 0.5 * synCharge) { synPulseT = 0; synPulses.push({ a: 0 }); if (synPulses.length > 6) synPulses.shift(); }
+  for (const pl of synPulses) pl.a += dt;
+  synPulses = synPulses.filter(pl => pl.a < 1.05);
+  if (synState3 === 'core' && synCharge > 0.2 && Math.random() < synCharge * 0.85) {   // sparks shed from the bead, more the longer you hold
+    const bp0 = synToScreen(eff, 0), ax = synUAxisOf(synEdge), sg = Math.random() < 0.5 ? -1 : 1;
+    synParts.push({ x: bp0.x, y: bp0.y, vx: ax.x * sg * (30 + Math.random() * 60) + (Math.random() - 0.5) * 30, vy: ax.y * sg * (30 + Math.random() * 60) + (Math.random() - 0.5) * 30, life: 0.45, max: 0.45,
+      col: [SYN_MINT, SYN_HOT, SYN_VIOLET_HI, SYN_MAGENTA][Math.floor(Math.random() * 4)], sz: 1.4 + Math.random() * 1.6, grav: 0 });
+    if (synParts.length > (synLowFx ? 90 : 200)) synParts.shift();
+  }
+  // the tell for a coming rotation, and the Link itself
+  const rotNext = synNextEdge !== synEdge && !synDemo;
+  if (rotNext && synLink >= 75) { if (!synTelling) { synTelling = true; synTellT = 0; synTip('tell'); SYN_SOUND.tell(); synSchedule(160, () => synBeep(1047, true)); } synTellT += dt; }
+  if (rotNext && synLink >= 100 && synTellT < 0.8) synLink = 99.9;
+  if (synLink >= 100) { if (synDemo) synDemoLink(); else synDoLink(); }
+  // hazards ping a moment before they land, sparks are collected, old things are swept away
+  for (const h of synHaz) if (!h.pinged && h.t - synT <= SYN_PING) { h.pinged = true; if (h.type === 'snap') SYN_SOUND.snap(); else SYN_SOUND.ping(); }
+  for (const h of synHaz) if (!h.landed && h.t <= synT) {
+    h.landed = true; const q = synToScreen(synWave(synT), 0);
+    synBurst(q.x, q.y, h.type === 'snap' ? 16 : 12, h.type === 'snap' ? [SYN_PINK, SYN_HOT] : [SYN_ICE, SYN_HOT], 170, 0.45);
+    synRing(q.x, q.y, 60, 0.3, h.type === 'snap' ? SYN_PINK : SYN_ICE, 2); synShake = Math.max(synShake, 0.2);
+    synHazFx.push({ t: 0, dur: 0.6, snap: h.type === 'snap' }); if (synHazFx.length > 4) synHazFx.shift();
+    synFlash = Math.max(synFlash, 0.22); synFlashRGB = h.type === 'snap' ? '244,114,182' : '125,211,252'; synRGB = Math.max(synRGB, 0.75);
+  }
+  for (const h of synHaz) if (!h.seen && h.t - synT <= P.look * 0.95) { h.seen = true; synTip(h.type === 'snap' ? 'snap' : 'leap'); }
+  synHaz = synHaz.filter(h => h.t > synT - 1);
+  for (const f of synFog) { if (!f.in && synT >= f.ta) { f.in = true; synFogHit(true); } if (f.in && !f.out && synT >= f.tb) { f.out = true; synFogHit(false); } }
+  for (const f of synFog) if (!f.cued && f.ta - synT <= P.look) { f.cued = true; synTip('fog'); if (!synDemo) { synBeep(147, true); synSchedule(120, () => synBeep(123, true)); } }
+  for (const sp of synSparks) if (!sp.seen && (sp.te - synT) * spd < synScope.L * 0.92) { sp.seen = true; synTip('boost'); }
+  for (const sp of synSparks) {
+    if (!sp.taken && Math.abs(sp.te - synT) < 0.12 && Math.abs(eff - sp.u) < 12) synGrab(sp);   // in time, so every edge and screen plays alike
+  }
+  synSparks = synSparks.filter(sp => !sp.taken && sp.te > synT - 0.5);
+  synFog = synFog.filter(f => f.tb > synT - 0.5);
+  // sound for the sync state
+  if (synState3 === 'core' && !synDemo) { const i = Math.min(7, Math.floor(synStreak) - 1 + (Math.floor(synT * 5) % 3)); if (Math.floor(synT * 5) !== synLastNote) { synLastNote = Math.floor(synT * 5); synBeep(SYN_PENTA[Math.max(0, i)] * 2); } }
+  else if (synState3 === 'off' && synOffT > T.grace && !synDemo && Math.floor(synT * 6) !== synLastNote) { synLastNote = Math.floor(synT * 6); SYN_SOUND.buzz(); }
+  if (!synDemo && synSignal < 38 && synSignal > 0) synTip('low');
+  if (!synDemo && synSignal < 25) { synHeart -= dt; if (synHeart <= 0) { synHeart = 0.9 - (25 - synSignal) / 25 * 0.5; synBeep(82, true); synRGB = Math.max(synRGB, 0.35); } }
+  // run back samples
+  synSampT += dt;
+  if (!synDemo && synSampT >= synSampDt) {
+    synSampT = 0; synSamples.push({ r: rc, b: eff, ok: synState3 === 'core' ? 1 : synState3 === 'halo' ? 0.5 : 0, e: synEdge, rd: synRound });
+    if (synSamples.length > 3000) { synSamples = synSamples.filter((_, i) => i % 2 === 0); synSampDt *= 2; }
+  }
+  // trail
+  const bp = synToScreen(eff, 0);
+  synTrail.push({ x: bp.x, y: bp.y }); if (synTrail.length > 14) synTrail.shift();
+  if (!synDemo && synSignal <= 0) { synSignal = 0; synGameOver(); }
+}
+function synDemoLink() {
+  synLink = 0; const p = synToScreen(synRc, 0);
+  synFlash = 0.35; synRGB = 0.9; synLinkFxT = 0.9;
+  synRing(p.x, p.y, 420, 0.7, SYN_HOT, 5); synRing(p.x, p.y, 260, 0.5, SYN_MAGENTA, 3);
+  synBurst(p.x, p.y, 30, [SYN_VIOLET, SYN_GREEN, SYN_YELLOW, SYN_HOT, SYN_MAGENTA], 250, 0.9, 80);
+}
+
+
+// ── Drawing helpers ─────────────────────────────────────────────────────────
+const synColCache = {};
+function synRGBA(hex, a) {
+  const key = hex + (Math.round(a * 50) / 50);
+  if (synColCache[key]) return synColCache[key];
+  const n = parseInt(hex.slice(1), 16);
+  return (synColCache[key] = `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${Math.round(a * 50) / 50})`);
+}
+function synMixA(h1, h2, q, a) {   // blend two hex colours, return rgba (not cached: used a handful of times a frame)
+  q = synClamp(q, 0, 1);
+  const x = parseInt(h1.slice(1), 16), y = parseInt(h2.slice(1), 16);
+  const r = Math.round(((x >> 16) & 255) * (1 - q) + ((y >> 16) & 255) * q), g = Math.round(((x >> 8) & 255) * (1 - q) + ((y >> 8) & 255) * q), b = Math.round((x & 255) * (1 - q) + (y & 255) * q);
+  return `rgba(${r},${g},${b},${a})`;
+}
+function synBeatPh() { return (((synDemo ? synClock / 1000 : synT) * 2.5) % 1 + 1) % 1; }   // 2.5 Hz, the same pulse as the arpeggio
+function synBeatV() { return Math.pow(1 - synBeatPh(), 3); }
+function synBoostKind() { return synBoost ? synBoost.kind : ''; }
+function synBoostCol() { const k = synBoostKind(); return k === 'fidelity' ? SYN_GOLD : k === 'entangled' ? SYN_MAGENTA : SYN_VIOLET_HI; }
+function synBoostFade() { return synBoost ? Math.min(1, synBoost.age / 0.4) * (synBoost.t < 1.5 ? (0.55 + 0.45 * Math.sin(synClock * 0.03)) : 1) : 0; }
+function synRangeTint() { const q = synClamp((synRP.r - 3) / 9, 0, 1); return q < 0.5 ? synMixA(SYN_VIOLET, SYN_MAGENTA, q * 2, 1) : synMixA(SYN_MAGENTA, SYN_PINK, (q - 0.5) * 2, 1); }
+function synRangeHex() { return synRP.r <= 3 ? SYN_VIOLET : synRP.r <= 8 ? SYN_MAGENTA : SYN_PINK; }
+function synSMin() {
+  if (synTurn) { const q = synEaseOut(synTurn.t / SYN_TURN_SECS); return SYN_EDGES[synTurn.fe].sMin + (SYN_EDGES[synTurn.edge].sMin - SYN_EDGES[synTurn.fe].sMin) * q; }
+  return SYN_EDGES[synEdge].sMin;
+}
+function synScopeXform(g, sc) {
+  sc = sc || synScope;
+  const c = Math.cos(sc.phi), n = Math.sin(sc.phi);
+  g.transform(-n, c, c, n, sc.ox, sc.oy);
+}
+function synRR(g, x, y, w, h, r) {
+  g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r);
+  g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath();
+}
+function synText(g, str, x, y, size, col, align, glow) {
+  g.font = `bold ${size}px monospace`; g.textAlign = align || 'center'; g.textBaseline = 'middle';
+  if (glow) { g.fillStyle = synRGBA(glow, 0.35); g.fillText(str, x + 1.5, y + 1.5); g.fillText(str, x - 1.5, y); }
+  g.fillStyle = col; g.fillText(str, x, y); g.textBaseline = 'alphabetic';
+}
+function synWrap(g, text, maxW) {
+  const words = text.split(' '), lines = []; let cur = '';
+  for (const w of words) { const t = cur ? cur + ' ' + w : w; if (g.measureText(t).width > maxW && cur) { lines.push(cur); cur = w; } else cur = t; }
+  if (cur) lines.push(cur); return lines;
+}
+function synMakeBolt(x0, y0, x1, y1, rough) {   // midpoint displacement: a jagged bolt, 17 points
+  let pts = [x0, y0, x1, y1], off = rough;
+  for (let lv = 0; lv < 4; lv++) {
+    const out = [];
+    for (let i = 0; i < pts.length - 2; i += 2) {
+      const ax = pts[i], ay = pts[i + 1], bx = pts[i + 2], by = pts[i + 3], dx = bx - ax, dy = by - ay, l = Math.hypot(dx, dy) || 1;
+      const k = (Math.random() - 0.5) * 2 * off;
+      out.push(ax, ay, (ax + bx) / 2 - dy / l * k, (ay + by) / 2 + dx / l * k);
+    }
+    out.push(pts[pts.length - 2], pts[pts.length - 1]); pts = out; off *= 0.55;
+  }
+  return pts;
+}
+
+// ── Backdrop: the world turns with the dial. Aurora, stars, speed lines. ───
+let synStars = null, synAurora = 0;
+function synInitStars() { synStars = []; for (let i = 0; i < 110; i++) synStars.push({ x: (Math.random() - 0.5) * 840, y: (Math.random() - 0.5) * 840, z: 0.25 + Math.random() * 0.75 }); }
+function synDrawBackdrop(g) {
+  if (!synStars) synInitStars();
+  const ch = synCharge, beat = synBeatV(), tint = synRangeHex(), rot = synScope.phi + Math.PI / 2;
+  g.save(); g.globalCompositeOperation = 'lighter';
+  const bp = synToScreen(synEff, 0), tp = synTxPose().pos;
+  const pools = [[180, 330, 360, tint, 0.10 + 0.10 * ch + 0.05 * beat], [tp.x, tp.y, 210, SYN_VIOLET, 0.12 + 0.08 * ch],
+    [bp.x, bp.y, 170, synState3 === 'off' ? SYN_STATIC : SYN_TEAL, (synState3 === 'core' ? 0.05 + 0.20 * ch : 0.03)]];
+  for (const [x, y, r, col, a] of pools) {
+    const gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, synRGBA(col, a)); gr.addColorStop(1, synRGBA(col, 0));
+    g.fillStyle = gr; g.fillRect(x - r, y - r, r * 2, r * 2);
+  }
+  // stars (and, as the Link charges, speed lines) rotate with the scope, and drift toward NOW
+  g.translate(180, 320); g.rotate(rot);
+  const spd = 14 + 30 * ch, n = synLowFx ? 55 : synStars.length;
+  for (let i = 0; i < n; i++) {
+    const s = synStars[i], len = 1.5 + (4 + 26 * ch) * s.z;
+    g.strokeStyle = synRGBA(i % 5 === 0 ? SYN_MAGENTA : SYN_VIOLET_HI, 0.10 + 0.32 * s.z + 0.18 * ch);
+    g.lineWidth = 0.8 + s.z * (0.8 + ch); g.beginPath(); g.moveTo(s.x, s.y); g.lineTo(s.x, s.y - len); g.stroke();
+  }
+  g.restore();
+  synStarsStep = spd;
+}
+let synStarsStep = 14;
+
+// ── The scope: grid, lane lights, ribbon, interference, hazards, sparks ─────
+const SYN_STEP = 4;
+const SYN_WV = [   // the supplementary waves: spatial frequency, speed, phase, amplitude factor, colour
+  { f: 0.030, s: 3.2, p: 0.0, a: 1.00, c: SYN_HOT }, { f: 0.043, s: -4.1, p: 2.1, a: 0.80, c: SYN_MAGENTA }, { f: 0.024, s: 2.4, p: 4.0, a: 0.90, c: SYN_ICE },
+  { f: 0.056, s: 5.0, p: 1.2, a: 0.60, c: SYN_MINT }, { f: 0.036, s: -2.9, p: 5.3, a: 0.75, c: SYN_VIOLET_HI }, { f: 0.020, s: 3.8, p: 3.1, a: 1.00, c: SYN_PINK }, { f: 0.048, s: -5.6, p: 0.7, a: 0.50, c: SYN_TEAL }];
+function synSampleRibbon(L) {
+  const spd = synSpeed(), step = SYN_STEP, n = Math.min(119, Math.ceil(L / step) + 1);
+  const el = synT - synOldFrom, morph = synOld && el < 0.6 && el >= 0;
+  if (synOld && !morph && el >= 0.6) synOld = null;
+  for (let i = 0; i < n; i++) {
+    const s = i * step, t = synT + s / spd; let u = synWave(t);
+    if (morph) { const w = (1 - el / 0.6) * Math.min(1, s / (0.4 * L)); if (w > 0) u = u * (1 - w) + synWaveIn(synOld, t) * w; }
+    synPts[i] = u;
+  }
+  synPtsN = n;
+  return n;
+}
+function synRibPath(n, offFn) {   // smooth curve through the samples
+  const p = new Path2D(), st = SYN_STEP;
+  p.moveTo(synPts[0] + (offFn ? offFn(0) : 0), 0);
+  for (let i = 1; i < n - 1; i++) {
+    const x = synPts[i] + (offFn ? offFn(i) : 0), nx = synPts[i + 1] + (offFn ? offFn(i + 1) : 0);
+    p.quadraticCurveTo(x, i * st, (x + nx) / 2, (i + 0.5) * st);
+  }
+  p.lineTo(synPts[n - 1] + (offFn ? offFn(n - 1) : 0), (n - 1) * st);
+  return p;
+}
+function synRibGrad(g, L, f, a, c0, c1, c2) {   // near NOW c0, a third of the way c1, far end c2, then the foggy future
+  const gr = g.createLinearGradient(0, 0, 0, L), cut = Math.min(0.96, f);
+  gr.addColorStop(0, synRGBA(c0, a)); gr.addColorStop(Math.min(0.3, cut * 0.4), synRGBA(c1, a));
+  gr.addColorStop(cut * 0.85, synRGBA(c2, a * 0.9)); gr.addColorStop(Math.min(1, cut + 0.04), synRGBA(c2, a * 0.12)); gr.addColorStop(1, synRGBA(c2, a * 0.05));
+  return gr;
+}
+function synDrawScope(g, alpha, bootLock) {
+  const sc = synScope, L = sc.L, P = synRP, sMin = synSMin(), spd = synSpeed();
+  const coreHW = P.core * synCoreMul, haloHW = P.halo * synHaloMul;
+  const ch = synCharge, beat = synBeatV(), ph = synBeatPh(), kind = synBoostKind(), bf = synBoostFade(), tint = synRangeHex();
+  const nowCol = synState3 === 'core' ? SYN_MINT : synState3 === 'halo' ? SYN_GOLD : SYN_STATIC;
+  g.save(); synScopeXform(g); g.globalAlpha = alpha;
+  // bezel and the dead zone behind NOW
+  g.fillStyle = 'rgba(30,10,70,0.16)'; g.fillRect(-172, sMin, 344, L + 8 - sMin);
+  g.fillStyle = 'rgba(0,0,0,0.22)'; g.fillRect(-172, sMin, 344, -sMin);
+  // grid: scrolls with the ribbon, flashes on the beat, hotter as the Link charges
+  g.lineWidth = 1; const off = (synT * spd) % 36, gb = 0.25 * beat * (0.6 + ch);
+  for (let k = 0; k * 36 - off <= L + 8; k++) {
+    const s = k * 36 - off; if (s < sMin) continue;
+    g.strokeStyle = (k % 4 === 0) ? synRGBA(SYN_GRID_HI, 0.6 + gb) : synRGBA(SYN_GRID, 0.7 + gb * 0.5);
+    g.beginPath(); g.moveTo(-172, s); g.lineTo(172, s); g.stroke();
+  }
+  for (let u = -160; u <= 160; u += 40) {
+    g.strokeStyle = u === 0 ? synRGBA(SYN_GRID_HI, 0.7 + gb) : synRGBA(SYN_GRID, 0.7);
+    g.beginPath(); g.moveTo(u, sMin); g.lineTo(u, L + 8); g.stroke();
+  }
+  g.fillStyle = synRGBA(SYN_VIOLET_HI, 0.5);
+  for (let k = 0; k * 36 - off <= L; k++) { const s = k * 36 - off; if (s < sMin) continue; for (let u = -160; u <= 160; u += 40) g.fillRect(u - 1, s - 1, 2, 2); }
+  g.globalCompositeOperation = 'lighter';
+  // a sweep races up the scope on every beat
+  { const sy = ph * L; const gr = g.createLinearGradient(0, sy - 26, 0, sy + 2); gr.addColorStop(0, synRGBA(tint, 0)); gr.addColorStop(1, synRGBA(tint, 0.07 + 0.12 * ch)); g.fillStyle = gr; g.fillRect(-172, sy - 26, 344, 28); }
+  // lane lights along both walls, like the rails of a rhythm game
+  for (let k = 0; (k * 48 - (off * 48 / 36) % 48) <= L; k++) {
+    const s = k * 48 - (off * 48 / 36) % 48; if (s < sMin) continue;
+    const a = 0.25 + 0.5 * beat + 0.3 * ch;
+    g.strokeStyle = synRGBA(k % 2 ? tint : SYN_VIOLET_HI, Math.min(0.9, a)); g.lineWidth = 3; g.lineCap = 'round';
+    g.beginPath(); g.moveTo(-172, s); g.lineTo(-172, s + 16 + 14 * ch); g.moveTo(172, s); g.lineTo(172, s + 16 + 14 * ch); g.stroke();
+  }
+  // neon frame
+  g.strokeStyle = synRGBA(synBoost ? synBoostCol() : SYN_VIOLET, 0.12 + 0.2 * ch + 0.1 * bf); g.lineWidth = 6; g.strokeRect(-172, sMin, 344, L + 8 - sMin);
+  g.globalCompositeOperation = 'source-over';
+  g.strokeStyle = synRGBA(SYN_VIOLET, 0.55 + 0.3 * beat); g.lineWidth = 1.5; g.strokeRect(-172, sMin, 344, L + 8 - sMin);
+  for (let k = 0; k * 12 - (off % 12) <= L; k++) { const s = k * 12 - (off % 12); if (s < sMin) continue; const m = (k % 3 === 0) ? 7 : 3; g.beginPath(); g.moveTo(-172, s); g.lineTo(-172 + m, s); g.moveTo(172, s); g.lineTo(172 - m, s); g.stroke(); }
+  // the NOW bar: where the bead lives. Green in the core, gold in the halo, grey off the ribbon.
+  g.globalCompositeOperation = 'lighter';
+  g.strokeStyle = synRGBA(nowCol, 0.16 + 0.22 * beat); g.lineWidth = 8; g.beginPath(); g.moveTo(-172, 0); g.lineTo(172, 0); g.stroke();
+  g.strokeStyle = synRGBA(nowCol, 0.8); g.lineWidth = 1.6; g.beginPath(); g.moveTo(-172, 0); g.lineTo(172, 0); g.stroke();
+  g.globalCompositeOperation = 'source-over';
+  // upcoming leaps and snaps: a gate line across the scope that wakes up as it nears, with arrows for the way it goes
+  if (!bootLock) for (const h of synHaz) {
+    const s = (h.t - synT) * spd; if (s < 0 || s > L) continue;
+    const snap = h.type === 'snap', col = snap ? SYN_PINK : SYN_ICE, ping = synClamp(1 - (h.t - synT) / SYN_PING, 0, 1), dir = (snap ? -1 : 1) * Math.sign(h.u - h.from) || 1;
+    g.globalCompositeOperation = 'lighter'; g.strokeStyle = synRGBA(col, 0.32 * ping); g.lineWidth = 12 * ping; g.beginPath(); g.moveTo(-172, s); g.lineTo(172, s); g.stroke(); g.globalCompositeOperation = 'source-over';
+    g.strokeStyle = synRGBA(col, 0.14 + 0.75 * ping); g.lineWidth = 1 + 3 * ping; g.setLineDash(snap ? [10, 5] : [3, 6]);
+    g.beginPath(); g.moveTo(-172, s); g.lineTo(172, s); g.stroke(); g.setLineDash([]);
+    g.fillStyle = synRGBA(col, 0.35 + 0.65 * ping);
+    for (const e of [-1, 1]) { const bx = e * 160 + dir * 0, a = 7 + 3 * ping; g.beginPath(); g.moveTo(bx + dir * a, s); g.lineTo(bx - dir * a * 0.5, s - a * 0.8); g.lineTo(bx - dir * a * 0.5, s + a * 0.8); g.closePath(); g.fill(); }
+  }
+  // the ribbon
+  if (alpha > 0.02) {
+    const n = synSampleRibbon(L), f = P.bright, t = synClock * 0.001;
+    g.lineJoin = 'round'; g.lineCap = 'round'; g.globalCompositeOperation = 'lighter';
+    const fid = kind === 'fidelity';
+    const c0 = fid ? SYN_GOLD : synState3 === 'off' ? SYN_STATIC : SYN_VIOLET_HI, c1 = fid ? SYN_YELLOW : synRangeHex(), c2 = fid ? SYN_PURPLE : SYN_VIOLET;
+    const rgb = Math.max(synRGB, synSignal < 50 && !synDemo ? (50 - synSignal) / 50 * 0.35 : 0);
+    const main = synRibPath(n, null);
+    if (rgb > 0.05 && !synLowFx) {
+      for (const sd of [-1, 1]) {
+        g.save(); g.translate(sd * (2 + 8 * rgb), 0); g.strokeStyle = sd < 0 ? synRGBA('#FF4D6D', 0.35 * rgb + 0.1) : synRGBA('#38BDF8', 0.35 * rgb + 0.1);
+        g.lineWidth = 3; g.stroke(main); g.restore();
+      }
+    }
+    const flick = synState3 === 'halo' ? 0.7 + 0.3 * Math.sin(synClock * 0.06) : 1;
+    // the halo and core bands are what the game judges you by, so they are always drawn true to size
+    const res = kind === 'resonant' ? (0.7 + 0.3 * Math.sin(synClock * 0.01)) * bf : 0;
+    g.strokeStyle = synRibGrad(g, L, f, (0.12 + 0.12 * res) * flick, c1, SYN_VIOLET, SYN_VIOLET); g.lineWidth = haloHW * 2; g.stroke(main);
+    g.strokeStyle = synRibGrad(g, L, f, 0.20 + 0.14 * ch, c0, c1, SYN_PURPLE); g.lineWidth = coreHW * 2; g.stroke(main);
+    g.strokeStyle = synRibGrad(g, L, f, 0.22 + 0.16 * ch, c0, c1, c2); g.lineWidth = coreHW * 0.8 + 7 + 6 * ch; g.stroke(main);   // soft bloom
+    // braided filaments: they weave tighter and hotter the longer you hold the Link, but never leave the core
+    const strands = synLowFx ? 0 : 3, amp = Math.min(coreHW * 0.8, 3 + coreHW * 0.3 + ch * coreHW * 0.5);
+    for (let j = 0; j < strands; j++) {
+      const fr = 0.040 * (1 + 0.35 * j) * (1 + ch * 0.8), sp = 3 + j * 1.4 + ch * 4, ph0 = j * 2.1;
+      const p = synRibPath(n, i => amp * Math.min(1, i * SYN_STEP / 80) * Math.sin(i * SYN_STEP * fr + t * sp + ph0));
+      g.strokeStyle = synRibGrad(g, L, f, 0.75, j === 0 ? SYN_HOT : j === 1 ? SYN_MAGENTA : SYN_ICE, j === 0 ? c1 : j === 1 ? SYN_MAGENTA : SYN_ICE, j === 0 ? SYN_VIOLET_HI : SYN_VIOLET);
+      g.lineWidth = 1.5 + ch * 0.8; g.stroke(p);
+    }
+    g.strokeStyle = synRibGrad(g, L, f, 0.9 * flick, c0, c1, c2); g.lineWidth = Math.max(5, coreHW * 0.66) + 1.5 * ch; g.stroke(main);
+    g.strokeStyle = synRibGrad(g, L, f, 0.98, SYN_HOT, SYN_HOT, c0); g.lineWidth = fid ? 1.4 : 2; g.stroke(main);
+    // supplementary waves: they play around the thread while you are matched, stronger and wilder the longer the Link goes unbroken.
+    // Visual only: the halo and core bands above are the truth, and nothing here changes what counts as a match.
+    const wm = synMatch * (0.3 + 0.7 * synAura);
+    if (wm > 0.02 && !bootLock) {
+      g.save(); g.beginPath(); g.rect(-172, sMin, 344, L + 8 - sMin); g.clip();   // the waves live inside the scope frame
+      const wild = synAura, nW = synLowFx ? 2 : 3 + Math.round(wild * 4), a0w = coreHW * 0.8 + 4, aMax = a0w + (haloHW * 1.15 + 8 - a0w) * wm;
+      for (let j = 0; j < nW; j++) {
+        const W = SYN_WV[j], fr = W.f * (1 + 0.5 * wild), sp = W.s * (1 + 1.4 * wild), am = aMax * W.a * (0.55 + 0.45 * wm);
+        const wp = synRibPath(n, i => {
+          const s = i * SYN_STEP, x = Math.min(1, s / 70), env = x * x * (3 - 2 * x) * (1 - 0.45 * synClamp((s - 0.55 * L) / (0.45 * L), 0, 1));
+          return am * env * (Math.sin(s * fr + t * sp + W.p) + wild * 0.5 * Math.sin(s * fr * 2.7 - t * sp * 1.9 + W.p * 2)) * (1 + 0.3 * wild * Math.sin(t * 2.3 + W.p));
+        });
+        g.strokeStyle = synRibGrad(g, L, f, 0.3 + 0.45 * wm, W.c, W.c, SYN_VIOLET); g.lineWidth = 1 + 0.9 * wm + (j === 0 ? 0.5 : 0); g.stroke(wp);
+      }
+      g.restore();
+    }
+    // energy packets that run up the ribbon: the longer you hold the Link, the faster and denser they come
+    for (const pl of synPulses) {
+      const q = pl.a / 1.0, i0 = Math.min(n - 6, Math.floor(q * (n - 6)));
+      g.strokeStyle = synRGBA(SYN_HOT, 0.85 * (1 - q)); g.lineWidth = 5 + 3 * ch; g.beginPath(); g.moveTo(synPts[i0], i0 * SYN_STEP);
+      for (let i = i0 + 1; i <= i0 + 5; i++) g.lineTo(synPts[i], i * SYN_STEP); g.stroke();
+    }
+    // faint dotted outline of the whole future, so it is always readable
+    g.strokeStyle = synRGBA(SYN_VIOLET_HI, 0.38); g.lineWidth = 2; g.setLineDash([2, 7]); g.stroke(main); g.setLineDash([]);
+    // hot white-out where it meets the bead
+    if (synState3 === 'core' && !bootLock) {
+      const rc = synPts[0], R = 46 + coreHW + 26 * ch, gr = g.createRadialGradient(rc, 0, 0, rc, 0, R);
+      gr.addColorStop(0, synRGBA(SYN_HOT, 0.55)); gr.addColorStop(0.35, synRGBA(c1, 0.26)); gr.addColorStop(1, synRGBA(SYN_VIOLET, 0));
+      g.fillStyle = gr; g.fillRect(rc - R, -R, R * 2, R * 2);
+      g.strokeStyle = synRGBA(SYN_HOT, 0.6); g.lineWidth = Math.max(3, coreHW * 0.55);
+      g.beginPath(); g.moveTo(synPts[0], 0); for (let i = 1; i < 7; i++) g.lineTo(synPts[i], i * SYN_STEP); g.stroke();
+    }
+    g.globalCompositeOperation = 'source-over';
+    // Mental Fog: a bank of TV snow and vapour. The ribbon carries on underneath as dots only.
+    for (const fb of synFog) {
+      let sa = (fb.ta - synT) * spd, sb = (fb.tb - synT) * spd; if (sb < -10 || sa > L) continue;
+      sa = Math.max(sa, -10); sb = Math.min(sb, L);
+      g.fillStyle = 'rgba(9,10,26,0.84)'; g.fillRect(-172, sa, 344, sb - sa);
+      if (synSnowC) { g.globalAlpha = alpha * 0.5; g.imageSmoothingEnabled = false; g.drawImage(synSnowC, -172, sa, 344, sb - sa); g.globalAlpha = alpha; }
+      g.save(); g.beginPath(); g.rect(-172, sa, 344, sb - sa); g.clip();
+      for (let k = 0; k < 4; k++) {   // vapour drifting sideways
+        const vx = ((t * (14 + k * 9) + k * 97) % 520) - 260, vy = sa + (sb - sa) * (0.15 + 0.23 * k);
+        const gr = g.createRadialGradient(vx, vy, 0, vx, vy, 80); gr.addColorStop(0, 'rgba(148,163,184,0.22)'); gr.addColorStop(1, 'rgba(148,163,184,0)');
+        g.fillStyle = gr; g.fillRect(vx - 80, vy - 80, 160, 160);
+      }
+      g.setLineDash([2, 7]); g.lineWidth = 2;
+      g.strokeStyle = synRGBA(SYN_VIOLET_HI, 0.2 + 0.12 * Math.sin(t * 9)); g.stroke(main);   // the real trace barely shows through
+      for (const [dj, dd] of [[1, fb.d1], [2, fb.d2]]) {   // decoys: false echoes of the signal, so you have to trust your memory
+        const dp = synRibPath(n, i => dd * (0.85 + 0.2 * Math.sin(t * 1.7 + fb.ph + dj * 2.3 + i * 0.04)));
+        g.strokeStyle = synRGBA(dj === 1 ? SYN_STATIC : SYN_VIOLET_HI, 0.3 + 0.1 * Math.sin(t * 7 + dj)); g.stroke(dp);
+      }
+      g.setLineDash([]);
+      g.restore();
+      g.globalCompositeOperation = 'lighter'; g.strokeStyle = synRGBA(SYN_STATIC, 0.22); g.lineWidth = 7; g.strokeRect(-172, sa, 344, sb - sa); g.globalCompositeOperation = 'source-over';
+      g.strokeStyle = synRGBA(SYN_STATIC, 0.85); g.lineWidth = 1.6; g.setLineDash([6, 4]); g.lineDashOffset = -synClock * 0.02; g.strokeRect(-172, sa, 344, sb - sa); g.setLineDash([]); g.lineDashOffset = 0;
+    }
+    // Signal Boost sparks, each with its own shape and motion
+    for (const sp of synSparks) {
+      const s = (sp.te - synT) * spd; if (s > L || s < -30) continue;
+      const pl = 1 + 0.15 * Math.sin(synClock * 0.012), col = sp.kind === 'fidelity' ? SYN_GOLD : sp.kind === 'entangled' ? SYN_MAGENTA : SYN_VIOLET_HI;
+      const rc = synWaveIn(synSegs, sp.te);
+      g.strokeStyle = synRGBA(col, 0.25); g.lineWidth = 1; g.setLineDash([2, 4]); g.beginPath(); g.moveTo(rc, s); g.lineTo(sp.u, s); g.stroke(); g.setLineDash([]);   // reachable from the ribbon
+      g.globalCompositeOperation = 'lighter';
+      const gr = g.createRadialGradient(sp.u, s, 0, sp.u, s, 40); gr.addColorStop(0, synRGBA(col, 0.8)); gr.addColorStop(1, synRGBA(col, 0));
+      g.fillStyle = gr; g.fillRect(sp.u - 40, s - 40, 80, 80);
+      { const cg = g.createLinearGradient(0, s - 70, 0, s + 70); cg.addColorStop(0, synRGBA(col, 0)); cg.addColorStop(0.5, synRGBA(col, 0.28 + 0.2 * Math.sin(synClock * 0.01))); cg.addColorStop(1, synRGBA(col, 0)); g.fillStyle = cg; g.fillRect(sp.u - 3, s - 70, 6, 140); }   // a beam of light along the scope
+      g.strokeStyle = synRGBA(col, 0.7); g.lineWidth = 1.4; for (let k = 0; k < 8; k++) { const a = k * 0.7854 + t * 1.5, r0 = 14, r1 = 20 + 7 * Math.sin(t * 6 + k); g.beginPath(); g.moveTo(sp.u + Math.cos(a) * r0, s + Math.sin(a) * r0); g.lineTo(sp.u + Math.cos(a) * r1, s + Math.sin(a) * r1); g.stroke(); }
+      g.globalCompositeOperation = 'source-over';
+      g.strokeStyle = synRGBA(col, 1); g.fillStyle = synRGBA(col, 1); g.lineWidth = 2;
+      if (sp.kind === 'resonant') {   // ripples that keep spreading
+        for (let i = 0; i < 3; i++) { const q = ((t * 1.1 + i / 3) % 1); g.strokeStyle = synRGBA(col, 1 - q); g.beginPath(); g.arc(sp.u, s, 3 + q * 13, 0, 6.3); g.stroke(); }
+        g.fillStyle = synRGBA(SYN_HOT, 1); g.beginPath(); g.arc(sp.u, s, 2.6, 0, 6.3); g.fill();
+      } else if (sp.kind === 'fidelity') {   // a spinning gold gem with star rays
+        g.save(); g.translate(sp.u, s); g.rotate(t * 2.2);
+        g.beginPath(); g.moveTo(0, -9 * pl); g.lineTo(6.5 * pl, 0); g.lineTo(0, 9 * pl); g.lineTo(-6.5 * pl, 0); g.closePath(); g.fill();
+        g.strokeStyle = synRGBA(SYN_HOT, 0.9); g.lineWidth = 1.4; g.beginPath(); g.moveTo(-14, 0); g.lineTo(14, 0); g.moveTo(0, -14); g.lineTo(0, 14); g.stroke(); g.restore();
+      } else {   // two minds orbiting each other, joined by a thread
+        const a = t * 4, ox = Math.cos(a) * 6.5, oy = Math.sin(a) * 6.5;
+        g.strokeStyle = synRGBA(SYN_PINK, 0.9); g.lineWidth = 1.5; g.beginPath(); g.moveTo(sp.u - ox, s - oy); g.lineTo(sp.u + ox, s + oy); g.stroke();
+        g.fillStyle = synRGBA(SYN_MAGENTA, 1); g.beginPath(); g.arc(sp.u + ox, s + oy, 3.6 * pl, 0, 6.3); g.fill();
+        g.fillStyle = synRGBA(SYN_HOT, 1); g.beginPath(); g.arc(sp.u - ox, s - oy, 3.6 * pl, 0, 6.3); g.fill();
+      }
+    }
+  }
+  g.restore();
+}
+// Psychic Echoes: the old scope hangs in the air for a moment after a desync
+function synDrawGhosts(g) {
+  for (const gh of synGhosts) {
+    const q = gh.age / 0.9; if (q >= 1) continue;
+    g.save(); synScopeXform(g, gh.sc); g.globalCompositeOperation = 'lighter'; g.lineJoin = 'round';
+    const p = new Path2D(); p.moveTo(gh.pts[0], 0);
+    for (let i = 1; i < gh.n - 1; i++) p.quadraticCurveTo(gh.pts[i], i * SYN_STEP, (gh.pts[i] + gh.pts[i + 1]) / 2, (i + 0.5) * SYN_STEP);
+    g.strokeStyle = synRGBA(SYN_MAGENTA, 0.45 * (1 - q)); g.lineWidth = 9 * (1 - q * 0.5); g.stroke(p);
+    g.strokeStyle = synRGBA(SYN_HOT, 0.55 * (1 - q)); g.lineWidth = 1.6; g.stroke(p);
+    g.strokeStyle = synRGBA(SYN_VIOLET_HI, 0.5 * (1 - q)); g.lineWidth = 2; g.strokeRect(-172, gh.sc.sMin || -100, 344, gh.sc.L + 100); g.restore();
+  }
+  if (synTurn) {   // a dial arc around the screen centre, so the turn reads as a turn
+    const x = synClamp(synTurn.t / SYN_TURN_SECS, 0, 1), a0 = synTurn.f.phi, a1 = synScope.phi;
+    g.save(); g.globalCompositeOperation = 'lighter'; g.lineCap = 'round';
+    for (let k = 0; k < 3; k++) {
+      g.strokeStyle = synRGBA(k === 1 ? SYN_HOT : SYN_MAGENTA, (0.7 - k * 0.15) * (1 - x * 0.7)); g.lineWidth = 3 - k * 0.6;
+      g.beginPath(); g.arc(180, 320, 118 + k * 24, Math.min(a0, a1), Math.max(a0, a1)); g.stroke();
+    }
+    const tip = { x: 180 + Math.cos(a1) * 142, y: 320 + Math.sin(a1) * 142 };
+    g.fillStyle = synRGBA(SYN_HOT, 0.9 * (1 - x * 0.6)); g.beginPath(); g.arc(tip.x, tip.y, 5, 0, 6.3); g.fill();
+    g.restore();
+  }
+}
+
+// ── The thumb rail: a neon slider that matches the status bars ──────────────
+function synDrawRail(g, edge, lit, needleU, glow, ribU) {
+  const sp = SYN_EDGES[edge].strip, cx = sp.x + sp.w / 2, cy = sp.y + sp.h / 2, ax = synUAxisOf(edge), ang = Math.atan2(ax.y, ax.x);
+  const half = 150, th = 22, beat = synBeatV(), st = synState3, kind = synBoostKind();
+  const col = st === 'core' ? SYN_MINT : st === 'halo' ? SYN_GOLD : SYN_STATIC, edgeCol = kind ? synBoostCol() : SYN_GREEN;
+  g.save(); g.translate(cx, cy); g.rotate(ang); g.lineCap = 'round';
+  g.fillStyle = 'rgba(8,4,20,0.78)'; g.beginPath(); synRR(g, -half - 14, -th / 2, half * 2 + 28, th, th / 2); g.fill();
+  g.globalCompositeOperation = 'lighter';
+  g.strokeStyle = synRGBA(edgeCol, 0.10 + 0.16 * lit + 0.16 * glow + 0.12 * beat * lit); g.lineWidth = 7; g.beginPath(); synRR(g, -half - 14, -th / 2, half * 2 + 28, th, th / 2); g.stroke();
+  g.globalCompositeOperation = 'source-over';
+  // ticks
+  for (let u = -150; u <= 150; u += 10) {
+    const major = u % 50 === 0, h = major ? 5 : 2.5;
+    g.strokeStyle = synRGBA(major ? SYN_GREEN : SYN_STATIC, (major ? 0.45 : 0.25) + lit * 0.25);
+    g.beginPath(); g.moveTo(u, -th / 2 + 2); g.lineTo(u, -th / 2 + 2 + h); g.moveTo(u, th / 2 - 2); g.lineTo(u, th / 2 - 2 - h); g.stroke();
+  }
+  if (needleU !== null) {
+    const nu = synClamp(needleU, -150, 150);
+    // the charge fills the rail from the centre to your handle
+    const fg = g.createLinearGradient(Math.min(0, nu), 0, Math.max(0, nu) + 0.01, 0);
+    fg.addColorStop(0, synRGBA(col, 0.05)); fg.addColorStop(1, synRGBA(col, 0.38 + 0.3 * synCharge));
+    g.globalCompositeOperation = 'lighter'; g.strokeStyle = fg; g.lineWidth = th - 9; g.beginPath(); g.moveTo(0, 0); g.lineTo(nu, 0); g.stroke();
+    // where your partner is, so the two needles can meet
+    if (ribU !== undefined && ribU !== null) {
+      const ru = synClamp(ribU, -150, 150), near = Math.abs(ru - nu) < 14;
+      g.strokeStyle = synRGBA(near ? SYN_HOT : SYN_VIOLET_HI, near ? 0.95 : 0.7); g.lineWidth = 2; g.beginPath(); g.moveTo(ru, -th / 2 - 1); g.lineTo(ru, th / 2 + 1); g.stroke();
+      g.fillStyle = synRGBA(near ? SYN_HOT : SYN_VIOLET_HI, 0.9); g.beginPath(); g.moveTo(ru, th / 2 + 7); g.lineTo(ru - 4.5, th / 2 + 1); g.lineTo(ru + 4.5, th / 2 + 1); g.closePath(); g.fill();
+      g.beginPath(); g.moveTo(ru, -th / 2 - 7); g.lineTo(ru - 4.5, -th / 2 - 1); g.lineTo(ru + 4.5, -th / 2 - 1); g.closePath(); g.fill();
+    }
+    // speed streak behind the handle
+    const v = synClamp(synBeadV, -900, 900), sl = Math.min(46, Math.abs(v) * 0.06);
+    if (sl > 3) { const sg = g.createLinearGradient(nu, 0, nu - Math.sign(v) * sl, 0); sg.addColorStop(0, synRGBA(col, 0.7)); sg.addColorStop(1, synRGBA(col, 0)); g.strokeStyle = sg; g.lineWidth = 8; g.beginPath(); g.moveTo(nu, 0); g.lineTo(nu - Math.sign(v) * sl, 0); g.stroke(); }
+    // the handle: a glowing pill
+    const hg = g.createRadialGradient(nu, 0, 2, nu, 0, 24); hg.addColorStop(0, synRGBA(col, 0.55 + 0.25 * glow)); hg.addColorStop(1, synRGBA(col, 0));
+    g.fillStyle = hg; g.fillRect(nu - 24, -24, 48, 48); g.globalCompositeOperation = 'source-over';
+    g.fillStyle = synRGBA(SYN_HOT, 1); g.beginPath(); synRR(g, nu - 5, -th / 2 - 4, 10, th + 8, 5); g.fill();
+    g.strokeStyle = synRGBA(col, 1); g.lineWidth = 2; g.beginPath(); synRR(g, nu - 5, -th / 2 - 4, 10, th + 8, 5); g.stroke();
+    // end caps wake up when you reach for them
+    for (const e of [-1, 1]) { const q = synClamp((Math.abs(nu) - 120) / 30, 0, 1) * (Math.sign(nu) === e ? 1 : 0); g.fillStyle = synRGBA(SYN_YELLOW, 0.25 + 0.6 * q); g.beginPath(); g.moveTo(e * (half + 8), 0); g.lineTo(e * (half - 2), -5); g.lineTo(e * (half - 2), 5); g.closePath(); g.fill(); }
+  }
+  g.strokeStyle = synRGBA(edgeCol, 0.45 + lit * 0.45 + glow * 0.2); g.lineWidth = 2; g.beginPath(); synRR(g, -half - 14, -th / 2, half * 2 + 28, th, th / 2); g.stroke();
+  g.restore();
+}
+function synDrawChevrons(g, edge) {
+  const st = SYN_EDGES[edge].strip, cx = st.x + st.w / 2, cy = st.y + st.h / 2, ax = synUAxisOf(edge), pu = 0.5 + 0.5 * Math.sin(synClock * 0.008);
+  g.fillStyle = synRGBA(SYN_GREEN, 0.5 + pu * 0.4);
+  for (const sg of [-1, 1]) {
+    const bx = cx + ax.x * sg * (46 + pu * 8), by = cy + ax.y * sg * (46 + pu * 8);
+    g.beginPath(); g.moveTo(bx + ax.x * sg * 11, by + ax.y * sg * 11);
+    g.lineTo(bx - ax.y * 9, by + ax.x * 9); g.lineTo(bx + ax.y * 9, by - ax.x * 9); g.closePath(); g.fill();
+  }
+}
+
+// ── Transmitter, bead, entanglement, effects ────────────────────────────────
+function synTxPose() {
+  const cur = synEdgePhi(synEdge); let th = cur;
+  if (synTelling && synNextEdge !== synEdge) {
+    let d = ((synEdgePhi(synNextEdge) - cur) % (2 * Math.PI) + 3 * Math.PI) % (2 * Math.PI) - Math.PI;
+    if (d > Math.PI - 1e-6) d = -Math.PI;
+    th = cur + d * synEase(synTellT / 0.8);
+  }
+  return { th, pos: synTxPos(th) };
+}
+function synLockCol(q, a) { return q < 0.5 ? synMixA(SYN_STATIC, SYN_GOLD, q * 2, a) : synMixA(SYN_GOLD, SYN_MINT, (q - 0.5) * 2, a); }
+function synDrawTx(g, alpha) {
+  const { th, pos } = synTxPose(), bp = synToScreen(synEff, 0);
+  const ang = Math.atan2(bp.y - pos.y, bp.x - pos.x), t = synClock * 0.001, ch = synCharge;
+  const over = synState === 'over', lk = over ? 0 : synLock, pop = synLinkFxT > 0 ? synLinkFxT / 0.9 : 0, fog = over ? 0 : synFogNow;
+  const sc = 1 + 0.3 * Math.sin(pop * Math.PI * 3) * pop + 0.05 * synBeatV();
+  g.save(); g.globalAlpha = alpha;
+  if (synTelling && synNextEdge !== synEdge) {   // the orbit it is about to take
+    let d = ((synEdgePhi(synNextEdge) - synEdgePhi(synEdge)) % (2 * Math.PI) + 3 * Math.PI) % (2 * Math.PI) - Math.PI; if (d > Math.PI - 1e-6) d = -Math.PI;
+    g.strokeStyle = synRGBA(SYN_VIOLET_HI, 0.45); g.lineWidth = 1.5; g.setLineDash([3, 6]); g.beginPath();
+    g.ellipse(180, 320, SYN_TX_RX, SYN_TX_RY, 0, synEdgePhi(synEdge), synEdgePhi(synEdge) + d, d < 0); g.stroke(); g.setLineDash([]);
+    const np = synTxPos(synEdgePhi(synNextEdge)), a2 = Math.atan2(np.y - pos.y, np.x - pos.x), pu = 0.5 + 0.5 * Math.sin(synClock * 0.02);
+    const ax = pos.x + Math.cos(a2) * (30 + pu * 6), ay = pos.y + Math.sin(a2) * (30 + pu * 6);
+    g.fillStyle = synRGBA(SYN_YELLOW, 0.9); g.beginPath(); g.moveTo(ax + Math.cos(a2) * 11, ay + Math.sin(a2) * 11);
+    g.lineTo(ax - Math.sin(a2) * 8, ay + Math.cos(a2) * 8); g.lineTo(ax + Math.sin(a2) * 8, ay - Math.cos(a2) * 8); g.closePath(); g.fill();
+  }
+  g.translate(pos.x, pos.y); g.scale(sc, sc);
+  g.globalCompositeOperation = 'lighter';
+  for (let i = 0; i < 3; i++) {   // broadcast arcs toward the bead: they strengthen as the lock does
+    const r = 22 + ((t * 28 + i * 9) % 27), a = 1 - (r - 22) / 27;
+    g.strokeStyle = i === 1 && ch > 0.4 && lk > 0.8 ? synRGBA(SYN_MAGENTA, 0.6 * a) : synLockCol(lk, 0.6 * a * (0.3 + 0.7 * lk)); g.lineWidth = 2;
+    g.beginPath(); g.arc(0, 0, r, ang - 0.6, ang + 0.6); g.stroke();
+  }
+  const gl = g.createRadialGradient(0, 0, 4, 0, 0, 36 + 14 * ch); gl.addColorStop(0, synLockCol(lk, pop > 0 ? 0.85 : 0.3 + 0.3 * lk + 0.2 * ch)); gl.addColorStop(1, synLockCol(lk, 0));
+  g.fillStyle = gl; g.fillRect(-52, -52, 104, 104); g.globalCompositeOperation = 'source-over';
+  // the core: a dark disc, a ring meter around it that fills as the lock does, and a live wave glyph inside that is clean when locked and torn when not
+  g.fillStyle = '#12082B'; g.strokeStyle = synLockCol(lk, 1); g.lineWidth = 3; g.beginPath(); g.arc(0, 0, 15, 0, 6.3); g.fill(); g.stroke();
+  g.lineWidth = 3; g.lineCap = 'butt';
+  for (let k = 0; k < 24; k++) {
+    const q = synClamp(lk * 24 - k, 0, 1), a0 = -Math.PI / 2 + k * Math.PI / 12 + 0.035;
+    g.strokeStyle = q > 0 ? synLockCol(lk, 0.35 + 0.65 * q) : 'rgba(148,163,184,0.18)'; g.beginPath(); g.arc(0, 0, 21, a0, a0 + Math.PI / 12 - 0.07); g.stroke();
+  }
+  g.lineWidth = 2; g.lineCap = 'round'; g.lineJoin = 'round';
+  g.strokeStyle = lk > 0.85 ? synMixA(SYN_MINT, SYN_HOT, (lk - 0.85) / 0.15, 1) : synLockCol(Math.max(lk, 0.15), 1); g.beginPath();
+  for (let i = 0; i <= 12; i++) {
+    const x = -9 + i * 1.5, tear = (1 - lk) * (1 + 1.4 * fog);
+    const y = synClamp(4.6 * Math.sin(x * 0.75 + t * 6) + tear * 3.2 * Math.sin(x * 4.1 + t * 37) * Math.sin(x * 1.7 - t * 23), -9, 9);
+    if (i) g.lineTo(x, y); else g.moveTo(x, y);
+  }
+  g.stroke();
+  g.strokeStyle = synRGBA(SYN_VIOLET_HI, 0.9); g.lineWidth = 2;   // antenna on the far side
+  g.beginPath(); g.moveTo(Math.cos(ang + Math.PI) * 25, Math.sin(ang + Math.PI) * 25); g.lineTo(Math.cos(ang + Math.PI) * 31, Math.sin(ang + Math.PI) * 31); g.stroke();
+  g.fillStyle = synLockCol(lk, 0.7 + 0.3 * Math.sin(t * 6)); g.beginPath(); g.arc(Math.cos(ang + Math.PI) * 33, Math.sin(ang + Math.PI) * 33, 2.6, 0, 6.3); g.fill();
+  g.restore();
+}
+function synDrawBead(g, alpha, grey) {
+  const p = synToScreen(synEff, 0), st = grey ? 'off' : synState3, t = synClock * 0.001, ch = synCharge, kind = grey ? '' : synBoostKind(), bf = synBoostFade();
+  const base = st === 'off' ? SYN_STATIC : kind === 'fidelity' ? SYN_GOLD : SYN_GREEN, col = base;
+  g.save(); g.globalAlpha = alpha;
+  for (let i = 1; i < synTrail.length; i++) {   // comet trail
+    const a = i / synTrail.length;
+    g.strokeStyle = synRGBA(st === 'off' ? SYN_STATIC : kind === 'fidelity' ? SYN_YELLOW : kind === 'entangled' ? SYN_MAGENTA : SYN_GREEN, (0.5 + 0.3 * ch) * a * a); g.lineWidth = 1 + (7 + 5 * ch) * a; g.lineCap = 'round';
+    g.beginPath(); g.moveTo(synTrail[i - 1].x, synTrail[i - 1].y); g.lineTo(synTrail[i].x, synTrail[i].y); g.stroke();
+  }
+  g.globalCompositeOperation = 'lighter';
+  const R = (st === 'core' ? 36 + 26 * ch : 22), gr = g.createRadialGradient(p.x, p.y, 1, p.x, p.y, R);
+  gr.addColorStop(0, synRGBA(st === 'core' ? SYN_HOT : col, st === 'core' ? 0.6 + 0.2 * ch : 0.35)); gr.addColorStop(0.5, synRGBA(col, 0.18 + 0.15 * ch)); gr.addColorStop(1, synRGBA(col, 0));
+  g.fillStyle = gr; g.fillRect(p.x - R, p.y - R, R * 2, R * 2);
+  // sparks orbit the bead: more of them the longer you have held the Link
+  if (st === 'core' && ch > 0.12 && !synLowFx) {
+    const n = 2 + Math.floor(ch * 4);
+    for (let i = 0; i < n; i++) { const a = t * (3 + ch * 3) + i * 6.283 / n, rr = 20 + 4 * Math.sin(t * 5 + i); g.fillStyle = synRGBA(i % 2 ? SYN_HOT : SYN_MINT, 0.9); g.beginPath(); g.arc(p.x + Math.cos(a) * rr, p.y + Math.sin(a) * rr, 1.8 + ch, 0, 6.3); g.fill(); }
+  }
+  // each Boost writes its own signature around the bead
+  if (kind === 'resonant') {   // the halo breathes outward in ripples
+    const hh = synRP.halo * synHaloMul;
+    for (let i = 0; i < 3; i++) { const q = ((t * 0.9 + i / 3) % 1); g.strokeStyle = synRGBA(SYN_VIOLET_HI, 0.7 * (1 - q) * bf); g.lineWidth = 2; g.beginPath(); g.arc(p.x, p.y, 14 + q * (hh - 6), 0, 6.3); g.stroke(); }
+  } else if (kind === 'fidelity') {   // two gold diamonds counter-rotate, and the core is a hair thin
+    for (let i = 0; i < 2; i++) { g.save(); g.translate(p.x, p.y); g.rotate(t * (i ? -2.4 : 1.8) + i * 0.8); const r = 19 + i * 5; g.strokeStyle = synRGBA(i ? SYN_YELLOW : SYN_GOLD, 0.9 * bf); g.lineWidth = 1.6; g.beginPath(); g.moveTo(0, -r); g.lineTo(r, 0); g.lineTo(0, r); g.lineTo(-r, 0); g.closePath(); g.stroke(); g.restore(); }
+  } else if (kind === 'entangled') {   // a second, pink ring that trails the first
+    g.strokeStyle = synRGBA(SYN_MAGENTA, 0.85 * bf); g.lineWidth = 2; g.beginPath(); g.arc(p.x, p.y, 24 + 3 * Math.sin(t * 9), 0, 6.3); g.stroke();
+    g.strokeStyle = synRGBA(SYN_PINK, 0.5 * bf); g.lineWidth = 1; g.beginPath(); g.arc(p.x, p.y, 29 + 3 * Math.sin(t * 9 + 1), 0, 6.3); g.stroke();
+  }
+  g.globalCompositeOperation = 'source-over';
+  if (st === 'off' && !synLowFx) {   // shreds into glitch slices
+    for (let i = 0; i < 3; i++) { const dy = (i - 1) * 4, dx = Math.sin(t * 40 + i * 2) * 5; g.fillStyle = synRGBA(SYN_STATIC, 0.5); g.fillRect(p.x - 9 + dx, p.y + dy - 1.5, 18, 3); }
+  }
+  g.fillStyle = col; g.beginPath(); g.arc(p.x, p.y, 8, 0, 6.3); g.fill();
+  g.fillStyle = synRGBA(SYN_HOT, st === 'off' ? 0.35 : 0.9); g.beginPath(); g.arc(p.x - 2.5, p.y - 2.5, 3, 0, 6.3); g.fill();
+  g.strokeStyle = synRGBA(st === 'halo' ? SYN_YELLOW : col, 1);
+  if (st === 'core') {
+    g.lineWidth = 2; g.beginPath(); g.arc(p.x, p.y, 13, 0, 6.3); g.stroke(); g.lineWidth = 1; g.beginPath(); g.arc(p.x, p.y, 17.5, 0, 6.3); g.stroke();
+    const rp = (t % 0.7) / 0.7; g.strokeStyle = synRGBA(SYN_GREEN, 0.5 * (1 - rp)); g.lineWidth = 1.5; g.beginPath(); g.arc(p.x, p.y, 18 + rp * 20, 0, 6.3); g.stroke();
+  } else if (st === 'halo') {
+    g.lineWidth = 2; g.setLineDash([4, 4]); g.lineDashOffset = -t * 30; g.beginPath(); g.arc(p.x, p.y, 15, 0, 6.3); g.stroke(); g.setLineDash([]);
+  } else {
+    g.lineWidth = 2; for (let i = 0; i < 3; i++) { g.beginPath(); g.arc(p.x, p.y, 15, i * 2.1 + t * 3, i * 2.1 + t * 3 + 1.2); g.stroke(); }
+  }
+  // Neural Storm: electric arcs spit off the bead
+  if (synRP.storm && !synDemo && !grey && !synLowFx) {
+    g.globalCompositeOperation = 'lighter'; g.strokeStyle = synRGBA(SYN_ICE, 0.9); g.lineWidth = 1.4;
+    for (let i = 0; i < 2; i++) { const a = Math.random() * 6.283, b = synMakeBolt(p.x, p.y, p.x + Math.cos(a) * 30, p.y + Math.sin(a) * 30, 7); g.beginPath(); g.moveTo(b[0], b[1]); for (let k = 2; k < b.length; k += 2) g.lineTo(b[k], b[k + 1]); g.stroke(); }
+  }
+  g.restore();
+}
+// Quantum Entanglement: your finger and the bead, joined by a rope of light
+function synDrawEntangle(g) {
+  if (synBoostKind() !== 'entangled') return;
+  const fp = synToScreen(synTarget, 0), bp = synToScreen(synEff, 0), dx = bp.x - fp.x, dy = bp.y - fp.y, len = Math.hypot(dx, dy), bf = synBoostFade(), t = synClock * 0.001;
+  g.save(); g.globalCompositeOperation = 'lighter';
+  g.strokeStyle = synRGBA(SYN_PINK, 0.8 * bf); g.lineWidth = 2; g.beginPath(); g.arc(fp.x, fp.y, 11, 0, 6.3); g.stroke();
+  g.lineWidth = 1.2; g.beginPath(); g.moveTo(fp.x - 17, fp.y); g.lineTo(fp.x - 7, fp.y); g.moveTo(fp.x + 7, fp.y); g.lineTo(fp.x + 17, fp.y); g.moveTo(fp.x, fp.y - 17); g.lineTo(fp.x, fp.y - 7); g.moveTo(fp.x, fp.y + 7); g.lineTo(fp.x, fp.y + 17); g.stroke();
+  if (len > 6) {
+    const nx = -dy / len, ny = dx / len, N = 20;
+    for (let k = 0; k < 2; k++) {
+      g.strokeStyle = synRGBA(k ? SYN_MAGENTA : SYN_HOT, 0.85 * bf); g.lineWidth = 1.8; g.beginPath();
+      for (let i = 0; i <= N; i++) { const q = i / N, a = Math.sin(Math.PI * q) * 10 * Math.sin(q * 13 + t * 12 + k * Math.PI); const x = fp.x + dx * q + nx * a, y = fp.y + dy * q + ny * a; if (i) g.lineTo(x, y); else g.moveTo(x, y); }
+      g.stroke();
+    }
+  }
+  g.restore();
+}
+function synDrawFx(g) {
+  g.save(); g.globalCompositeOperation = 'lighter';
+  for (const r of synRings) { const q = r.t / r.dur, rad = r.r1 * synEaseOut(q); g.strokeStyle = synRGBA(r.col, 0.8 * (1 - q)); g.lineWidth = r.w * (1 - q * 0.6); g.beginPath(); g.arc(r.x, r.y, rad, 0, 6.3); g.stroke(); }
+  for (const p of synParts) { g.fillStyle = synRGBA(p.col, Math.max(0, p.life / p.max)); g.fillRect(p.x - p.sz / 2, p.y - p.sz / 2, p.sz, p.sz); }
+  if (synBoostFx) {   // Signal Boost pickups: each kind bursts in its own way
+    const b = synBoostFx, q = synClamp(b.t / 1.0, 0, 1), e = synEaseOut(q), fa = 1 - q;
+    if (b.kind === 'resonant') {
+      for (let k = 0; k < 4; k++) { const qq = synClamp(q * 1.25 - k * 0.12, 0, 1); if (qq <= 0 || qq >= 1) continue; g.strokeStyle = synRGBA(k % 2 ? SYN_ICE : SYN_VIOLET_HI, 0.85 * (1 - qq)); g.lineWidth = 7 * (1 - qq) + 1; g.beginPath(); g.arc(b.x, b.y, 14 + synEaseOut(qq) * 250, 0, 6.3); g.stroke(); }
+    } else if (b.kind === 'fidelity') {
+      const L1 = 190 * Math.sin(Math.PI * Math.min(1, q * 1.1));
+      for (const [ax, ay, ln, w] of [[1, 0, L1, 3], [0, 1, L1 * 0.7, 2]]) {
+        if (ln < 1) continue; const gr = g.createLinearGradient(b.x - ax * ln, b.y - ay * ln, b.x + ax * ln, b.y + ay * ln);
+        gr.addColorStop(0, synRGBA(SYN_GOLD, 0)); gr.addColorStop(0.5, synRGBA(SYN_HOT, 0.95 * fa)); gr.addColorStop(1, synRGBA(SYN_GOLD, 0));
+        g.strokeStyle = gr; g.lineWidth = w; g.beginPath(); g.moveTo(b.x - ax * ln, b.y - ay * ln); g.lineTo(b.x + ax * ln, b.y + ay * ln); g.stroke();
+      }
+      g.strokeStyle = synRGBA(SYN_YELLOW, 0.8 * fa); g.lineWidth = 1.5;
+      for (let k = 0; k < 14; k++) { const a = k * 6.283 / 14 + q * 1.6, r0 = 12 + e * 24, r1 = r0 + 14 + 60 * e * (k % 2 ? 1 : 0.6); g.beginPath(); g.moveTo(b.x + Math.cos(a) * r0, b.y + Math.sin(a) * r0); g.lineTo(b.x + Math.cos(a) * r1, b.y + Math.sin(a) * r1); g.stroke(); }
+    } else {
+      const r = 70 * (1 - synEase(Math.min(1, q * 2.2)));
+      if (q < 0.45) for (let k = 0; k < 2; k++) { const a = q * 14 + k * Math.PI; g.strokeStyle = synRGBA(k ? SYN_PINK : SYN_MAGENTA, 0.9); g.lineWidth = 3; g.beginPath(); g.arc(b.x + Math.cos(a) * r, b.y + Math.sin(a) * r, 9, 0, 6.3); g.stroke(); }
+      if (q > 0.35 && q < 0.8 && !synLowFx) { g.strokeStyle = synRGBA(SYN_MAGENTA, 0.9 * (1 - q)); g.lineWidth = 1.6; for (let k = 0; k < 5; k++) { const a = Math.random() * 6.283, bt = synMakeBolt(b.x, b.y, b.x + Math.cos(a) * 120, b.y + Math.sin(a) * 120, 14); g.beginPath(); g.moveTo(bt[0], bt[1]); for (let m = 2; m < bt.length; m += 2) g.lineTo(bt[m], bt[m + 1]); g.stroke(); } }
+    }
+  }
+  for (const h of synHazFx) {   // a Leap or Phase Slip landing: shockwave lines race up the scope
+    const q = synClamp(h.t / h.dur, 0, 1), col = h.snap ? SYN_PINK : SYN_ICE;
+    g.save(); if (h.snap) g.setLineDash([12, 6]);
+    for (let k = 0; k < 3; k++) { const qq = synClamp(q * 1.4 - k * 0.14, 0, 1); if (qq <= 0 || qq >= 1) continue; const sS = synEaseOut(qq) * synScope.L * 0.7, a = synToScreen(-172, sS), b2 = synToScreen(172, sS); g.strokeStyle = synRGBA(col, 0.9 * (1 - qq)); g.lineWidth = 6 * (1 - qq) + 1; g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b2.x, b2.y); g.stroke(); }
+    g.restore();
+  }
+  for (const b of synBolts) {   // Neural Storm lightning: cracks in from the screen edge, never across the ribbon
+    const a = Math.max(0, b.life / b.max);
+    g.strokeStyle = synRGBA(SYN_ICE, 0.6 * a); g.lineWidth = 11; g.beginPath(); g.moveTo(b.p[0], b.p[1]); for (let k = 2; k < b.p.length; k += 2) g.lineTo(b.p[k], b.p[k + 1]); g.stroke();
+    g.strokeStyle = synRGBA(SYN_HOT, a); g.lineWidth = 2; g.stroke();
+  }
+  g.restore();
+}
+
+// ── The HUD: neon capsules with slanted cells ───────────────────────────────
+function synCapsule(g, x, y, w, h, frac, colFn, o) {
+  o = o || {};
+  const N = o.cells || 16, sk = h * 0.34, gap = 1.8, pad = 3, iw = w - pad * 2 - sk, cw = iw / N, edge = o.edge || SYN_VIOLET_HI, beat = synBeatV();
+  g.save();
+  g.globalCompositeOperation = 'lighter'; g.strokeStyle = synRGBA(edge, 0.10 + 0.22 * (o.glow || 0) + 0.08 * beat); g.lineWidth = 6; g.beginPath(); synRR(g, x, y, w, h, h / 2); g.stroke();
+  g.globalCompositeOperation = 'source-over';
+  g.fillStyle = 'rgba(8,4,20,0.86)'; g.beginPath(); synRR(g, x, y, w, h, h / 2); g.fill();
+  const lit = frac * N, lead = Math.floor(lit - 1e-6);
+  for (let i = 0; i < N; i++) {
+    const q = synClamp(lit - i, 0, 1), cx0 = x + pad + i * cw, yb = y + h - pad, yt = y + pad;
+    g.beginPath(); g.moveTo(cx0, yb); g.lineTo(cx0 + (cw - gap) * (q || 1), yb); g.lineTo(cx0 + (cw - gap) * (q || 1) + sk, yt); g.lineTo(cx0 + sk, yt); g.closePath();
+    if (q > 0) { g.fillStyle = colFn(i / (N - 1), i === lead); g.fill(); }
+    else { g.strokeStyle = 'rgba(148,163,184,0.16)'; g.lineWidth = 1; g.stroke(); }
+  }
+  if (lead >= 0 && o.flare !== false) {   // the leading cell blooms
+    const fx = x + pad + (Math.min(lit, N)) * cw + sk / 2 - cw * 0.4, fy = y + h / 2; g.globalCompositeOperation = 'lighter';
+    const gr = g.createRadialGradient(fx, fy, 0, fx, fy, h * 1.4); gr.addColorStop(0, synRGBA(o.flareCol || SYN_HOT, 0.45 + 0.25 * beat)); gr.addColorStop(1, synRGBA(o.flareCol || SYN_HOT, 0));
+    g.fillStyle = gr; g.fillRect(fx - h * 1.4, fy - h * 1.4, h * 2.8, h * 2.8); g.globalCompositeOperation = 'source-over';
+  }
+  g.strokeStyle = synRGBA(o.edgeHot || SYN_HOT, 0.85); g.lineWidth = 1.6; g.beginPath(); synRR(g, x, y, w, h, h / 2); g.stroke();
+  g.strokeStyle = synRGBA(edge, 0.9); g.lineWidth = 0.8; g.beginPath(); synRR(g, x - 1.5, y - 1.5, w + 3, h + 3, h / 2 + 1.5); g.stroke();
+  if (o.mark) { const mx = x + pad + 0.75 * iw + sk / 2; g.fillStyle = synRGBA(SYN_YELLOW, 0.95); g.beginPath(); g.moveTo(mx, y - 1); g.lineTo(mx - 3.5, y - 6); g.lineTo(mx + 3.5, y - 6); g.closePath(); g.fill(); }
+  if (o.glitch > 0) {   // glitch dashes spill off the end, like the reference
+    const sd = Math.floor(synClock / 110);
+    g.fillStyle = synRGBA(edge, 0.7);
+    for (let i = 0; i < 4; i++) { const r1 = ((sd * 7919 + i * 104729) % 97) / 97, r2 = ((sd * 3571 + i * 7919) % 89) / 89; if (r1 < o.glitch) g.fillRect(x + w + 3 + r2 * 10, y + 1 + i * (h - 3) / 4, 4 + r1 * 9, 1.6); }
+  }
+  g.restore();
+}
+function synDrawHUD(g) {
+  const sig = synSignal, low = sig < 25, pulse = low ? 0.5 + 0.5 * Math.sin(synClock * 0.02) : 1, ch = synCharge, shake = ch > 0.5 ? Math.sin(synClock * 0.07) * (ch - 0.5) * 1.6 : 0;
+  g.save();
+  g.fillStyle = synRGBA(SYN_STATIC, 0.9); for (let i = 0; i < 3; i++) g.fillRect(12 + i * 5, 29 - i * 4 - 2, 3.5, 4 + i * 4);   // signal-bars glyph
+  const sBase = sig < 25 ? SYN_RED : sig < 50 ? SYN_GOLD : SYN_GREEN;
+  synCapsule(g, 30, 14, 150, 15, synClamp(sig / 100, 0, 1), (q, lead) => synMixA(sBase, SYN_HOT, q * 0.3 + (lead ? 0.35 : 0), low ? 0.45 + 0.55 * pulse : 1), { cells: 14, edge: sBase, flareCol: sBase, glow: low ? pulse : 0, glitch: low ? 0.9 : 0 });
+  g.strokeStyle = synRGBA(SYN_VIOLET_HI, 0.9); g.lineWidth = 1.6;                       // chain-link glyph
+  g.beginPath(); g.arc(18, 43, 4.2, 0, 6.3); g.stroke(); g.beginPath(); g.arc(24, 43, 4.2, 0, 6.3); g.stroke();
+  const tell = synNextEdge !== synEdge && synLink >= 75, lc = synRangeHex();
+  synCapsule(g, 30 + shake, 34, 150, 15, synClamp(synLink / 100, 0, 1), (q, lead) => q < 0.6 ? synMixA(SYN_VIOLET, lc === SYN_VIOLET ? SYN_MAGENTA : lc, q / 0.6, 1) : synMixA(SYN_MAGENTA, SYN_HOT, (q - 0.6) / 0.4 * (lead ? 1 : 0.8), 1),
+    { cells: 16, edge: tell ? SYN_YELLOW : SYN_VIOLET_HI, flareCol: SYN_MAGENTA, glow: ch, glitch: Math.max(0, ch - 0.35) * 1.4, mark: synNextEdge !== synEdge });
+  synText(g, 'LINK ' + synRound, 226, 22, 13, synRGBA(SYN_VIOLET_HI, 1), 'center', SYN_VIOLET);
+  synText(g, synRP.range.toUpperCase(), 226, 41, 12, synRGBA(synRP.r <= 3 ? SYN_STATIC : synRP.r <= 8 ? SYN_MAGENTA : SYN_PINK, 0.95), 'center');
+  synText(g, String(Math.floor(synScore)).padStart(6, '0'), 350, 22, 20, SYN_YELLOW, 'right', SYN_YELLOW);
+  if (synStreak > 1) synText(g, '×' + synStreak, 350, 44, 15 + Math.min(4, synStreak * 0.5), synStreak >= 6 ? SYN_HOT : SYN_GREEN, 'right', synStreak >= 6 ? SYN_MAGENTA : null);
+  if (synBoost) {
+    const col = synBoostCol(), bx = 40, by = 62, k = synBoost.kind;
+    g.fillStyle = synRGBA(col, 1); g.strokeStyle = synRGBA(col, 1); g.lineWidth = 1.6;
+    if (k === 'fidelity') { g.beginPath(); g.moveTo(bx, by - 6); g.lineTo(bx + 5, by); g.lineTo(bx, by + 6); g.lineTo(bx - 5, by); g.closePath(); g.fill(); }
+    else if (k === 'resonant') { g.beginPath(); g.arc(bx, by, 3, 0, 6.3); g.stroke(); g.beginPath(); g.arc(bx, by, 6, 0, 6.3); g.stroke(); }
+    else { g.beginPath(); g.arc(bx - 3, by, 4, 0, 6.3); g.stroke(); g.beginPath(); g.arc(bx + 3, by, 4, 0, 6.3); g.stroke(); }
+    synCapsule(g, 54, 58, 96, 8, synClamp(synBoost.t / 6, 0, 1), () => synRGBA(col, 0.95), { cells: 10, edge: col, flareCol: col, flare: false });
+  }
+  g.restore();
+}
+function synDrawWords(g) {
+  const by = synBandY(), b = synBannerCur;
+  if (b) {
+    const a = synClamp(Math.min(b.t / 0.1, (b.dur - b.t) / 0.25), 0, 1), n = b.text.length, rev = Math.floor((b.t / 0.35) * n * 1.4), slam = 1 + 0.55 * Math.max(0, 1 - b.t / 0.16);
+    let s = ''; const junk = '▒░#%&01/\\'; for (let i = 0; i < n; i++) s += (b.text[i] === ' ' || i < rev) ? b.text[i] : junk[(i * 7 + Math.floor(synClock / 40)) % junk.length];
+    g.save(); g.globalAlpha = a;
+    const bg = g.createLinearGradient(0, 0, 360, 0); bg.addColorStop(0, 'rgba(7,4,15,0)'); bg.addColorStop(0.2, 'rgba(7,4,15,0.62)'); bg.addColorStop(0.8, 'rgba(7,4,15,0.62)'); bg.addColorStop(1, 'rgba(7,4,15,0)');
+    g.fillStyle = bg; g.fillRect(0, by - 26, 360, b.sub ? 70 : 50);
+    g.translate(180, by); g.scale(slam, slam);
+    const size = n > 24 ? 15 : n > 16 ? 19 : 25, off = 2 + 5 * Math.max(0, 1 - b.t / 0.3);
+    synText(g, s, -off, 0, size, synRGBA('#FF4D6D', 0.55), 'center'); synText(g, s, off, 0, size, synRGBA('#38BDF8', 0.55), 'center');
+    synText(g, s, 0, 0, size, b.col, 'center', SYN_VIOLET);
+    if (b.sub) { const m = b.sub.length, rv2 = Math.floor(((b.t - 0.12) / 0.35) * m * 1.4); let s2 = ''; for (let i = 0; i < m; i++) s2 += (b.sub[i] === ' ' || i < rv2) ? b.sub[i] : junk[(i * 5 + Math.floor(synClock / 40)) % junk.length]; synText(g, s2, 0, 28, m > 24 ? 13 : 15, b.subCol, 'center', SYN_VIOLET); }
+    g.restore();
+  }
+  const c = synCoachCur;
+  if (c) {
+    const a = synClamp(Math.min(c.t / 0.2, (c.dur - c.t) / 0.3), 0, 1), slide = (1 - synEaseOut(c.t / 0.25)) * 14, cy = (synEdge === 0 ? by + 84 : by - 80) + slide, pu = 0.5 + 0.5 * Math.sin(synClock * 0.012);
+    g.save(); g.globalAlpha = a * 0.97; g.font = 'bold 13px monospace';
+    const lines = synWrap(g, c.text, 226), h = Math.max(54, 22 + lines.length * 17);
+    g.globalCompositeOperation = 'lighter'; g.strokeStyle = synRGBA(c.col, 0.16 + 0.2 * pu); g.lineWidth = 9; g.beginPath(); synRR(g, 24, cy - h / 2, 312, h, 12); g.stroke(); g.globalCompositeOperation = 'source-over';
+    g.fillStyle = 'rgba(12,5,30,0.84)'; g.strokeStyle = synRGBA(c.col, 1); g.lineWidth = 2; g.beginPath(); synRR(g, 24, cy - h / 2, 312, h, 12); g.fill(); g.stroke();
+    g.fillStyle = synRGBA(c.col, 0.16); g.beginPath(); g.arc(56, cy, 22, 0, 6.3); g.fill(); g.strokeStyle = synRGBA(c.col, 0.9); g.lineWidth = 1.5; g.beginPath(); g.arc(56, cy, 22, 0, 6.3); g.stroke();
+    synDrawTipIcon(g, c.icon, 56, cy, c.col);
+    g.textAlign = 'left'; g.textBaseline = 'middle'; g.fillStyle = SYN_HOT; lines.forEach((ln, i) => g.fillText(ln, 90, cy - (lines.length - 1) * 8.5 + i * 17));
+    g.textBaseline = 'alphabetic'; g.restore();
+  }
+}
+function synDrawTipIcon(g, k, x, y, col) {   // wordless pictograms for the first-sight tips
+  const t = synClock * 0.001; g.save(); g.translate(x, y); g.strokeStyle = synRGBA(col, 1); g.fillStyle = synRGBA(col, 1); g.lineWidth = 2; g.lineCap = 'round'; g.lineJoin = 'round';
+  const poly = (pts, close, fill) => { g.beginPath(); pts.forEach((p, i) => i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1])); if (close) g.closePath(); fill ? g.fill() : g.stroke(); };
+  if (k === 'boost') { g.rotate(t * 1.2); poly([[0, -11], [3, -3], [11, 0], [3, 3], [0, 11], [-3, 3], [-11, 0], [-3, -3]], true, true); }
+  else if (k === 'resonant') { for (let i = 0; i < 3; i++) { const q = (t * 1.1 + i / 3) % 1; g.globalAlpha = 1 - q; g.beginPath(); g.arc(0, 0, 3 + q * 12, 0, 6.3); g.stroke(); } }
+  else if (k === 'fidelity') { g.rotate(t * 1.8); poly([[0, -11], [8, 0], [0, 11], [-8, 0]], true, true); }
+  else if (k === 'entangled') { g.beginPath(); g.arc(-4, 0, 7, 0, 6.3); g.stroke(); g.beginPath(); g.arc(4, 0, 7, 0, 6.3); g.stroke(); }
+  else if (k === 'leap') { poly([[-12, 7], [-3, 7], [-3, -6], [10, -6]]); poly([[5, -11], [11, -6], [5, -1]]); }
+  else if (k === 'snap') { poly([[-12, 8], [3, -8], [3, 8], [12, -2]]); }
+  else if (k === 'fog') { for (let i = 0; i < 3; i++) { g.setLineDash([3 + i, 3]); g.lineDashOffset = -t * 18 * (i % 2 ? -1 : 1); g.beginPath(); g.moveTo(-11, -7 + i * 7); g.lineTo(11, -7 + i * 7); g.stroke(); } g.setLineDash([]); }
+  else if (k === 'storm') { poly([[4, -12], [-5, 1], [1, 1], [-4, 12], [7, -2], [1, -2]], true, true); }
+  else if (k === 'halo') { g.setLineDash([4, 4]); g.lineDashOffset = -t * 12; g.beginPath(); g.arc(0, 0, 11, 0, 6.3); g.stroke(); g.setLineDash([]); g.beginPath(); g.arc(0, 0, 2.5, 0, 6.3); g.fill(); }
+  else if (k === 'low') { for (let i = 0; i < 3; i++) { g.globalAlpha = i === 0 ? 1 : 0.28; g.fillRect(-10 + i * 7.5, 8 - i * 6 - 2, 5, 4 + i * 6); } }
+  else { g.beginPath(); g.arc(0, 0, 10, -2.4, 1.6); g.stroke(); poly([[7, 8], [10, 3], [1, 2]], true, true); }   // 'rot' and 'tell': a turning dial
+  g.restore();
+}
+
+// ── Post: scanlines, vignette, bloom, the Boost tint, the danger pulse ──────
+let synSnowC = null, synSnowCtx = null, synSnowImg = null, synSnowTick = 0, synPost = null, synBuf = null, synBloom = null, synBloomCtx = null, synSnow = null;
+function synInitSnow() {
+  synSnow = [];
+  for (let i = 0; i < 150; i++) synSnow.push({ x: Math.random() * SYN_W, y: Math.random() * SYN_H, z: Math.random() });
+  if (!synSnowC) { synSnowC = document.createElement('canvas'); synSnowC.width = 72; synSnowC.height = 128; synSnowCtx = synSnowC.getContext('2d'); synSnowImg = synSnowCtx.createImageData(72, 128); }
+}
+function synRefreshSnow() {
+  if ((synSnowTick++ % 3) !== 0 || !synSnowImg) return;
+  const d = synSnowImg.data;
+  for (let i = 0; i < d.length; i += 4) { const v = 90 + Math.random() * 165; d[i] = v; d[i + 1] = v; d[i + 2] = Math.min(255, v + 25); d[i + 3] = Math.random() < 0.55 ? 255 : 0; }
+  synSnowCtx.putImageData(synSnowImg, 0, 0);
+}
+function synDrawSnow(g, amt) {
+  if (!synSnow) synInitSnow();
+  const n = Math.floor(synSnow.length * synClamp(amt, 0, 1) * (synLowFx ? 0.5 : 1));
+  for (let i = 0; i < n; i++) {
+    const p = synSnow[i];
+    g.fillStyle = synRGBA(SYN_STATIC, 0.1 + p.z * 0.3);
+    const sz = 1 + p.z * 1.6; g.fillRect(p.x, p.y, sz, sz);
+  }
+}
+function synEnsurePost() {
+  const w = synCanvas.width, h = synCanvas.height;
+  if (synPost && synPost.width === w && synPost.height === h) return;
+  synPost = document.createElement('canvas'); synPost.width = w; synPost.height = h;
+  const p = synPost.getContext('2d'), px = w / SYN_W;
+  p.fillStyle = 'rgba(0,0,0,0.14)'; for (let y = 0; y < h; y += Math.max(2, Math.round(3 * px))) p.fillRect(0, y, w, Math.max(1, Math.round(px)));
+  const v = p.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.3, w / 2, h / 2, Math.max(w, h) * 0.72);
+  v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(0,0,0,0.6)'); p.fillStyle = v; p.fillRect(0, 0, w, h);
+  synBuf = null;
+  synBloom = document.createElement('canvas'); synBloom.width = Math.max(8, Math.ceil(w / 5)); synBloom.height = Math.max(8, Math.ceil(h / 5)); synBloomCtx = synBloom.getContext('2d');
+}
+function synDrawPost(g) {
+  synEnsurePost();
+  const px = synPx, cw = synCanvas.width, ch = synCanvas.height;
+  g.save(); g.setTransform(1, 0, 0, 1, 0, 0);
+  // bloom: a shrunken copy of the picture, smoothed back up over itself. It makes every glow glow.
+  if (!synLowFx && synBloomCtx && (synState === 'playing' || synState === 'attract' || synState === 'over')) {
+    synBloomCtx.globalCompositeOperation = 'copy'; synBloomCtx.drawImage(synCanvas, 0, 0, synBloom.width, synBloom.height);
+    g.globalCompositeOperation = 'lighter'; g.globalAlpha = synClamp(0.22 + 0.22 * synCharge + 0.3 * synFlash, 0, 0.7); g.imageSmoothingEnabled = true;
+    g.drawImage(synBloom, 0, 0, cw, ch); g.globalAlpha = 1; g.globalCompositeOperation = 'source-over';
+  }
+  if (synState === 'playing' && synBoost) {   // each Boost tints the edges of the picture its own colour
+    const bf = synBoostFade(), col = synBoost.kind === 'fidelity' ? '251,191,36' : synBoost.kind === 'entangled' ? '232,121,249' : '196,181,253';
+    const r = g.createRadialGradient(cw / 2, ch / 2, ch * 0.3, cw / 2, ch / 2, ch * 0.66); r.addColorStop(0, `rgba(${col},0)`); r.addColorStop(1, `rgba(${col},${0.20 * bf})`);
+    g.fillStyle = r; g.fillRect(0, 0, cw, ch);
+  }
+  if (synState === 'playing' && synSignal < 25 && !synDemo) {
+    const a = 0.18 + 0.18 * Math.sin(synClock * 0.02);
+    const r = g.createRadialGradient(cw / 2, ch / 2, ch * 0.25, cw / 2, ch / 2, ch * 0.62); r.addColorStop(0, 'rgba(248,113,113,0)'); r.addColorStop(1, `rgba(248,113,113,${a})`);
+    g.fillStyle = r; g.fillRect(0, 0, cw, ch);
+  }
+  if (synFlash > 0) { g.fillStyle = `rgba(${synFlashRGB},${Math.min(0.7, synFlash)})`; g.fillRect(0, 0, cw, ch); }
+  if (synDip > 0) { g.fillStyle = `rgba(4,2,12,${Math.min(0.6, synDip * 2.4)})`; g.fillRect(0, 0, cw, ch); }
+  g.drawImage(synPost, 0, 0);
+  const tear = synLowFx ? 0 : synState === 'playing' ? Math.max(synState3 === 'off' && synOffT > SYN_TUNE.grace ? 0.6 : 0, synRP.storm && !synDemo ? 0.3 : 0, synDesyncT > 0 && synDesyncT < 0.9 ? 0.8 * (1 - synDesyncT / 0.9) : 0) : 0;
+  if (tear > 0) {
+    const n = 2 + Math.floor(tear * 5);
+    for (let i = 0; i < n; i++) {
+      const y = Math.floor(Math.random() * (ch - 30)), hh = Math.floor((4 + Math.random() * 12) * px), dx = Math.floor((Math.random() - 0.5) * 2 * 20 * tear * px);
+      g.drawImage(synCanvas, 0, y, cw, hh, dx, y, cw, hh);
+    }
+  }
+  g.restore();
+  g.setTransform(px, 0, 0, px, 0, 0);
+}
+
+// ── Layout rects ────────────────────────────────────────────────────────────
+const SYN_BTN_PLAY = { x: 40, y: 526, w: 280, h: 62 };
+const SYN_SLOTS = [{ x: 60, y: 300, w: 66, h: 84 }, { x: 147, y: 300, w: 66, h: 84 }, { x: 234, y: 300, w: 66, h: 84 }];
+const SYN_BTN_OK = { x: 80, y: 430, w: 200, h: 62 };
+const SYN_BTN_OVER = { x: 70, y: 528, w: 220, h: 58 };
+const SYN_BTN_LB_AGAIN = { x: 20, y: 530, w: 196, h: 62 };
+const SYN_BTN_LB_MENU = { x: 228, y: 530, w: 112, h: 62 };
+let synBootLocked = false, synZoom = 0;
+function synDrawButton(g, r, label, size, hot) {
+  const beat = synBeatV();
+  g.save();
+  g.globalCompositeOperation = 'lighter'; g.strokeStyle = synRGBA(SYN_MAGENTA, hot ? 0.18 + 0.2 * beat : 0.1); g.lineWidth = 8; g.beginPath(); synRR(g, r.x, r.y, r.w, r.h, r.h / 2); g.stroke(); g.globalCompositeOperation = 'source-over';
+  g.fillStyle = hot ? synRGBA(SYN_VIOLET, 0.35) : 'rgba(18,8,43,0.8)'; g.strokeStyle = synRGBA(SYN_VIOLET_HI, 1); g.lineWidth = 3;
+  g.beginPath(); synRR(g, r.x, r.y, r.w, r.h, r.h / 2); g.fill(); g.stroke();
+  synText(g, label, r.x + r.w / 2, r.y + r.h / 2 + 1, size || 22, SYN_HOT, 'center', SYN_VIOLET); g.restore();
+}
+
+// The whole picture: backdrop, snow, scope, rails, transmitter, bead, effects.
+function synDrawScene(g, o) {
+  o = o || {};
+  const snowAmt = o.snow !== undefined ? o.snow : 0.4 + (synDemo ? 0 : (1 - synSignal / 100) * 0.9);
+  g.save();
+  if (synZoom > 0) { const z = 1 + 0.06 * synZoom * synZoom, ro = Math.sin(synClock * 0.05) * 0.012 * synZoom; g.translate(180, 320); g.rotate(ro); g.scale(z, z); g.translate(-180, -320); }   // the desync lurches the whole picture
+  synDrawBackdrop(g);
+  synDrawSnow(g, snowAmt);
+  synDrawGhosts(g);
+  synDrawScope(g, o.scope !== undefined ? o.scope : 1, o.bootLock);
+  const a = o.scope !== undefined ? o.scope : 1;
+  g.save(); g.globalAlpha = o.dial !== undefined ? o.dial : a;
+  synDrawRail(g, synEdge, synFingerDown ? 1 : 0.45, o.needle !== undefined ? o.needle : synBead, synLinkFxT > 0 ? synLinkFxT : 0, o.bootLock ? null : synRc);
+  if (synTelling && synNextEdge !== synEdge) synDrawRail(g, synNextEdge, 0.5 + 0.5 * Math.sin(synClock * 0.02), null, 0.6, null);
+  if (!synDemo && !synHasTouched && synState === 'playing') synDrawChevrons(g, synEdge);
+  g.restore();
+  if (synFogNow > 0.02 && synState === 'playing') {   // inside a Mental Fog bank the whole picture fills with static; the bead and transmitter stay crisp above it
+    const k = synFogNow; g.save();
+    if (synSnowC) { g.globalAlpha = 0.2 * k; g.imageSmoothingEnabled = false; g.drawImage(synSnowC, 0, 0, SYN_W, SYN_H); g.imageSmoothingEnabled = true; }
+    g.globalAlpha = 1; const vg = g.createRadialGradient(180, 320, 120, 180, 320, 420); vg.addColorStop(0, 'rgba(9,10,26,0)'); vg.addColorStop(1, `rgba(9,10,26,${0.55 * k})`); g.fillStyle = vg; g.fillRect(0, 0, SYN_W, SYN_H); g.restore();
+  }
+  if (a > 0.05) { synDrawEntangle(g); synDrawTx(g, a); if (o.bead !== false) synDrawBead(g, a, o.grey); }
+  synDrawFx(g);
+  g.restore();
+}
+
+
+// ── Attract: the real boot sequence, then the title ─────────────────────────
+function synDrawLogo(g, cx, cy, beat) {   // two minds, one link: a violet ring and a green ring that fuse where they overlap
+  g.save(); g.lineWidth = 3;
+  g.globalCompositeOperation = 'lighter';
+  const gl = g.createRadialGradient(cx, cy, 2, cx, cy, 36); gl.addColorStop(0, synRGBA(SYN_HOT, 0.35 + 0.2 * beat)); gl.addColorStop(1, synRGBA(SYN_MAGENTA, 0)); g.fillStyle = gl; g.fillRect(cx - 40, cy - 40, 80, 80);
+  g.strokeStyle = synRGBA(SYN_VIOLET, 1); g.beginPath(); g.arc(cx - 9, cy, 15, 0, 6.3); g.stroke();
+  g.strokeStyle = synRGBA(SYN_GREEN, 1); g.beginPath(); g.arc(cx + 9, cy, 15, 0, 6.3); g.stroke();
+  g.strokeStyle = synRGBA(SYN_HOT, 0.9); g.lineWidth = 2; g.beginPath(); g.arc(cx, cy, 8, -1.05, 1.05); g.arc(cx, cy, 8, Math.PI - 1.05, Math.PI + 1.05); g.stroke();
+  g.restore();
+}
+function synDrawAttract(g) {
+  const bt = synDemoT / 1000, lock = 2.2;
+  const snow = 0.35 + 0.65 * (1 - synEase((bt - 2.0) / 1.2)), scope = synEase((bt - 2.2) / 1.0);
+  const sweep = bt < lock ? 150 * Math.sin(bt * 3.1) * (1 - bt / (lock + 0.35)) : null;
+  synDrawScene(g, { snow, scope, dial: synClamp(bt / 0.4, 0, 1) * (synPreviewing || bt < 3.1 ? 1 : 1 - 0.7 * synEase((bt - 3.1) / 0.4)), needle: sweep !== null ? sweep : synBead, bootLock: bt < lock + 0.3 });
+  if (bt < 2.9) {   // a satellite dish finds the signal
+    const a = synClamp(Math.min(bt / 0.3, (2.9 - bt) / 0.5), 0, 1), cx = 180, cy = 268;
+    g.save(); g.globalAlpha = a; g.strokeStyle = synRGBA(SYN_VIOLET_HI, 1); g.fillStyle = synRGBA(SYN_VIOLET_HI, 1); g.lineWidth = 3; g.lineCap = 'round';
+    const tilt = bt < lock ? Math.sin(bt * 3.1) * 0.5 : 0;
+    g.save(); g.translate(cx, cy); g.rotate(tilt - 0.5);
+    g.beginPath(); g.arc(0, 0, 26, 0.15 * Math.PI, 0.85 * Math.PI); g.stroke(); g.beginPath(); g.moveTo(-14, 16); g.lineTo(0, -8); g.lineTo(14, 16); g.stroke(); g.restore();
+    g.beginPath(); g.moveTo(cx, cy + 20); g.lineTo(cx, cy + 40); g.moveTo(cx - 14, cy + 40); g.lineTo(cx + 14, cy + 40); g.stroke();
+    for (let i = 0; i < 3; i++) { const r = 14 + ((bt * 40 + i * 12) % 36); g.strokeStyle = synRGBA(SYN_MAGENTA, 0.6 * (1 - (r - 14) / 36)); g.lineWidth = 2; g.beginPath(); g.arc(cx + 8, cy - 14, r, -1.2, -0.2); g.stroke(); }
+    g.restore();
+    if (!synPreviewing) { const s = 'Finding Wavelength'.slice(0, Math.floor(bt * 14)); g.save(); g.globalAlpha = a; synText(g, s + (Math.floor(bt * 6) % 2 ? '_' : ''), 180, 336, 16, SYN_HOT, 'center', SYN_VIOLET); g.restore(); }
+  }
+  if (bt >= lock && !synBootLocked) { synBootLocked = true; synFlash = 0.4; synRGB = 0.8; const st = SYN_EDGES[0].strip; synRing(180 + synBead, st.y + st.h / 2, 120, 0.5, SYN_GREEN, 3); synRing(180, 470, 300, 0.6, SYN_MAGENTA, 3); synBeep(1175, true); }
+  if (synPreviewing || bt < 3.1) return;
+  const ca = synEase((bt - 3.1) / 0.4), beat = synBeatV();
+  g.save(); g.globalAlpha = ca * 0.62; g.fillStyle = SYN_BG; g.beginPath(); synRR(g, 24, 100, 312, 196, 16); g.fill(); g.restore();
+  g.save(); g.globalAlpha = ca;
+  synDrawLogo(g, 180, 136, beat);
+  const off = synRGB > 0.05 ? 3 : 1.5;
+  synText(g, 'WAVELINK', 180 - off, 202, 48, synRGBA('#FF4D6D', 0.55), 'center'); synText(g, 'WAVELINK', 180 + off, 202, 48, synRGBA('#38BDF8', 0.55), 'center');
+  synText(g, 'WAVELINK', 180, 202, 48, SYN_HOT, 'center', SYN_VIOLET);
+  synText(g, 'Stay on their wave.', 180, 246, 17, SYN_VIOLET_HI, 'center');
+  const best = synBest(); if (best) synText(g, 'BEST  ' + best, 180, 278, 13, SYN_YELLOW, 'center');
+  const pu = 0.5 + 0.5 * Math.sin(synClock * 0.006);
+  synDrawButton(g, SYN_BTN_PLAY, 'BEGIN LINK ▶', 24, pu > 0.5);
+  g.restore();
+}
+
+// ── Over: the picture tunes out like an old telly, then the Psychic Echoes printout ──
+function synCollapse(g, p) {
+  const cw = synCanvas.width, ch = synCanvas.height;
+  if (!synBuf || synBuf.width !== cw || synBuf.height !== ch) { synBuf = document.createElement('canvas'); synBuf.width = cw; synBuf.height = ch; }
+  const b = synBuf.getContext('2d'); b.setTransform(1, 0, 0, 1, 0, 0); b.clearRect(0, 0, cw, ch); b.drawImage(synCanvas, 0, 0);
+  const base = g.getTransform(), px = base.a;
+  g.setTransform(1, 0, 0, 1, 0, 0); g.fillStyle = '#000'; g.fillRect(0, 0, cw, ch);
+  let sx = 1, sy = 1;
+  if (p < 0.45) sy = 1 - synEase(p / 0.45) * 0.985; else if (p < 0.75) { sy = 0.015; sx = 1 - synEase((p - 0.45) / 0.3) * 0.985; }
+  if (p < 0.75) {
+    const dw = cw * sx, dh = ch * sy; g.drawImage(synBuf, (cw - dw) / 2, (ch - dh) / 2, dw, dh);
+    g.globalCompositeOperation = 'lighter'; g.fillStyle = synRGBA(SYN_VIOLET_HI, 0.35); g.fillRect((cw - dw) / 2, ch / 2 - 5 * px, dw, 10 * px);
+    g.fillStyle = synRGBA(SYN_HOT, 0.95); g.fillRect((cw - dw) / 2, ch / 2 - px, dw, 2 * px); g.globalCompositeOperation = 'source-over';
+  } else {
+    const a = 1 - (p - 0.75) / 0.25; g.globalCompositeOperation = 'lighter'; const r = g.createRadialGradient(cw / 2, ch / 2, 0, cw / 2, ch / 2, 14 * px);
+    r.addColorStop(0, `rgba(245,243,255,${a})`); r.addColorStop(1, 'rgba(139,92,246,0)'); g.fillStyle = r; g.fillRect(cw / 2 - 14 * px, ch / 2 - 14 * px, 28 * px, 28 * px); g.globalCompositeOperation = 'source-over';
+  }
+  g.setTransform(base);
+}
+function synDrawRunback(g, tr) {
+  synDrawBackdrop(g); synDrawSnow(g, 0.35); synDrawScope(g, 0.12, true);
+  const ta = synEase(tr / 0.4);
+  g.save(); g.globalAlpha = ta;
+  synText(g, 'No Link Could Be Established', 180, 66, 15, SYN_RED, 'center', SYN_RED);
+  synText(g, 'Incompatible wavelengths.', 180, 90, 12, SYN_STATIC, 'center');
+  g.restore();
+  const py = 124 + (1 - synEaseOut(tr / 0.5)) * 480, px0 = 20, W = 320, H = 214;
+  g.save(); g.fillStyle = '#EDE9FE'; g.beginPath(); synRR(g, px0, py, W, H, 6); g.fill();
+  g.strokeStyle = '#DDD6FE'; g.lineWidth = 1; for (let i = 1; i < 8; i++) { g.beginPath(); g.moveTo(px0 + 18, py + 34 + i * 20); g.lineTo(px0 + W - 18, py + 34 + i * 20); g.stroke(); }
+  g.fillStyle = '#2E1065'; for (let y = py + 12; y < py + H - 6; y += 16) { g.beginPath(); g.arc(px0 + 8, y, 2.6, 0, 6.3); g.arc(px0 + W - 8, y, 2.6, 0, 6.3); g.fill(); }
+  synText(g, 'PSYCHIC ECHOES', px0 + 20, py + 17, 12, '#4C1D95', 'left');
+  const x0 = px0 + 20, x1 = px0 + W - 20, y0 = py + 36, y1 = py + H - 22, yc = (y0 + y1) / 2, ky = (y1 - y0) / 2 / 160;
+  const N = synSamples.length, frac = synClamp((tr - 0.5) / 1.7, 0, 1), nr = Math.floor(N * frac);
+  g.strokeStyle = '#C4B5FD'; g.setLineDash([3, 4]); g.beginPath(); g.moveTo(x0, yc); g.lineTo(x1, yc); g.stroke(); g.setLineDash([]);
+  if (N > 2 && nr > 1) {
+    const sx = (x1 - x0) / (N - 1);
+    g.fillStyle = 'rgba(245,158,11,0.55)';
+    for (let i = 0; i < nr; i++) { const s = synSamples[i]; if (s.ok === 1) { const yr = yc - s.r * ky, yb = yc - s.b * ky, top = Math.min(yr, yb) - 4; g.fillRect(x0 + i * sx, top, sx + 0.6, Math.abs(yr - yb) + 8); } }
+    g.lineWidth = 2; g.lineJoin = 'round';
+    for (const [key, col] of [['r', '#6D28D9'], ['b', '#16A34A']]) {
+      g.strokeStyle = col; g.beginPath();
+      for (let i = 0; i < nr; i++) { const x = x0 + i * sx, y = yc - synSamples[i][key] * ky; if (i) g.lineTo(x, y); else g.moveTo(x, y); }
+      g.stroke();
+      const q = synSamples[nr - 1]; g.fillStyle = col; g.beginPath(); g.arc(x0 + (nr - 1) * sx, yc - q[key] * ky, 3.4, 0, 6.3); g.fill();
+    }
+    g.fillStyle = '#F59E0B';
+    for (let i = 1; i < nr; i++) if (synSamples[i].e !== synSamples[i - 1].e) { const x = x0 + i * sx; g.beginPath(); g.moveTo(x, y1 + 6); g.lineTo(x - 4, y1 + 14); g.lineTo(x + 4, y1 + 14); g.closePath(); g.fill(); }
+  }
+  g.restore();
+  if (tr > 2.1) {
+    const a = synEase((tr - 2.1) / 0.4), rows = [['Rounds to sync', String(synLinks), SYN_HOT], ['Best streak', '×' + synBestStreak, SYN_GREEN], ['Score', String(synLastScore).padStart(6, '0'), SYN_YELLOW]];
+    g.save(); g.globalAlpha = a;
+    rows.forEach((r, i) => { const y = 392 + i * 34; synText(g, r[0], 40, y, 14, SYN_STATIC, 'left'); synText(g, r[1], 320, y, i === 2 ? 24 : 20, r[2], 'right', i === 2 ? SYN_YELLOW : null); });
+    g.restore();
+  }
+  if (tr > 2.4) {
+    g.save(); g.globalAlpha = synEase((tr - 2.4) / 0.4); synDrawButton(g, SYN_BTN_OVER, 'CONTINUE ▶', 22, true); g.restore();
+  }
+}
+
+// ── Initials and the board, over the live attract scene ─────────────────────
+function synDrawBoardBackdrop(g) { synDrawScene(g, { snow: 0.5, scope: 0.5, needle: null }); g.save(); g.fillStyle = 'rgba(7,4,15,0.55)'; g.fillRect(0, 0, SYN_W, SYN_H); g.restore(); }
+function synDrawNameEntry(g) {
+  synDrawBoardBackdrop(g);
+  synText(g, 'SIGNAL LOGGED', 180, 140, 26, SYN_HOT, 'center', SYN_VIOLET);
+  synText(g, String(synLastScore).padStart(6, '0'), 180, 190, 38, SYN_YELLOW, 'center', SYN_YELLOW);
+  synText(g, 'Tap a letter to change it', 180, 262, 14, SYN_VIOLET_HI, 'center');
+  SYN_SLOTS.forEach((r, i) => {
+    g.save(); g.fillStyle = 'rgba(18,8,43,0.85)'; g.strokeStyle = synRGBA(SYN_VIOLET_HI, 1); g.lineWidth = 3; g.beginPath(); synRR(g, r.x, r.y, r.w, r.h, 10); g.fill(); g.stroke(); g.restore();
+    synText(g, SYN_ALPHABET[synInitials[i]], r.x + r.w / 2, r.y + r.h / 2 + 2, 52, SYN_HOT, 'center', SYN_VIOLET);
+  });
+  synDrawButton(g, SYN_BTN_OK, 'TRANSMIT', 22, true);
+}
+const SYN_DIM_ = '#4B3F72';
+function synDrawLeaderboard(g) {
+  synDrawBoardBackdrop(g);
+  synText(g, 'PSYCHIC ECHOES', 180, 122, 24, SYN_HOT, 'center', SYN_VIOLET);
+  synText(g, 'Best links this session', 180, 148, 12, SYN_STATIC, 'center');
+  for (let i = 0; i < SYN_TOP_N; i++) {
+    const y = 198 + i * 52, e = synScores[i], mine = e && e.score === synLastScore && synLastScore > 0 && i === synScores.findIndex(s => s.score === synLastScore);
+    g.save(); g.fillStyle = mine ? 'rgba(139,92,246,0.3)' : 'rgba(18,8,43,0.7)'; g.strokeStyle = synRGBA(mine ? SYN_YELLOW : SYN_VIOLET, 0.8); g.lineWidth = 2; g.beginPath(); synRR(g, 30, y - 22, 300, 44, 22); g.fill(); g.stroke(); g.restore();
+    synText(g, String(i + 1), 56, y + 1, 18, SYN_STATIC, 'center');
+    synText(g, e ? e.name : '---', 96, y + 1, 24, e ? SYN_HOT : SYN_DIM_, 'left');
+    synText(g, e ? String(e.score).padStart(6, '0') : '------', 308, y + 1, 22, e ? SYN_YELLOW : SYN_DIM_, 'right');
+  }
+  synDrawButton(g, SYN_BTN_LB_AGAIN, 'BEGIN LINK', 20, true); synDrawButton(g, SYN_BTN_LB_MENU, 'MENU', 20, false);
+}
+
+function synDraw() {
+  const g = synCtx; if (!g) return;
+  const base = g.getTransform();
+  g.globalAlpha = 1; g.globalCompositeOperation = 'source-over'; g.setLineDash([]);
+  g.fillStyle = SYN_BG; g.fillRect(0, 0, SYN_W, SYN_H);
+  g.save();
+  if (synShake > 0) g.translate((Math.random() - 0.5) * Math.min(1, synShake * 4) * 8, (Math.random() - 0.5) * Math.min(1, synShake * 4) * 8);
+  if (synState === 'attract') synDrawAttract(g);
+  else if (synState === 'playing') { synDrawScene(g); synDrawHUD(g); synDrawWords(g); }
+  else if (synState === 'over') { if (synOverT < 0.8) { synDrawScene(g, { grey: true }); synDrawHUD(g); } else synDrawRunback(g, synOverT - 0.8); }
+  else if (synState === 'nameEntry') synDrawNameEntry(g);
+  else if (synState === 'leaderboard') synDrawLeaderboard(g);
+  g.restore();
+  if (synState === 'over' && synOverT < 0.8) synCollapse(g, synOverT / 0.8);
+  synDrawPost(g);
+  g.setTransform(base);
+}
+
+// ── The loop ────────────────────────────────────────────────────────────────
+let synFrameAvg = 16, synSlowT = 0, synPrevBead = 0, synBeadV = 0;
+function synStart() {
+  synCanvas = document.getElementById('syn-canvas');
+  synCtx = synCanvas.getContext('2d');
+  showScreen('screen-arcade-wavelink');
+  synResize();
+  synEnterState('attract');
+}
+function synEnterState(next) {
+  synState = next;
+  if (next === 'playing') synNewRun(false);
+  if (next === 'attract' || next === 'nameEntry' || next === 'leaderboard') { synNewRun(true); synDemoT = 0; synBootLocked = false; if (next !== 'attract') synDemoT = 9e4; }
+  synShake = 0; synPress = null; synZoom = 0; synBeadV = 0; synPrevBead = 0;
+  if (!synRafHandle) { synLastT = 0; synRafHandle = requestAnimationFrame(synLoop); }
+}
+function synLoop(now) {
+  synRafHandle = null;
+  if (!synLastT) synLastT = now;
+  const raw = now - synLastT, dt = Math.min(raw / 1000, 0.05);
+  synLastT = now;
+  const so = document.getElementById('sound-overlay');
+  const paused = !!so && so.style.display !== 'none' && so.style.display !== '';
+  if (!paused) {
+    synUpdate(dt);
+    if (raw < 1000) { synFrameAvg += (Math.min(raw, 250) - synFrameAvg) * 0.08; synSlowT = synFrameAvg > 24 ? synSlowT + raw / 1000 : 0; if (synSlowT > 2) synLowFx = true; }   // only a tab-away gap (over 1 s) is ignored, so very slow phones still degrade
+  }
+  synDraw();
+  if (!synRafHandle) synRafHandle = requestAnimationFrame(synLoop);
+}
+function synStormSurge() {
+  synFlash = Math.max(synFlash, 0.5); synFlashRGB = '186,230,253'; synShake = Math.max(synShake, 0.26); synRGB = Math.max(synRGB, 0.9);
+  for (let i = 0; i < 3; i++) { const left = i % 2 === 0, y0 = 70 + Math.random() * 500, x0 = left ? -6 : SYN_W + 6, x1 = left ? 60 + Math.random() * 40 : SYN_W - 60 - Math.random() * 40; synBolts.push({ p: synMakeBolt(x0, y0, x1, y0 + (Math.random() - 0.3) * 140, 34), life: 0.32, max: 0.32 }); }
+  while (synBolts.length > 5) synBolts.shift();
+  synBeep(55, true); synSchedule(60, () => synBeep(82, true)); synSchedule(120, () => synBeep(41, true)); synSchedule(150, () => { synDip = 0.25; });
+}
+function synUpdate(dt) {
+  synClock += dt * 1000;
+  if (synEvents.length) {
+    const due = synEvents.filter(e => synClock >= e.at);
+    synEvents = synEvents.filter(e => synClock < e.at);
+    due.forEach(e => e.fn());
+  }
+  if (synShake > 0) synShake = Math.max(0, synShake - dt);
+  synFlash = Math.max(0, synFlash - dt * 1.6); synRGB = Math.max(0, synRGB - dt * 2.2); if (synFlash <= 0.001) synFlashRGB = '245,243,255'; if (synDip > 0) synDip = Math.max(0, synDip - dt);
+  if (synBoostFx) { synBoostFx.t += dt; if (synBoostFx.t > 1.05) synBoostFx = null; }
+  for (const h of synHazFx) h.t += dt;
+  synHazFx = synHazFx.filter(h => h.t < h.dur);
+  if (synLinkFxT > 0) synLinkFxT -= dt;
+  for (const p of synParts) { p.x += p.vx * dt; p.y += p.vy * dt; p.vy += (p.grav || 0) * dt; p.vx *= 0.985; p.life -= dt; }
+  synParts = synParts.filter(p => p.life > 0);
+  for (const r of synRings) r.t += dt;
+  synRings = synRings.filter(r => r.t < r.dur);
+  for (const gh of synGhosts) gh.age += dt;
+  synGhosts = synGhosts.filter(gh => gh.age < 0.9);
+  for (const b of synBolts) b.life -= dt;
+  synBolts = synBolts.filter(b => b.life > 0);
+  // the desync lurch: the whole picture zooms in as the dial turns, then eases back
+  if (synTurn) synZoom = Math.max(synZoom, 1); else synZoom = Math.max(0, synZoom - dt * 2.2);
+  if (!synSnow) synInitSnow();
+  const drift = 6 + (synDemo ? 0 : (1 - synSignal / 100) * 40);
+  for (const p of synSnow) { p.y += (drift * (0.4 + p.z)) * dt; p.x += (Math.random() - 0.5) * 12 * dt; if (p.y > SYN_H) { p.y = -2; p.x = Math.random() * SYN_W; } }
+  if (!synStars) synInitStars();
+  for (const s of synStars) { s.y += (14 + 30 * synCharge) * (0.4 + s.z) * dt; if (s.y > 420) { s.y -= 840; s.x = (Math.random() - 0.5) * 840; } }
+  synRefreshSnow();
+  if (dt > 0) { synBeadV += ((synBead - synPrevBead) / dt - synBeadV) * 0.35; synPrevBead = synBead; }
+  if (synState === 'attract' || synState === 'nameEntry' || synState === 'leaderboard') {
+    synDemoT += dt * 1000; synSim(dt);
+    if (synPreviewing && synDemoT > 15000) { synNewRun(true); synDemoT = 0; synBootLocked = false; }
+  } else if (synState === 'playing') {
+    synSim(dt);
+    // Neural Storm: lightning cracks in from the sides of the screen
+    if (synRP.storm) {
+      synBoltT -= dt;
+      if (synBoltT <= 0) {
+        synBoltT = 0.8 + Math.random() * 0.9;
+        const left = Math.random() < 0.5, y0 = 80 + Math.random() * 480, x0 = left ? -6 : SYN_W + 6, x1 = left ? 40 + Math.random() * 30 : SYN_W - 40 - Math.random() * 30;
+        synBolts.push({ p: synMakeBolt(x0, y0, x1, y0 + (Math.random() - 0.3) * 120, 26), life: 0.22, max: 0.22 });
+        if (synBolts.length > 3) synBolts.shift();
+        synFlash = Math.max(synFlash, 0.1); synFlashRGB = '186,230,253'; synShake = Math.max(synShake, 0.08); synBeep(70, true);
+      }
+      synSurgeT -= dt;   // every few seconds a surge: white-out, a blink of darkness, three bolts and a rumble
+      if (synSurgeT <= 0) { synSurgeT = 2.6 + Math.random() * 1.8; synStormSurge(); }
+    }
+    if (!synBannerCur && synBanners.length) synBannerCur = synBanners.shift();
+    if (synBannerCur) { synBannerCur.t += dt; if (synBannerCur.t >= synBannerCur.dur) synBannerCur = null; }
+    if (!synCoachCur && synCoachQ.length) synCoachCur = synCoachQ.shift();
+    if (synCoachCur) { synCoachCur.t += dt; if (synCoachCur.t >= synCoachCur.dur) synCoachCur = null; }
+  } else if (synState === 'over') {
+    synOverT += dt; if (synOverT >= 40) synFinishOver();   // the button moves you on; this is only a safety net
+  }
+}
+
+// ── Input ───────────────────────────────────────────────────────────────────
+function synOnDown(e) {
+  const p = synToLogical(e);
+  if (synState === 'attract') {
+    if (synDemoT < 3100) { synDemoT = 3300; return; }      // a tap skips the boot
+    if (synHit(SYN_BTN_PLAY, p)) { SYN_SOUND.select(); synEnterState('playing'); }
+    return;
+  }
+  if (synState === 'playing') {
+    synFingerDown = true; synGlide = true; synSteer(e);
+    if (!synHasTouched) return;
+    synRing(p.x, p.y, 44, 0.4, SYN_GREEN, 2);
+    return;
+  }
+  if (synState === 'over') {
+    if (synOverT < 3.2) { if (synOverT > 1.2) synOverT = 3.2; return; }      // an early tap fast-forwards to the stats and the button
+    if (synHit(SYN_BTN_OVER, p)) { SYN_SOUND.select(); synFinishOver(); }
+    return;
+  }
+  if (synState === 'nameEntry') {
+    for (let i = 0; i < SYN_SLOTS.length; i++) if (synHit(SYN_SLOTS[i], p)) { synInitials[i] = (synInitials[i] + 1) % 26; SYN_SOUND.select(); return; }
+    if (synHit(SYN_BTN_OK, p)) { SYN_SOUND.select(); synSubmit(synInitials.map(i => SYN_ALPHABET[i]).join(''), synLastScore); synEnterState('leaderboard'); }
+    return;
+  }
+  if (synState === 'leaderboard') {
+    if (synHit(SYN_BTN_LB_AGAIN, p)) { SYN_SOUND.select(); synEnterState('playing'); return; }
+    if (synHit(SYN_BTN_LB_MENU, p)) { SYN_SOUND.select(); synEnterState('attract'); }
+  }
+}
+function synStagePointer(e, phase) {
+  if (phase === 'down') {
+    if (synPtrId !== null) return;            // a second finger is ignored
+    synPtrId = e.pointerId; synOnDown(e); return;
+  }
+  if (e.pointerId !== synPtrId) return;
+  if (phase === 'move') { if (synState === 'playing') synSteer(e); return; }
+  synPtrId = null; synPress = null; synFingerDown = false;   // up / cancel: the bead holds where it is
+}
+function synKeyDir(k) {
+  return { ArrowLeft: 'l', a: 'l', A: 'l', ArrowRight: 'r', d: 'r', D: 'r', ArrowUp: 'u', w: 'u', W: 'u', ArrowDown: 'd', s: 'd', S: 'd' }[k];
+}
+(function synBindInput() {
+  const stage = document.getElementById('syn-stage');
+  stage.addEventListener('pointerdown', e => { try { stage.setPointerCapture(e.pointerId); } catch (_) {} synStagePointer(e, 'down'); });
+  stage.addEventListener('pointermove', e => {
+    if (e.buttons || e.pointerId === synPtrId) synStagePointer(e, 'move');
+    else if (e.pointerType === 'mouse' && synState === 'playing' && synPtrId === null) synSteer(e);   // desktop: hover steers
+  });
+  stage.addEventListener('pointerup', e => synStagePointer(e, 'up'));
+  stage.addEventListener('pointercancel', e => synStagePointer(e, 'cancel'));
+  stage.addEventListener('lostpointercapture', e => synStagePointer(e, 'cancel'));
+  stage.addEventListener('contextmenu', e => e.preventDefault());
+  const visible = () => document.getElementById('screen-arcade-wavelink').style.display !== 'none';
+  document.addEventListener('keydown', e => {
+    if (!visible()) return;
+    const d = synKeyDir(e.key);
+    if (d) { synKeys[d] = true; e.preventDefault(); return; }
+    if ((e.key === 'Enter' || e.key === ' ') && synState === 'attract' && synDemoT > 3100) { e.preventDefault(); SYN_SOUND.select(); synEnterState('playing'); }
+    else if ((e.key === 'Enter' || e.key === ' ') && synState === 'over' && synOverT >= 3.2) { e.preventDefault(); SYN_SOUND.select(); synFinishOver(); }
+    else if ((e.key === 'Enter' || e.key === ' ') && synState === 'leaderboard') { e.preventDefault(); SYN_SOUND.select(); synEnterState('playing'); }
+  });
+  document.addEventListener('keyup', e => { const d = synKeyDir(e.key); if (d) synKeys[d] = false; });
+  window.addEventListener('blur', () => { synKeys = {}; synKeyV = 0; });
+  document.getElementById('btn-syn-exit').addEventListener('click', () => { resetArcadeWavelink(); arcExitCabinet(); });
+  document.addEventListener('visibilitychange', () => {
+    if (!visible()) return;
+    if (document.hidden) { if (synRafHandle) { cancelAnimationFrame(synRafHandle); synRafHandle = null; } synPress = null; synPtrId = null; synFingerDown = false; synKeys = {}; }
+    else if (!synRafHandle) { synLastT = 0; synDrainPause = Math.max(synDrainPause, 0.5); synRafHandle = requestAnimationFrame(synLoop); }
+  });
+})();
+
+// Crisp letterboxing with a pixel budget: a 4K monitor costs no more than a tablet
+function synResize() {
+  if (!synCanvas) return;
+  const box = synCanvas.parentElement;
+  const scale = Math.min(box.clientWidth / SYN_W, box.clientHeight / SYN_H);
+  if (!(scale > 0)) return;
+  const dpr = Math.min(window.devicePixelRatio || 1, 2, Math.sqrt(SYN_MAX_PIXELS / (SYN_W * scale * SYN_H * scale)));
+  synScale = scale;
+  synCanvas.style.width = Math.floor(SYN_W * scale) + 'px';
+  synCanvas.style.height = Math.floor(SYN_H * scale) + 'px';
+  synCanvas.width = Math.max(1, Math.floor(SYN_W * scale * dpr));
+  synCanvas.height = Math.max(1, Math.floor(SYN_H * scale * dpr));
+  synPx = synCanvas.width / SYN_W;
+  synCtx.setTransform(synPx, 0, 0, synPx, 0, 0);
+  synPost = null; synBuf = null; synBloom = null; synBloomCtx = null;
+  synPtrId = null; synFingerDown = false; synDrainPause = Math.max(synDrainPause, 0.5);   // a resize never costs the run
+}
+
+function resetArcadeWavelink() {
+  if (synRafHandle) { cancelAnimationFrame(synRafHandle); synRafHandle = null; }
+  synState = 'attract'; synPress = null; synPtrId = null; synFingerDown = false; synKeys = {}; synKeyV = 0;
+  synEvents = []; synParts = []; synRings = []; synBolts = []; synGhosts = []; synShake = 0; synFlash = 0; synRGB = 0; synHitStop = 0; synZoom = 0;
+  synBanners = []; synBannerCur = null; synCoachQ = []; synCoachCur = null;
+  // synScores is NOT cleared: session high scores survive the lobby. synCoached is cleared by every new run (synNewRun), so the tips show again on each run.
+}
+
+// ── The Arcade Floor's preview: the attract scene, card off, on the cabinet's own CRT ──
+function synPreview() {
+  return {
+    w: SYN_W, h: SYN_H, fy: 0.45,
+    begin(canvas, ctx) {
+      resetArcadeWavelink(); synCanvas = canvas; synCtx = ctx; synPreviewing = true; synPost = null; synBuf = null; synBloom = null; synBloomCtx = null;
+      synPx = canvas.width / SYN_W;
+      synEnterState('attract');
+      if (synRafHandle) { cancelAnimationFrame(synRafHandle); synRafHandle = null; }
+    },
+    step: (dt) => synUpdate(dt),
+    draw: () => synDraw(),
+    end() { resetArcadeWavelink(); synPreviewing = false; synCanvas = null; synCtx = null; synPost = null; synBuf = null; synBloom = null; synBloomCtx = null; },
+  };
+}
+// The session board's top score for the room's HI line, formatted your way: null until someone has played.
+function synBest() { return synScores.length ? synScores[0].score.toLocaleString('en-AU') : null; }
+
+window.addEventListener('resize', () => {
+  if (document.getElementById('screen-arcade-wavelink').style.display !== 'none') synResize();
+});

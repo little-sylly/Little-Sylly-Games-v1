@@ -12,6 +12,37 @@ the discovery record is kept there, not deleted. A section with nothing left ope
 
 ---
 
+## ETA? — built, what is open (10 Nov 2026, SW v272)
+
+**Owner's first 3-phone session (10 Nov 2026) — the next ETA session's task list:**
+- **Dot → Dotty.** Much younger and full of energy: early-40s, a mature beauty, professionally dressed —
+  upper management, not delivery (no hi-vis vest): ponytail, light makeup, pencil skirt. Strict, tough
+  love. Rename everywhere (Intro template + narrator/role, "FROM DOT", "Dot's Double-Take", "Dot's Notes",
+  "Dot's Favourite" rank, "Waiting for Dot", every Dot line in `eta.js`), redraw her in `EtaScene`, and
+  carry it through brief §0 / identity doc T4–T5 (paired) + `verify-identity-docs`. Her job title is
+  open (Depot Manager reads hands-on): settle it at the start of that session.
+- **The docket is hard to read.** Bold the key dispatch info (Route, distance, the Briefing's load-bearing
+  words) so it's obvious what's going on.
+- **Say what the vote is for and what it pays.** The Stamp prompt must make "best pitch, not best
+  guess" and "+N km per Stamp" explicit.
+- **The reveal doesn't land.** State each **true ETA** in words beside the Logged one (and how far off:
+  ×N too fast / slow), make "who was closest" obvious, and stamp **1st / 2nd / 3rd** (gold / silver /
+  bronze) by accuracy. Polish the Run Sheet so a player can read their own result at a glance.
+
+- **The first real multi-device session** (≥ 3 phones; revamp R15). Nothing here has met a real Firebase,
+  a real thumb or real banter. Watch: Talk Me Through It's length (no clock — it ends when everyone has
+  Stamped), the 30 s / 60 s stall countdowns, the Run Sheet's reading time on an iPhone SE, `?fps` on the
+  time-lapse.
+- **Log the playtest data the maths round asked for** — every Logged ETA against its truth (by Dispatch
+  Range), every Stamp, every Course Correction with its target — then refit the `[MATHS]` numbers and the
+  `[UNTESTED]` Spin-out / Back on Course thresholds (`docs/new-ideas/eta/for archive/eta-maths-round-1.md` + `eta_sim.py`).
+- **The content rebuild** — `data/eta-data.json` is provisional. Target: `docs/eta-content-guide.md`;
+  the old handoff's §4 has the task. Opus or Sonnet, high effort, its own session.
+- **R11 `/impeccable` pass** (critique → audit → polish) over the new screens.
+- **Lobby sticker** `data/stickers/eta.png` (then drop `eta` from `LB_NO_STICKER`) and a **music track**
+  (brief §16: ukulele over a ticking shaker; never an alarm or a radio).
+- **Phase gate** — Protocol A, phase snapshot, archive the brief + spec + boards to the owner's external archive.
+
 ## UI revamp — Stage 0 shipped, what is parked (9 Nov 2026, SW v264)
 
 The programme's own line items (lobby roster retirement, the `'seats'` Line-up type, TV mode, size

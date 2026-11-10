@@ -1,0 +1,452 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Clipboard direction</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Saira+Stencil+One&amp;family=Courier+Prime:ital,wght@0,400;0,700;1,400&amp;family=Permanent+Marker&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#EA580C}a:hover{color:#C2410C}
+.cb button{cursor:pointer;transition:transform .08s}
+.cb button:active{transform:translateY(2px)}
+.sten{font-family:'Saira Stencil One','Arial Black',Impact,sans-serif}
+.mark{font-family:'Permanent Marker','Comic Sans MS',cursive}
+.hv{background:#FF6A13;position:relative;overflow:hidden}
+.hv::before{content:'';position:absolute;left:0;right:0;top:50%;height:30%;transform:translateY(-50%);background:linear-gradient(180deg,#D9DEE3,#F4F6F8 45%,#AEB5BD)}
+.sheen::after{content:'';position:absolute;top:0;bottom:0;left:-40%;width:35%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.95),transparent);animation:sheen .7s ease-out both}
+.sheenLoop::after{content:'';position:absolute;top:0;bottom:0;left:-40%;width:30%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.9),transparent);animation:sheen 2.6s ease-in-out infinite}
+@keyframes sheen{from{left:-40%}to{left:110%}}
+@keyframes typeIn{from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0 0 0 0)}}
+.type1{animation:typeIn .5s steps(26,end) both}
+.type2{animation:typeIn .5s .3s steps(26,end) both}
+.type3{animation:typeIn .6s .6s steps(36,end) both}
+.typeA{animation:typeIn .7s steps(34,end) both}
+.typeB{animation:typeIn .5s .72s steps(26,end) both}
+@keyframes caret{0%,49%{opacity:1}50%,100%{opacity:0}}
+.caret{animation:caret .8s steps(1,end) infinite}
+@keyframes pop{0%{transform:scale(0);opacity:0}60%{transform:scale(1.25);opacity:1}100%{transform:scale(1);opacity:1}}
+.pop{animation:pop .4s cubic-bezier(.2,.9,.3,1.4) both}
+@keyframes urgent{0%{transform:rotate(-14deg) scale(3);opacity:0}30%{transform:rotate(-8deg) scale(.9);opacity:1}45%{transform:rotate(-8deg) scale(1.06)}60%,100%{transform:rotate(-8deg) scale(1);opacity:.95}}
+.urgent{animation:urgent .7s .35s ease-out both}
+@keyframes mvBob{0%,100%{transform:translateY(1px) rotate(-4deg)}50%{transform:translateY(-5px) rotate(4deg)}}
+@keyframes mvBounce{0%,100%{transform:translateY(0) scaleY(.82) scaleX(1.1)}45%{transform:translateY(-13px) scaleY(1.1) scaleX(.94)}}
+@keyframes mvRumble{0%{transform:translate(0,0)}25%{transform:translate(-1.5px,1px)}50%{transform:translate(1px,-1.5px)}75%{transform:translate(-1px,-1px)}100%{transform:translate(1.5px,1px)}}
+@keyframes mvWobble{0%,100%{transform:rotate(-8deg)}50%{transform:rotate(8deg) translateY(-2px)}}
+@keyframes mvCreep{0%,100%{transform:scaleX(1)}50%{transform:scaleX(1.18) translateX(2px)}}
+@keyframes mvSkid{0%{transform:translateX(-6px) rotate(-14deg)}40%{transform:translateX(3px) rotate(6deg)}70%{transform:rotate(-3deg)}100%{transform:none}}
+.mv-bob{animation:mvBob .5s ease-in-out infinite}
+.mv-bounce{animation:mvBounce .32s ease-in-out infinite;transform-origin:50% 100%}
+.mv-rumble{animation:mvRumble .07s linear infinite}
+.mv-wobble{animation:mvWobble .2s ease-in-out infinite}
+.mv-creep{animation:mvCreep .6s ease-in-out infinite;transform-origin:0 50%}
+.mv-skid{animation:mvSkid .5s ease-out both}
+@keyframes thunk{0%{transform:scaleY(1)}30%{transform:scaleY(1.35)}60%{transform:scaleY(.9)}100%{transform:scaleY(1)}}
+.thunk{animation:thunk .35s ease-out both}
+@keyframes boxDrop{0%{transform:translateY(-300px) rotate(-24deg);opacity:0}6%{opacity:1}52%{transform:translateY(0) rotate(-4deg)}60%{transform:translateY(0) scale(1.28,.68)}72%{transform:translateY(-16px) rotate(3deg) scale(.92,1.1)}84%{transform:translateY(0) scale(1.08,.92)}92%{transform:translateY(-3px) scale(1)}100%{transform:none;opacity:1}}
+.boxDrop{animation:boxDrop .85s cubic-bezier(.45,0,.7,1) both;transform-origin:50% 100%}
+@keyframes puff{0%{transform:scale(.3);opacity:.85}100%{transform:scale(2.2);opacity:0}}
+.puff{animation:puff .55s .44s ease-out both}
+@keyframes growY{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+.growY{animation:growY .3s .4s ease-out both;transform-origin:50% 0}
+@keyframes growX{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+.growX{animation:growX .45s cubic-bezier(.3,.8,.3,1) both}
+@keyframes stampSlam{0%{transform:translate(140px,-14px) scale(3.8) rotate(-20deg);opacity:0}18%{transform:translate(140px,-14px) scale(1.8) rotate(-9deg);opacity:1}24%{transform:translate(140px,-14px) scale(2) rotate(-9deg)}30%{transform:translate(140px,-14px) scale(1.85) rotate(-9deg)}66%{transform:translate(140px,-14px) scale(1.85) rotate(-9deg)}100%{transform:translate(0,0) scale(1) rotate(-4deg);opacity:.92}}
+.stamp{animation:stampSlam 1.2s cubic-bezier(.3,.7,.3,1) both;transform-origin:0 50%}
+@keyframes splat{0%{transform:scale(0);opacity:0}30%{transform:scale(1.3);opacity:.8}100%{transform:scale(1);opacity:.55}}
+.splat{animation:splat .35s .22s ease-out both}
+@keyframes jolt{0%,100%{transform:none}12%{transform:translate(-5px,4px) rotate(-.6deg)}26%{transform:translate(5px,-3px) rotate(.5deg)}40%{transform:translate(-3px,2px)}58%{transform:translate(2px,-1px)}}
+.jolt{animation:jolt .55s .16s ease-out both}
+@keyframes bigStamp{0%{transform:rotate(-12deg) scale(3.2);opacity:0}12%{transform:rotate(-12deg) scale(.92);opacity:1}18%{transform:rotate(-12deg) scale(1.04)}24%{transform:rotate(-12deg) scale(1)}84%{transform:rotate(-12deg) scale(1);opacity:1}100%{transform:rotate(-12deg) scale(1.06) translateY(-30px);opacity:0}}
+.bigStamp{animation:bigStamp 1.75s ease-out both}
+@keyframes fadeOut{0%,80%{opacity:1}100%{opacity:0}}
+.splats{animation:fadeOut 1.75s ease-out both}
+@keyframes chip{0%{transform:translateY(10px) scale(.4) rotate(-8deg);opacity:0}60%{transform:translateY(-3px) scale(1.15) rotate(-3deg);opacity:1}100%{transform:rotate(-3deg);opacity:1}}
+.chip{animation:chip .45s cubic-bezier(.2,.9,.3,1.3) both}
+@keyframes msgIn{0%{transform:translateY(12px);opacity:0}100%{transform:none;opacity:1}}
+.msgIn{animation:msgIn .3s ease-out both}
+@keyframes sign{from{stroke-dashoffset:520}to{stroke-dashoffset:0}}
+.sign{stroke-dasharray:520;animation:sign 1.3s .35s ease-in-out both}
+@keyframes litTick{0%{transform:scale(0) rotate(-20deg);opacity:0}60%{transform:scale(1.4) rotate(-6deg);opacity:1}100%{transform:scale(1) rotate(-6deg);opacity:1}}
+.litTick{animation:litTick .35s ease-out both}
+@keyframes starSpin{0%{transform:scale(0) rotate(-90deg);opacity:0}60%{transform:scale(1.4) rotate(20deg);opacity:1}100%{transform:scale(1) rotate(0);opacity:1}}
+.star{animation:starSpin .6s cubic-bezier(.2,.9,.3,1.3) both}
+.cf{animation-duration:1.6s;animation-timing-function:cubic-bezier(.15,.7,.4,1);animation-fill-mode:both}
+@keyframes cf0{0%{transform:translate(0,0) rotate(0);opacity:1}45%{transform:translate(-90px,-70px) rotate(220deg);opacity:1}100%{transform:translate(-118px,60px) rotate(520deg);opacity:0}}
+@keyframes cf1{0%{transform:translate(0,0) rotate(0);opacity:1}45%{transform:translate(-60px,-112px) rotate(-200deg);opacity:1}100%{transform:translate(-80px,30px) rotate(-480deg);opacity:0}}
+@keyframes cf2{0%{transform:translate(0,0) rotate(0);opacity:1}45%{transform:translate(-24px,-134px) rotate(240deg);opacity:1}100%{transform:translate(-34px,20px) rotate(560deg);opacity:0}}
+@keyframes cf3{0%{transform:translate(0,0) rotate(0);opacity:1}45%{transform:translate(16px,-126px) rotate(-260deg);opacity:1}100%{transform:translate(22px,24px) rotate(-540deg);opacity:0}}
+@keyframes cf4{0%{transform:translate(0,0) rotate(0);opacity:1}45%{transform:translate(56px,-104px) rotate(210deg);opacity:1}100%{transform:translate(76px,40px) rotate(500deg);opacity:0}}
+@keyframes cf5{0%{transform:translate(0,0) rotate(0);opacity:1}45%{transform:translate(92px,-74px) rotate(-230deg);opacity:1}100%{transform:translate(120px,60px) rotate(-520deg);opacity:0}}
+@keyframes cf6{0%{transform:translate(0,0) rotate(0);opacity:1}45%{transform:translate(-112px,-30px) rotate(250deg);opacity:1}100%{transform:translate(-146px,80px) rotate(560deg);opacity:0}}
+@keyframes cf7{0%{transform:translate(0,0) rotate(0);opacity:1}45%{transform:translate(112px,-34px) rotate(-250deg);opacity:1}100%{transform:translate(146px,76px) rotate(-560deg);opacity:0}}
+.cf0{animation-name:cf0}.cf1{animation-name:cf1}.cf2{animation-name:cf2}.cf3{animation-name:cf3}.cf4{animation-name:cf4}.cf5{animation-name:cf5}.cf6{animation-name:cf6}.cf7{animation-name:cf7}
+</style>
+</helmet>
+<div class="cb" style="position: relative; width: 375px; height: 667px; overflow: hidden; background-color: #7A5232; background-image: repeating-linear-gradient(92deg, rgba(0,0,0,0.06) 0 2px, transparent 2px 9px), repeating-linear-gradient(88deg, rgba(255,255,255,0.04) 0 1px, transparent 1px 13px); color: #22201B; font-family: 'Courier Prime', 'Courier New', monospace">
+<div class="{{joltCls}}" style="position: absolute; inset: 0">
+<div style="position: absolute; left: 8px; right: 8px; top: 22px; height: 566px; background: #FFFCF3; border-radius: 3px; box-shadow: 0 2px 0 #E9E2CF, 0 4px 0 #DCD3BC, 0 14px 30px rgba(0,0,0,0.35)"></div>
+<div aria-hidden="true" style="position: absolute; left: 137px; top: 6px; width: 100px; height: 34px; border-radius: 10px 10px 5px 5px; background: linear-gradient(180deg, #D3D6DB, #8D9299); box-shadow: 0 4px 8px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.7)">
+<div style="position: absolute; left: 32px; top: 8px; width: 36px; height: 8px; border-radius: 4px; background: #5F646B"></div>
+</div>
+<div style="position: absolute; left: 20px; top: 44px; display: flex; flex-direction: column; gap: 2px">
+<span class="sten" style="font-size: 26px; line-height: 1; letter-spacing: 0.04em">E.T.A.</span>
+<span style="font-size: 8.5px; font-weight: 700; letter-spacing: 0.16em; line-height: 1.2">EVERY THING, ANYWHERE.</span>
+<span class="mark" style="font-size: 11px; line-height: 1; color: #EA580C">Eventually.</span>
+</div>
+<div style="position: absolute; right: 20px; top: 44px; width: 104px; height: 38px; box-sizing: border-box; border: 2px solid #22201B; border-radius: 3px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px">
+<span style="font-size: 8px; font-weight: 700; letter-spacing: 0.14em; color: #6B6458">RUN 1 OF 5</span>
+<span class="sten" style="font-size: 15px; line-height: 1">JOB #0047</span>
+</div>
+<sc-if value="{{headOn}}" hint-placeholder-val="{{ true }}">
+<span class="urgent sten" style="position: absolute; right: 30px; top: 74px; font-size: 13px; line-height: 1; padding: 2px 6px; border: 2px solid #EA580C; border-radius: 3px; color: #EA580C; background: rgba(255,252,243,0.85)">URGENT</span>
+</sc-if>
+<div class="hv {{bandCls}}" style="position: absolute; left: 8px; right: 8px; top: 94px; height: 10px"></div>
+<sc-if value="{{headOn}}" hint-placeholder-val="{{ true }}">
+<div class="type1" style="position: absolute; left: 20px; right: 20px; top: 112px; display: flex; gap: 6px; font-size: 11.5px; line-height: 15px"><b>ROUTE</b><span style="flex: 1; border-bottom: 2px dotted #B8AF9C; margin-bottom: 4px"></span><b>THE LENGTH OF ITALY</b></div>
+<div class="type2" style="position: absolute; left: 20px; right: 20px; top: 128px; display: flex; gap: 6px; font-size: 11.5px; line-height: 15px"><b>DISTANCE</b><span style="flex: 1; border-bottom: 2px dotted #B8AF9C; margin-bottom: 4px"></span><b>≈ 1,200 KM</b></div>
+<div class="type3" style="position: absolute; left: 20px; right: 20px; top: 145px; font-size: 10.5px; font-style: italic; line-height: 14px; color: #4F493F">Briefing: straight, empty corridor. No stops, no traffic.</div>
+</sc-if>
+<div style="position: absolute; left: 20px; right: 20px; top: 164px; height: 26px; box-sizing: border-box; border: 2px solid #22201B; border-radius: 3px; display: flex; align-items: center; justify-content: space-between; padding: 0 8px; background: #FFF3E6">
+<span class="sten" style="font-size: 12px; letter-spacing: 0.04em">THE RUN SHEET</span>
+<span style="display: flex; align-items: center; gap: 2px; font-size: 14px; font-weight: 700; color: #C2410C">{{tickerText}}<span class="caret" style="display: block; width: 7px; height: 13px; background: #C2410C"></span></span>
+</div>
+<sc-for list="{{marks}}" as="m" hint-placeholder-count="7">
+<div style="position: absolute; top: 196px; left: {{m.x}}px; width: 0; height: 330px; pointer-events: none">
+<span style="position: absolute; top: {{m.ly}}px; left: -22px; width: 44px; text-align: center; font-size: 8.5px; font-weight: 700; color: #6B6458">{{m.label}}</span>
+<div style="position: absolute; top: 20px; left: 0; width: 0; height: 310px; border-left: 1px dashed #C9C0AB"></div>
+<sc-if value="{{m.lit}}" hint-placeholder-val="{{ false }}">
+<span class="litTick" style="position: absolute; top: {{m.ly}}px; left: -22px; width: 44px; text-align: center; font-size: 8.5px; font-weight: 700; color: #C2410C; background: #FFFCF3">{{m.label}}</span>
+<div class="growY" style="position: absolute; top: 20px; left: -0.5px; width: 0; height: 310px; border-left: 2px dashed rgba(234,88,12,0.5)"></div>
+</sc-if>
+</div>
+</sc-for>
+<sc-for list="{{rows}}" as="r" hint-placeholder-count="5">
+<div style="position: absolute; left: 0; top: {{r.top}}px; width: 375px; height: 62px">
+<span class="sten" style="position: absolute; left: 20px; top: 8px; font-size: 14px; line-height: 1">{{r.name}}</span>
+<sc-if value="{{r.rideOn}}" hint-placeholder-val="{{ true }}">
+<span style="position: absolute; left: 20px; top: 25px; width: 76px; font-size: 10px; color: #6B6458; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{r.ride}}</span>
+</sc-if>
+<sc-if value="{{r.kmOn}}" hint-placeholder-val="{{ false }}">
+<span class="mark chip" style="position: absolute; left: 18px; top: 22px; font-size: 12px; line-height: 1; color: #2B3A67; white-space: nowrap">{{r.kmLabel}}</span>
+</sc-if>
+<sc-if value="{{r.stampOn}}" hint-placeholder-val="{{ false }}">
+<div class="stamp" style="position: absolute; left: 18px; top: 37px; z-index: 6; box-sizing: border-box; padding: 1px 4px; border: 2px solid {{r.vColor}}; border-radius: 3px; color: {{r.vColor}}; background: rgba(255,252,243,0.85); display: flex; flex-direction: column; align-items: flex-start; white-space: nowrap; mix-blend-mode: multiply">
+<span class="sten" style="font-size: 12px; line-height: 1.05">{{r.vTop}}</span>
+<span style="font-size: 8px; font-weight: 700; letter-spacing: 0.05em; line-height: 1.1">{{r.vBot}}</span>
+</div>
+<span class="splat" style="position: absolute; left: 88px; top: 41px; width: 5px; height: 5px; border-radius: 50%; background: {{r.vColor}}"></span>
+</sc-if>
+<div class="hv {{r.thunkCls}}" style="position: absolute; left: 100px; top: 20px; height: 20px; width: {{r.w}}px; transition: {{r.wT}}; border-radius: 2px; box-shadow: 0 1px 0 rgba(0,0,0,0.2); transform-origin: 0 50%"></div>
+<sc-if value="{{r.gapOn}}" hint-placeholder-val="{{ false }}">
+<div class="growX" style="position: absolute; left: {{r.gx}}px; width: {{r.gw}}px; top: 20px; height: 20px; box-sizing: border-box; border: 2px {{r.gBorder}} {{r.gColor}}; background-image: repeating-linear-gradient(45deg, {{r.gHatch}} 0 4px, transparent 4px 8px); transform-origin: {{r.gOrigin}}; z-index: 2"></div>
+</sc-if>
+<sc-if value="{{r.boxOn}}" hint-placeholder-val="{{ false }}">
+<div class="growY" style="position: absolute; left: {{r.fx}}px; top: 16px; width: 0; height: 32px; margin-left: -1px; border-left: 2px dashed #22201B; z-index: 3"></div>
+<div class="boxDrop" style="position: absolute; left: {{r.fx}}px; top: -4px; width: 26px; height: 22px; margin-left: -13px; z-index: 4; box-sizing: border-box; background: #C99459; border: 1.5px solid #7A5530; border-radius: 2px; box-shadow: 0 3px 4px rgba(0,0,0,0.25)">
+<div style="position: absolute; left: 10px; top: 0; width: 5px; height: 19px; background: #FF6A13"></div>
+<div style="position: absolute; left: 0; top: 7px; width: 23px; height: 4px; background: #E8D2A6"></div>
+</div>
+<span class="puff" style="position: absolute; left: {{r.fx}}px; top: 12px; width: 40px; height: 12px; margin-left: -20px; border-radius: 50%; background: rgba(120,100,70,0.35); z-index: 1"></span>
+</sc-if>
+<sc-if value="{{r.bullOn}}" hint-placeholder-val="{{ false }}">
+<span class="star" style="position: absolute; left: {{r.fx}}px; top: 42px; margin-left: -9px; font-size: 17px; line-height: 1; color: #C98A00">★</span>
+</sc-if>
+<div style="position: absolute; left: {{r.ex}}px; top: 17px; width: 0; height: 26px; z-index: 5; transition: {{r.eT}}">
+<div class="{{r.mvCls}}" style="position: absolute; left: -14px; top: -1px; width: 28px; height: 28px">
+<div style="position: absolute; inset: 0; border-radius: 50%; background: {{r.ringBg}}; box-shadow: 0 2px 3px rgba(0,0,0,0.3)"></div>
+<div style="position: absolute; left: 3px; top: 3px; width: 22px; height: 22px; border-radius: 50%; background: #FFFCF3; display: flex; align-items: center; justify-content: center">
+<sc-if value="{{r.mLand}}" hint-placeholder-val="{{ false }}">
+<svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6" fill="none" stroke="#22201B" style="stroke-width: 1.8"></circle><circle cx="8" cy="8" r="1.8" fill="#EA580C"></circle><path d="M8 2.5 V6 M8 10 V13.5 M2.5 8 H6 M10 8 H13.5" fill="none" stroke="#22201B" style="stroke-width: 1.3"></path></svg>
+</sc-if>
+<sc-if value="{{r.mAir}}" hint-placeholder-val="{{ false }}">
+<svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M1.5 8.5 L14.5 2.5 L10.5 14 L7.8 9.8 Z" fill="#EA580C" stroke="#22201B" style="stroke-width: 1.3; stroke-linejoin: round"></path><path d="M7.8 9.8 L14.5 2.5" fill="none" stroke="#22201B" style="stroke-width: 1.1"></path></svg>
+</sc-if>
+<sc-if value="{{r.mSea}}" hint-placeholder-val="{{ false }}">
+<svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M1.5 6 C3.5 4, 5 8, 8 6 S12.5 4, 14.5 6" fill="none" stroke="#1F4FA6" style="stroke-width: 1.8; stroke-linecap: round"></path><path d="M1.5 10.5 C3.5 8.5, 5 12.5, 8 10.5 S12.5 8.5, 14.5 10.5" fill="none" stroke="#22201B" style="stroke-width: 1.8; stroke-linecap: round"></path></svg>
+</sc-if>
+<sc-if value="{{r.mSpace}}" hint-placeholder-val="{{ false }}">
+<svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="4" fill="#EA580C" stroke="#22201B" style="stroke-width: 1.3"></circle><ellipse cx="8" cy="8" rx="7.2" ry="2.4" fill="none" stroke="#22201B" style="stroke-width: 1.3" transform="rotate(-20 8 8)"></ellipse></svg>
+</sc-if>
+</div>
+</div>
+</div>
+</div>
+<sc-if value="{{r.tagOut}}" hint-placeholder-val="{{ false }}">
+<span class="pop" style="position: absolute; left: {{r.tagX}}px; top: 22px; font-size: 11px; font-weight: 700; line-height: 16px; white-space: nowrap; transform-origin: 0 50%">{{r.tag}}</span>
+</sc-if>
+<sc-if value="{{r.tagIn}}" hint-placeholder-val="{{ false }}">
+<span class="pop" style="position: absolute; right: {{r.tagR}}px; top: 22px; font-size: 11px; font-weight: 700; line-height: 16px; white-space: nowrap; transform-origin: 100% 50%">{{r.tag}}</span>
+</sc-if>
+</div>
+</sc-for>
+</div>
+<sc-if value="{{proofOn}}" hint-placeholder-val="{{ false }}">
+<div class="bigStamp" style="position: absolute; left: 28px; right: 28px; top: 250px; height: 108px; z-index: 20; box-sizing: border-box; border: 5px solid #C42A1E; border-radius: 10px; outline: 2px solid #C42A1E; outline-offset: 4px; background: rgba(255,252,243,0.92); color: #C42A1E; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px">
+<span class="sten" style="font-size: 28px; line-height: 1">PROOF OF</span>
+<span class="sten" style="font-size: 28px; line-height: 1">DELIVERY</span>
+<span style="font-size: 10px; font-weight: 700; letter-spacing: 0.22em">★ E.T.A. DEPOT ★</span>
+</div>
+<div class="splats" aria-hidden="true" style="position: absolute; inset: 0; z-index: 19; pointer-events: none">
+<span class="splat" style="position: absolute; left: 40px; top: 236px; width: 9px; height: 9px; border-radius: 50%; background: #C42A1E"></span>
+<span class="splat" style="position: absolute; left: 326px; top: 370px; width: 12px; height: 12px; border-radius: 50%; background: #C42A1E"></span>
+<span class="splat" style="position: absolute; left: 30px; top: 372px; width: 6px; height: 6px; border-radius: 50%; background: #C42A1E"></span>
+</div>
+</sc-if>
+<sc-if value="{{confOn}}" hint-placeholder-val="{{ false }}">
+<div style="position: absolute; left: {{confX}}px; top: {{confY}}px; width: 0; height: 0; z-index: 15">
+<sc-for list="{{parts}}" as="p" hint-placeholder-count="12">
+<span class="{{p.cls}}" style="position: absolute; left: -4px; top: -4px; width: {{p.w}}px; height: {{p.h}}px; border-radius: {{p.r}}; background: {{p.c}}; animation-delay: {{p.d}}ms"></span>
+</sc-for>
+</div>
+</sc-if>
+<div style="position: absolute; left: 20px; right: 20px; top: 522px; height: 60px; border-top: 2px solid #22201B">
+<span style="position: absolute; left: 0; top: 4px; font-size: 9px; font-weight: 700; letter-spacing: 0.14em; color: #6B6458">FROM DOT · DEPOT MANAGER</span>
+<sc-for list="{{msgs}}" as="mg" hint-placeholder-count="1">
+<sc-if value="{{mg.on}}" hint-placeholder-val="{{ false }}">
+<div class="msgIn" style="position: absolute; left: 0; right: 0; top: 19px; display: flex; flex-direction: column; gap: 2px">
+<span class="typeA" style="font-size: 12px; font-weight: 700; line-height: 1.25">{{mg.a}}</span>
+<span class="typeB mark" style="font-size: 12.5px; line-height: 1.25; color: #C2410C">{{mg.b}}</span>
+</div>
+</sc-if>
+</sc-for>
+<sc-if value="{{signOn}}" hint-placeholder-val="{{ false }}">
+<div class="msgIn" style="position: absolute; left: 0; right: 0; top: 16px; display: flex; align-items: flex-end; justify-content: space-between; gap: 8px">
+<div style="display: flex; flex-direction: column; gap: 3px">
+<span style="font-size: 10px; font-weight: 700; letter-spacing: 0.1em">RECEIVED IN GOOD ORDER</span>
+<span class="mark" style="font-size: 13px; line-height: 1.1; color: #2B3A67">Bullseye: {{bestName}} · {{bestKm}}</span>
+</div>
+<svg width="104" height="40" viewBox="0 0 104 40" aria-hidden="true" style="flex-shrink: 0; border-bottom: 1.5px solid #22201B"><path class="sign" d="M6 30 C10 8, 22 6, 20 22 C18 34, 6 34, 10 22 C14 12, 28 14, 30 26 C32 34, 40 30, 42 20 C44 12, 50 14, 50 24 C50 32, 58 30, 62 18 L64 10 M58 18 L70 16 C76 16, 78 26, 86 24 S98 14, 100 22" fill="none" stroke="#1F4FA6" style="stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round"></path></svg>
+</div>
+</sc-if>
+</div>
+<div style="position: absolute; left: 14px; right: 14px; top: 600px; display: flex; gap: 10px">
+<button type="button" onClick="{{replay}}" class="sten" style="flex: 1; height: 52px; border-radius: 12px; border: none; background: #EA580C; color: #FFFFFF; font-size: 17px; box-shadow: 0 4px 0 #9A3412">REPLAY</button>
+<button type="button" onClick="{{jump}}" class="sten" style="flex: 1; height: 52px; border-radius: 12px; border: 2px solid #EA580C; background: #FFFCF3; color: #C2410C; font-size: 14px; box-shadow: 0 4px 0 #9A3412">SKIP TO PROOF</button>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"freeze":{"editor":"enum","options":["animate","run-sheet","proof"],"default":"animate","section":"State"},"speed":{"editor":"range","default":1,"min":0.5,"max":2,"step":0.25,"section":"Playback"},"$preview":{"width":375,"height":667}}'>
+class Component extends DCLogic {
+  componentDidMount() { this.apply(); }
+  componentDidUpdate(pp) { if (pp.freeze !== this.props.freeze || pp.speed !== this.props.speed) this.apply(); }
+  componentWillUnmount() { this.stop(); }
+  apply() {
+    const f = this.props.freeze || 'animate';
+    if (f === 'animate') this.play(0);
+    else { this.timeline(); this.settle(f === 'run-sheet' ? this._jump : 1e9); }
+  }
+  stop() {
+    (this.timers || []).forEach((t) => clearTimeout(t));
+    this.timers = [];
+    if (this.iv) { clearInterval(this.iv); this.iv = null; }
+  }
+  k() { const s = Number(this.props.speed); return s > 0 ? 1 / s : 1; }
+  acc(logged, truth) {
+    const d0 = Math.log10(1.05), d = Math.abs(Math.log10(logged / truth));
+    if (d <= d0) return 40000;
+    const x = (d - d0) / (1.25 - d0);
+    return x >= 1 ? 0 : 40000 * Math.pow(1 - x, 1.5);
+  }
+  int(n) { return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+  num(x) { return x < 10 ? String(Math.round(x * 10) / 10) : this.int(x); }
+  dur(min) {
+    if (min < 1) return this.num(min * 60) + ' sec';
+    if (min < 60) return this.num(min) + ' min';
+    const h = min / 60;
+    if (h < 48) return this.num(h) + (h < 1.05 ? ' hr' : ' hrs');
+    const d = h / 24;
+    if (d < 60) return this.num(d) + ' days';
+    const mo = d / 30.44;
+    if (mo < 24) return this.num(mo) + ' months';
+    return this.num(d / 365.25) + ' years';
+  }
+  verdict(r) {
+    const f = r >= 1 ? r : 1 / r;
+    const dir = r >= 1 ? 'TOO SLOW' : 'TOO FAST';
+    const fs = f >= 10 ? this.int(f) : (Math.round(f * 10) / 10).toFixed(1);
+    if (f <= 1.05) return { top: 'DEAD ON ★', bot: 'WITHIN 5%', color: '#22201B', bull: true };
+    if (f <= 1.25) return { top: 'CLOSE!', bot: '×' + fs + ' ' + dir, color: '#22201B', bull: false };
+    return { top: '×' + fs, bot: dir, color: r < 1 ? '#C42A1E' : '#1F4FA6', bull: false };
+  }
+  model() {
+    if (this._m) return this._m;
+    const lo = 1, hi = 5259600, tx = 100, tw = 252;
+    const span = Math.log(hi / lo);
+    const pos = (v) => Math.max(0, Math.min(1, Math.log(v / lo) / span));
+    const X = (v) => tx + pos(v) * tw;
+    const cs = [
+      { name: 'Dev', ride: 'Rocket', mode: 'space', motion: 'mv-rumble', logged: 20, tag: '20 min', truth: 1200 / 28000 * 60,
+        fact: 'Rocket at ~28,000 km/h: about 2.6 min.', quip: 'Launch prep not included, love.' },
+      { name: 'Ada', ride: 'Helicopter', mode: 'air', motion: 'mv-bob', logged: 300, tag: '5 hrs', truth: 1200 / 250 * 60,
+        fact: 'Helicopter at ~250 km/h: about 4.8 hrs.', quip: 'Ada, dead on. Gold star.' },
+      { name: 'Boris', ride: 'Pogo stick', mode: 'land', motion: 'mv-bounce', logged: 4 * 1440, tag: '4 days', truth: 1200 / 4 * 60,
+        fact: 'Pogo stick at ~4 km/h, non-stop: about 12.5 days.', quip: "You're dreaming, Boris." },
+      { name: 'Chloe', ride: 'Shopping trolley', mode: 'land', motion: 'mv-wobble', logged: 21 * 1440, tag: '21 days', truth: 1200 / 6 * 60,
+        fact: 'Shopping trolley at ~6 km/h: about 8.3 days.', quip: 'Even with the wonky wheel.' },
+      { name: 'Eli', ride: 'Garden snail', mode: 'land', motion: 'mv-creep', logged: 182.5 * 1440, tag: '6 months', truth: 1200 / 0.048 * 60,
+        fact: 'Garden snail at ~0.05 km/h: about 2.9 years.', quip: 'Six months? Not at that pace.' }
+    ];
+    cs.forEach((c) => {
+      c.p = pos(c.logged); c.vx = X(c.logged); c.fx = X(c.truth);
+      c.ratio = c.logged / c.truth; c.v = this.verdict(c.ratio);
+      c.km = Math.round(this.acc(c.logged, c.truth)); c.inside = c.p > 0.62;
+    });
+    const marks = [
+      { label: '1 MIN', v: 1 }, { label: '1 HR', v: 60 }, { label: '1 DAY', v: 1440 }, { label: '1 WK', v: 10080 },
+      { label: '1 MO', v: 43830 }, { label: '1 YR', v: 525960 }, { label: '10 YR', v: 5259600 }
+    ].map((mk, i) => ({ label: mk.label, p: pos(mk.v), x: Math.round(X(mk.v) * 10) / 10, ly: i % 2 ? 10 : 0 }));
+    const cols = ['#FF6A13', '#C42A1E', '#1F4FA6', '#C99459', '#D9DEE3'];
+    const parts = [];
+    for (let j = 0; j < 24; j++) {
+      const dot = j % 3 === 0;
+      parts.push({ cls: 'cf cf' + (j % 8), c: cols[j % 5], d: (j % 4) * 70, w: dot ? 6 : 10, h: dot ? 6 : 5, r: dot ? '50%' : '1px' });
+    }
+    this._m = { lo, hi, tx, pos, X, cs, marks, parts };
+    return this._m;
+  }
+  timeline() {
+    const m = this.model(), k = this.k(), ev = [];
+    const SW = 4600 * k;
+    ev.push({ at: 80 * k, s: { phase: 1 } });
+    const S = 1500 * k;
+    const drive = { phase: 2, clock: 0 };
+    m.cs.forEach((c, i) => { drive['s' + i] = 1; });
+    ev.push({ at: S, s: drive, fx: () => this.runClock(SW) });
+    m.cs.forEach((c, i) => ev.push({ at: S + c.p * SW + 20, s: { ['s' + i]: 2 } }));
+    const R = S + SW + 350 * k;
+    ev.push({ at: R, s: { phase: 3, clock: 1 } });
+    const P = R + 2600 * k;
+    ev.push({ at: P, s: { phase: 4 } });
+    const Q = P + 1800 * k, step = 1350 * k;
+    ev.push({ at: Q - 1, s: { phase: 5 } });
+    m.cs.forEach((c, i) => {
+      const b = Q + i * step;
+      ev.push({ at: b, s: { ['s' + i]: 3, msg: i } });
+      ev.push({ at: b + 520 * k, s: { ['s' + i]: 4 } });
+      ev.push({ at: b + 700 * k, s: { ['s' + i]: 5 } });
+      ev.push({ at: b + 1100 * k, s: { ['s' + i]: 6 } });
+    });
+    ev.push({ at: Q + m.cs.length * step + 200 * k, s: { phase: 6 } });
+    this._jump = P - 300 * k;
+    this._sw = SW;
+    return ev;
+  }
+  base(jumped) {
+    const pre = { phase: 0, clock: 0, msg: -1, instant: true, jumped };
+    this.model().cs.forEach((c, i) => { pre['s' + i] = 0; });
+    return pre;
+  }
+  settle(at) {
+    this.stop();
+    const pre = this.base(true);
+    this.timeline().forEach((e) => { if (e.at < at) Object.assign(pre, e.s); });
+    pre.clock = 1;
+    this.setState(pre);
+  }
+  play(from) {
+    this.stop();
+    const ev = this.timeline();
+    const pre = this.base(from > 0);
+    ev.forEach((e) => { if (e.at < from) Object.assign(pre, e.s); });
+    if (from > 0) pre.clock = 1;
+    this.setState(pre);
+    this.timers.push(setTimeout(() => this.setState({ instant: false }), 50));
+    ev.forEach((e) => {
+      if (e.at < from) return;
+      this.timers.push(setTimeout(() => { this.setState(e.s); if (e.fx) e.fx(); }, e.at - from + 90));
+    });
+  }
+  runClock(SW) {
+    const t0 = Date.now();
+    if (this.iv) clearInterval(this.iv);
+    this.iv = setInterval(() => {
+      const f = Math.min(1, (Date.now() - t0) / SW);
+      this.setState({ clock: f });
+      if (f >= 1 && this.iv) { clearInterval(this.iv); this.iv = null; }
+    }, 50);
+  }
+  renderVals() {
+    const st = this.state || {};
+    const m = this.model();
+    const phase = st.phase || 0;
+    const clock = st.clock || 0;
+    const instant = st.instant !== false;
+    const SW = this._sw || 4600 * this.k();
+    const rows = m.cs.map((c, i) => {
+      const s = st['s' + i] || 0;
+      const ex = s >= 1 ? c.vx : m.tx;
+      const ms = Math.round(c.p * SW);
+      let mv = '';
+      if (s === 1) mv = c.motion;
+      else if (s >= 2 && !st.jumped) mv = 'mv-skid';
+      const tooFast = c.ratio < 1;
+      return {
+        top: 214 + i * 62,
+        name: c.name, ride: c.ride,
+        mLand: c.mode === 'land', mAir: c.mode === 'air', mSea: c.mode === 'sea', mSpace: c.mode === 'space',
+        ringBg: c.unreg ? 'repeating-linear-gradient(45deg, #FFC21A 0 3px, #22201B 3px 6px)' : '#FF6A13',
+        w: (ex - m.tx).toFixed(1),
+        wT: instant ? 'none' : 'width ' + ms + 'ms linear',
+        ex: ex.toFixed(1),
+        eT: instant ? 'none' : 'left ' + ms + 'ms linear',
+        mvCls: mv,
+        thunkCls: s >= 2 && !st.jumped ? 'thunk sheen' : '',
+        tag: c.tag,
+        tagOut: s >= 2 && !c.inside, tagIn: s >= 2 && c.inside,
+        tagX: (c.vx + 15).toFixed(1), tagR: (375 - c.vx + 15).toFixed(1),
+        boxOn: s >= 3,
+        fx: c.fx.toFixed(1),
+        gapOn: s >= 4 && !c.v.bull,
+        gx: Math.min(c.fx, c.vx).toFixed(1),
+        gw: Math.max(2, Math.abs(c.fx - c.vx)).toFixed(1),
+        gColor: tooFast ? '#C42A1E' : '#1F4FA6',
+        gBorder: tooFast ? 'dashed' : 'solid',
+        gHatch: tooFast ? 'rgba(196,42,30,0.28)' : 'rgba(31,79,166,0.45)',
+        gOrigin: c.fx > c.vx ? 'left center' : 'right center',
+        bullOn: s >= 4 && c.v.bull,
+        stampOn: s >= 5,
+        vTop: c.v.top, vBot: c.v.bot, vColor: c.v.color,
+        rideOn: s < 6,
+        kmOn: s >= 6,
+        kmLabel: '+' + this.int(c.km) + ' km'
+      };
+    });
+    const marks = m.marks.map((mk) => ({ label: mk.label, x: mk.x, ly: mk.ly, lit: phase >= 3 || (phase === 2 && clock >= mk.p - 0.002) }));
+    let tickerText = '0 min';
+    if (phase === 2) tickerText = this.dur(m.lo * Math.pow(m.hi / m.lo, clock));
+    else if (phase >= 3) tickerText = 'ALL LOGGED';
+    const msgs = [
+      { on: phase === 1, a: 'Right, Job 47. Lock in your ETAs.', b: 'No peeking at each other\'s Rides.' },
+      { on: phase === 2, a: 'Filling in the Run Sheet…', b: 'Quickest at the top. Ish.' },
+      { on: phase === 3 || phase === 4, a: 'Talk me through it, then.', b: 'Best pitch gets my stamp.' }
+    ];
+    m.cs.forEach((c, i) => msgs.push({ on: phase === 5 && st.msg === i, a: c.fact, b: c.quip }));
+    const bi = m.cs.findIndex((c) => c.v.bull);
+    const best = m.cs[bi >= 0 ? bi : 0];
+    return {
+      headOn: phase >= 1,
+      bandCls: phase >= 1 ? 'sheenLoop' : '',
+      tickerText, marks, rows,
+      joltCls: phase === 4 ? 'jolt' : '',
+      proofOn: phase === 4,
+      msgs,
+      signOn: phase === 6,
+      bestName: best.name,
+      bestKm: this.int(best.km) + ' km',
+      confOn: phase === 6 && bi >= 0,
+      confX: best.fx.toFixed(1),
+      confY: 214 + (bi >= 0 ? bi : 0) * 62 + 10,
+      parts: m.parts,
+      replay: () => this.play(0),
+      jump: () => { this.timeline(); this.play(this._jump); }
+    };
+  }
+}
+</script>
+</body>
+</html>

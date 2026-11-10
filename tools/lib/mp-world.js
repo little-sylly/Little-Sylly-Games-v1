@@ -172,7 +172,8 @@ function makeDocument() {
   const byId = {};
   const mk = (id, tag) => {
     const el = {
-      id, tagName: tag || 'div', style: {}, dataset: {}, value: '', textContent: '', disabled: false,
+      id, tagName: tag || 'div', style: { setProperty(k, v) { this[k] = v; } }, dataset: {}, value: '', textContent: '', disabled: false,
+      _attrs: {}, setAttribute(k, v) { this._attrs[k] = String(v); }, getAttribute(k) { return this._attrs[k] ?? null; }, removeAttribute(k) { delete this._attrs[k]; },
       children: [], _l: {}, _cls: new Set(), _html: '',
       get className() { return [...this._cls].join(' '); },
       set className(v) { this._cls = new Set(String(v).split(/\s+/).filter(Boolean)); },

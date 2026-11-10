@@ -1,0 +1,412 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   eta.css — ETA?'s world: E.T.A. Couriers, the Clipboard direction.
+   Every value traces to docs/new-ideas/eta/for archive/boards/depot-directions/{Main,Intro}.dc.html.
+   Brand-coded CONTROLS (.eta-cta, .pill-active-eta, .game-toggle-on-eta, .eta-range)
+   live in styles.css; this file is the world (ui-revamp § 2: scene art uses whatever
+   palette its world needs). Fredoka stays on every control — the three faces below
+   are scene text only (owner, 10 Nov 2026; ~88 KB, precached).
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@font-face { font-family: 'EtaStencil'; font-style: normal; font-weight: 400; font-display: swap; src: url('../fonts/eta-saira-stencil.woff2') format('woff2'); }
+@font-face { font-family: 'EtaType'; font-style: normal; font-weight: 400; font-display: swap; src: url('../fonts/eta-courier-prime-400.woff2') format('woff2'); }
+@font-face { font-family: 'EtaType'; font-style: normal; font-weight: 700; font-display: swap; src: url('../fonts/eta-courier-prime-700.woff2') format('woff2'); }
+@font-face { font-family: 'EtaMarker'; font-style: normal; font-weight: 400; font-display: swap; src: url('../fonts/eta-permanent-marker.woff2') format('woff2'); }
+
+:root {
+  --eta-orange: #FF6A13;   /* scene orange — tape, bands, vests; never under white text */
+  --eta-brand: #EA580C;    /* controls */
+  --eta-ink-o: #C2410C;    /* orange TEXT rung */
+  --eta-cream: #FFFCF3;
+  --eta-kraft: #7A5232;
+  --eta-ink: #22201B;
+  --eta-muted: #6B6458;
+  --eta-rule: #C9C0AB;
+  --eta-parcel: #C99459;
+  --eta-red: #C42A1E;      /* too fast */
+  --eta-blue: #1F4FA6;     /* too slow */
+  --eta-gold: #C98A00;
+}
+
+.eta-sten { font-family: 'EtaStencil', 'Arial Black', Impact, sans-serif; font-weight: 400; letter-spacing: .03em; }
+.eta-mark { font-family: 'EtaMarker', 'Comic Sans MS', cursive; }
+.eta-type { font-family: 'EtaType', 'Courier New', monospace; }
+
+/* ── The desk (full-bleed world background on action screens — departure D-ETA-1) ── */
+.eta-desk {
+  background-color: var(--eta-kraft);
+  background-image: repeating-linear-gradient(92deg, rgba(0,0,0,.06) 0 2px, transparent 2px 9px),
+                    repeating-linear-gradient(88deg, rgba(255,255,255,.04) 0 1px, transparent 1px 13px);
+  color: var(--eta-ink);
+}
+.eta-desk-eyebrow { font-family: 'EtaType', 'Courier New', monospace; font-weight: 700; font-size: .75rem; letter-spacing: .14em; color: #F3E3CC; }
+.eta-desk-title { color: var(--eta-cream); font-size: 1.5rem; line-height: 1; }
+.eta-desk-sub { color: #F3E3CC; font-family: 'EtaType', 'Courier New', monospace; font-size: .8rem; margin-top: .25rem; }
+.eta-chrome { color: #F3E3CC; }
+.eta-status { text-align: center; font-family: 'EtaType', 'Courier New', monospace; font-weight: 700; font-size: .85rem; color: #F3E3CC; }
+.eta-btn-paper { background: var(--eta-cream); color: var(--eta-ink-o); border: 2px solid var(--eta-brand); display: flex; align-items: center; justify-content: center; }
+
+/* ── The clipboard sheet ── */
+.eta-clip {
+  position: relative;
+  background: var(--eta-cream);
+  color: var(--eta-ink);
+  border-radius: 3px;
+  box-shadow: 0 2px 0 #E9E2CF, 0 4px 0 #DCD3BC, 0 14px 30px rgba(0,0,0,.35);
+  font-family: 'EtaType', 'Courier New', monospace;
+}
+.eta-clamp { position: absolute; left: 50%; top: -16px; width: 100px; height: 32px; margin-left: -50px; border-radius: 10px 10px 5px 5px;
+  background: linear-gradient(180deg, #D3D6DB, #8D9299); box-shadow: 0 4px 8px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.7); z-index: 2; }
+.eta-clamp span { position: absolute; left: 32px; top: 8px; width: 36px; height: 8px; border-radius: 4px; background: #5F646B; }
+
+/* hi-vis band: orange with the reflective silver stripe; the sheen sweeps across */
+.eta-hv { background: var(--eta-orange); position: relative; overflow: hidden; height: 10px; }
+.eta-hv::before { content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 30%; transform: translateY(-50%);
+  background: linear-gradient(180deg, #D9DEE3, #F4F6F8 45%, #AEB5BD); }
+.eta-sheen-loop::after, .eta-thunk::after { content: ''; position: absolute; top: 0; bottom: 0; left: -40%; width: 30%;
+  background: linear-gradient(100deg, transparent, rgba(255,255,255,.9), transparent); }
+.eta-sheen-loop::after { animation: eta-sheen 2.6s ease-in-out infinite; }
+.eta-thunk { animation: eta-thunk .35s ease-out both; }
+.eta-thunk::after { animation: eta-sheen .7s ease-out both; }
+@keyframes eta-sheen { from { left: -40%; } to { left: 110%; } }
+@keyframes eta-thunk { 0% { transform: scaleY(1); } 30% { transform: scaleY(1.35); } 60% { transform: scaleY(.9); } 100% { transform: scaleY(1); } }
+
+/* letterhead + JOB box */
+.eta-lh { display: flex; align-items: flex-start; justify-content: space-between; padding: 14px 14px 8px; }
+.eta-lh-co { display: flex; flex-direction: column; gap: 2px; }
+.eta-lh-name { font-size: 26px; line-height: 1; }
+.eta-lh-motto { font-size: 8.5px; font-weight: 700; letter-spacing: .16em; line-height: 1.2; }
+.eta-lh-ev { font-size: 11px; line-height: 1; color: var(--eta-brand); }
+.eta-jobbox { min-width: 104px; height: 38px; box-sizing: border-box; border: 2px solid var(--eta-ink); border-radius: 3px; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 2px; padding: 0 6px; }
+.eta-jobbox-run { font-size: 8px; font-weight: 700; letter-spacing: .14em; color: var(--eta-muted); }
+.eta-jobbox-no { font-size: 15px; line-height: 1; }
+
+/* Dot's note */
+.eta-note { border-top: 2px solid var(--eta-ink); margin: 6px 14px 0; padding: 4px 0 12px; min-height: 64px; display: flex; flex-direction: column; gap: 3px; }
+.eta-note-from { font-size: 9px; font-weight: 700; letter-spacing: .14em; color: var(--eta-muted); }
+.eta-note-a { font-size: 12.5px; font-weight: 700; line-height: 1.25; }
+.eta-note-b { font-size: 13px; line-height: 1.25; color: var(--eta-ink-o); }
+@keyframes eta-typein { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+.eta-type-a { animation: eta-typein .7s steps(34, end) both; }
+.eta-type-b { animation: eta-typein .5s .72s steps(26, end) both; }
+
+/* ── The job docket ── */
+.eta-docket { padding-bottom: 4px; overflow: hidden; }
+.eta-urgent { position: absolute; right: 22px; top: 54px; font-size: 13px; line-height: 1; padding: 2px 6px; border: 2px solid var(--eta-brand);
+  border-radius: 3px; color: var(--eta-brand); background: rgba(255,252,243,.85); transform: rotate(-8deg); z-index: 2; }
+.eta-docket .eta-hv { margin: 6px 0 4px; }
+.eta-field { display: flex; gap: 6px; font-size: 12px; line-height: 16px; padding: 4px 14px 0; }
+.eta-dots { flex: 1; border-bottom: 2px dotted #B8AF9C; margin-bottom: 4px; min-width: 12px; }
+.eta-field-val { text-align: right; text-transform: uppercase; max-width: 70%; }
+.eta-briefing { padding: 8px 14px 4px; }
+.eta-briefing-label { display: block; font-size: 9px; font-weight: 700; letter-spacing: .14em; color: var(--eta-muted); margin-bottom: 2px; }
+.eta-briefing ul { display: flex; flex-direction: column; gap: 3px; }
+.eta-briefing li { font-size: 11.5px; font-style: italic; line-height: 15px; color: #4F493F; }
+.eta-gpslost { margin: 6px 14px 0; padding: 4px 8px; border: 2px dashed var(--eta-red); color: var(--eta-red); font-weight: 700; font-size: 12px; text-align: center; }
+.eta-docket.is-anim .eta-urgent { animation: eta-urgent .7s .35s ease-out both; }
+.eta-docket.is-anim .eta-f1 { animation: eta-typein .5s .2s steps(26, end) both; }
+.eta-docket.is-anim .eta-f2 { animation: eta-typein .5s .5s steps(26, end) both; }
+.eta-docket.is-anim .eta-f3 { animation: eta-typein .6s .8s steps(36, end) both; }
+.eta-docket.is-anim .eta-f4 { animation: eta-msgin .3s 1.4s ease-out both; }
+.eta-docket.is-anim.is-offmap .eta-gpslost { animation: eta-blink .4s 3 steps(2, end) both; }
+.eta-docket.is-anim.is-offmap .eta-f1 { animation-delay: 1.4s; }
+.eta-docket.is-anim.is-offmap .eta-f2 { animation-delay: 1.7s; }
+.eta-docket.is-anim.is-offmap .eta-f3 { animation-delay: 2.0s; }
+.eta-docket.is-anim.is-offmap .eta-urgent { animation-delay: 1.55s; }
+@keyframes eta-urgent { 0% { transform: rotate(-14deg) scale(3); opacity: 0; } 30% { transform: rotate(-8deg) scale(.9); opacity: 1; }
+  45% { transform: rotate(-8deg) scale(1.06); } 60%, 100% { transform: rotate(-8deg) scale(1); opacity: .95; } }
+@keyframes eta-msgin { 0% { transform: translateY(12px); opacity: 0; } 100% { transform: none; opacity: 1; } }
+@keyframes eta-blink { 0% { opacity: 0; } 100% { opacity: 1; } }
+.eta-docket.is-compact { padding-top: 6px; }
+.eta-docket-mini { display: flex; justify-content: space-between; align-items: baseline; padding: 4px 14px 2px; font-size: 10px; font-weight: 700; letter-spacing: .12em; color: var(--eta-muted); }
+.eta-docket-mini .eta-sten { font-size: 14px; color: var(--eta-ink); letter-spacing: .04em; }
+.eta-docket.is-compact .eta-hv { height: 6px; }
+.eta-docket.is-compact .eta-briefing { padding-bottom: 10px; }
+
+/* ── Your Ride + the Time Dial ── */
+.eta-ride-card { padding: 12px 14px; }
+.eta-ride-card.is-unreg { box-shadow: 0 0 0 3px #FFC21A, 0 14px 30px rgba(0,0,0,.35); }
+.eta-ride-card-inner { display: flex; align-items: center; gap: 12px; }
+.eta-ride-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.eta-ride-eyebrow { font-size: 9px; font-weight: 700; letter-spacing: .14em; color: var(--eta-muted); }
+.eta-ride-name { font-family: 'EtaStencil', 'Arial Black', sans-serif; font-size: 22px; line-height: 1.05; }
+.eta-ride-mode { font-size: 11.5px; color: var(--eta-muted); }
+.eta-ride-mode b { color: var(--eta-red); }
+.eta-ride-wait { font-size: 13px; font-weight: 700; color: var(--eta-muted); text-align: center; padding: 6px 0; }
+.eta-dial { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 10px; }
+.eta-dial-label { font-size: 9px; font-weight: 700; letter-spacing: .14em; color: var(--eta-muted); }
+.eta-dial-num { width: 100%; min-height: 52px; border: 2px solid var(--eta-ink); border-radius: 4px; background: #fff; text-align: center;
+  font-family: 'EtaType', 'Courier New', monospace; font-weight: 700; font-size: 28px; color: var(--eta-ink); }
+.eta-dial-num:focus { outline: none; border-color: var(--eta-brand); }
+.eta-dial-units, .eta-dial-mults, .eta-wheel-stops { display: flex; flex-wrap: wrap; gap: 6px; }
+.eta-dial-mults { align-items: center; font-size: 11px; color: var(--eta-muted); }
+.eta-unit { min-height: 44px; min-width: 44px; padding: 0 10px; border: 2px solid var(--eta-ink); border-radius: 4px; background: var(--eta-cream);
+  font-family: 'Fredoka', sans-serif; font-weight: 600; font-size: .95rem; color: var(--eta-ink); }
+.eta-unit.is-on { background: var(--eta-brand); border-color: var(--eta-brand); color: #fff; }
+.eta-unit:active, .eta-step:active { transform: translateY(2px); }
+.eta-dial-error { font-size: 12px; font-weight: 700; color: var(--eta-red); }
+.eta-log-wait { padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; }
+.eta-log-mine { font-size: 14px; font-weight: 700; }
+.eta-log-count { font-size: 16px; }
+.eta-ticks-list { display: flex; flex-direction: column; }
+.eta-tick-row { display: flex; align-items: center; justify-content: space-between; height: 26px; border-bottom: 1px dashed var(--eta-rule); font-size: 13px; font-weight: 700; }
+.eta-tick-stamp { font-family: 'EtaStencil', 'Arial Black', sans-serif; font-size: 10px; padding: 1px 5px; border: 2px solid var(--eta-brand); border-radius: 3px; color: var(--eta-ink-o); transform: rotate(-6deg); }
+.eta-tick-wait { color: var(--eta-muted); }
+.eta-stall { font-size: 12px; font-weight: 700; color: var(--eta-red); }
+.eta-stall-desk { text-align: center; color: #FFD9C2; }
+
+/* ── The mode badge (render seam) ── */
+.eta-badge { position: relative; display: inline-block; flex-shrink: 0; border-radius: 50%; background: var(--eta-orange); box-shadow: 0 2px 3px rgba(0,0,0,.3); }
+.eta-badge.is-unreg { background: repeating-linear-gradient(45deg, #FFC21A 0 3px, #22201B 3px 6px); }
+.eta-badge-face { position: absolute; inset: 11%; border-radius: 50%; background: var(--eta-cream); display: flex; align-items: center; justify-content: center; }
+.eta-badge-face svg { width: 72%; height: 72%; }
+.eta-badge-asset { background-size: cover; background-position: center; }
+
+/* ── The Run Sheet board ── */
+.eta-board { padding-top: 10px; margin-top: 14px; }
+/* The board's letterhead runs a size down from the docket's: the Run Sheet is the Stage here. */
+.eta-board .eta-lh { padding: 10px 12px 6px; }
+.eta-board .eta-lh-name { font-size: 22px; }
+.eta-board .eta-jobbox { height: 34px; }
+.eta-board .eta-note { min-height: 54px; }
+.eta-board .eta-hv { margin: 2px 0 6px; }
+.eta-sheet-head { margin: 0 12px; height: 26px; box-sizing: border-box; border: 2px solid var(--eta-ink); border-radius: 3px; display: flex; align-items: center;
+  justify-content: space-between; padding: 0 8px; background: #FFF3E6; }
+.eta-sheet-head .eta-sten { font-size: 12px; }
+.eta-ticker { display: flex; align-items: center; gap: 2px; font-size: 13px; font-weight: 700; color: var(--eta-ink-o); }
+.eta-caret { display: block; width: 7px; height: 13px; background: var(--eta-ink-o); animation: eta-caret .8s steps(1, end) infinite; }
+@keyframes eta-caret { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
+.eta-sheet-body { position: relative; padding: 22px 0 2px; }
+.eta-ticks { position: absolute; left: 92px; right: 14px; top: 0; bottom: 0; pointer-events: none; }
+.eta-tick { position: absolute; top: 0; bottom: 0; width: 0; border-left: 1px dashed var(--eta-rule); }
+.eta-tick i { position: absolute; top: 0; left: -22px; width: 44px; white-space: nowrap; text-align: center; font-style: normal; font-size: 8.5px; font-weight: 700; color: var(--eta-muted); background: var(--eta-cream); }
+.eta-tick.is-low i { top: 9px; }
+.eta-tick.is-end i { left: auto; right: 2px; text-align: right; width: auto; }
+.eta-tick.is-start i { left: 2px; text-align: left; width: auto; }
+.eta-tick.is-lit { border-left: 2px dashed rgba(234,88,12,.5); }
+.eta-tick.is-lit i { color: var(--eta-ink-o); }
+.eta-rows { position: relative; display: flex; flex-direction: column; }
+.eta-row { position: relative; display: block; width: 100%; height: 54px; text-align: left; background: none; border: 0; padding: 0; cursor: default;
+  font-family: 'EtaType', 'Courier New', monospace; color: var(--eta-ink); -webkit-tap-highlight-color: transparent; }
+.eta-row:disabled { opacity: 1; }
+.eta-row.is-selectable { cursor: pointer; }
+.eta-row.is-selectable:active { background: rgba(234,88,12,.06); }
+.eta-row.is-selected { background: rgba(234,88,12,.12); box-shadow: inset 4px 0 0 var(--eta-brand); }
+.eta-row.is-mine .eta-row-name i { font-style: normal; font-family: 'EtaType', monospace; font-size: 9px; color: var(--eta-muted); }
+.eta-row-name { position: absolute; left: 12px; top: 8px; font-size: 14px; line-height: 1; max-width: 78px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.eta-row-ride { position: absolute; left: 12px; top: 25px; width: 76px; font-size: 10px; color: var(--eta-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.eta-row.s-km .eta-row-ride { display: none; }
+.eta-row-km { position: absolute; left: 10px; top: 23px; font-size: 12px; line-height: 1; color: #2B3A67; white-space: nowrap; display: none; }
+.eta-row.s-km .eta-row-km { display: block; }
+.eta-vstamp { position: absolute; left: 10px; top: 36px; z-index: 6; display: none; flex-direction: column; align-items: flex-start; padding: 1px 4px;
+  border: 2px solid var(--eta-ink); border-radius: 3px; background: rgba(255,252,243,.88); white-space: nowrap; transform: rotate(-4deg); mix-blend-mode: multiply; }
+.eta-vstamp b { font-size: 11px; line-height: 1.05; }
+.eta-vstamp small { font-size: 7.5px; font-weight: 700; letter-spacing: .05em; line-height: 1.1; }
+.eta-row.s-stamp .eta-vstamp { display: flex; }
+.eta-vstamp.is-fast { border-color: var(--eta-red); color: var(--eta-red); }
+.eta-vstamp.is-slow { border-color: var(--eta-blue); color: var(--eta-blue); }
+.eta-vstamp.is-none { border-color: var(--eta-muted); color: var(--eta-muted); }
+.eta-mystamp { position: absolute; right: 8px; top: 2px; display: none; font-family: 'EtaStencil', sans-serif; font-size: 9px; padding: 0 4px;
+  border: 2px solid var(--eta-brand); border-radius: 3px; color: var(--eta-ink-o); transform: rotate(4deg); z-index: 7; }
+.eta-row.is-stamped .eta-mystamp { display: block; }
+.eta-track { position: absolute; left: 92px; right: 14px; top: 20px; height: 20px; }
+.eta-tape { position: absolute; left: 0; top: 0; height: 20px; width: 0; border-radius: 2px; box-shadow: 0 1px 0 rgba(0,0,0,.2); transform-origin: 0 50%; }
+.eta-rider { position: absolute; top: -3px; left: 0; width: 0; height: 26px; z-index: 5; }
+.eta-rider-mv { position: absolute; left: -14px; top: -1px; width: 28px; height: 28px; }
+.eta-rider-mv.eta-mv-land.is-moving  { animation: eta-mv-bounce .32s ease-in-out infinite; transform-origin: 50% 100%; }
+.eta-rider-mv.eta-mv-air.is-moving   { animation: eta-mv-bob .5s ease-in-out infinite; }
+.eta-rider-mv.eta-mv-sea.is-moving   { animation: eta-mv-wobble .4s ease-in-out infinite; }
+.eta-rider-mv.eta-mv-space.is-moving { animation: eta-mv-rumble .07s linear infinite; }
+.eta-rider-mv.eta-skid { animation: eta-skid .5s ease-out both; }
+@keyframes eta-mv-bob { 0%, 100% { transform: translateY(1px) rotate(-4deg); } 50% { transform: translateY(-5px) rotate(4deg); } }
+@keyframes eta-mv-bounce { 0%, 100% { transform: translateY(0) scaleY(.82) scaleX(1.1); } 45% { transform: translateY(-13px) scaleY(1.1) scaleX(.94); } }
+@keyframes eta-mv-wobble { 0%, 100% { transform: rotate(-8deg); } 50% { transform: rotate(8deg) translateY(-2px); } }
+@keyframes eta-mv-rumble { 0% { transform: translate(0,0); } 25% { transform: translate(-1.5px,1px); } 50% { transform: translate(1px,-1.5px); } 75% { transform: translate(-1px,-1px); } 100% { transform: translate(1.5px,1px); } }
+@keyframes eta-skid { 0% { transform: translateX(-6px) rotate(-14deg); } 40% { transform: translateX(3px) rotate(6deg); } 70% { transform: rotate(-3deg); } 100% { transform: none; } }
+.eta-tag { position: absolute; top: 2px; font-size: 11px; font-weight: 700; line-height: 16px; white-space: nowrap; display: none; z-index: 4; }
+.eta-tag.is-shown { display: block; animation: eta-pop .4s cubic-bezier(.2,.9,.3,1.4) both; }
+.eta-tag.is-in { background: rgba(255,252,243,.9); padding: 0 3px; border-radius: 2px; }
+.eta-row.is-noeta .eta-tag { left: 0; color: var(--eta-muted); font-style: italic; }
+@keyframes eta-pop { 0% { transform: scale(0); opacity: 0; } 60% { transform: scale(1.25); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
+.eta-ghost { position: absolute; left: 0; top: 0; height: 20px; display: none; border: 2px dashed rgba(34,32,27,.35); border-radius: 2px; box-sizing: border-box; }
+.eta-myghost { position: absolute; top: -2px; height: 24px; display: none; box-sizing: border-box; border: 2px dashed var(--eta-red); border-radius: 2px;
+  background: repeating-linear-gradient(45deg, rgba(196,42,30,.12) 0 4px, transparent 4px 8px); z-index: 3; }
+.eta-myghost.is-up { border-color: var(--eta-blue); background: repeating-linear-gradient(45deg, rgba(31,79,166,.14) 0 4px, transparent 4px 8px); }
+.eta-amend { position: absolute; transform: translateX(-50%); top: -17px; font-size: 13px; line-height: 1; color: var(--eta-red); white-space: nowrap; z-index: 6; }
+.eta-chip { animation: eta-chip .45s cubic-bezier(.2,.9,.3,1.3) both; }
+@keyframes eta-chip { 0% { transform: translateY(10px) scale(.4) rotate(-8deg); opacity: 0; } 60% { transform: translateY(-3px) scale(1.15) rotate(-3deg); opacity: 1; } 100% { transform: rotate(-3deg); opacity: 1; } }
+.eta-gap { position: absolute; top: 0; height: 20px; display: none; box-sizing: border-box; border: 2px solid var(--eta-blue); z-index: 2;
+  background-image: repeating-linear-gradient(45deg, rgba(31,79,166,.45) 0 4px, transparent 4px 8px); }
+.eta-gap.is-fast { border-style: dashed; border-color: var(--eta-red); background-image: repeating-linear-gradient(45deg, rgba(196,42,30,.28) 0 4px, transparent 4px 8px); }
+.eta-row.s-gap .eta-gap { display: block; animation: eta-growx .45s cubic-bezier(.3,.8,.3,1) both; }
+@keyframes eta-growx { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+.eta-dropline { position: absolute; top: -4px; width: 0; height: 32px; margin-left: -1px; border-left: 2px dashed var(--eta-ink); display: none; z-index: 3; }
+.eta-parcel { position: absolute; top: -24px; width: 26px; height: 22px; margin-left: -13px; z-index: 4; display: none; box-sizing: border-box;
+  background: var(--eta-parcel); border: 1.5px solid #7A5530; border-radius: 2px; box-shadow: 0 3px 4px rgba(0,0,0,.25); transform-origin: 50% 100%; }
+.eta-parcel i { position: absolute; left: 10px; top: 0; width: 5px; height: 19px; background: var(--eta-orange); }
+.eta-parcel b { position: absolute; left: 0; top: 7px; width: 23px; height: 4px; background: #E8D2A6; }
+.eta-puff { position: absolute; top: -8px; width: 40px; height: 12px; margin-left: -20px; border-radius: 50%; background: rgba(120,100,70,.35); display: none; z-index: 1; opacity: 0; }
+.eta-row.s-parcel .eta-parcel, .eta-row.s-parcel .eta-dropline { display: block; }
+.eta-row.s-parcel .eta-puff { display: block; }
+.eta-anim-drop { animation: eta-boxdrop .85s cubic-bezier(.45,0,.7,1) both; }
+.eta-anim-puff { animation: eta-puff .55s .44s ease-out both; }
+@keyframes eta-boxdrop { 0% { transform: translateY(-300px) rotate(-24deg); opacity: 0; } 6% { opacity: 1; } 52% { transform: translateY(0) rotate(-4deg); }
+  60% { transform: translateY(0) scale(1.28,.68); } 72% { transform: translateY(-16px) rotate(3deg) scale(.92,1.1); } 84% { transform: translateY(0) scale(1.08,.92); }
+  92% { transform: translateY(-3px) scale(1); } 100% { transform: none; opacity: 1; } }
+@keyframes eta-puff { 0% { transform: scale(.3); opacity: .85; } 100% { transform: scale(2.2); opacity: 0; } }
+.eta-star { position: absolute; top: 20px; margin-left: -9px; font-size: 17px; line-height: 1; color: var(--eta-gold); display: none; z-index: 5; }
+.eta-row.s-bull .eta-star { display: block; animation: eta-starspin .6s cubic-bezier(.2,.9,.3,1.3) both; }
+@keyframes eta-starspin { 0% { transform: scale(0) rotate(-90deg); opacity: 0; } 60% { transform: scale(1.4) rotate(20deg); opacity: 1; } 100% { transform: scale(1) rotate(0); opacity: 1; } }
+.eta-anim-stamp { animation: eta-stampslam .9s cubic-bezier(.3,.7,.3,1) both; transform-origin: 0 50%; }
+@keyframes eta-stampslam { 0% { transform: scale(3.2) rotate(-20deg); opacity: 0; } 30% { transform: scale(.92) rotate(-4deg); opacity: 1; } 45% { transform: scale(1.06) rotate(-4deg); } 100% { transform: scale(1) rotate(-4deg); opacity: 1; } }
+.eta-banner { position: absolute; right: 0; top: 20px; display: none; font-size: 10px; padding: 0 4px; border: 2px solid currentColor; border-radius: 3px; background: rgba(255,252,243,.9); z-index: 7; transform: rotate(-6deg); }
+.eta-row.s-banner .eta-banner { display: block; }
+.eta-banner.is-spin { color: var(--eta-red); }
+.eta-banner.is-back { color: var(--eta-blue); }
+.eta-anim-spin { animation: eta-shake .6s ease-out both; }
+.eta-anim-back { animation: eta-hop .6s ease-out both; }
+@keyframes eta-shake { 0%, 100% { transform: rotate(-6deg); } 20% { transform: translateX(-4px) rotate(-10deg) scale(1.3); } 40% { transform: translateX(4px) rotate(-2deg); } 60% { transform: translateX(-3px) rotate(-8deg); } 80% { transform: translateX(2px) rotate(-5deg); } }
+@keyframes eta-hop { 0% { transform: translateY(0) rotate(-6deg) scale(.5); opacity: 0; } 40% { transform: translateY(-10px) rotate(-6deg) scale(1.15); opacity: 1; } 100% { transform: rotate(-6deg); } }
+
+/* fx layer: the big PROOF OF DELIVERY stamp, confetti */
+.eta-fx { position: absolute; inset: 0; pointer-events: none; z-index: 20; overflow: hidden; }
+.eta-bigstamp { position: absolute; left: 22px; right: 22px; top: 34%; height: 108px; box-sizing: border-box; border: 5px solid var(--eta-red); border-radius: 10px;
+  outline: 2px solid var(--eta-red); outline-offset: 4px; background: rgba(255,252,243,.92); color: var(--eta-red); display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 4px; }
+.eta-bigstamp .eta-sten { font-size: 28px; line-height: 1; }
+.eta-bigstamp small { font-size: 10px; font-weight: 700; letter-spacing: .22em; }
+.eta-anim-bigstamp { animation: eta-bigstamp 1.75s ease-out both; }
+@keyframes eta-bigstamp { 0% { transform: rotate(-12deg) scale(3.2); opacity: 0; } 12% { transform: rotate(-12deg) scale(.92); opacity: 1; } 18% { transform: rotate(-12deg) scale(1.04); }
+  24% { transform: rotate(-12deg) scale(1); } 84% { transform: rotate(-12deg) scale(1); opacity: 1; } 100% { transform: rotate(-12deg) scale(1.06) translateY(-30px); opacity: 0; } }
+.eta-jolt { animation: eta-jolt .55s .16s ease-out both; }
+@keyframes eta-jolt { 0%, 100% { transform: none; } 12% { transform: translate(-5px,4px) rotate(-.6deg); } 26% { transform: translate(5px,-3px) rotate(.5deg); } 40% { transform: translate(-3px,2px); } 58% { transform: translate(2px,-1px); } }
+.eta-confetti { position: absolute; width: 0; height: 0; }
+.eta-cf { position: absolute; left: -4px; top: -4px; animation-duration: 1.6s; animation-timing-function: cubic-bezier(.15,.7,.4,1); animation-fill-mode: both; }
+.eta-cf0 { animation-name: eta-cf0; } .eta-cf1 { animation-name: eta-cf1; } .eta-cf2 { animation-name: eta-cf2; } .eta-cf3 { animation-name: eta-cf3; }
+.eta-cf4 { animation-name: eta-cf4; } .eta-cf5 { animation-name: eta-cf5; } .eta-cf6 { animation-name: eta-cf6; } .eta-cf7 { animation-name: eta-cf7; }
+@keyframes eta-cf0 { 45% { transform: translate(-90px,-70px) rotate(220deg); opacity: 1; } 100% { transform: translate(-118px,60px) rotate(520deg); opacity: 0; } }
+@keyframes eta-cf1 { 45% { transform: translate(-60px,-112px) rotate(-200deg); opacity: 1; } 100% { transform: translate(-80px,30px) rotate(-480deg); opacity: 0; } }
+@keyframes eta-cf2 { 45% { transform: translate(-24px,-134px) rotate(240deg); opacity: 1; } 100% { transform: translate(-34px,20px) rotate(560deg); opacity: 0; } }
+@keyframes eta-cf3 { 45% { transform: translate(16px,-126px) rotate(-260deg); opacity: 1; } 100% { transform: translate(22px,24px) rotate(-540deg); opacity: 0; } }
+@keyframes eta-cf4 { 45% { transform: translate(56px,-104px) rotate(210deg); opacity: 1; } 100% { transform: translate(76px,40px) rotate(500deg); opacity: 0; } }
+@keyframes eta-cf5 { 45% { transform: translate(92px,-74px) rotate(-230deg); opacity: 1; } 100% { transform: translate(120px,60px) rotate(-520deg); opacity: 0; } }
+@keyframes eta-cf6 { 45% { transform: translate(-112px,-30px) rotate(250deg); opacity: 1; } 100% { transform: translate(-146px,80px) rotate(560deg); opacity: 0; } }
+@keyframes eta-cf7 { 45% { transform: translate(112px,-34px) rotate(-250deg); opacity: 1; } 100% { transform: translate(146px,76px) rotate(-560deg); opacity: 0; } }
+.eta-signoff { display: flex; align-items: flex-end; justify-content: space-between; gap: 8px; margin-top: 2px; }
+.eta-signoff > div { display: flex; flex-direction: column; gap: 3px; }
+.eta-signoff-head { font-size: 10px; font-weight: 700; letter-spacing: .1em; }
+.eta-signoff-best { font-size: 13px; line-height: 1.1; color: #2B3A67; }
+.eta-sig { width: 104px; height: 40px; flex-shrink: 0; border-bottom: 1.5px solid var(--eta-ink); }
+.eta-anim-sign path { stroke-dasharray: 520; animation: eta-sign 1.3s .35s ease-in-out both; }
+@keyframes eta-sign { from { stroke-dashoffset: 520; } to { stroke-dashoffset: 0; } }
+
+/* ── Controls on paper (stamp bar, the wheel picker) ── */
+/* Fredoka on every control (frozen) — the paper's typewriter face is for text only. */
+.eta-clip button { font-family: 'Fredoka', ui-rounded, system-ui, sans-serif; }
+.eta-controls { padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
+.eta-controls-prompt { font-size: 13px; font-weight: 700; line-height: 1.3; }
+.eta-step { min-height: 44px; min-width: 44px; border: 2px solid var(--eta-ink); border-radius: 4px; background: var(--eta-cream); font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 1.25rem; }
+.eta-wheel-readout { font-size: 12.5px; font-weight: 700; color: var(--eta-ink-o); min-height: 1.2em; }
+
+/* ── The Odometer tally ── */
+.eta-receipt { background: var(--eta-cream); border-radius: 3px; padding: 10px 12px; box-shadow: 0 2px 0 #E9E2CF, 0 8px 18px rgba(0,0,0,.3);
+  font-family: 'EtaType', 'Courier New', monospace; animation: eta-msgin .35s var(--d, 0ms) ease-out both; }
+.eta-receipt.is-me { box-shadow: 0 0 0 3px var(--eta-orange), 0 8px 18px rgba(0,0,0,.3); }
+.eta-receipt.is-settled { animation: none; }
+.eta-receipt-head { display: flex; align-items: center; gap: 10px; }
+.eta-receipt-name { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.eta-receipt-name b { font-family: 'EtaStencil', sans-serif; font-weight: 400; font-size: 16px; line-height: 1.1; }
+.eta-receipt-name span { font-size: 10px; color: var(--eta-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.eta-receipt-total { display: flex; align-items: baseline; gap: 3px; }
+.eta-odo { font-weight: 700; font-size: 18px; letter-spacing: .04em; background: var(--eta-ink); color: #F4F6F8; padding: 1px 6px; border-radius: 3px; }
+.eta-odo-unit { font-size: 10px; font-weight: 700; color: var(--eta-muted); }
+.eta-receipt-lines { margin: 8px 0 6px; border-top: 1px dashed var(--eta-rule); }
+.eta-receipt-lines li { display: flex; justify-content: space-between; font-size: 12px; line-height: 20px; border-bottom: 1px dashed var(--eta-rule); }
+.eta-receipt-run { font-weight: 700; }
+.eta-receipt-rank { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; font-size: 11px; }
+.eta-rank-name { font-weight: 700; }
+.eta-rank-next { margin-left: auto; color: var(--eta-muted); }
+.eta-promo-stamp { font-family: 'EtaStencil', sans-serif; font-size: 10px; padding: 0 5px; border: 2px solid var(--eta-red); border-radius: 3px; color: var(--eta-red);
+  transform: rotate(-6deg); animation: eta-stampslam .9s calc(var(--d, 0ms) + 400ms) cubic-bezier(.3,.7,.3,1) both; }
+.eta-receipt.is-settled .eta-promo-stamp { animation: none; transform: rotate(-6deg); }
+
+/* ── End of Shift ── */
+.eta-cotm { background: linear-gradient(180deg, #3B2A1A, #2A1D11); border: 6px solid #A97D4D; outline: 2px solid #6E4E2C; border-radius: 4px; padding: 14px; text-align: center;
+  box-shadow: 0 10px 22px rgba(0,0,0,.4); }
+.eta-cotm-eyebrow { color: var(--eta-orange); font-size: 13px; letter-spacing: .06em; }
+.eta-cotm-name { color: var(--eta-cream); font-size: 30px; line-height: 1.15; margin: 6px 0 2px; }
+.eta-cotm-line { color: #E9DCC4; font-family: 'EtaType', 'Courier New', monospace; font-weight: 700; font-size: 12px; }
+.eta-go-card { padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; }
+.eta-go-head { font-size: 13px; margin-top: 4px; }
+.eta-standings { display: flex; flex-direction: column; }
+.eta-stand-row { display: flex; align-items: center; gap: 6px; min-height: 30px; border-bottom: 1px dashed var(--eta-rule); font-size: 13px; }
+.eta-stand-row.is-me { font-weight: 700; }
+.eta-stand-name { flex: 1; font-weight: 700; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.eta-stand-rank { font-size: 10px; color: var(--eta-muted); }
+.eta-stand-km { font-weight: 700; white-space: nowrap; }
+.eta-awards { display: flex; flex-direction: column; gap: 6px; font-size: 12.5px; line-height: 1.3; }
+.eta-awards li { display: flex; gap: 6px; }
+.eta-award-detail { color: var(--eta-muted); }
+
+/* ── Modals in the world (lessons L4) ── */
+.eta-modal { background-image: linear-gradient(var(--eta-orange), var(--eta-orange)), linear-gradient(#E7EBEE, #E7EBEE);
+  background-size: 100% 8px, 100% 3px; background-position: 0 0, 0 2.5px; background-repeat: no-repeat; background-color: var(--eta-cream); }
+.eta-modal-eyebrow { font-size: 12px; color: var(--eta-ink-o); letter-spacing: .08em; }
+
+/* ── How to Play: ranks + practice ── */
+.eta-ranks-list { display: flex; flex-direction: column; }
+.eta-rank-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px dashed #e7e5e4; }
+.eta-rank-num { width: 1.4rem; text-align: center; font-weight: 700; color: var(--eta-ink-o); flex-shrink: 0; }
+.eta-rank-body { flex: 1; display: flex; flex-direction: column; font-size: .8rem; color: #78716c; }
+.eta-rank-body b { color: #292524; font-size: .9rem; }
+.eta-rank-km { font-size: .75rem; font-weight: 600; color: #57534e; white-space: nowrap; }
+.eta-practice-desk { border-radius: 1rem; padding: 12px; }
+.eta-practice-desk .eta-board { margin-top: 18px; }
+.eta-practice-step { font-family: 'Fredoka', sans-serif; font-size: .9rem; color: #F3E3CC; font-weight: 600; line-height: 1.35; }
+
+/* ── The Intro scene (engine screen-game-intro → #game-intro-scene) ── */
+/* The engine box is 16:10; the dock + Dot's clipboard need their own height (the
+   clipboard carries the line once the engine's narrator text goes sr-only). Scoped
+   to this scene only — departure D-ETA-5, docs/ui-revamp-rollout.md. */
+#game-intro-scene:has(> .eta-intro) { aspect-ratio: auto; background: #2B2D31; }
+.eta-intro { position: relative; background: #2B2D31; color: var(--eta-ink); }
+.eta-dock { display: block; width: 100%; height: auto; aspect-ratio: 375 / 300; }
+.eta-dock .eta-door { transition: transform 1.2s cubic-bezier(.6,0,.3,1); }
+.eta-intro.door-up .eta-door { transform: translateY(-262px); }
+.eta-intro.is-reduced .eta-door { transition: none; }
+.eta-dock .eta-sun { animation: eta-sun 2.5s ease-out both; }
+@keyframes eta-sun { 0% { opacity: .2; transform: translateY(20px); } 100% { opacity: 1; transform: none; } }
+.eta-dock .eta-mote { animation: eta-dust 3s ease-out infinite; }
+.eta-dock .eta-mote2 { animation-delay: 1.1s; } .eta-dock .eta-mote3 { animation-delay: 2s; }
+@keyframes eta-dust { 0% { opacity: 0; transform: translateY(0); } 20% { opacity: .6; } 100% { opacity: 0; transform: translateY(-40px); } }
+.eta-dot-body { transform-box: fill-box; transform-origin: 50% 100%; animation: eta-bob 1.6s ease-in-out infinite; }
+.eta-intro.is-talking .eta-dot-body { animation: eta-sway 2.4s ease-in-out infinite; }
+.eta-dot-arm { transform-box: fill-box; transform-origin: 50% 0; transform: rotate(-25deg); }
+.eta-intro.is-talking .eta-dot-arm { animation: eta-point .9s ease-in-out infinite; }
+.eta-dot-mouth { transform-box: fill-box; transform-origin: 50% 0; }
+.eta-intro.is-talking .eta-dot-mouth { animation: eta-talk .16s ease-in-out infinite; }
+@keyframes eta-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+@keyframes eta-sway { 0%, 100% { transform: rotate(-2deg); } 50% { transform: rotate(2deg); } }
+@keyframes eta-point { 0%, 100% { transform: rotate(-25deg); } 50% { transform: rotate(-55deg); } }
+@keyframes eta-talk { 0%, 100% { transform: scaleY(.35); } 50% { transform: scaleY(1); } }
+.eta-intro-board { position: relative; background: var(--eta-cream); margin: 0 10px 10px; border-radius: 3px; box-shadow: 0 10px 22px rgba(0,0,0,.4); font-family: 'EtaType', 'Courier New', monospace; }
+.eta-intro-board .eta-hv { height: 9px; }
+.eta-intro-head { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px 0; font-size: 9px; font-weight: 700; letter-spacing: .14em; color: var(--eta-muted); }
+.eta-intro-dots { display: flex; gap: 4px; }
+.eta-intro-dots i { display: block; width: 7px; height: 7px; border-radius: 50%; background: #D9D2C0; }
+.eta-intro-dots i.on { background: var(--eta-brand); }
+.eta-intro-line { padding: 6px 12px 12px; display: flex; flex-direction: column; gap: 4px; min-height: 76px; }
+.eta-intro-who { font-size: 10px; letter-spacing: .1em; color: var(--eta-brand); }
+.eta-intro-text { font-size: 17px; font-weight: 700; line-height: 1.3; }
+.eta-type-line { animation: eta-typein .9s steps(40, end) both; }
+/* the static tier (slow phone): every loop pauses, the scene stays put */
+.eta-static *, .eta-static *::before, .eta-static *::after { animation-play-state: paused !important; }
+/* the roll-call hooks' tint inside the ETA Intro */
+#screen-game-intro:has(.eta-intro) { --intro-stamp: #C2410C; }
+
+/* ── Reduced motion: final states at once (CSS); the board's JS skips its timeline too ── */
+@media (prefers-reduced-motion: reduce) {
+  .eta-sheen-loop::after, .eta-thunk::after, .eta-caret, .eta-dock .eta-mote, .eta-dot-body, .eta-dot-arm, .eta-dot-mouth { animation: none !important; }
+  .eta-receipt, .eta-promo-stamp { animation: none !important; }
+}
+.eta-board.is-reduced * { transition: none !important; }

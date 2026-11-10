@@ -122,7 +122,8 @@ function lbEl(tag, cls, html) {
 // Games whose sticker art does not exist yet — they draw the emoji disc instead.
 // Empty since Bailed's badge landed (bld.png, 27 Sep 2026); kept so the next game
 // that ships before its art needs one line, not a new code path.
-const LB_NO_STICKER = new Set();
+// ETA? (SW v272) ships before its sticker art — the emoji disc until data/stickers/eta.png lands.
+const LB_NO_STICKER = new Set(['eta']);
 function lbBadgeInner(g) {
   const emoji = typeof g === 'string' ? g : g.emoji;
   const id = typeof g === 'string' ? null : g.id;
@@ -172,11 +173,12 @@ function lbWireProfilePop(row) {
 // about how many games fit — the same reason lbSheetBodyInner exists.
 function lbFitLine() {
   const fit = GAMES.filter(g => !lbWhyOut(g)).length;
-  if (fit === 20) return 'All 20 games in the box.';
+  const total = GAMES.length;   // was a literal 20 — read the box, not a number (ETA made it 21)
+  if (fit === total) return `All ${total} games in the box.`;
   const bits = [];
   if (lbState.count != null) bits.push(`${lbState.count >= 10 ? '10 or more' : lbState.count} of you`);
   if (lbState.onePhone) bits.push('one phone');
-  return `${fit} of 20 fit ${bits.join(', ')}.`;
+  return `${fit} of ${total} fit ${bits.join(', ')}.`;
 }
 
 // ── A game's details ─────────────────────────────────────────────────────────

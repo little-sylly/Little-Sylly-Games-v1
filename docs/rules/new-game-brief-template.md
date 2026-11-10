@@ -2,7 +2,7 @@
 **Document type:** Phase 1 — Design Brief (non-technical)
 **Who fills this in:** Project owner + an AI (Claude, Gemini, ChatGPT), before any technical work. Works equally well filled in by hand.
 **Output goes into:** `docs/new-game-brief-[name].md`
-**What happens next:** Once complete, hand it to Claude Code alongside `new-game-technical-template.md` and the rule files (`logic-engine.md`, `ui-style.md`, `definitions.md`, `docs/game-identities/*.md`, `CLAUDE.md`, `docs/code-map.md`). Claude Code reads this brief, fills in the technical template, and presents it for confirmation before writing a single line of game code (Stage 2).
+**What happens next:** **Stage 1b — World + Directions** (`new-game-process.md`): an Opus session turns §0 into three visual directions, you pick one, and §0d records what it changed in this brief. Only then hand it to Claude Code alongside `new-game-technical-template.md` and the rule files (`logic-engine.md`, `ui-style.md`, `definitions.md`, `docs/game-identities/*.md`, `CLAUDE.md`, `docs/code-map.md`). Claude Code reads this brief, fills in the technical template, and presents it for confirmation before writing a single line of game code (Stage 2).
 
 <!--
 CHANGELOG
@@ -26,6 +26,15 @@ are §1–§24. To use it by hand, ignore the AI blocks. Everything from the two
 - **Rules are now tiered** (Hard / Strong default / Guidance) instead of one flat list of
   "non-negotiables". See "The rules of the suite".
 - Games table updated through `fyfi`, `hsg` and `eta`.
+
+10 Nov 2026 — **world first (the UI revamp, after the LI5 pilot).** New **§0 The World & the Intro**
+(world, narrator, the match-start Intro's copy, round-intro mood beats, and §0d for the Stage 1b
+direction pick) — numbered 0 so §1–§24 keep their numbers and a pre-revamp brief only *adds* a
+section. §1's "thematic universe" now points at §0, and brand colour is provisional until §0d.
+§9 vocabulary comes from the world and covers every string. §11 splits scene palette from brand
+colour. §12 gains Q12 (how teams form). §13 lists the Intro. The rules section moves to the revamp's
+frozen / default split. Provisional until GM (pilot 2): the shared scene kit, and a Line-up for
+seats (only team Line-ups exist).
 -->
 
 ---
@@ -34,9 +43,13 @@ are §1–§24. To use it by hand, ignore the AI blocks. Everything from the two
 
 1. **Flesh the idea out first** — gameplay, then theme and vocabulary — in whatever form you like. Put your notes in "Idea notes" just below.
 2. **Give this file to your AI along with the idea** ("fill in this brief for my idea") or fill it in yourself. The more developed the idea, the less the AI has to assume. If it is still rough, that is fine: the AI drafts with marked assumptions and lists what it needs from you at the end.
-3. **Work through every section.** Write in plain English. Nothing needs to be technically correct — describe what you imagine and note what you're unsure about.
-4. **Not every section applies to every game, and "Not applicable" is a normal answer.** Sections marked **(if applicable)** are for games that have the thing they describe. If the game doesn't, keep the heading and write one line — `N/A — [why]` — rather than inventing content. Fields inside a required section can be "none" too (for example, roles in §2: "none — every player has the same role").
-5. **Revise.** Answer the Open Questions at the end, check every marked assumption, and refine until you're happy.
+3. **Build the world (§0) before naming anything.** Every Little Sylly game is a **world**. Several games share familiar mechanics; the world is what makes each one feel like ours. The name, vocabulary, colours, Intro and end screen all come from §0, so do it first, even for a quick draft.
+4. **Work through every section.** Write in plain English. Nothing needs to be technically correct — describe what you imagine and note what you're unsure about.
+5. **Not every section applies to every game, and "Not applicable" is a normal answer.** Sections marked **(if applicable)** are for games that have the thing they describe. If the game doesn't, keep the heading and write one line — `N/A — [why]` — rather than inventing content. Fields inside a required section can be "none" too (for example, roles in §2: "none — every player has the same role").
+6. **Revise.** Answer the Open Questions at the end, check every marked assumption, and refine until you're happy.
+7. **Then Stage 1b.** A separate session designs three visual directions from §0. You pick one, and the brief is revised to match (§0d). The brand colour, the terms or the Intro copy may change at this point, and that's expected.
+
+**Bringing over a brief written before November 2026?** Keep §1–§24 as they are. Add §0, then work through §0's re-check list. That list names every section the world tends to change. Pre-revamp briefs usually have their mechanics done and their world thin, so that's where to spend the time.
 
 **Section tags**
 
@@ -45,7 +58,7 @@ are §1–§24. To use it by hand, ignore the AI blocks. Everything from the two
 | **(REQUIRED)** | Always fill in. Short is fine for a simple game |
 | **(if applicable)** | Fill in only if the game has the thing; otherwise one line `N/A — why` |
 
-Always required: Status, §1, §2, §3, §5, §6, §7, §8, §9, §11, §12, §13, §17, §19, §21, §24 (plus §18 and §20, which can be short). Only if the game has the thing: §4, §10, §14, §15, §16, §22, §23.
+Always required: Status, §0 (§0d is filled at Stage 1b), §1, §2, §3, §5, §6, §7, §8, §9, §11, §12, §13, §17, §19, §21, §24 (plus §18 and §20, which can be short). Only if the game has the thing: §4, §10, §14, §15, §16, §22, §23.
 
 Expect §22 (Bots), §23 (Hints & Tips) and §24 (Practice Tab) to be thin at first draft. They are planned now and filled in with real evidence after the first playable alpha.
 
@@ -120,9 +133,9 @@ A game may support one or both. Some games are hybrids (for example, two teams e
 | `cjar` | Cookie Jar | Simultaneous-choice push-your-luck — a card flips, everyone secretly Takes or Sneaks Out, a second sighting of the same family member busts the Raid; Sylly Mode = Dibber Dobber |
 | `cld` | Cold Shoulder | Physics slingshot-shove — penguins on an ice floe aim blind and all slide at once; off the edge = Drowned (rides the rim, throws snowballs); last player Standing catches a Fish; suite's first physics game (`js/lib/physics.js`); Sylly Mode = The Thaw |
 | `comb` | Honeycomb Hills | Hex-and-resource engine-builder on a 19-hex meadow — one 2d6 cast pays every player at once, spend on walls/cells/domes, negotiate the rest; MDLM-only, 3–4 players; the suite's longest game (25–50 min) and the **only one with no Sylly Mode** (seven settings carry the difficulty axis instead) |
+| `eta` | ETA? | Estimation + persuasion (E.T.A. Couriers, narrator Dot) — each courier gets a secret Ride, logs an ETA for a shared Route on the Time Dial, defends it out loud (Talk Me Through It, Stamps of Approval), then Proof of Delivery scores accuracy on the ratio to the truth; MDLM-only, 3–8; the first new game built world-first (Stage 1b); Sylly Mode = Backseat Drivers (secret multiplying Course Corrections) |
 | `fyfi` | Flip You For It | Two-player 3x3 collectible cap duel (Triple Triad-inspired) — place caps wearing the suite's game stickers, flip the opponent's by edge numbers, chain reactions; best-of-3/5 series; bot opponent (Easy/Medium/Hard); Sylly Mode skipped for now |
 | `hsg` | Hide and Shogun | Two-player hidden-tile grid skirmish (Banqi / Chinese Dark Chess reskin) on a 5×6 board — Unveil face-down Shrouds, rank-based Strikes with special-move pieces, topple the Shogun; Honour Seal Campaign; Sylly Mode deferred |
-| `eta` | ETA? | Estimation + persuasion — couriers estimate travel time for a mismatched Ride over a famous distance, defend it out loud, scored on accuracy; Sylly Mode = Backseat Drivers |
 
 **Abbreviations already taken:** `li5`, `gm`, `ss`, `jec`, `ygi`, `lttp`, `nat`, `dsd`, `gth`, `dyb`, `bld`, `pass`, `nt`, `frt`, `shp`, `flw`, `pko`, `cjar`, `cld`, `comb`, `fyfi`, `hsg`, `eta`
 
@@ -139,7 +152,9 @@ If the idea genuinely needs one of these broken, don't break it quietly: raise i
 - **No saved progress.** No user accounts, no score history, no data carried between sessions. (Device preferences such as nickname, settings and chosen skin may be remembered; game state and history may not)
 - **No trademarked names, characters, logos or art** in the title, pieces, vocabulary or content. Use generic or folklore/public-domain stand-ins (a "giant eagle", not a film's eagle). Content names live in data and must be swappable
 - **Australian English throughout:** colour, flavour, organise, recognise, °C, km, kg. No American spellings
-- **Every game has the suite's standard shells:** the game menu (Play, then How to Play, then Settings, then Back to the Box), a How to Play overlay (one card per step, then a card titled exactly "Winning and Scoring", then a "✨ Sylly Mode" card), and a **Practice tab** (§24)
+- **Every game has the suite's standard shells:** the game menu (Play, then How to Play, then Settings, then Back to the Box), a How to Play overlay (one card per step, then a card titled exactly "Winning and Scoring", then a "✨ Sylly Mode" card), and a **Practice tab** (§24). These shells and the buttons in them look the same across all games — same shapes, same sizes, the brand colour with white text, no emoji on action buttons. The world goes *inside* them (their words and content), not into reshaping them
+- **Every match opens on the suite's Intro** (§0b): narrator lines, a short brief for your role, the Line-up for team games, then Ready. The suite builds that screen; a game brings its words and its scene
+- **No new downloaded images or sound files without an agreed size limit.** Scenes are drawn in code (shapes, gradients, animated type, 3D where it earns it). Sound effects are always synthesised by the suite
 - **Sylly Mode is always the last setting**, and its card in How to Play always exists (it says so honestly if the mode is Deferred or Omitted — see §8)
 
 ### Strong defaults — follow unless you have a reason; if you deviate, say why
@@ -151,9 +166,10 @@ Record a deviation as `[DEVIATION: what and why]` and list it in §19's decision
 - **If elements beat, outrank, unlock or are immune to one another, tabulate it in §4** — not just prose. A prose description ("predators beat their prey") is ambiguous the moment there is a fork, a loop, a cross-category link or an exception, and every downstream section silently inherits whichever reading is guessed first
 - **No duplicated core mechanic.** Check the suite list above. A game that overlaps an existing one is fine if the §1 overlap check says why it feels different
 - **Settings:** gameplay settings first (difficulty-style when there is a difficulty axis), ✨ Sylly Mode last. A value that is only a guardrail and rarely reached in real play is a **fixed rule**, not a setting
-- **The One Brand Rule:** only the game's brand colour is used on buttons, pills and toggles; gameplay colours stay on the board
+- **The One Brand Rule:** controls (buttons, pills, toggles, the focus outline) use only the game's brand colour. **The scene and board art use whatever palette the world needs** (§0a, §11)
 - **Two overlay shapes:** a popup is either a scrollable slide-up panel or a small centred confirmation box (three or fewer elements). Don't invent a third; flag a genuine need as an exception
-- **Three-zone screens:** header row, central stage, controls area
+- **Three-zone screens:** header row, central stage, controls area. This is a starting point, not a cage: if the chosen direction needs a different layout for the action screens, describe it and mark it `[DEVIATION]`. The speaker, ✕ and `[?]` buttons stay on every screen regardless
+- **Screen-pattern and motion defaults** (round intros, team-setup screens, how long animations last) bend for the world the same way. Say what you want and mark it `[DEVIATION]`. Reduced motion is always honoured, and the game must run smoothly on a small, older phone (iPhone SE)
 - **Non-technical language.** Plain English; no code, screen IDs, variable names, CSS or Firebase. Naming existing suite features or games is fine. Technical observations go in the optional Stage 2 appendix
 
 ### Guidance — use judgement
@@ -171,7 +187,8 @@ Record a deviation as `[DEVIATION: what and why]` and list it in §19's decision
 | Field | Your answer |
 |---|---|
 | **Draft number and date** | |
-| **Locked** (final: rules, name, emoji, abbreviation, colours) | |
+| **Locked** (final: rules, name, emoji, abbreviation; the brand colour locks only after Stage 1b, §0d) | |
+| **Stage 1b** (not yet / directions out / picked — link to the canvas) | |
 | **Soft-locked** (working decisions, reviewed before implementation) | |
 | **Still open** | |
 | **Supersedes an earlier version?** | |
@@ -179,6 +196,87 @@ Record a deviation as `[DEVIATION: what and why]` and list it in §19's decision
 **Terminology note** (if the game is a reskin, or uses a different word from the original for its pieces): which word this brief uses, and why.
 
 The marker key is under "For the AI" above; use those markers throughout.
+
+---
+
+## 0. The World & the Intro (REQUIRED — fill this first)
+
+> **For the AI:** this is the section that makes the game *ours*. Mechanics are often familiar; a rich, specific world with matching visuals is what makes this game feel unlike the others in the suite. Make it **specific enough to draw**: "a primary-school classroom at 2:55 on a Friday" rather than "school". The name in §1, every term in §9, the end screen in §17 and the How to Play in §18 should all sound like they come from this place. If the owner's notes give a theme but no world, propose one and mark it `[ASSUMPTION]`. When the idea fits several worlds, offer two or three in a sentence each in §19 and pick one.
+
+### 0a. The world
+
+| Field | Your answer |
+|---|---|
+| **The place and the moment** (where and when, specific enough to draw) | |
+| **Who the players are in it** ("the class", "couriers", "penguins on a floe") | |
+| **The narrator** — a name and a role (who speaks at the Intro and the round intros), and how they talk | |
+| **Three mood words** | |
+| **The scene** — what the Intro and the action screens *show*. Drawn in code: shapes, chalk, paper, light, 3D where it earns it; no new image files unless agreed (§11) | |
+| **The world's palette** — the scene art's colours. Separate from the brand colour, which is for buttons only | |
+| **The signature moment** — the one visual or motion beat that belongs to this game and no other | |
+| **What this world is NOT** — the nearest suite world it could slide into, and how it stays clear of it | |
+
+### 0b. The Intro (the match start)
+
+Every match opens on the same suite-built screen, in four beats:
+
+1. **Narrator lines.** Each one shows for about 5 seconds, or until tapped. The host can skip them for everyone.
+2. **The brief.** Up to 3 short lines on what *you* do.
+3. **The Line-up.** Team games only: players pick a team, and the host can shuffle or auto-assign the rest.
+4. **Ready.** The host can start as soon as the teams are valid, without waiting for everyone to tap Ready.
+
+On a rematch the narrator lines are skipped. In pass-the-phone it is a single **Let's go** tap. The game provides only the words below and its scene.
+
+| Field | Your answer |
+|---|---|
+| **Narrator lines** (2–5; one idea each, about 60 characters max — they say what's going on and who does what, in the narrator's voice) | |
+| **The brief — default** (up to 3 lines; plain enough to act on, still in the world's voice) | |
+| **Brief variants** (only where a role or mode sees something different: a secret role, pass-the-phone, a shared team phone. One set of up to 3 lines each) | |
+| **The Line-up** — teams (each team's name, the minimum per team, whether teams must be even) **or** none (no teams; everyone is listed instead) | |
+| **Line-up prompt** (the line over the team columns) and **what the "no team yet" column is called** | |
+
+> If a team shares one phone (a "Team Lobby"), there's no Line-up — the phone *is* the team, and the Intro lists who's there instead.
+
+**Worked example — Like I'm Five (the classroom):**
+
+- **Narrator:** *Miss*, your teacher.
+- **Lines:**
+  - "Morning, class. Settle down, please."
+  - "Today: explaining things so simply a five-year-old would get it."
+  - "One of you comes up the front with a secret word. Your group shouts out guesses."
+  - "Say anything on the No-No List and the other group will dob you in."
+- **Brief (default):**
+  - "Up the front: explain the word. Never say it — or anything on the No-No List."
+  - "Your group's up: shout out guesses. You won't see the word."
+  - "Their group's up: you'll see the word and its No-No List. Hear one? Dob."
+- **Brief variants:** one for pass-the-phone, one for a shared team phone.
+- **Line-up:** *Crayon Crew* and *Glue Stick Gang*, at least 2 each, uneven allowed. The prompt is "Into your groups, please." The no-team column is "Not in a group".
+
+### 0c. Mood beats
+
+| Field | Your answer |
+|---|---|
+| **The repeated beat** (round, night, raid, shift…): what the world does to open it. A short screen that moves on by itself, sets the scene and says again what to do | |
+| **Flavour lines** for that beat (3–6, picked at random; in a multi-device game the host picks one so every phone shows the same) | |
+| **Other moments the world should carry** — a reveal, a bust, a turn change, a near-miss. One line each on what it looks like | |
+
+### 0d. The direction (filled at Stage 1b — leave blank in the first draft)
+
+| Field | Your answer |
+|---|---|
+| **Directions canvas** (link) | |
+| **Picked** (A / B / C, or a mix — one line on why) | |
+| **What it changed in this brief** — brand colour, terms, Intro copy, screens, rules. Name each section edited. "Nothing" is a real answer | |
+
+> Example — Like I'm Five picked *Chalkboard*, with the folded "passed note" for a buzz from another direction. That reopened the brand colour (pink had never been chosen with a world in mind) and re-voiced the game's terms to the classroom. Great Minds dropped its radio/frequency language for **thought bubbles**. The terms that survived were the ones that already meant "mind" (sync, wavelength).
+
+### Re-check against the world (do this after §0, and again after §0d)
+
+- [ ] **§1:** do the name, tagline and emoji still sound like the world? Is the brand colour still right? (It stays provisional until §0d.)
+- [ ] **§9:** is every term in the world's voice, and every string: buttons, popups, empty states, How to Play, the end screen, the Intro? A term renamed in one place and left alone in another is the commonest miss.
+- [ ] **§11:** does the art inventory include the scene, and is the scene drawn in code?
+- [ ] **§12 Q12 and §13:** for a multi-device team game, the Intro's Line-up replaces the team-setup screens. Is that reflected?
+- [ ] **§17 and §18:** are the end screen and How to Play written in the world's voice, not in generic game language?
 
 ---
 
@@ -191,9 +289,9 @@ The marker key is under "For the AI" above; use those markers throughout.
 | **Full game name** (and why it works) | |
 | **Short abbreviation** (unique, 2–5 characters, used in code; check the taken list) | |
 | **One-sentence tagline** (what appears under the game title) | |
-| **Thematic universe** (a mood, setting, or real-world reference — e.g. "BBC wildlife documentary", "naval warfare", "dinner party gossip") | |
+| **The world in one line** (the full version is §0 — e.g. "a BBC wildlife documentary crew", "a primary-school classroom at home time") | |
 | **Emoji / icon** (one emoji that represents the game) | |
-| **Brand colour** (a colour word and a proposed hex value — e.g. "warm amber, #D98E04"; see §11 for the audit) | |
+| **Brand colour** (a colour word and a proposed hex value, e.g. "warm amber, #D98E04", chosen *from the world*. **Provisional until Stage 1b** (§0d); see §11 for the audit) | |
 | **Core type** (see the game types in §3) | |
 | **The fun moment in 10 words** (if you can't say it, the concept needs more time) | |
 | **If based on a real game: what it is inspired by, and what changes from the original** | |
@@ -378,7 +476,9 @@ If **Designed**:
 
 ## 9. Thematic Vocabulary (REQUIRED)
 
-> Replace generic game terms with game-voiced equivalents. Every mechanic named in §3, §4 and §8 needs an entry. Mark provisional wording `[PLACEHOLDER]`. Plain-English explanations go in the settings overlay; this table is for what appears on screen.
+> Replace generic game terms with game-voiced equivalents, **drawn from §0's world**: a term should sound like something the narrator would say. Every mechanic named in §3, §4 and §8 needs an entry, along with the Intro's team names and Line-up words. Mark provisional wording `[PLACEHOLDER]`; Stage 1b may re-voice terms, so list any changes under "Retired terms". Plain-English explanations go in the settings overlay; this table is for what appears on screen.
+>
+> **Every string, not just the table.** When a term changes, it changes in the buttons, popups, empty states, How to Play, the end screen and the Intro too. A renamed term that survives in one confirm button is the most common slip.
 
 | Generic term | What this game calls it |
 |---|---|
@@ -445,11 +545,12 @@ For reference, how three existing games voice the standard terms:
 
 ### Colours and accessibility
 
-> Check the brand colour against the existing games' colours: it must be clearly distinct. Only the brand colour is used for buttons, pills and toggles; gameplay colours stay on the board.
+> Check the brand colour against the existing games' colours: it must be clearly distinct. Only the brand colour is used for buttons, pills and toggles, always with white text on top. The **scene palette** (§0a) is separate: it can use any colours the world needs. Pick the brand colour *from* the world (a chalkboard world suggests chalkboard green, not whatever the first draft said), and expect Stage 1b to confirm or change it.
 
 | Role | Name | Hex | Notes |
 |---|---|---|---|
-| Brand colour | | | |
+| Brand colour (provisional until §0d) | | | |
+| Scene palette (2–4 colours from §0a) | | | |
 | (gameplay colour 1…) | | | |
 
 - **Colour-blind check:** does any gameplay colour pair stay readable for common colour blindness? What is the second cue (shape, crest, pattern)?
@@ -482,6 +583,7 @@ Does this game have a **visual primitive that players look at repeatedly** and m
 
 | Image | How many | Size on a phone | Shape (portrait card, square, wide) | Default look or optional skin |
 |---|---|---|---|---|
+| The scene (Intro + action screens, §0a) | 1 | full screen | phone, portrait | drawn in code — say what it's made of |
 | | | | | |
 
 - **Where art is seen largest.** Tapping a card in How to Play opens its artwork full-screen, so brief for the biggest place a picture appears, not the smallest. Default art is kept small because it ships with every install; optional skins can be richer
@@ -510,6 +612,7 @@ Does this game have a **visual primitive that players look at repeatedly** and m
 | 9 | What happens if someone leaves mid-game: whose turn is skipped, does the round restart, can a bot take over, and what if the game drops below its minimum players (a 1v1 game ends the moment one player leaves)? And what happens if the host leaves? (Default: the host's device runs the room, so the session ends for everyone.) | |
 | 10 | Can someone who dropped come back, and can people join late? | |
 | 11 | Can a computer opponent play, and how (see §22)? | |
+| 12 | How are teams formed at the start? In the Intro's Line-up (players pick, the host adjusts: name the teams in §0b), dealt by the game (random seats or roles), or no teams at all? If seat *order* matters (who goes first, who sits next to whom), say so. A Line-up for seat order doesn't exist yet and would be designed with this game | |
 
 ---
 
@@ -520,15 +623,18 @@ Does this game have a **visual primitive that players look at repeatedly** and m
 > Example: "A screen where the active player sees their secret role before handing the phone to the next player."
 
 1. (Game menu — every game has this)
-2. (Setup / player names — every game has this)
-3.
-4.
+2. (Setup / player names — pass-the-phone only. In a multi-device game the lobby provides names and the Intro's Line-up provides teams, so say if this screen disappears there)
+3. (The Intro — every game has this; the suite builds it from §0b)
+4. (Round intro — if §0c has a repeated beat)
 5.
+6.
 (add more as needed)
 
 **If the game accumulates a history of turns or events that players might want to look back on:** does it need its own log/history screen, and if so does it respect the same information-hiding rules as live play (§12) rather than revealing everything after the fact?
 
-**Two things you don't need to design from scratch:** the game menu has a fixed suite-wide structure — Play, then How to Play, then Settings, then Back to the Box, in that order, every game — so the only decision here is the Play button's game-voiced label. And every other screen is built from three stacked zones (a header row with title/round info, a central stage where the content lives, and a controls area with the primary action) — when sketching a screen here or in §14, think in those three zones rather than freeform layout.
+**Two things you don't need to design from scratch:** the game menu has a fixed suite-wide structure — Play, then How to Play, then Settings, then Back to the Box, in that order, every game — so the only decision here is the Play button's game-voiced label. And every other screen starts from three stacked zones (a header row with title/round info, a central stage where the content lives, and a controls area with the primary action). Sketch in those zones by default. The action screens are where the world shows most, and Stage 1b's directions may reshape them. Note any screen you already picture differently.
+
+**For each screen, one more word: could anyone in the room see it, or is it private?** (Public: the guessers' view of a board. Private: anything showing a secret word, hand or role.) A future TV mode will show the public screens on a shared screen.
 
 ---
 
@@ -769,6 +875,8 @@ Ideas and features deliberately parked.
 
 - No code, screen IDs, variable names, CSS or Firebase references outside the Stage 2 appendix
 - No American spellings (this is Australian English: colour, organise, recognise)
+- Don't skip §0 (the world) or fill it with a genre ("fantasy", "sci-fi"). A world is a specific place, a narrator and a mood
+- Don't treat the first-draft brand colour as final; Stage 1b decides it
 - Don't skip §9 (Vocabulary) — it's required even at draft stage
 - Don't skip §24 (Practice Tab) — pick a form even if the details are thin
 - Don't describe beats/outranks relationships only in prose if §4 applies — tabulate them exhaustively
@@ -791,4 +899,5 @@ Ideas and features deliberately parked.
 - **Scan the `[ASSUMPTION: ...]` markers** before moving on. They aren't mistakes — they're design decisions the AI made on your behalf. Make sure you agree with each one.
 - **Treat the Open Questions list seriously.** Any BLOCKER left unanswered becomes a `[CLARIFICATION NEEDED]` in the technical spec and blocks implementation.
 - **Come back to §22 and §23 after the first alpha.** Bots and hints are planned in the first draft but earn their detail from simulation and playtests (as in the Flip You For It brief). Update them with evidence labels rather than rewriting them.
-- **What happens next:** once you're happy with the brief, hand it to Claude Code with `new-game-technical-template.md` and the rule files for Stage 2. Claude Code fills in the technical template and confirms everything before writing a single line of game code.
+- **The world earns its keep in the narrator's lines.** If §0b's lines could open any game in the suite, the world isn't specific enough yet. Go back to §0a.
+- **What happens next:** once you're happy with the brief, run **Stage 1b** (`new-game-process.md`): a fresh Opus session reads this brief, produces three directions for the action screens, you pick, and §0d records what changed. Then hand it to Claude Code with `new-game-technical-template.md` and the rule files for Stage 2. Claude Code fills in the technical template and confirms everything before writing a single line of game code.

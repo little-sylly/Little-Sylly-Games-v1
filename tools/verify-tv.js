@@ -12,11 +12,11 @@ const eq = (a, b, msg) => ok(a === b, `${msg} — got ${JSON.stringify(a)}, want
 
 // ── ORDER integrity ─────────────────────────────────────────────────────────
 console.log('ORDER');
-eq(L.TV_ORDER.length, 20, 'ORDER holds 20 ids');
-eq(new Set(L.TV_ORDER).size, 20, 'ORDER has no duplicates');
+eq(L.TV_ORDER.length, 21, 'ORDER holds 21 ids');
+eq(new Set(L.TV_ORDER).size, 21, 'ORDER has no duplicates');
 for (const id of L.TV_ORDER) ok(GAMES.some(g => g.id === id), `ORDER id "${id}" exists in games.js`);
 for (const g of GAMES) ok(L.TV_ORDER.includes(g.id), `games.js id "${g.id}" appears in ORDER`);
-eq(L.TV_W, 20 * 166, 'W = 20 x ITEM');
+eq(L.TV_W, 21 * 166, 'W = 21 x ITEM');
 
 // ── Ink and label by luminance ──────────────────────────────────────────────
 // White ink on every brand fill — the suite's locked button scheme, the four
@@ -61,7 +61,7 @@ for (let s = 0; s <= 5 * W; s += 137) {
 // Picking the copy nearest the CURRENT offset is what stops a wrap-edge game
 // (index 0 or 19) hauling the rail the length of the whole list.
 console.log('nearest copy');
-const ITEM = L.TV_ITEM, n = 20;
+const ITEM = L.TV_ITEM, n = 21;
 eq(L.tvNearestCopy(2 * W, 0), 2, 'at 2W, index 0 picks copy 2 (zero distance)');
 // ...and index 19 picks copy ONE — its last box sits immediately left of
 // where we are, one item away, against copy 2's nineteen. This is the rule

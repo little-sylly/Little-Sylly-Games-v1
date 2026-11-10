@@ -4,8 +4,8 @@
 **Status when handed to project owner:** DRAFT — awaiting confirmation before implementation begins
 
 > **Instructions for Claude Code**
-> 1. Read the Phase 1 brief (`new-game-brief-[name].md`) in full
-> 2. Read `logic-engine.md`, `ui-style.md`, `definitions.md`, `docs/game-identities/*.md` (Terminology sections), `CLAUDE.md`
+> 1. Read the Phase 1 brief (`new-game-brief-[name].md`) in full — including §0 (world + Intro), §0d (the Stage 1b pick) and the build plan in its Stage 2 appendix. **No Stage 1b pick → stop; Stage 1b comes first** (`new-game-process.md`)
+> 2. Read `logic-engine.md`, `ui-style.md`, `definitions.md`, `docs/rules/ui-revamp.md` §§ 2–5, `docs/game-identities/*.md` (Terminology sections), `CLAUDE.md`
 > 3. Read `docs/code-map.md` to check for naming collisions and reusable patterns
 > 4. Fill in every section below. Where the brief is ambiguous, flag it with **[CLARIFICATION NEEDED]** — do not invent answers
 > 5. Present the completed spec to the project owner. Do not write any game code until this document is confirmed.
@@ -42,6 +42,29 @@ Run these checks against `docs/game-identities/*.md` and `docs/code-map.md` befo
 | Lobby button ID | `#btn-[abbr]` |
 | Play CTA label | |
 | Menu screen tagline | |
+| Directions board (picked at Stage 1b) | [canvas link + which board] |
+
+### §1b — The Intro and the scene
+
+Copy comes verbatim from brief §0b; the config shape is `docs/rules/ui-revamp.md` § 3.
+
+```js
+intro: {
+  template: 'intro-[abbr]',                 // <template> in src/screens/[abbr].html
+  scene:    () => [Abbr]Scene,              // optional — js/games/[abbr]-scene.js, pure: mount(el,opts)/stop()/beat?(i,text)
+  brief:    (seatIdx, teamIdx) => 'default',// which data-intro-brief variant
+  lineup:   { type: 'teams', teamNames: [...], minPerTeam: N, balanced: false }, // or omit (roll call)
+}
+```
+
+| Field | Value |
+|-------|-------|
+| Brief variants and the rule that picks each | |
+| Line-up (teams + `minPerTeam` / `balanced`) or none — `lineup` requires `rosterConfig.type: 'none'` | |
+| Scene: what it draws, tech (CSS / SVG / Canvas / Three.js), static tier, reduced-motion form | |
+| Scene file in `sw.js`, `CLAUDE.md` load order, `_scripts-*.html` | |
+| Round-intro / mood beats (brief §0c) — screen + host-picked flavour line in MDLM | |
+| Departures from default rules the board needs (`ui-revamp.md` § 2 — log on the tracker) | |
 
 ---
 
@@ -95,18 +118,20 @@ Rule: `<section class="flex items-center justify-center w-full min-h-screen px-5
 
 All IDs must be added to `allScreens[]` in `engine.js`. Every screen listed here, no exceptions.
 
-| Screen ID | Purpose | Notes |
-|-----------|---------|-------|
-| `screen-[abbr]-menu` | Main hub | |
-| `screen-[abbr]-setup` | [Team names / player names / roster] | |
-| `screen-[abbr]-pass-gate` | Pass-the-phone confirmation | If needed — see §2 |
-| `screen-[abbr]-[main-play]` | | |
-| `screen-[abbr]-gameover` | Final score + log | |
-| [add all screens] | | |
+Every `<section id="screen-…">` carries `data-tv="public|private"` (brief §13; `ui-revamp.md` § 5) — add the column.
+
+| Screen ID | Purpose | TV | Notes |
+|-----------|---------|----|-------|
+| `screen-[abbr]-menu` | Main hub | public | |
+| `screen-[abbr]-setup` | [Team names / player names / roster] | | |
+| `screen-[abbr]-pass-gate` | Pass-the-phone confirmation | private | If needed — see §2 |
+| `screen-[abbr]-[main-play]` | | | |
+| `screen-[abbr]-gameover` | Final score + log | public | |
+| [add all screens] | | | |
 
 **Total new screens:** [N] — add all to `allScreens[]` in `engine.js`
 
-**Team setup screens (if team game):**
+**Team setup screens (if team game — Pass-the-Phone only; in a lobby the Intro's Line-up forms teams):**
 - Screen 1 (`screen-[abbr]-setup`): team names only — no player names, no captain on this screen
 - Screen 2 (`screen-[abbr]-players`): team size pills first, then player name inputs, then captain/role assignment
 - Follows exact pattern in `ui-style.md` § Team Setup Screen Standard — do not deviate
@@ -327,6 +352,7 @@ Based on Phase 1 brief §10 and MFS v1.4 §7.
 |-------|-------|
 | Multiplayer mode | Individual Devices / 2-Device Teams / Hybrid / TBD |
 | New screens required for multiplayer | [list, or "Uses shared `screen-[abbr]-mode/lobby-host/lobby-join` templates"] |
+| Entry | Every route goes through `mpEnterGame(cfg)` — never `cfg.onPassThePhone()` directly; the Intro's four packets need no per-game handler |
 
 **Per-phase intercept points** — for each phase of the game, describe what the multiplayer sync does:
 
@@ -465,6 +491,13 @@ Tick each item as it is built. Do not mark complete until verified in the browse
 - [ ] `.<family>-card-asset` (or equivalent) CSS rule added — cover/centre, transparent border
 - [ ] If a skin should be selectable: `SM_GAMES` entry added so the terminal can launch it under `GAME SKINS`
 - [ ] Id key is stable + packet-safe (skins carry no art over the wire — device-local only)
+
+### Intro, scene and TV labels (§1b)
+- [ ] `intro` config in `MP_GAME_CONFIGS[abbr]` + `<template id="intro-[abbr]">` in `src/screens/[abbr].html`; copy matches brief §0b and the identity doc's `# intro-[abbr]` T7b block
+- [ ] Scene (if any): pure, `stop()` clears every timer/RAF, reduced motion → static, one WebGL context, 60 fps on the iPhone SE with the static tier
+- [ ] Every screen carries `data-tv`; `**TV public state ([abbr]):**` line in the game's `code-map.md` section
+- [ ] `node tools/verify-game-intro.js` and `node tools/verify-tv-labels.js` green
+- [ ] Build checked against the picked board line by line; old-styling hunt done (`docs/ui-revamp-lessons.md` L2, L8)
 
 ### Service Worker
 - [ ] `sw.js` precache updated with any new files

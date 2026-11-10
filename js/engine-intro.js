@@ -80,6 +80,9 @@ function mpIntroEsc(s) {
 //   <ul data-intro-brief="default"><li>…</li> ≤3</ul>  (+ more variants by key)
 //   <p data-intro-lineup>…</p>       the narrator's Line-up prompt (optional)
 //   <p data-intro-unassigned>…</p>   the Line-up's third column (optional — "Unassigned")
+//   <p data-intro-roll>…</p>         the roll call's heading (optional; ETA "Sign the timesheet.")
+//   <p data-intro-ready-tag>…</p>    a ready chip's stamp instead of ✓ (optional; ETA "CLOCKED ON")
+// The last two are skin, not rules: a game without them renders exactly as before.
 function mpIntroReadTemplate(id) {
   const tpl  = id ? document.getElementById(id) : null;
   const root = tpl ? (tpl.content || tpl) : null;
@@ -99,6 +102,8 @@ function mpIntroReadTemplate(id) {
     briefs,
     lineupPrompt: txt(q('[data-intro-lineup]')),
     unassigned:   txt(q('[data-intro-unassigned]')),
+    rollPrompt:   txt(q('[data-intro-roll]')),
+    readyTag:     txt(q('[data-intro-ready-tag]')),
   };
 }
 
@@ -658,7 +663,10 @@ function mpIntroChip(seat, opts) {
   const slot = mpPlayerSlots[seat] || {};
   const me = seat === mpMyPlayerIdx;
   const label = mpIntroEsc(slot.nickname || `Player ${seat + 1}`) + (me ? ' <span class="intro-chip-you">(you)</span>' : '');
-  const tick = s.ready[seat] ? '<span class="intro-chip-tick" aria-label="ready">✓</span>' : '';
+  const tag  = mpIntro.copy && mpIntro.copy.readyTag;
+  const tick = !s.ready[seat] ? ''
+    : tag ? `<span class="intro-chip-stamp" aria-label="ready">${mpIntroEsc(tag)}</span>`
+    : '<span class="intro-chip-tick" aria-label="ready">✓</span>';
   const cls = `intro-chip${me ? ' is-me' : ''}${s.ready[seat] ? ' is-ready' : ''}`;
   return opts && opts.movable
     ? `<button type="button" class="${cls}" data-intro-chip="${seat}">${label}${tick}</button>`
@@ -687,7 +695,9 @@ function mpIntroLineupHtml() {
 
 function mpIntroRollHtml() {
   const s = mpIntro.state;
-  return `<div class="intro-col-chips">${s.ready.map((_, i) => mpIntroChip(i)).join('')}</div>`;
+  const head = mpIntro.copy && mpIntro.copy.rollPrompt
+    ? `<p class="intro-roll-prompt">${mpIntroEsc(mpIntro.copy.rollPrompt)}</p>` : '';
+  return `${head}<div class="intro-col-chips">${s.ready.map((_, i) => mpIntroChip(i)).join('')}</div>`;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

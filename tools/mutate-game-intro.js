@@ -49,6 +49,9 @@ const MUTANTS = [
    '    if (it.sceneBeat !== want) {', '    if (true) {'],
   ['no Line-up in a Team Lobby', 'intro',
    "(mode !== 'ptp' && window.mpLobbyStyle !== 'team' && cfg.intro.lineup", "(mode !== 'ptp' && cfg.intro.lineup"],
+  // ── the roll-call skin hooks (ETA, SW v272) ──
+  ['a ready-tag stamps the ready chip', 'intro', '    : tag ? `<span class="intro-chip-stamp"', '    : false ? `<span class="intro-chip-stamp"'],
+  ['the roll call shows its heading', 'intro', "  const head = mpIntro.copy && mpIntro.copy.rollPrompt", "  const head = false && mpIntro.copy.rollPrompt"],
   // ── the seam, in engine-multiplayer.js ──
   ['a client enters through the seam on GAME_START', 'mp',
    '      // first, for a game that has one)\n      mpEnterGame(mpActiveGameConfig);',

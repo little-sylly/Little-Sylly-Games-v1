@@ -37,6 +37,8 @@ function tplContent(opts) {
     node('lineup', 'Into your groups, please.'),
   ];
   if (opts && opts.unassigned) nodes.push(node('unassigned', opts.unassigned));
+  if (opts && opts.roll) nodes.push(node('roll', opts.roll));
+  if (opts && opts.readyTag) nodes.push(node('ready-tag', opts.readyTag));
   const hit = (sel, n) => sel === '[data-intro-' + n.attr + ']';
   return { querySelector: s => nodes.find(n => hit(s, n)) || null, querySelectorAll: s => nodes.filter(n => hit(s, n)) };
 }
@@ -44,6 +46,7 @@ function tplContent(opts) {
 function addIntroGames(d) {
   d.el('intro-test').content = tplContent();
   d.el('intro-beats').content = tplContent({ unassigned: 'Not in a <group>' });
+  d.el('intro-roll').content = tplContent({ roll: 'Sign the <timesheet>.', readyTag: 'CLOCKED ON' });
   d.S.__scene = { mounts: 0, stops: 0, last: null };
   d.S.__beats = []; d.S.__beatText = [];
   d.run(`
@@ -70,6 +73,8 @@ function addIntroGames(d) {
       getMaxPlayers: () => 6, intro: __intro({ lineup: __teams }) });
     MP_GAME_CONFIGS.introbalanced = Object.assign({}, MP_GAME_CONFIGS.plain, { gameName: 'Balanced',
       getMaxPlayers: () => 6, intro: __intro({ lineup: { type: 'teams', teamNames: ['Ups', 'Downs'], balanced: true } }) });
+    MP_GAME_CONFIGS.introroll = Object.assign({}, MP_GAME_CONFIGS.introplain, { gameName: 'Roll',
+      intro: Object.assign(__intro(), { template: 'intro-roll' }) });
     MP_GAME_CONFIGS.introbeats = Object.assign({}, MP_GAME_CONFIGS.introgame, { gameName: 'Beats',
       intro: Object.assign(__intro({ lineup: __teams }), { template: 'intro-beats', scene: __beatScene }) });
     mpWireIntro();
@@ -572,6 +577,26 @@ const tap      = (d, id) => d.el(id).click();
       check('  …and Start goes without a minPerTeam it could never meet', R.host.run('mpIntroStart(false)'), true);
       await flush();
       check('both devices entered the game', R.all.map(passes), [1, 1]);
+    }
+
+    section('19. Roll-call skin hooks — data-intro-roll + data-intro-ready-tag (ETA, SW v272)');
+    {
+      const R = await startIntro('introroll', ['Ada', 'Boris']);
+      R.host.run('mpIntroSkip()'); await flush();
+      ok('the roll call shows the template heading, escaped', R.host.el('game-intro-roll').innerHTML.includes('class="intro-roll-prompt">Sign the &lt;timesheet&gt;.<'));
+      R.all.forEach(d => d.run('mpIntroReady()')); await flush();
+      const html = R.host.el('game-intro-roll').innerHTML;
+      ok('a ready chip wears the stamp instead of ✓', html.includes('class="intro-chip-stamp" aria-label="ready">CLOCKED ON<') && !html.includes('intro-chip-tick'));
+      check('  …and the hooks change nothing else: Start still works', R.host.run('mpIntroStart(false)'), true);
+      await flush();
+      check('both devices entered the game', R.all.map(passes), [1, 1]);
+    }
+    {
+      const R = await startIntro('introplain', ['Ada', 'Boris']);
+      R.host.run('mpIntroSkip()'); await flush();
+      R.all.forEach(d => d.run('mpIntroReady()')); await flush();
+      const html = R.host.el('game-intro-roll').innerHTML;
+      ok('without the hooks: no heading, the plain ✓', !html.includes('intro-roll-prompt') && html.includes('intro-chip-tick') && !html.includes('intro-chip-stamp'));
     }
 
   } catch (e) {

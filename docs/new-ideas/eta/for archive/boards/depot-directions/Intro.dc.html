@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Toolbox Talk intro</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Saira+Stencil+One&amp;family=Courier+Prime:ital,wght@0,400;0,700;1,400&amp;family=Permanent+Marker&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#EA580C}a:hover{color:#C2410C}
+.it button{cursor:pointer;transition:transform .08s}
+.it button:active{transform:translateY(2px)}
+.sten{font-family:'Saira Stencil One','Arial Black',Impact,sans-serif}
+.mark{font-family:'Permanent Marker','Comic Sans MS',cursive}
+.hv{background:#FF6A13;position:relative;overflow:hidden}
+.hv::before{content:'';position:absolute;left:0;right:0;top:50%;height:30%;transform:translateY(-50%);background:linear-gradient(180deg,#D9DEE3,#F4F6F8 45%,#AEB5BD)}
+.hvV{background:#FF6A13;position:relative;overflow:hidden}
+.hvV::before{content:'';position:absolute;left:0;right:0;top:55%;height:9px;background:linear-gradient(180deg,#D9DEE3,#F4F6F8 45%,#AEB5BD)}
+.sheenLoop::after{content:'';position:absolute;top:0;bottom:0;left:-40%;width:30%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.9),transparent);animation:sheen 2.6s ease-in-out infinite}
+@keyframes sheen{from{left:-40%}to{left:110%}}
+@keyframes typeIn{from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0 0 0 0)}}
+.typeLine{animation:typeIn .9s steps(40,end) both}
+@keyframes msgIn{0%{transform:translateY(14px);opacity:0}100%{transform:none;opacity:1}}
+.msgIn{animation:msgIn .35s ease-out both}
+@keyframes talk{0%,100%{transform:scaleY(.35)}50%{transform:scaleY(1)}}
+.talk{animation:talk .16s ease-in-out infinite}
+@keyframes sway{0%,100%{transform:rotate(-2deg)}50%{transform:rotate(2deg)}}
+.sway{animation:sway 2.4s ease-in-out infinite;transform-origin:50% 100%}
+@keyframes point{0%,100%{transform:rotate(-25deg)}50%{transform:rotate(-55deg)}}
+.point{animation:point .9s ease-in-out infinite;transform-origin:4px 4px}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+.bob{animation:bob 1.6s ease-in-out infinite}
+@keyframes pop{0%{transform:scale(0);opacity:0}60%{transform:scale(1.25);opacity:1}100%{transform:scale(1);opacity:1}}
+.pop{animation:pop .4s cubic-bezier(.2,.9,.3,1.4) both}
+@keyframes rowIn{0%{transform:translateX(-18px);opacity:0}100%{transform:none;opacity:1}}
+.rowIn{animation:rowIn .35s ease-out both}
+@keyframes sign{from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0 0 0 0)}}
+.signIn{animation:sign .6s ease-in-out both}
+@keyframes dust{0%{opacity:0;transform:translateY(0)}20%{opacity:.6}100%{opacity:0;transform:translateY(-40px)}}
+.mote{animation:dust 3s ease-out infinite}
+@keyframes sun{0%{opacity:.2;transform:translateY(20px)}100%{opacity:1;transform:none}}
+.sun{animation:sun 2.5s ease-out both}
+</style>
+</helmet>
+<div class="it" style="position: relative; width: 375px; height: 667px; overflow: hidden; background: #2B2D31; color: #22201B; font-family: 'Courier Prime', 'Courier New', monospace">
+<div style="position: absolute; left: 0; right: 0; top: 0; height: 380px; background: linear-gradient(180deg, #1B2A44 0%, #4A4E6B 45%, #E9895A 100%)"></div>
+<div class="sun" aria-hidden="true" style="position: absolute; left: 250px; top: 300px; width: 90px; height: 90px; border-radius: 50%; background: radial-gradient(circle, #FFD9A0, rgba(255,170,90,0))"></div>
+<div style="position: absolute; left: 0; right: 0; top: 60px; height: 22px; background: #3A3C41; border-bottom: 3px solid #1C1D20; display: flex; align-items: center; justify-content: center">
+<span class="sten" style="font-size: 13px; line-height: 1; color: #FF6A13; letter-spacing: 0.08em">E.T.A. DEPOT · DOCK 3</span>
+</div>
+<div style="position: absolute; left: 0; width: 34px; top: 82px; height: 300px; background: #3A3C41; border-right: 3px solid #1C1D20"></div>
+<div style="position: absolute; right: 0; width: 34px; top: 82px; height: 300px; background: #3A3C41; border-left: 3px solid #1C1D20"></div>
+<div style="position: absolute; left: 34px; right: 34px; top: 82px; height: 300px; overflow: hidden; background: linear-gradient(180deg, #2A2620, #3E362B)">
+<div aria-hidden="true" style="position: absolute; left: 0; right: 0; top: 70px; height: 4px; background: #5A4D3A"></div>
+<div aria-hidden="true" style="position: absolute; left: 0; right: 0; top: 150px; height: 4px; background: #5A4D3A"></div>
+<div aria-hidden="true" style="position: absolute; left: 14px; top: 30px; width: 70px; height: 40px; border-radius: 18px 22px 4px 4px; background: #5E6B55; box-shadow: inset 0 -6px 0 rgba(0,0,0,0.2)"></div>
+<div aria-hidden="true" style="position: absolute; left: 22px; top: 48px; width: 56px; height: 8px; background-image: repeating-linear-gradient(-45deg, #FFC21A 0 5px, #22201B 5px 10px); transform: rotate(-6deg)"></div>
+<span aria-hidden="true" class="sten" style="position: absolute; left: 20px; top: 58px; font-size: 7px; color: #FFC21A; transform: rotate(-6deg)">NO REGO</span>
+<svg aria-hidden="true" style="position: absolute; left: 200px; top: 112px" width="54" height="40" viewBox="0 0 54 40"><path d="M2 4 H10 L16 26 H46 L51 10 H13" fill="none" stroke="#B9BCC1" style="stroke-width: 2.5; stroke-linejoin: round"></path><path d="M16 26 L18 32 H44" fill="none" stroke="#B9BCC1" style="stroke-width: 2.5"></path><circle cx="21" cy="36" r="3" fill="#B9BCC1"></circle><circle cx="41" cy="36" r="3" fill="#B9BCC1"></circle><path d="M20 10 V24 M28 10 V24 M36 10 V24 M44 10 V24" fill="none" stroke="#8D9299" style="stroke-width: 1.2"></path></svg>
+<div aria-hidden="true" style="position: absolute; left: 224px; top: 34px; width: 62px; height: 36px; border-radius: 16px 16px 3px 3px; background: #6E5A7A"></div>
+<div aria-hidden="true" style="position: absolute; left: 100px; top: 104px; width: 70px; height: 14px; border-radius: 7px; background: #A13A52; box-shadow: inset 0 -3px 0 rgba(0,0,0,0.25), 0 0 0 2px #E2B54A; transform: rotate(-4deg)"></div>
+<svg aria-hidden="true" style="position: absolute; left: 270px; top: 92px" width="14" height="60" viewBox="0 0 14 60"><path d="M1 3 H13" fill="none" stroke="#B9BCC1" style="stroke-width: 2.5; stroke-linecap: round"></path><path d="M7 3 V44" fill="none" stroke="#B9BCC1" style="stroke-width: 2"></path><path d="M2 38 H12" fill="none" stroke="#FF6A13" style="stroke-width: 2.5; stroke-linecap: round"></path><path d="M7 44 L4 47 L10 50 L4 53 L7 56 V60" fill="none" stroke="#B9BCC1" style="stroke-width: 1.6"></path></svg>
+<span class="mote" aria-hidden="true" style="position: absolute; left: 120px; top: 200px; width: 3px; height: 3px; border-radius: 50%; background: #FFD9A0"></span>
+<span class="mote" aria-hidden="true" style="position: absolute; left: 190px; top: 230px; width: 2px; height: 2px; border-radius: 50%; background: #FFD9A0; animation-delay: 1.1s"></span>
+<span class="mote" aria-hidden="true" style="position: absolute; left: 70px; top: 240px; width: 2px; height: 2px; border-radius: 50%; background: #FFD9A0; animation-delay: 2s"></span>
+<div style="position: absolute; left: 0; right: 0; top: 250px; height: 50px; background: #5A5D62"></div>
+<div style="position: absolute; left: 118px; top: 228px; width: 70px; height: 40px; box-sizing: border-box; background: #A97D4D; border: 2px solid #6E4E2C; background-image: repeating-linear-gradient(90deg, transparent 0 20px, #6E4E2C 20px 22px)">
+<span class="sten" style="position: absolute; left: 6px; top: 12px; font-size: 9px; color: #3E2A16">FRAGILE</span>
+</div>
+<div class="{{dotCls}}" style="position: absolute; left: 124px; top: 120px; width: 60px; height: 110px">
+<div style="position: absolute; left: 17px; top: 82px; width: 10px; height: 28px; background: #2E3F5E; border-radius: 2px"></div>
+<div style="position: absolute; left: 33px; top: 82px; width: 10px; height: 28px; background: #2E3F5E; border-radius: 2px"></div>
+<div style="position: absolute; left: 14px; top: 106px; width: 14px; height: 6px; background: #1C1D20; border-radius: 3px 3px 1px 1px"></div>
+<div style="position: absolute; left: 32px; top: 106px; width: 14px; height: 6px; background: #1C1D20; border-radius: 3px 3px 1px 1px"></div>
+<div style="position: absolute; left: 10px; top: 38px; width: 40px; height: 50px; border-radius: 12px 12px 6px 6px; background: #E5DABE"></div>
+<div class="hvV" style="position: absolute; left: 10px; top: 38px; width: 13px; height: 50px; border-radius: 12px 0 0 6px"></div>
+<div class="hvV" style="position: absolute; left: 37px; top: 38px; width: 13px; height: 50px; border-radius: 0 12px 6px 0"></div>
+<div style="position: absolute; left: 44px; top: 42px; width: 7px; height: 32px; border-radius: 4px; background: #E9B98E; transform: rotate(-20deg); transform-origin: 50% 0"></div>
+<div style="position: absolute; left: 0; top: 54px; width: 22px; height: 26px; box-sizing: border-box; background: #C99459; border: 2px solid #6E4E2C; border-radius: 2px; transform: rotate(-10deg)">
+<div style="position: absolute; left: 6px; top: -4px; width: 8px; height: 5px; background: #8D9299; border-radius: 2px"></div>
+<div style="position: absolute; left: 3px; top: 5px; width: 12px; height: 14px; background: #FFFCF3"></div>
+</div>
+<div class="{{pointCls}}" style="position: absolute; left: 6px; top: 42px; width: 7px; height: 26px; border-radius: 4px; background: #E9B98E; transform: rotate(-25deg); transform-origin: 4px 4px"></div>
+<div style="position: absolute; left: 25px; top: 30px; width: 10px; height: 10px; background: #E9B98E"></div>
+<div style="position: absolute; left: 14px; top: 2px; width: 32px; height: 32px; border-radius: 50%; background: #E9B98E"></div>
+<div style="position: absolute; left: 10px; top: -4px; width: 40px; height: 18px; border-radius: 20px 20px 6px 6px; background: #8A8F98"></div>
+<div style="position: absolute; left: 8px; top: 4px; width: 9px; height: 14px; border-radius: 50%; background: #8A8F98"></div>
+<div style="position: absolute; left: 43px; top: 4px; width: 9px; height: 14px; border-radius: 50%; background: #8A8F98"></div>
+<div style="position: absolute; left: 45px; top: 0; width: 3px; height: 16px; background: #1F4FA6; transform: rotate(30deg); border-radius: 1px"></div>
+<div style="position: absolute; left: 20px; top: 16px; width: 8px; height: 6px; box-sizing: border-box; border: 1.5px solid #22201B; border-radius: 2px"></div>
+<div style="position: absolute; left: 31px; top: 16px; width: 8px; height: 6px; box-sizing: border-box; border: 1.5px solid #22201B; border-radius: 2px"></div>
+<div style="position: absolute; left: 28px; top: 18px; width: 3px; height: 1.5px; background: #22201B"></div>
+<div class="{{mouthCls}}" style="position: absolute; left: 26px; top: 25px; width: 8px; height: 4px; border-radius: 0 0 5px 5px; background: #7A3A2A"></div>
+</div>
+<div style="position: absolute; left: 0; right: 0; top: 0; height: 300px; transform: {{doorT}}; transition: {{doorTr}}; background-color: #8D9299; background-image: repeating-linear-gradient(180deg, #A4A9AF 0 5px, #7C8187 5px 8px, #9399A0 8px 12px); display: flex; align-items: center; justify-content: center">
+<div style="padding: 8px 14px; background: rgba(28,29,32,0.85); border: 3px solid #FF6A13; display: flex; flex-direction: column; align-items: center; gap: 3px">
+<span class="sten" style="font-size: 28px; line-height: 1; color: #FF6A13">E.T.A.</span>
+<span class="sten" style="font-size: 10px; line-height: 1; letter-spacing: 0.08em; color: #F1EEE6">EVERY THING, ANYWHERE.</span>
+<span style="font-size: 11px; font-style: italic; font-weight: 700; color: #FFD23F">Eventually.</span>
+</div>
+<div class="hv" style="position: absolute; left: 0; right: 0; bottom: 0; height: 12px"></div>
+</div>
+</div>
+<div style="position: absolute; left: 0; right: 0; top: 382px; height: 285px; background: #4E5257; background-image: radial-gradient(rgba(255,255,255,0.06) 1px, transparent 1.4px); background-size: 7px 7px"></div>
+<div style="position: absolute; left: 0; right: 0; top: 382px; height: 6px; background-image: repeating-linear-gradient(-45deg, #FFD23F 0 8px, #1C1D20 8px 16px)"></div>
+<div style="position: absolute; left: 12px; right: 12px; top: 398px; height: 194px; background: #FFFCF3; border-radius: 3px; box-shadow: 0 2px 0 #E9E2CF, 0 10px 22px rgba(0,0,0,0.4)"></div>
+<div class="hv {{bandCls}}" style="position: absolute; left: 12px; right: 12px; top: 398px; height: 9px"></div>
+<div style="position: absolute; left: 24px; right: 24px; top: 414px; display: flex; justify-content: space-between; align-items: baseline">
+<span style="font-size: 9px; font-weight: 700; letter-spacing: 0.14em; color: #6B6458">{{headLabel}}</span>
+<div style="display: flex; gap: 4px">
+<sc-for list="{{dots}}" as="d" hint-placeholder-count="4">
+<span style="display: block; width: 7px; height: 7px; border-radius: 50%; background: {{d.bg}}"></span>
+</sc-for>
+</div>
+</div>
+<sc-for list="{{lines}}" as="ln" hint-placeholder-count="1">
+<sc-if value="{{ln.on}}" hint-placeholder-val="{{ false }}">
+<div class="msgIn" style="position: absolute; left: 24px; right: 24px; top: 436px">
+<span class="sten" style="display: block; font-size: 10px; letter-spacing: 0.1em; color: #EA580C; margin-bottom: 6px">DOT · DEPOT MANAGER</span>
+<span class="typeLine" style="display: block; font-size: 19px; font-weight: 700; line-height: 1.3">{{ln.text}}</span>
+</div>
+</sc-if>
+</sc-for>
+<sc-if value="{{briefOn}}" hint-placeholder-val="{{ false }}">
+<div class="msgIn" style="position: absolute; left: 24px; right: 24px; top: 434px; display: flex; flex-direction: column; gap: 9px">
+<span class="sten" style="font-size: 15px; line-height: 1">TODAY'S JOB</span>
+<div style="display: flex; gap: 8px; align-items: flex-start"><span class="sten" style="font-size: 13px; color: #EA580C">1</span><span style="font-size: 13px; font-weight: 700; line-height: 1.3">You'll get a Ride. Nobody tells you its speed.</span></div>
+<div style="display: flex; gap: 8px; align-items: flex-start"><span class="sten" style="font-size: 13px; color: #EA580C">2</span><span style="font-size: 13px; font-weight: 700; line-height: 1.3">Log your ETA. Closest to the truth earns the most Mileage.</span></div>
+<div style="display: flex; gap: 8px; align-items: flex-start"><span class="sten" style="font-size: 13px; color: #EA580C">3</span><span style="font-size: 13px; font-weight: 700; line-height: 1.3">Then talk me through it. Best pitch gets my stamp.</span></div>
+</div>
+</sc-if>
+<sc-if value="{{sheetOn}}" hint-placeholder-val="{{ false }}">
+<div class="msgIn" style="position: absolute; left: 24px; right: 24px; top: 432px; display: flex; flex-direction: column; gap: 4px">
+<span class="sten" style="font-size: 15px; line-height: 1; margin-bottom: 4px">SIGN THE TIMESHEET</span>
+<sc-for list="{{crew}}" as="c" hint-placeholder-count="5">
+<sc-if value="{{c.on}}" hint-placeholder-val="{{ true }}">
+<div class="rowIn" style="display: flex; align-items: center; gap: 8px; height: 24px; border-bottom: 1px dashed #C9C0AB">
+<span style="width: 70px; font-size: 13px; font-weight: 700">{{c.name}}</span>
+<span class="mark signIn" style="flex: 1; font-size: 15px; line-height: 1; color: #1F4FA6">{{c.sig}}</span>
+<sc-if value="{{c.ready}}" hint-placeholder-val="{{ false }}">
+<span class="pop sten" style="font-size: 10px; padding: 2px 5px; border: 2px solid #EA580C; border-radius: 3px; color: #C2410C; transform: rotate(-6deg)">CLOCKED ON</span>
+</sc-if>
+</div>
+</sc-if>
+</sc-for>
+</div>
+</sc-if>
+<div style="position: absolute; left: 14px; right: 14px; top: 604px; display: flex; gap: 10px">
+<button type="button" onClick="{{replay}}" class="sten" style="flex: 1; height: 52px; border-radius: 12px; border: 2px solid #FFFCF3; background: transparent; color: #FFFCF3; font-size: 15px">REPLAY</button>
+<button type="button" onClick="{{next}}" class="sten" style="flex: 1.4; height: 52px; border-radius: 12px; border: none; background: #EA580C; color: #FFFFFF; font-size: 17px; box-shadow: 0 4px 0 #9A3412">{{nextLabel}}</button>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"speed":{"editor":"range","default":1,"min":0.5,"max":2,"step":0.25,"section":"Playback"},"$preview":{"width":375,"height":667}}'>
+class Component extends DCLogic {
+  componentDidMount() { this.play(); }
+  componentWillUnmount() { this.stop(); }
+  stop() { (this.timers || []).forEach((t) => clearTimeout(t)); this.timers = []; }
+  k() { const s = Number(this.props.speed); return s > 0 ? 1 / s : 1; }
+  data() {
+    return {
+      lines: [
+        'Right, gather round. Toolbox talk.',
+        'Welcome to E.T.A. Every Thing, Anywhere. We say yes to every job.',
+        'Bit of a hiccup: the vans are all out. You\'re taking whatever\'s left in the shed.',
+        'Customer wants an ETA. Give \'em a good one.'
+      ],
+      crew: [['Ada', 'Ada K.'], ['Boris', 'B. Petrov'], ['Chloe', 'Chlo ♥'], ['Dev', 'D. Shah'], ['Eli', 'eli']]
+    };
+  }
+  play() {
+    this.stop();
+    const k = this.k(), D = this.data();
+    this.setState({ door: 0, beat: -1, step: 'scene', signed: 0, instant: true });
+    const at = (ms, s) => this.timers.push(setTimeout(() => this.setState(s), ms * k));
+    at(60, { instant: false });
+    at(500, { door: 1 });
+    D.lines.forEach((l, i) => at(1900 + i * 2700, { step: 'lines', beat: i }));
+    const B = 1900 + D.lines.length * 2700;
+    at(B, { step: 'brief' });
+    const T = B + 3800;
+    at(T, { step: 'sheet', signed: 0 });
+    D.crew.forEach((c, i) => at(T + 400 + i * 650, { signed: i + 1 }));
+  }
+  next() {
+    const st = this.state || {}, D = this.data();
+    this.stop();
+    if (st.step === 'scene' || st.step === 'lines') {
+      const b = (st.beat || 0) + 1;
+      if (st.step === 'scene') this.setState({ door: 1, step: 'lines', beat: 0, instant: false });
+      else if (b < D.lines.length) this.setState({ beat: b });
+      else this.setState({ step: 'brief' });
+    } else if (st.step === 'brief') this.setState({ step: 'sheet', signed: D.crew.length });
+    else this.play();
+  }
+  renderVals() {
+    const st = this.state || {}, D = this.data();
+    const step = st.step || 'scene', beat = typeof st.beat === 'number' ? st.beat : -1;
+    const talking = step === 'lines';
+    return {
+      doorT: st.door ? 'translateY(-288px)' : 'translateY(0)',
+      doorTr: st.instant !== false ? 'none' : 'transform 1.2s cubic-bezier(.6,0,.3,1)',
+      dotCls: talking ? 'sway' : 'bob',
+      pointCls: talking ? 'point' : '',
+      mouthCls: talking ? 'talk' : '',
+      bandCls: 'sheenLoop',
+      headLabel: step === 'sheet' ? 'ROLL CALL · RUN 1 OF 5' : (step === 'brief' ? 'THE BRIEF' : 'TOOLBOX TALK'),
+      dots: D.lines.map((l, i) => ({ bg: (step !== 'lines' && step !== 'scene') || i <= beat ? '#EA580C' : '#D9D2C0' })),
+      lines: D.lines.map((t, i) => ({ text: t, on: step === 'lines' && beat === i })),
+      briefOn: step === 'brief',
+      sheetOn: step === 'sheet',
+      crew: D.crew.map((c, i) => ({ name: c[0], sig: c[1], on: i < Math.max(1, st.signed || 0) || (st.signed || 0) >= i + 1, ready: (st.signed || 0) > i })),
+      nextLabel: step === 'sheet' ? 'I\'M READY' : 'NEXT',
+      replay: () => this.play(),
+      next: () => this.next()
+    };
+  }
+}
+</script>
+</body>
+</html>

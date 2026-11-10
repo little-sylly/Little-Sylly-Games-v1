@@ -44,6 +44,7 @@ Spec: `docs/superpowers/specs/2026-09-15-index-decomposition-design.md`.
 | Cookie Jar (CJAR) | `src/screens/cjar.html` |
 | Cold Shoulder (CLD) | `src/screens/cld.html` |
 | Honeycomb Hills (COMB) | `src/screens/comb.html` |
+| ETA? (ETA) | `src/screens/eta.html` (+ the world: `css/eta.css`, `js/games/eta-scene.js`) |
 | Multiplayer global overlays | `src/screens/_mp.html` (same partial as the multiplayer engine — the two sections are adjacent) |
 | Global sound overlay + art viewer | `src/screens/_sound.html` |
 | Shell (lobby, who-first, engine-global) | `src/screens/_shell.html` |
@@ -3176,3 +3177,62 @@ path-dependent — §17-3); never throw.
 Re-run `verify-comb-loop.js` + `mutate-comb.js` after any rules/applier change; **`verify-comb-loopback.js`
 after anything packet- or render-shaped**; all five after touching the topology or the seams. **None of them
 does layout** — that is `visual-check`'s tier, and it is what caught both BUG-03 and BUG-05.
+
+---
+
+## ETA? (ETA) — game 21 · **BUILT (SW v272)** — awaiting its first multi-device session
+
+Spec: `docs/new-game-tech-eta.md` (confirmed 10 Nov 2026). Brief: `docs/new-game-brief-eta.md` (v4).
+Identity doc: `docs/game-identities/eta.md`. Impl notes: `docs/implementation-notes/eta-implementation-notes.md`.
+Content: `data/eta-data.json` (**provisional**) — guide `docs/eta-content-guide.md`.
+**MDLM-only, 3–8 players, host-authoritative, host-as-participant. The first NEW game built world-first**
+(Stage 1b, direction 1 · Clipboard) and the second adopter of the engine Intro (roll call, no Line-up).
+**Brand:** `#EA580C` — `.eta-cta`, `.pill-active-eta`, `.game-toggle-on-eta`, `.eta-range`, `.eta-label` (`#C2410C`, text) in `styles.css`; the world's palette in `css/eta.css`.
+**Lobby button:** `#btn-eta` (in `LB_NO_STICKER` until `data/stickers/eta.png` exists).
+
+**TV public state (eta):** run, jobNo, route headline / distance / Briefing, flavour line, logged count, (from `ETA_SHEET`) every row's name / Ride / mode / Logged ETA, stamp-or-correction lock counts, (Sylly, from `ETA_CORRECTIONS`) corrections + Revised ETAs, (from `ETA_PROOF`) truths, speeds, verdicts, receipts, totals, ranks; (from `ETA_SHIFT_END`) winners + awards.
+
+### Screens
+| ID | TV | Purpose |
+|----|----|---------|
+| `screen-eta-menu` | public | Menu — Clock On / How to Play / Settings / ← Back to the Box |
+| `screen-eta-standby` | public | A client after the Intro, before the first docket |
+| `screen-eta-docket` | public | The job docket — auto-advancing interstitial (`ETA_DOCKET_MS` 4200, +`ETA_OFFMAP_MS` 1200), chrome-exempt |
+| `screen-eta-log` | **private** | Your Ride (`#eta-ride-card`) + the Time Dial (`#eta-dial`) + Log ETA → waiting (`#eta-log-wait`, ticks, stall line) |
+| `screen-eta-sheet` | public | The Run Sheet board (`#eta-sheet-board`) through `etaPhase` `reveal → talk → (shove) → proof → done`; Controls: `#btn-eta-sheet-skip`, `#eta-stamp-bar`, `#eta-wheel` (the Course Correction picker — in the Stack, not an overlay), `#eta-social-status`, `#btn-eta-odometer` |
+| `screen-eta-tally` | public | The Odometer (`#eta-tally-list`); host `#btn-eta-next` (Next job / End of Shift), client `#eta-tally-wait` |
+| `screen-eta-gameover` | public | End of Shift — `#eta-cotm-*`, `#eta-standings`, `#eta-awards`; `#btn-eta-go-new` / `#btn-eta-go-leave` / `#btn-eta-go-exit` |
+
+The Intro is the engine's `screen-game-intro` with `<template id="intro-eta">` + `EtaScene`. ETA's template uses the
+two roll-call skin hooks it added (`data-intro-roll`, `data-intro-ready-tag` — `js/engine-intro.js`, SW v272).
+
+### Overlays
+| ID | Pattern | Notes |
+|----|---------|-------|
+| `eta-settings-overlay` | data z-80 | The Dispatch Desk — `data-group="eta-range"` / `"eta-shift"` pills, `#btn-eta-gps-toggle`, `#btn-eta-offmap-toggle`, `#btn-eta-sylly-toggle` |
+| `eta-how-to-overlay` | data z-90 | Tabs `#btn-eta-howto-tab-{rules,practice,ranks}` → `#eta-how-to-{rules,practice,ranks}`; Practice mounts into `#eta-practice` |
+| `eta-doubletake-overlay` | modal z-90 | Dot's Double-Take — `#btn-eta-doubletake-confirm` / `-cancel` |
+| `eta-quit-overlay` | modal z-80 | Clock off early? — the Mid-Game Quit Contract (`mpNotifyPlayerLeft`) |
+| `eta-new-shift-overlay` | modal z-90 | Next Shift? — `mpReturnToLobby()` |
+
+### Files and key functions
+| Where | What |
+|-------|------|
+| `js/games/eta.js` — pure rules | `etaAcc` (accuracy curve), `etaScoreRun` (one Run, every seat: receipts geared + rounded per line, Sylly credit, floor, banners), `etaSyllyCredit` (Backseat Drivers credit for one target — mirrors `eta_sim.py credit_pts`), `etaComputeEnd` (winners + Dot's Notes), `etaRankIdx`, `etaGeared`, `etaVerdict`, `etaToMinutes`, `etaDoubleTakeText` (never reads a truth) |
+| `js/games/eta.js` — content | `etaEnsureData` (fetch + `ETA_FALLBACK_DATA`), `etaTruth` / `etaSpeedFor` (`useMax`, `limitKmh`), `etaEligibleRides`, `etaRouteOk`, `etaDrawRoute` (Range, no repeats, Off the Map share), `etaDealRun` (one band per seat, near-identical + already-held avoidance), `etaBuildBriefing` (+ Unregistered hints) |
+| `js/games/eta.js` — host | `etaOnEnter` (onPassThePhone), `etaStartShift`, `etaHostStartRun`, appliers `etaApplyLog/Stamp/Correction(seat, run, …)` (explicit seat — the harness plays every seat), `etaHostLogProgress` / `etaHostSocialProgress` (the stall timers), `etaHostOpenSheet`, `etaHostResolve`, `etaHostNext` |
+| `js/games/eta.js` — every device | `etaApply{ShiftStart,RunStart,Ride,LogStatus,Sheet,SocialStatus,Corrections,Proof,ShiftEnd}` (the host applies its own payloads), `etaHandleEnvelope`, `etaSubmit{Log,Stamp,Correction}`, `etaPlaySheetPhase`, `etaRenderSheetControls`, `etaShowTally`, `etaShowGameover`, `etaWireArr` / `etaWireList`, `etaTeardown` (from `resetToLobby`) |
+| `js/games/eta.js` — Practice | `ETA_PRACTICE`, `etaPracticeOpen` / `etaPracticeSheet` / `etaPracticeProof` / `etaPracticeStop` — the real dial, a second board, the real scorer; no match state |
+| `js/games/eta-scene.js` (pure kit) | `etaFmtInt`, `etaDur`, `etaRenderBadge` (THE badge seam — `assetFace('eta-badge', mode)`), `etaNoteInto`, `etaDocketInto`, `etaScaleFor` (the axis — fed Logged/Revised ETAs only before Proof), `etaMakeBoard` (`setRows`, `reveal`, `settleReveal`, `shove`, `proof`, `skip`, `stop`, selection + ghost), `EtaScene` (Intro: `mount` / `beat` / `stop`, static tier) |
+
+### Multiplayer packets
+**SYNC, host → all:** `ETA_SHIFT_START` · `ETA_RUN_START` (no Ride, no speed) · `ETA_LOG_STATUS` (bools + `stallEndsAt`) · `ETA_SHEET` (Rides + Logged ETAs; `-1` = No ETA) · `ETA_SOCIAL_STATUS` (bools) · `ETA_CORRECTIONS` (Sylly; `list` may be empty) · `ETA_PROOF` (**the only packet with a truth or speed**) · `ETA_SHIFT_END`.
+**PRIVATE, host → seat:** `ETA_RIDE` (name, mode, emoji, unreg — never a speed).
+**PRIVATE, seat → host** (the CLD_COMMIT pattern — the `private/$uid/$msg` rule): `ETA_LOG` · `ETA_STAMP` · `ETA_CORRECT`. Seat from `originId`; stale `run` dropped. Quit: the generic `MP_PLAYER_LEFT`. No reconnect hook.
+
+### Verification tools
+| Tool | Covers |
+|------|--------|
+| `node tools/verify-eta-rules.js` (420) | The accuracy curve vs the maths doc; Samples 1, 2 and 2b from the brief; Sweep, insurance cap, floor, Hands off; gear rounding adds up; ranks; durations + Double-Take; 3,000 seeded deals (window, no duplicates, Unregistered only in Sylly, spread); Route draws (no repeats, Range, Off the Map ≈ 1 in 4); four whole Shifts through the host appliers; both stalls (captured timers). `ETA_SRC=` / `ETA_SEED=` |
+| `node tools/verify-eta-loopback.js` (151) | The REAL engine + Intro + `eta.js` on up to 5 devices over the `mp-world` wire, real buttons clicked: the privacy invariants (no Ride before the Run Sheet, no entry / Stamp / Correction on the public channel, no truth before `ETA_PROOF`, each private queue holds only its own Ride), the log stall, a changed Stamp, stale + forged packets, host-only Next job, End of Shift parity, Backseat Drivers (corrections before Proof, Revised ETAs agree, an empty list over the wire), the quit contract, zero warnings. Board / docket / scene are recording fakes. `ETA_SRC=` |
+| `node tools/verify-eta-content.js` (648) | `data/eta-data.json` against the content rules, through the game's own pairing code |

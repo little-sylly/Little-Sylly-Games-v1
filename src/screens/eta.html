@@ -1,0 +1,419 @@
+  <!-- ════ ETA? (eta) — estimation + persuasion, E.T.A. Couriers ════
+       Screens : screen-eta-menu, screen-eta-standby, screen-eta-docket, screen-eta-log,
+                 screen-eta-sheet, screen-eta-tally, screen-eta-gameover
+       Overlays: eta-settings-overlay, eta-how-to-overlay, eta-quit-overlay,
+                 eta-new-shift-overlay, eta-doubletake-overlay
+       Template: intro-eta (the engine Intro — Dot's toolbox talk + the timesheet)
+       Ref     : js/games/eta.js · js/games/eta-scene.js · css/eta.css
+                 spec docs/new-game-tech-eta.md
+    ════════════════════════════════════════════════════════════════ -->
+
+  <!-- ETA MENU — content-height section (NO min-h-screen: the 🔊 must sit by the title) -->
+  <section id="screen-eta-menu" data-tv="public" style="display:none"
+    class="relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6">
+    <button class="btn-open-sound absolute top-4 right-4 text-2xl active:scale-90 transition-transform duration-100">🔊</button>
+    <div class="text-5xl" role="img" aria-label="Scooter">🛵</div>
+    <div>
+      <h1 class="text-5xl font-bold leading-tight text-stone-800">ETA<span class="eta-label">?</span></h1>
+      <p class="text-stone-400 text-base mt-1">Skateboard to the Moon? Show your working.</p>
+    </div>
+    <div class="flex flex-col gap-3 w-full">
+      <button id="btn-eta-menu-play" class="gel-btn eta-cta min-h-14 w-full rounded-2xl text-xl font-semibold">Clock On</button>
+      <button id="btn-eta-menu-how-to" class="gel-btn min-h-14 w-full rounded-2xl bg-stone-700 hover:bg-stone-800 text-white text-xl font-semibold">How to Play</button>
+      <button id="btn-eta-menu-settings" class="gel-btn gel-btn-light min-h-14 w-full rounded-2xl bg-[#FFEDD5] hover:bg-[#FED7AA] text-[#9A3412] text-xl font-semibold">Settings</button>
+      <button id="btn-eta-menu-back" class="gel-btn gel-btn-light min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 text-stone-500 text-xl font-semibold">← Back to the Box</button>
+    </div>
+  </section>
+
+  <!-- ETA STANDBY — a client after the Intro, before the first docket -->
+  <section id="screen-eta-standby" data-tv="public" style="display:none"
+    class="eta-desk flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-4">
+      <div class="flex items-center justify-between">
+        <p class="eta-desk-eyebrow">E.T.A. COURIERS</p>
+        <div class="flex items-center gap-2">
+          <button class="btn-open-sound eta-chrome text-xl active:scale-90 transition-transform duration-100">🔊</button>
+          <button class="btn-eta-quit-open eta-chrome font-bold text-xl active:scale-90 transition-transform duration-100" aria-label="Clock off">✕</button>
+        </div>
+      </div>
+      <div class="eta-clip eta-standby-card">
+        <div class="eta-hv eta-sheen-loop"></div>
+        <p class="eta-sten eta-standby-head">THE ROLLER DOOR'S UP</p>
+        <p id="eta-standby-line" class="eta-standby-line">Waiting for the first job…</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ETA JOB DOCKET — the round intro. Interstitial: auto-advances AND has no
+       interactive element, both conditions of the ui-style.md rule-5 chrome exemption. -->
+  <section id="screen-eta-docket" data-tv="public" style="display:none"
+    class="eta-desk flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-4">
+      <div id="eta-docket-board"></div>
+    </div>
+  </section>
+
+  <!-- ETA YOUR RIDE + LOG ETA — PRIVATE: your Ride is secret until the Run Sheet -->
+  <section id="screen-eta-log" data-tv="private" style="display:none"
+    class="eta-desk flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-3">
+      <div class="flex items-center justify-between">
+        <p id="eta-log-run" class="eta-desk-eyebrow">RUN 1 OF 5</p>
+        <div class="flex items-center gap-2">
+          <button class="btn-eta-how-to eta-chrome font-bold text-sm min-h-11 min-w-11">[?]</button>
+          <button class="btn-open-sound eta-chrome text-xl active:scale-90 transition-transform duration-100">🔊</button>
+          <button class="btn-eta-quit-open eta-chrome font-bold text-xl active:scale-90 transition-transform duration-100" aria-label="Clock off">✕</button>
+        </div>
+      </div>
+      <div id="eta-log-docket"></div>
+      <div id="eta-ride-card" class="eta-clip eta-ride-card"></div>
+      <div id="eta-dial" class="eta-clip eta-dial" data-unit="hr" data-mult="1">
+        <label class="eta-dial-label" for="eta-dial-num">YOUR LOGGED ETA</label>
+        <input id="eta-dial-num" data-eta-dial-num type="text" inputmode="decimal" autocomplete="off" placeholder="0" class="eta-dial-num" aria-label="How long, as a number">
+        <div class="eta-dial-units" role="group" aria-label="Time Dial">
+          <button type="button" class="eta-unit" data-eta-unit="min">min</button>
+          <button type="button" class="eta-unit is-on" data-eta-unit="hr">hrs</button>
+          <button type="button" class="eta-unit" data-eta-unit="day">days</button>
+          <button type="button" class="eta-unit" data-eta-unit="wk">wks</button>
+          <button type="button" class="eta-unit" data-eta-unit="mo">months</button>
+          <button type="button" class="eta-unit" data-eta-unit="yr">yrs</button>
+        </div>
+        <div class="eta-dial-mults" data-eta-mult-row style="display:none">
+          <span>For the really long ones:</span>
+          <button type="button" class="eta-unit" data-eta-mult="1000">×1,000</button>
+          <button type="button" class="eta-unit" data-eta-mult="1000000">×1M</button>
+        </div>
+        <p id="eta-dial-error" class="eta-dial-error" style="display:none"></p>
+      </div>
+      <button id="btn-eta-log" class="eta-cta min-h-14 w-full rounded-2xl active:scale-95 text-xl font-semibold transition-transform duration-150">Log ETA</button>
+      <div id="eta-log-wait" class="eta-clip eta-log-wait" style="display:none">
+        <p id="eta-log-mine" class="eta-log-mine"></p>
+        <p id="eta-log-count" class="eta-sten eta-log-count"></p>
+        <ul id="eta-log-ticks" class="eta-ticks-list"></ul>
+        <p id="eta-log-stall" class="eta-stall" style="display:none"></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ETA THE RUN SHEET — public. The time-lapse, Talk Me Through It (Stamps, or Sylly's
+       Course Corrections), the Corrections reveal and Proof of Delivery on ONE clipboard
+       (spec §17 #2). The wheel picker lives in the Controls zone, never over the sheet. -->
+  <section id="screen-eta-sheet" data-tv="public" style="display:none"
+    class="eta-desk flex items-center justify-center w-full min-h-screen px-4 py-6 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-3">
+      <div class="flex items-center justify-between">
+        <p id="eta-sheet-run" class="eta-desk-eyebrow">RUN 1 OF 5</p>
+        <div class="flex items-center gap-2">
+          <button class="btn-eta-how-to eta-chrome font-bold text-sm min-h-11 min-w-11">[?]</button>
+          <button class="btn-open-sound eta-chrome text-xl active:scale-90 transition-transform duration-100">🔊</button>
+          <button class="btn-eta-quit-open eta-chrome font-bold text-xl active:scale-90 transition-transform duration-100" aria-label="Clock off">✕</button>
+        </div>
+      </div>
+      <div id="eta-sheet-board"></div>
+      <!-- CONTROLS — one of these at a time, by etaPhase -->
+      <button id="btn-eta-sheet-skip" style="display:none" class="eta-btn-paper min-h-11 w-full rounded-2xl text-base font-semibold active:scale-95 transition-transform duration-150">Skip</button>
+      <div id="eta-stamp-bar" style="display:none" class="eta-clip eta-controls">
+        <p id="eta-stamp-prompt" class="eta-controls-prompt"></p>
+        <button id="btn-eta-stamp" style="display:none" class="btn-mp-action eta-cta min-h-14 w-full rounded-2xl active:scale-95 text-xl font-semibold transition-transform duration-150">Stamp it</button>
+      </div>
+      <div id="eta-wheel" style="display:none" class="eta-clip eta-controls">
+        <p id="eta-wheel-title" class="eta-controls-prompt"></p>
+        <div id="eta-wheel-dial" style="display:none" class="flex flex-col gap-2">
+          <div id="eta-wheel-stops" class="eta-wheel-stops">
+            <button type="button" class="eta-unit" data-eta-stop="0.1">÷10</button>
+            <button type="button" class="eta-unit" data-eta-stop="0.2">÷5</button>
+            <button type="button" class="eta-unit" data-eta-stop="0.5">÷2</button>
+            <button type="button" class="eta-unit" data-eta-stop="2">×2</button>
+            <button type="button" class="eta-unit" data-eta-stop="5">×5</button>
+            <button type="button" class="eta-unit" data-eta-stop="10">×10</button>
+          </div>
+          <div class="flex items-center gap-2">
+            <button id="btn-eta-wheel-down" type="button" class="eta-step" aria-label="A little less">−</button>
+            <input id="eta-wheel-range" type="range" min="-1000" max="1000" step="1" value="0" class="eta-range w-full" aria-label="Course Correction">
+            <button id="btn-eta-wheel-up" type="button" class="eta-step" aria-label="A little more">+</button>
+          </div>
+          <p id="eta-wheel-readout" class="eta-wheel-readout"></p>
+        </div>
+        <button id="btn-eta-wheel-lock" style="display:none" class="btn-mp-action eta-cta min-h-14 w-full rounded-2xl active:scale-95 text-xl font-semibold transition-transform duration-150">Lock it in</button>
+        <button id="btn-eta-wheel-hands" style="display:none" class="btn-mp-action flex items-center justify-center min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 text-xl font-semibold transition-transform duration-150">Hands off</button>
+      </div>
+      <p id="eta-social-status" style="display:none" class="eta-status"></p>
+      <p id="eta-sheet-stall" style="display:none" class="eta-stall eta-stall-desk"></p>
+      <button id="btn-eta-odometer" style="display:none" class="eta-cta min-h-14 w-full rounded-2xl active:scale-95 text-xl font-semibold transition-transform duration-150">See the Odometer</button>
+    </div>
+  </section>
+
+  <!-- ETA ODOMETER TALLY — public: every receipt -->
+  <section id="screen-eta-tally" data-tv="public" style="display:none"
+    class="eta-desk flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-3">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="eta-desk-title eta-sten">THE ODOMETER</p>
+          <p id="eta-tally-run" class="eta-desk-eyebrow">RUN 1 OF 5</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button class="btn-eta-how-to eta-chrome font-bold text-sm min-h-11 min-w-11">[?]</button>
+          <button class="btn-open-sound eta-chrome text-xl active:scale-90 transition-transform duration-100">🔊</button>
+          <button class="btn-eta-quit-open eta-chrome font-bold text-xl active:scale-90 transition-transform duration-100" aria-label="Clock off">✕</button>
+        </div>
+      </div>
+      <div id="eta-tally-list" class="flex flex-col gap-2"></div>
+      <button id="btn-eta-next" style="display:none" class="eta-cta min-h-14 w-full rounded-2xl active:scale-95 text-xl font-semibold transition-transform duration-150">Next job</button>
+      <p id="eta-tally-wait" style="display:none" class="eta-status">Waiting for Dot (the host) to hand out the next job…</p>
+    </div>
+  </section>
+
+  <!-- ETA END OF SHIFT — public -->
+  <section id="screen-eta-gameover" data-tv="public" style="display:none"
+    class="eta-desk flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-4">
+      <div class="flex items-start justify-between">
+        <div>
+          <h2 class="eta-desk-title eta-sten">END OF SHIFT 🏁</h2>
+          <p id="eta-go-sub" class="eta-desk-sub"></p>
+        </div>
+        <div class="flex items-center gap-2 shrink-0">
+          <button class="btn-open-sound eta-chrome text-xl active:scale-90 transition-transform duration-100">🔊</button>
+          <button id="btn-eta-go-exit" class="eta-chrome font-bold text-xl active:scale-90 transition-transform duration-100" aria-label="Leave">✕</button>
+        </div>
+      </div>
+      <div class="eta-cotm">
+        <p class="eta-cotm-eyebrow eta-sten">E.T.A. COURIER OF THE MONTH</p>
+        <p id="eta-cotm-name" class="eta-cotm-name eta-mark"></p>
+        <p id="eta-cotm-line" class="eta-cotm-line"></p>
+      </div>
+      <div class="eta-clip eta-go-card">
+        <p class="eta-sten eta-go-head">THE ODOMETER</p>
+        <ol id="eta-standings" class="eta-standings"></ol>
+        <p class="eta-sten eta-go-head">DOT'S NOTES</p>
+        <ul id="eta-awards" class="eta-awards"></ul>
+      </div>
+      <button id="btn-eta-go-new" class="eta-cta min-h-14 w-full rounded-2xl active:scale-95 text-xl font-semibold transition-transform duration-150">Next Shift?</button>
+      <button id="btn-eta-go-leave" class="flex items-center justify-center min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-500 text-xl font-semibold transition-transform duration-150">Clock Off</button>
+    </div>
+  </section>
+
+  <!-- ETA SETTINGS — The Dispatch Desk -->
+  <div id="eta-settings-overlay" style="display:none"
+    class="fixed inset-0 bg-black/40 z-[80] flex items-end justify-center">
+    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
+      <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
+        <h2 class="text-xl font-bold text-stone-800">The Dispatch Desk 📋</h2>
+        <p class="text-xs text-stone-400 mt-1">Set the shift before the roller door goes up.</p>
+      </div>
+      <div class="overflow-y-auto flex flex-col gap-5 px-5 py-5">
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div>
+            <p class="text-stone-800 font-semibold">Dispatch Range</p>
+            <p class="text-stone-400 text-sm mt-0.5">Which jobs come in: everyday distances, a mix, or the solar system and beyond.</p>
+          </div>
+          <div class="flex flex-col gap-2">
+            <div class="flex gap-2">
+              <button class="pill" data-group="eta-range" data-val="local">Local</button>
+              <button class="pill pill-active-eta" data-group="eta-range" data-val="mixed">Mixed</button>
+              <button class="pill" data-group="eta-range" data-val="cosmic">Cosmic</button>
+            </div>
+            <p id="eta-val-range" class="text-stone-400 text-xs"></p>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div>
+            <p class="text-stone-800 font-semibold">Shift Length</p>
+            <p class="text-stone-400 text-sm mt-0.5">How many Runs before End of Shift.</p>
+          </div>
+          <div class="flex flex-col gap-2">
+            <div class="flex gap-2">
+              <button class="pill" data-group="eta-shift" data-val="3">Short</button>
+              <button class="pill pill-active-eta" data-group="eta-shift" data-val="5">Standard</button>
+              <button class="pill" data-group="eta-shift" data-val="7">Long</button>
+            </div>
+            <p id="eta-val-shift" class="text-stone-400 text-xs"></p>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <div class="flex items-center justify-between">
+            <p class="text-stone-800 font-semibold">GPS</p>
+            <button id="btn-eta-gps-toggle" class="game-toggle-on-eta shrink-0">ON</button>
+          </div>
+          <p class="text-stone-400 text-sm">Shows each Route's distance. Off, you estimate the distance as well.</p>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <div class="flex items-center justify-between">
+            <p class="text-stone-800 font-semibold">Off the Map</p>
+            <button id="btn-eta-offmap-toggle" class="game-toggle-off shrink-0">OFF</button>
+          </div>
+          <p class="text-stone-400 text-sm">Lets made-up places (Atlantis, the Underworld) into the draw. Turns on with Sylly Mode, and can still be turned off.</p>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <div class="flex items-center justify-between">
+            <p class="text-stone-800 font-semibold">✨ Sylly Mode</p>
+            <button id="btn-eta-sylly-toggle" class="game-toggle-off shrink-0">OFF</button>
+          </div>
+          <p class="text-stone-600 text-sm font-semibold">Backseat Drivers</p>
+          <p class="text-stone-400 text-sm">Instead of Stamps, everyone makes one secret Course Correction to another courier's ETA. Corrections multiply, so a pile-on can spin out. Unregistered Rides join the shed and pay Hazard Pay.</p>
+        </div>
+
+        <button id="btn-eta-settings-close" class="eta-cta min-h-14 w-full rounded-2xl text-xl font-semibold active:scale-95 transition-transform duration-150">Got it</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ETA HOW TO PLAY — Rules · Practice · Ranks -->
+  <div id="eta-how-to-overlay" style="display:none"
+    class="fixed inset-0 bg-black/40 z-[90] flex items-end justify-center">
+    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
+      <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
+        <h2 class="text-xl font-bold text-stone-800">How to Play 🛵</h2>
+        <p class="text-xs text-stone-400 mt-1">Guess how long an odd vehicle takes, then argue for it.</p>
+      </div>
+      <div class="px-5 pt-3 pb-3 border-b border-stone-200 flex-shrink-0 flex gap-2">
+        <button id="btn-eta-howto-tab-rules" class="pill pill-active-eta" data-eta-howto-tab="rules">Rules</button>
+        <button id="btn-eta-howto-tab-practice" class="pill" data-eta-howto-tab="practice">Practice</button>
+        <button id="btn-eta-howto-tab-ranks" class="pill" data-eta-howto-tab="ranks">Ranks</button>
+      </div>
+
+      <div id="eta-how-to-rules" class="overflow-y-auto flex flex-col gap-4 px-5 py-5">
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest eta-label">Step 1</p>
+          <p class="font-bold text-stone-800">Clock on</p>
+          <p class="text-stone-500 text-sm">You're a courier at E.T.A. Each Run, Dot hands out a <span class="font-semibold text-stone-700">job docket</span> — the Route and its Dispatch Briefing — and you're secretly given a <span class="font-semibold text-stone-700">Ride</span>. Nobody tells you its speed.</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest eta-label">Step 2</p>
+          <p class="font-bold text-stone-800">Log your ETA</p>
+          <p class="text-stone-500 text-sm">Estimate how long your Ride would take, pick a unit on the <span class="font-semibold text-stone-700">Time Dial</span>, and lock it in. <span class="font-semibold text-stone-700">Dot's Double-Take</span> repeats it in plain words to catch slips. Constant speed, no stops — unless the Briefing says otherwise.</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest eta-label">Step 3</p>
+          <p class="font-bold text-stone-800">The Run Sheet</p>
+          <p class="text-stone-500 text-sm">Everyone's ETAs fill in on one sheet, quickest at the left of the scale. Each Ride's <span class="font-semibold text-stone-700">mode badge</span> shows how it travels — Land, Sea, Air or Space.</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest eta-label">Step 4</p>
+          <p class="font-bold text-stone-800">Talk Me Through It</p>
+          <p class="text-stone-500 text-sm">Defend your number out loud. Then give one <span class="font-semibold text-stone-700">Stamp of Approval</span> to the best pitch — funny or convincing, your call. You can't stamp yourself, and you can change your Stamp until everyone's in.</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest eta-label">Step 5</p>
+          <p class="font-bold text-stone-800">Proof of Delivery</p>
+          <p class="text-stone-500 text-sm">A parcel drops on the true ETA for every Ride and its real speed is revealed. Closer means more <span class="font-semibold text-stone-700">Mileage</span>. It's judged by how many times out you were, not the gap — 2× off on a 5-minute trip scores the same as 2× off on 10 years.</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest eta-label">Step 6</p>
+          <p class="font-bold text-stone-800">The Odometer</p>
+          <p class="text-stone-500 text-sm">Mileage spins up and you can be <span class="font-semibold text-stone-700">promoted</span>. Ranks only last for this Shift.</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest eta-label">Winning and Scoring</p>
+          <p class="font-bold text-stone-800">Most Mileage is Courier of the Month</p>
+          <ul class="list-disc pl-5 flex flex-col gap-1 text-stone-500 text-sm">
+            <li><span class="font-semibold text-stone-700">Accuracy</span> pays the most — up to 40,000 km a Run, full marks within 5%.</li>
+            <li><span class="font-semibold text-stone-700">Depot Tips</span> — every Stamp you receive pays a little.</li>
+            <li><span class="font-semibold text-stone-700">Tied?</span> You share the title.</li>
+          </ul>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest eta-label">✨ Sylly Mode</p>
+          <p class="font-bold text-stone-800">Backseat Drivers</p>
+          <p class="text-stone-500 text-sm">Instead of Stamps, grab one other courier's wheel and make one secret <span class="font-semibold text-stone-700">Course Correction</span> to their ETA. Fixing a big miss pays big, but corrections multiply, so a pile-on can overshoot into a <span class="font-semibold text-stone-700">Spin-out</span>. <span class="font-semibold text-stone-700">Unregistered Rides</span> (no rego!) join the shed and pay Hazard Pay. Corrections never change the target's own accuracy score.</p>
+        </div>
+        <button id="btn-eta-howto-close" class="eta-cta min-h-14 w-full rounded-2xl text-xl font-semibold active:scale-95 transition-transform duration-150">Got it</button>
+      </div>
+
+      <!-- PRACTICE — the Arena (brief §24): one scripted Run around your own free answer,
+           built from the real Time Dial and the real Run Sheet board. No multiplayer. -->
+      <div id="eta-how-to-practice" style="display:none" class="overflow-y-auto flex-col gap-4 px-5 py-5">
+        <div id="eta-practice" class="flex flex-col gap-3"></div>
+        <button class="btn-eta-howto-close eta-cta min-h-14 w-full rounded-2xl text-xl font-semibold active:scale-95 transition-transform duration-150">Got it</button>
+      </div>
+
+      <!-- RANKS — the Rank & Scoring card (brief §15) -->
+      <div id="eta-how-to-ranks" style="display:none" class="overflow-y-auto flex-col gap-4 px-5 py-5">
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest eta-label">The rank ladder</p>
+          <p class="font-bold text-stone-800">Mileage this Shift sets your rank</p>
+          <ol id="eta-ranks-list" class="eta-ranks-list"></ol>
+          <p class="text-stone-500 text-sm">Every Shift Length uses the same ladder. Mileage keeps counting after the top rank — the Odometer decides the winner.</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest eta-label">How Mileage is earned</p>
+          <p class="font-bold text-stone-800">Accuracy, plus a little for the pitch</p>
+          <p class="text-stone-500 text-sm"><span class="font-semibold text-stone-700">Accuracy</span>: 40,000 km within 5% of the truth, tapering to nothing at about 18× off (2× off ≈ 27,000). <span class="font-semibold text-stone-700">Depot Tips</span>: each Stamp you receive, a little less at bigger tables. <span class="font-semibold text-stone-700">Sweep Bonus</span>: stamped by everyone else, at 5 or more couriers.</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest eta-label">✨ Backseat Drivers</p>
+          <p class="font-bold text-stone-800">How corrections pay</p>
+          <ul class="list-disc pl-5 flex flex-col gap-1 text-stone-500 text-sm">
+            <li>Corrections <span class="font-semibold text-stone-700">multiply</span>: ×2 and ×2 make ×4.</li>
+            <li>Pushed the ETA closer? Share the <span class="font-semibold text-stone-700">Navigation Assist</span>. Pushed it worse? Pay a <span class="font-semibold text-stone-700">Detour Penalty</span>.</li>
+            <li>A pile-on that ends further off is a <span class="font-semibold text-stone-700">Spin-out</span>; one that lands close is <span class="font-semibold text-stone-700">Back on Course</span>.</li>
+            <li>Being corrected pays an <span class="font-semibold text-stone-700">Insurance Payout</span>. <span class="font-semibold text-stone-700">Hands off</span> is always allowed.</li>
+            <li><span class="font-semibold text-stone-700">Hazard Pay</span>: 4,000 km for holding an Unregistered Ride.</li>
+          </ul>
+        </div>
+        <button class="btn-eta-howto-close eta-cta min-h-14 w-full rounded-2xl text-xl font-semibold active:scale-95 transition-transform duration-150">Got it</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ETA DOT'S DOUBLE-TAKE — repeats the entry in plain words; NEVER reads a truth -->
+  <div id="eta-doubletake-overlay" style="display:none"
+    class="fixed inset-0 z-[90] overlay-modal-backdrop flex items-center justify-center px-6">
+    <div class="overlay-modal-inner eta-modal bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-[#FDBA74]">
+      <p class="eta-sten eta-modal-eyebrow">DOT'S DOUBLE-TAKE</p>
+      <h3 id="eta-doubletake-text" class="text-lg font-bold text-stone-800"></h3>
+      <button id="btn-eta-doubletake-confirm" class="eta-cta min-h-14 w-full rounded-2xl active:scale-95 font-semibold text-lg transition-transform duration-150">Lock it in</button>
+      <button id="btn-eta-doubletake-cancel" class="min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-lg transition-transform duration-150">Re-dial</button>
+    </div>
+  </div>
+
+  <!-- ETA QUIT — Clock Off? -->
+  <div id="eta-quit-overlay" style="display:none"
+    class="fixed inset-0 z-[80] overlay-modal-backdrop flex items-center justify-center px-6">
+    <div class="overlay-modal-inner eta-modal bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-[#FDBA74]">
+      <p class="text-3xl">🦺</p>
+      <h3 class="text-lg font-bold text-stone-800">Clock off early?</h3>
+      <p class="text-stone-500 text-sm">The Shift ends for everyone. Nobody else gets paid either.</p>
+      <button id="btn-eta-quit-confirm" class="min-h-14 w-full rounded-2xl bg-red-600 hover:bg-red-700 text-white active:scale-95 font-semibold text-lg transition-transform duration-150">Yeah, clock me off</button>
+      <button id="btn-eta-quit-cancel" class="min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-lg transition-transform duration-150">Back to work</button>
+    </div>
+  </div>
+
+  <!-- ETA PLAY AGAIN — Next Shift? -->
+  <div id="eta-new-shift-overlay" style="display:none"
+    class="fixed inset-0 z-[90] overlay-modal-backdrop flex items-center justify-center px-6">
+    <div class="overlay-modal-inner eta-modal bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-[#FDBA74]">
+      <p class="text-3xl">🛵</p>
+      <h3 class="text-lg font-bold text-stone-800">Next Shift?</h3>
+      <p id="eta-new-sub" class="text-stone-500 text-sm">Fresh Odometers, same crew.</p>
+      <button id="btn-eta-new-confirm" class="eta-cta min-h-14 w-full rounded-2xl active:scale-95 font-semibold text-lg transition-transform duration-150">Restart in Lobby</button>
+      <button id="btn-eta-new-cancel" class="min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-lg transition-transform duration-150">Stay here</button>
+    </div>
+  </div>
+
+  <!-- THE INTRO (engine-owned screen-game-intro reads this) — brief §0b, verbatim -->
+  <template id="intro-eta">
+    <p data-intro-narrator>Dot</p>
+    <p data-intro-role>Depot Manager</p>
+    <p data-intro-line>Right, gather round. Toolbox talk.</p>
+    <p data-intro-line>Welcome to E.T.A. Every Thing, Anywhere. We say yes to every job.</p>
+    <p data-intro-line>Bit of a hiccup: the vans are all out. You're taking whatever's left in the shed.</p>
+    <p data-intro-line>Customer wants an ETA. Give 'em a good one.</p>
+    <ul data-intro-brief="default">
+      <li>You'll get a Ride. Nobody tells you its speed.</li>
+      <li>Log your ETA. Closest to the truth earns the most Mileage.</li>
+      <li>Then talk me through it. Best pitch gets my stamp.</li>
+    </ul>
+    <ul data-intro-brief="sylly">
+      <li>You'll get a Ride — maybe one with no rego. Nobody tells you its speed.</li>
+      <li>Log your ETA. Closest to the truth earns the most Mileage.</li>
+      <li>Then grab someone's wheel: one secret Course Correction.</li>
+    </ul>
+    <p data-intro-roll>Sign the timesheet.</p>
+    <p data-intro-ready-tag>CLOCKED ON</p>
+  </template>

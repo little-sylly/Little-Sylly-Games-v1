@@ -1,7 +1,7 @@
 // Little Sylly Games — Service Worker v236
 // All assets are local — no external CDN URLs, no opaque response issues.
 
-const CACHE_NAME = 'sylly-games-v271';
+const CACHE_NAME = 'sylly-games-v272';
 
 const PRECACHE_URLS = [
   './',
@@ -10,6 +10,12 @@ const PRECACHE_URLS = [
   'assets/logo.png',
   'fonts/fredoka-latin.woff2',
   'fonts/fredoka-latin-ext.woff2',
+  // ETA? scene faces — latin subsets, self-hosted (owner, 10 Nov 2026: 120 KB ceiling;
+  // the four together are ~88 KB). OFL / Apache 2.0. Scene text only — never a control.
+  'fonts/eta-saira-stencil.woff2',
+  'fonts/eta-courier-prime-400.woff2',
+  'fonts/eta-courier-prime-700.woff2',
+  'fonts/eta-permanent-marker.woff2',
   'js/engine.js',
   'js/games/li5-scene.js',
   'js/games/li5.js',
@@ -34,6 +40,8 @@ const PRECACHE_URLS = [
   'js/games/cld-art.js',
   'js/games/cld.js',
   'js/games/comb.js',
+  'js/games/eta-scene.js',
+  'js/games/eta.js',
   'js/lib/cards.js',
   'js/lib/art.js',
   'js/lib/music.js',
@@ -43,6 +51,7 @@ const PRECACHE_URLS = [
   'js/lib/controller-sticker-surface.js',
   'data/ygi-data.json',
   'data/gth-data.json',
+  'data/eta-data.json',
   'data/pko-data.json',
   'data/cjar-data.json',
   'js/controller.js',
@@ -56,6 +65,7 @@ const PRECACHE_URLS = [
   'css/jukebox.css',
   'css/arcade.css',
   'css/li5.css',
+  'css/eta.css',
   'js/lobby/jukebox.js',
   'js/lobby/arcade.js',
   // The Workshop as a full room (SW v234) — design B, ported from wip/workshop-lab/.

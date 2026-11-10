@@ -608,6 +608,36 @@ const MP_GAME_CONFIGS = {
       resume:    () => combReconnectResume(),
     },
   },
+  eta: {
+    gameName:       'ETA?',
+    emoji:          '\u{1F6F5}',
+    brandBtnClass:  'eta-cta',
+    // No ctaTextClass: .eta-cta carries white ink (owner, 10 Nov 2026 — #EA580C kept).
+    ptpLabel:       'Clock On',
+    lobbyCtaLabel:  'Clock On',
+    menuScreen:     'screen-eta-menu',
+    // Straight into the Shift after the Intro's timesheet, NOT back to the menu: the
+    // five settings were locked in before the room existed (CLD, CJAR, COMB …).
+    onPassThePhone: () => etaOnEnter(),
+    recommendedMode: 'mdlm',
+    supportedModes:  ['mdlm'],
+    // MDLM-only is STRUCTURAL (spec §11): a private Ride, a private entry and a secret
+    // Stamp / Course Correction all need a personal screen, every Run.
+    multiplayerOnly: true,
+    // Seat order means nothing in ETA (everyone acts at once) — nothing to assign.
+    rosterConfig:    { type: 'none' },
+    getMaxPlayers:   () => 8,
+    getMinPlayers:   () => 3,
+    // The Intro (UI revamp): Dot's toolbox talk, then the timesheet roll call (no Line-up).
+    // The typeof guard: this object is built before eta.js loads, and
+    // tools/verify-mp-configs.js evaluates it in a bare vm with no game file at all.
+    intro: {
+      template: 'intro-eta',
+      scene:    () => EtaScene,
+      brief:    () => (typeof etaSyllyMode !== 'undefined' && etaSyllyMode) ? 'sylly' : 'default',
+    },
+    // No reconnect hook in v1 (spec §11): a drop gets the engine's grace + the host's call.
+  },
 };
 
 // ── Nickname Helpers ──────────────────────────────────────────────────────────
@@ -1083,6 +1113,9 @@ function mpSerialiseSettings(abbr) {
     // client's read-only settings overlay shows its own defaults, not the room's.
     case 'comb': return {
       combSeason, combLayout, combWasp, combOverflow, combWaggle, combDaylight, combBounty,
+    };
+    case 'eta': return {
+      etaRange, etaShiftLength, etaGps, etaOffMap, etaSyllyMode,
     };
     case 'cld': return {
       cldIceConditions, cldFloeSize, cldFishToWin, cldAimAssist,
@@ -1584,7 +1617,7 @@ const MP_END_SCREENS = new Set([
   'screen-lttp-gameover', 'screen-nat-gameover', 'screen-dsd-gameover', 'screen-gth-final-report',
   'screen-dyb-gameover', 'screen-bld-aftermath', 'screen-pass-gameover', 'screen-frt-gameover',
   'screen-shp-gameover', 'screen-flw-gameover', 'screen-pko-hierarchy', 'screen-cjar-gameover',
-  'screen-cld-gameover', 'screen-comb-gameover',
+  'screen-cld-gameover', 'screen-comb-gameover', 'screen-eta-gameover',
 ]);
 
 function mpNoteScreen(id) {
@@ -1801,6 +1834,14 @@ function mpApplySettings(abbr, s) {
       if (s.combDaylight !== undefined) combDaylight = s.combDaylight;
       if (s.combBounty   !== undefined) combBounty   = s.combBounty;
       if (typeof combSyncSettingsUI === 'function') combSyncSettingsUI();
+      break;
+    case 'eta':
+      if (s.etaRange       !== undefined) etaRange       = s.etaRange;
+      if (s.etaShiftLength !== undefined) etaShiftLength = s.etaShiftLength;
+      if (s.etaGps         !== undefined) etaGps         = s.etaGps;
+      if (s.etaOffMap      !== undefined) etaOffMap      = s.etaOffMap;
+      if (s.etaSyllyMode   !== undefined) etaSyllyMode   = s.etaSyllyMode;
+      if (typeof etaSyncSettingsUI === 'function') etaSyncSettingsUI();
       break;
     // Additional games added as Sprint 4 progresses
   }
@@ -2456,6 +2497,11 @@ function mpHandleEnvelope(env) {
   // ── Honeycomb Hills ACTION + SYNC + the private hand/Instinct repairs ─────
   if (mpActiveGame === 'comb') {
     if (typeof combHandleEnvelope === 'function') combHandleEnvelope(env);
+  }
+
+  // ── ETA? SYNC + the private Ride (host→seat) and entries (seat→host) ──────
+  if (mpActiveGame === 'eta') {
+    if (typeof etaHandleEnvelope === 'function') etaHandleEnvelope(env);
   }
 
   // ── Secret Signals ACTION/SYNC ─────────────────────────────────────────────

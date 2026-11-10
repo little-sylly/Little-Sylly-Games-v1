@@ -88,6 +88,8 @@ no verifier change). The engine clones nothing else from it:
   <ul data-intro-brief="default"><li>…</li><li>…</li><li>…</li></ul>  <!-- ≤3 shown -->
   <ul data-intro-brief="describer"><li>…</li></ul>
   <p data-intro-lineup>Into your groups, please.</p>
+  <p data-intro-roll>Sign the timesheet.</p>       <!-- optional: the roll call's heading (ETA) -->
+  <p data-intro-ready-tag>CLOCKED ON</p>          <!-- optional: a ready chip's stamp instead of ✓ (ETA) -->
 </template>
 ```
 

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-14T16:16:18.347Z",
+  "generatedAt": "2026-11-10T08:10:31.552Z",
   "games": [
     {
       "id": "bld",
@@ -16,7 +16,7 @@
       "pitch": "Making plans is easy. Showing up is hard.",
       "playCtaLabel": "Make the Plans",
       "howToTitle": {
-        "heading": "How to Play 📋",
+        "heading": "How to Play 😬",
         "subtitle": "A social deduction game of trust, betrayal, and terrible excuses."
       },
       "howToStepsRaw": [
@@ -70,7 +70,7 @@
         "Sneak out alone and you take the crumbs",
         "The family is watching",
         "Banked cookies are safe forever",
-        "Five Raids, one jar",
+        "Every Raid, one jar",
         "Winning and Scoring",
         "Biggest Cookie Stash takes it"
       ],
@@ -100,7 +100,8 @@
       "maxPlayers": 8,
       "playerRangeDisplay": "2 (Peck Off) or 3–8",
       "supportedModes": [
-        "mdlm"
+        "mdlm",
+        "solo"
       ],
       "multiplayerOnly": true,
       "pitch": "Barge your mates into the drink — last penguin on the floe wins.",
@@ -111,7 +112,7 @@
       },
       "howToStepsRaw": [
         "You're one penguin on a crowded floe",
-        "Drag back to aim, like a slingshot",
+        "Pull back to aim, like a pool cue",
         "Everyone aims at the same time",
         "All penguins slide at once",
         "Off the edge and you're in the Drink",
@@ -124,7 +125,7 @@
       "howItGoes": {
         "steps": [
           "You're one penguin on a crowded floe",
-          "Drag back to aim, like a slingshot",
+          "Pull back to aim, like a pool cue",
           "Everyone aims at the same time"
         ],
         "needsReview": true,
@@ -296,6 +297,34 @@
         "identityDoc": "docs/game-identities/dyb.md",
         "mpConfig": "js/engine-multiplayer.js MP_GAME_CONFIGS.dyb",
         "lobbyButton": "index.html #btn-dyb"
+      }
+    },
+    {
+      "id": "eta",
+      "gameName": "ETA?",
+      "emoji": "🛵",
+      "brandHex": "#EA580C",
+      "minPlayers": 3,
+      "maxPlayers": 8,
+      "playerRangeDisplay": null,
+      "supportedModes": [
+        "mdlm"
+      ],
+      "multiplayerOnly": true,
+      "pitch": "Skateboard to the Moon? Show your working.",
+      "playCtaLabel": "Clock On",
+      "howToTitle": null,
+      "howToStepsRaw": null,
+      "howItGoes": {
+        "steps": [],
+        "needsReview": true
+      },
+      "syllyModeName": "Backseat Drivers",
+      "minutes": null,
+      "_sources": {
+        "identityDoc": "docs/game-identities/eta.md",
+        "mpConfig": "js/engine-multiplayer.js MP_GAME_CONFIGS.eta",
+        "lobbyButton": "index.html #btn-eta"
       }
     },
     {
@@ -562,7 +591,8 @@
       "playerRangeDisplay": "exactly 2 teams",
       "supportedModes": [
         "ptp",
-        "tlm"
+        "tlm",
+        "mdlm"
       ],
       "multiplayerOnly": false,
       "pitch": "Explain it simply. But no no-nos for me!",
@@ -673,7 +703,7 @@
       "gameName": "Natural Selection",
       "emoji": "🦁",
       "brandHex": "#65A30D",
-      "minPlayers": 3,
+      "minPlayers": 4,
       "maxPlayers": 8,
       "playerRangeDisplay": null,
       "supportedModes": [

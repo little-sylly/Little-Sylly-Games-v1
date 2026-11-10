@@ -1,0 +1,470 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Drag Strip reveal</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Bungee&amp;family=Barlow+Semi+Condensed:ital,wght@0,500;0,600;0,700;0,800;1,600;1,700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#FF9A1F}a:hover{color:#FFC06B}
+.ds button{cursor:pointer;transition:transform .08s}
+.ds button:active{transform:translateY(2px)}
+.bng{font-family:'Bungee','Arial Black',Impact,sans-serif}
+@keyframes signDrop{0%{transform:translateY(-150px) rotate(-7deg);opacity:0}55%{transform:translateY(7px) rotate(1.5deg);opacity:1}76%{transform:translateY(-3px) rotate(-.6deg)}100%{transform:none;opacity:1}}
+.signDrop{animation:signDrop .85s cubic-bezier(.25,.9,.35,1.15) both}
+@keyframes pop{0%{transform:scale(0);opacity:0}60%{transform:scale(1.22);opacity:1}100%{transform:scale(1);opacity:1}}
+.pop{animation:pop .4s cubic-bezier(.2,.9,.3,1.4) both}
+.tagPop{animation:pop .4s cubic-bezier(.2,.9,.3,1.4) both;transform-origin:50% 100%}
+@keyframes mvBob{0%,100%{transform:translateY(1px) rotate(-4deg)}50%{transform:translateY(-6px) rotate(4deg)}}
+@keyframes mvBounce{0%,100%{transform:translateY(0) scaleY(.82) scaleX(1.1)}45%{transform:translateY(-17px) scaleY(1.1) scaleX(.94)}}
+@keyframes mvRumble{0%{transform:translate(0,0)}25%{transform:translate(-1.5px,1px)}50%{transform:translate(1px,-1.5px)}75%{transform:translate(-1px,-1px)}100%{transform:translate(1.5px,1px)}}
+@keyframes mvWobble{0%,100%{transform:rotate(-8deg)}50%{transform:rotate(8deg) translateY(-2px)}}
+@keyframes mvSkid{0%{transform:translateX(-8px) rotate(-16deg)}40%{transform:translateX(3px) rotate(7deg)}70%{transform:rotate(-3deg)}100%{transform:none}}
+.mv-bob{animation:mvBob .5s ease-in-out infinite}
+.mv-bounce{animation:mvBounce .32s ease-in-out infinite;transform-origin:50% 100%}
+.mv-rumble{animation:mvRumble .07s linear infinite}
+.mv-wobble{animation:mvWobble .2s ease-in-out infinite}
+.mv-skid{animation:mvSkid .5s ease-out both}
+@keyframes dash{from{background-position:0 0}to{background-position:-40px 0}}
+.rolling{animation:dash .18s linear infinite}
+@keyframes dustA{0%{transform:translate(0,0) scale(.3);opacity:.9}100%{transform:translate(-26px,-12px) scale(1.9);opacity:0}}
+@keyframes dustB{0%{transform:translate(0,0) scale(.3);opacity:.8}100%{transform:translate(-20px,10px) scale(1.5);opacity:0}}
+@keyframes dustC{0%{transform:translate(0,0) scale(.2);opacity:.7}100%{transform:translate(-36px,0) scale(1.3);opacity:0}}
+.dustA{animation:dustA .6s ease-out both}
+.dustB{animation:dustB .65s .04s ease-out both}
+.dustC{animation:dustC .7s .08s ease-out both}
+@keyframes flagDrop{0%{transform:translateY(-200px);opacity:0}8%{opacity:1}55%{transform:translateY(0) scaleY(1)}63%{transform:translateY(0) scaleY(.84)}74%{transform:translateY(-16px) scaleY(1.05)}86%{transform:translateY(0) scaleY(.96)}93%{transform:translateY(-4px)}100%{transform:translateY(0) scaleY(1);opacity:1}}
+.flagDrop{animation:flagDrop .75s cubic-bezier(.5,0,.7,1) both;transform-origin:50% 100%}
+@keyframes ring{0%{transform:scale(.2);opacity:1}100%{transform:scale(2.6);opacity:0}}
+.ring{animation:ring .6s .38s ease-out both}
+@keyframes growX{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+.growX{animation:growX .45s cubic-bezier(.3,.8,.3,1) both}
+@keyframes stampSlam{0%{transform:translate(150px,-8px) scale(3.6) rotate(-16deg);opacity:0}18%{transform:translate(150px,-8px) scale(1.75) rotate(-8deg);opacity:1}24%{transform:translate(150px,-8px) scale(1.95) rotate(-8deg)}30%{transform:translate(150px,-8px) scale(1.8) rotate(-8deg)}66%{transform:translate(150px,-8px) scale(1.8) rotate(-8deg)}100%{transform:translate(0,0) scale(1) rotate(-3deg);opacity:1}}
+.stamp{animation:stampSlam 1.25s cubic-bezier(.3,.7,.3,1) both;transform-origin:0 50%}
+@keyframes thud{0%,100%{transform:none}20%{transform:translateY(4px)}45%{transform:translateY(-2px)}70%{transform:translateY(1px)}}
+.thud{animation:thud .35s .18s ease-out both}
+@keyframes chip{0%{transform:translateY(12px) scale(.4);opacity:0}60%{transform:translateY(-3px) scale(1.15);opacity:1}100%{transform:none;opacity:1}}
+.chip{animation:chip .45s cubic-bezier(.2,.9,.3,1.3) both}
+@keyframes slam{0%{transform:rotate(-5deg) scale(3);opacity:0}12%{transform:rotate(-5deg) scale(.94);opacity:1}18%{transform:rotate(-5deg) scale(1.05)}24%{transform:rotate(-5deg) scale(1)}86%{transform:rotate(-5deg) scale(1);opacity:1}100%{transform:rotate(-5deg) scale(1.15);opacity:0}}
+.slam{animation:slam 1.7s ease-out both}
+@keyframes dim{0%{opacity:0}12%{opacity:1}86%{opacity:1}100%{opacity:0}}
+.dim{animation:dim 1.7s ease-out both}
+@keyframes shake{0%,100%{transform:none}10%{transform:translate(-7px,3px)}20%{transform:translate(6px,-4px)}30%{transform:translate(-5px,-2px)}40%{transform:translate(4px,3px)}55%{transform:translate(-2px,1px)}70%{transform:translate(2px,-1px)}}
+.shake{animation:shake .5s .14s ease-out both}
+@keyframes drum{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+.drum span{display:inline-block;animation:drum .12s ease-in-out infinite}
+.drum span:nth-child(2n){animation-delay:.06s}
+.drum span:nth-child(3n){animation-delay:.03s}
+@keyframes typeIn{from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0 0 0 0)}}
+.typeIn{animation:typeIn .7s steps(30,end) both}
+.typeIn2{animation:typeIn .5s .7s steps(22,end) both}
+@keyframes msgIn{0%{transform:translateY(14px);opacity:0}100%{transform:none;opacity:1}}
+.msgIn{animation:msgIn .3s ease-out both}
+@keyframes onair{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(255,79,60,.7)}50%{opacity:.5;box-shadow:0 0 0 6px rgba(255,79,60,0)}}
+.onair{animation:onair 1s ease-in-out infinite}
+@keyframes bars{0%,100%{transform:scaleY(.3)}50%{transform:scaleY(1)}}
+.sig i{display:block;width:3px;background:#FF9A1F;border-radius:1px;transform-origin:50% 100%;animation:bars .6s ease-in-out infinite}
+.sig i:nth-child(2){animation-delay:.15s}
+.sig i:nth-child(3){animation-delay:.3s}
+@keyframes litFlash{0%{opacity:0}15%{opacity:1}100%{opacity:.4}}
+.lit{animation:litFlash .9s ease-out both}
+@keyframes burst{0%{transform:scale(.3);opacity:1}100%{transform:scale(3.2);opacity:0}}
+.burst{animation:burst .7s ease-out both}
+.burst2{animation:burst .9s .15s ease-out both}
+@keyframes halo{0%,100%{box-shadow:0 0 0 0 rgba(255,210,63,.0)}50%{box-shadow:0 0 18px 6px rgba(255,210,63,.55)}}
+.halo{animation:halo 1.1s ease-in-out infinite}
+.cf{animation-duration:1.5s;animation-timing-function:cubic-bezier(.15,.7,.4,1);animation-fill-mode:both}
+@keyframes cf0{0%{transform:translate(0,0) rotate(0);opacity:1}45%{transform:translate(-90px,-70px) rotate(220deg);opacity:1}100%{transform:translate(-118px,50px) rotate(520deg);opacity:0}}
+@keyframes cf1{0%{transform:translate(0,0) rotate(0);opacity:1}45%{transform:translate(-60px,-112px) rotate(-200deg);opacity:1}100%{transform:translate(-80px,20px) rotate(-480deg);opacity:0}}
+@keyframes cf2{0%{transform:translate(0,0) rotate(0);opacity:1}45%{transform:translate(-24px,-134px) rotate(240deg);opacity:1}100%{transform:translate(-34px,10px) rotate(560deg);opacity:0}}
+@keyframes cf3{0%{transform:translate(0,0) rotate(0);opacity:1}45%{transform:translate(16px,-126px) rotate(-260deg);opacity:1}100%{transform:translate(22px,14px) rotate(-540deg);opacity:0}}
+@keyframes cf4{0%{transform:translate(0,0) rotate(0);opacity:1}45%{transform:translate(56px,-104px) rotate(210deg);opacity:1}100%{transform:translate(76px,30px) rotate(500deg);opacity:0}}
+@keyframes cf5{0%{transform:translate(0,0) rotate(0);opacity:1}45%{transform:translate(92px,-74px) rotate(-230deg);opacity:1}100%{transform:translate(120px,50px) rotate(-520deg);opacity:0}}
+@keyframes cf6{0%{transform:translate(0,0) rotate(0);opacity:1}45%{transform:translate(-112px,-30px) rotate(250deg);opacity:1}100%{transform:translate(-146px,70px) rotate(560deg);opacity:0}}
+@keyframes cf7{0%{transform:translate(0,0) rotate(0);opacity:1}45%{transform:translate(112px,-34px) rotate(-250deg);opacity:1}100%{transform:translate(146px,66px) rotate(-560deg);opacity:0}}
+@keyframes cf8{0%{transform:translate(0,0) rotate(0);opacity:1}45%{transform:translate(-40px,-92px) rotate(190deg);opacity:1}100%{transform:translate(-56px,36px) rotate(470deg);opacity:0}}
+@keyframes cf9{0%{transform:translate(0,0) rotate(0);opacity:1}45%{transform:translate(40px,-96px) rotate(-190deg);opacity:1}100%{transform:translate(56px,32px) rotate(-470deg);opacity:0}}
+@keyframes cf10{0%{transform:translate(0,0) rotate(0);opacity:1}45%{transform:translate(-76px,-122px) rotate(270deg);opacity:1}100%{transform:translate(-100px,0) rotate(600deg);opacity:0}}
+@keyframes cf11{0%{transform:translate(0,0) rotate(0);opacity:1}45%{transform:translate(76px,-118px) rotate(-270deg);opacity:1}100%{transform:translate(100px,4px) rotate(-600deg);opacity:0}}
+.cf0{animation-name:cf0}.cf1{animation-name:cf1}.cf2{animation-name:cf2}.cf3{animation-name:cf3}.cf4{animation-name:cf4}.cf5{animation-name:cf5}
+.cf6{animation-name:cf6}.cf7{animation-name:cf7}.cf8{animation-name:cf8}.cf9{animation-name:cf9}.cf10{animation-name:cf10}.cf11{animation-name:cf11}
+</style>
+</helmet>
+<div class="ds" style="position: relative; width: 390px; height: 844px; overflow: hidden; background: #141518; color: #F4F1EA; font-family: 'Barlow Semi Condensed', 'Arial Narrow', sans-serif">
+<div aria-hidden="true" style="position: absolute; inset: 0; background-image: radial-gradient(rgba(255,255,255,0.045) 1px, transparent 1.2px); background-size: 6px 6px; pointer-events: none"></div>
+<div class="{{shakeCls}}" style="position: absolute; inset: 0">
+<div style="position: absolute; left: 16px; right: 16px; top: 14px; height: 22px; display: flex; justify-content: space-between; align-items: center">
+<div style="display: flex; gap: 6px">
+<span class="bng" style="font-size: 10px; letter-spacing: 0.06em; padding: 4px 8px; border-radius: 4px; background: #26272C; color: #F4F1EA">RUN 1 / 5</span>
+<span class="bng" style="font-size: 10px; letter-spacing: 0.06em; padding: 3px 7px; border-radius: 4px; border: 1px solid #FF9A1F; color: #FF9A1F">MIXED</span>
+</div>
+<span class="bng" style="font-size: 10px; letter-spacing: 0.1em; color: #A9A59B">DISPATCH BOARD</span>
+</div>
+<sc-if value="{{showSign}}" hint-placeholder-val="{{ true }}">
+<div class="signDrop" style="position: absolute; left: 16px; right: 16px; top: 46px; height: 78px; box-sizing: border-box; background: #FF9A1F; color: #141518; border-radius: 10px; border: 3px solid #141518; box-shadow: 0 0 0 2px #FF9A1F, 0 12px 26px rgba(0,0,0,0.5); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px">
+<span aria-hidden="true" style="position: absolute; left: 7px; top: 7px; width: 6px; height: 6px; border-radius: 50%; background: #7A4A0E"></span>
+<span aria-hidden="true" style="position: absolute; right: 7px; top: 7px; width: 6px; height: 6px; border-radius: 50%; background: #7A4A0E"></span>
+<span aria-hidden="true" style="position: absolute; left: 7px; bottom: 7px; width: 6px; height: 6px; border-radius: 50%; background: #7A4A0E"></span>
+<span aria-hidden="true" style="position: absolute; right: 7px; bottom: 7px; width: 6px; height: 6px; border-radius: 50%; background: #7A4A0E"></span>
+<span class="bng" style="font-size: 22px; line-height: 1">THE LENGTH OF ITALY</span>
+<span class="bng" style="font-size: 12px; line-height: 1; letter-spacing: 0.08em; background: #141518; color: #FF9A1F; padding: 4px 10px; border-radius: 4px">≈ 1,200 KM</span>
+</div>
+</sc-if>
+<div style="position: absolute; left: 16px; right: 16px; top: 131px; font-size: 13px; font-style: italic; font-weight: 600; color: #C9C4B8">Briefing: brand-new, perfectly straight, empty corridor. No stops, no traffic.</div>
+<div style="position: absolute; left: 16px; right: 16px; top: 154px; height: 36px; box-sizing: border-box; border-radius: 8px; background: #0B0B0D; border: 1px solid #2C2D32; display: flex; align-items: center; justify-content: space-between; padding: 0 12px">
+<span class="bng" style="font-size: 10px; letter-spacing: 0.12em; color: #A9A59B">TIME-LAPSE</span>
+<sc-if value="{{lightsOn}}" hint-placeholder-val="{{ false }}">
+<div style="display: flex; gap: 8px; align-items: center">
+<sc-for list="{{lights}}" as="lt" hint-placeholder-count="3">
+<span class="{{lt.cls}}" style="display: block; width: 14px; height: 14px; border-radius: 50%; background: {{lt.bg}}; box-shadow: {{lt.glow}}"></span>
+</sc-for>
+<span class="bng" style="font-size: 15px; min-width: 40px; text-align: right; color: #FFF4D6">{{goText}}</span>
+</div>
+</sc-if>
+<sc-if value="{{tickerOn}}" hint-placeholder-val="{{ true }}">
+<span class="bng" style="font-size: 17px; color: #FF9A1F; text-shadow: 0 0 12px rgba(255,154,31,0.55)">{{tickerText}}</span>
+</sc-if>
+</div>
+<div style="position: absolute; left: 8px; right: 8px; top: 196px; height: 432px; border-radius: 12px; background: #18191D; border: 1px solid #26272C"></div>
+<sc-for list="{{lanes}}" as="l" hint-placeholder-count="4">
+<div class="{{l.thudCls}}" style="position: absolute; left: 0; top: {{l.top}}px; width: 390px; height: 100px">
+<div style="position: absolute; left: 92px; top: 24px; width: 288px; height: 56px; box-sizing: border-box; border-radius: 6px; background: #222328; border: 1px solid #2E2F35; overflow: hidden">
+<div class="{{l.rollCls}}" style="position: absolute; left: 0; right: 0; top: 26px; height: 2px; background-image: linear-gradient(90deg, rgba(244,241,234,0.3) 0 20px, transparent 20px 40px); background-size: 40px 2px"></div>
+</div>
+</div>
+</sc-for>
+<sc-for list="{{marks}}" as="m" hint-placeholder-count="5">
+<div style="position: absolute; top: 202px; left: {{m.x}}px; width: 0; height: 420px; pointer-events: none">
+<span class="bng" style="position: absolute; top: 0; left: -24px; width: 48px; text-align: center; font-size: 9px; letter-spacing: 0.04em; color: #8E8A80">{{m.label}}</span>
+<div style="position: absolute; top: 16px; left: 0; width: 1px; height: 404px; background: #393A40"></div>
+<sc-if value="{{m.lit}}" hint-placeholder-val="{{ false }}">
+<div class="lit" style="position: absolute; top: 16px; left: -1px; width: 2px; height: 404px; background: #FF9A1F; box-shadow: 0 0 8px #FF9A1F"></div>
+<span class="bng pop" style="position: absolute; top: 0; left: -24px; width: 48px; text-align: center; font-size: 9px; letter-spacing: 0.04em; color: #FF9A1F; background: #18191D">{{m.label}}</span>
+</sc-if>
+</div>
+</sc-for>
+<sc-for list="{{lanes}}" as="l" hint-placeholder-count="4">
+<div class="{{l.thudCls}}" style="position: absolute; left: 0; top: {{l.top}}px; width: 390px; height: 100px">
+<div style="position: absolute; left: 10px; top: 14px; width: 80px; display: flex; align-items: center; gap: 4px">
+<sc-if value="{{l.pogo}}" hint-placeholder-val="{{ false }}">
+<svg width="18" height="18" viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 2.5 H11.5" fill="none" stroke="#F4F1EA" style="stroke-width: 1.8; stroke-linecap: round"></path><path d="M8 2.5 V11" fill="none" stroke="#F4F1EA" style="stroke-width: 1.4"></path><path d="M4.8 10 H11.2" fill="none" stroke="#FF9A1F" style="stroke-width: 1.7; stroke-linecap: round"></path><path d="M8 11 L6.4 11.8 L9.6 12.6 L6.4 13.4 L8 14.2 V15.5" fill="none" stroke="#F4F1EA" style="stroke-width: 1.2; stroke-linejoin: round"></path></svg>
+</sc-if>
+<sc-if value="{{l.notPogo}}" hint-placeholder-val="{{ true }}">
+<span style="font-size: 15px; line-height: 1">{{l.glyph}}</span>
+</sc-if>
+<span class="bng" style="font-size: 13px; line-height: 1">{{l.name}}</span>
+</div>
+<span style="position: absolute; left: 10px; top: 34px; width: 80px; font-size: 12px; font-weight: 600; color: #A9A59B; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{l.ride}}</span>
+<sc-if value="{{l.stampOn}}" hint-placeholder-val="{{ false }}">
+<div class="stamp" style="position: absolute; left: 10px; top: 52px; z-index: 6; box-sizing: border-box; padding: 2px 5px 1px; border: 2px solid {{l.vColor}}; border-radius: 4px; color: {{l.vColor}}; background: rgba(20,21,24,0.88); display: flex; flex-direction: column; align-items: flex-start; white-space: nowrap">
+<span class="bng" style="font-size: 12px; line-height: 1.05">{{l.vTop}}</span>
+<span style="font-size: 9px; font-weight: 800; letter-spacing: 0.06em; line-height: 1.1">{{l.vBot}}</span>
+</div>
+</sc-if>
+<sc-if value="{{l.kmOn}}" hint-placeholder-val="{{ false }}">
+<span class="chip" style="position: absolute; left: 10px; top: 83px; font-size: 13px; font-weight: 800; color: #FF9A1F; white-space: nowrap">{{l.kmLabel}}</span>
+</sc-if>
+<div style="position: absolute; left: {{l.startX}}px; top: 51px; height: 3px; width: {{l.trailW}}px; border-radius: 2px; background: linear-gradient(90deg, rgba(255,154,31,0), #FF9A1F); transition: {{l.trailT}}"></div>
+<sc-if value="{{l.flagOn}}" hint-placeholder-val="{{ false }}">
+<div class="flagDrop" style="position: absolute; left: {{l.fx}}px; top: 6px; width: 0; height: 74px; z-index: 2">
+<div style="position: absolute; left: -1.5px; top: 0; width: 3px; height: 74px; background: #F4F1EA; border-radius: 2px; box-shadow: 0 0 6px rgba(244,241,234,0.6)"></div>
+<div style="position: absolute; left: 1px; top: 0; width: 22px; height: 14px; box-sizing: border-box; border: 1px solid #F4F1EA; background-color: #F4F1EA; background-image: conic-gradient(#141518 25%, transparent 0 50%, #141518 0 75%, transparent 0); background-size: 7px 7px"></div>
+</div>
+<div class="ring" style="position: absolute; left: {{l.fx}}px; top: 66px; width: 30px; height: 30px; margin-left: -15px; margin-top: -15px; border-radius: 50%; border: 2px solid #F4F1EA; box-sizing: border-box"></div>
+</sc-if>
+<sc-if value="{{l.gapOn}}" hint-placeholder-val="{{ false }}">
+<div class="growX" style="position: absolute; left: {{l.gx}}px; width: {{l.gw}}px; top: 72px; height: 6px; border-radius: 3px; background: {{l.gColor}}; box-shadow: 0 0 10px {{l.gColor}}; transform-origin: {{l.gOrigin}}"></div>
+</sc-if>
+<div style="position: absolute; left: {{l.vx}}px; top: 32px; width: 0; height: 40px; z-index: 3; transition: {{l.vT}}">
+<sc-if value="{{l.bullOn}}" hint-placeholder-val="{{ false }}">
+<div class="burst" style="position: absolute; left: -20px; top: 0; width: 40px; height: 40px; border-radius: 50%; border: 3px solid #FFD23F; box-sizing: border-box"></div>
+<div class="burst2" style="position: absolute; left: -20px; top: 0; width: 40px; height: 40px; border-radius: 50%; border: 2px solid #FF9A1F; box-sizing: border-box"></div>
+<div class="halo" style="position: absolute; left: -18px; top: 2px; width: 36px; height: 36px; border-radius: 50%"></div>
+</sc-if>
+<div class="{{l.mvCls}}" style="position: absolute; left: -18px; top: 0; width: 36px; height: 40px; display: flex; align-items: center; justify-content: center">
+<sc-if value="{{l.pogo}}" hint-placeholder-val="{{ false }}">
+<svg width="32" height="32" viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 2.5 H11.5" fill="none" stroke="#F4F1EA" style="stroke-width: 1.6; stroke-linecap: round"></path><path d="M8 2.5 V11" fill="none" stroke="#F4F1EA" style="stroke-width: 1.2"></path><path d="M4.8 10 H11.2" fill="none" stroke="#FF9A1F" style="stroke-width: 1.5; stroke-linecap: round"></path><path d="M8 11 L6.4 11.8 L9.6 12.6 L6.4 13.4 L8 14.2 V15.5" fill="none" stroke="#F4F1EA" style="stroke-width: 1.1; stroke-linejoin: round"></path></svg>
+</sc-if>
+<sc-if value="{{l.notPogo}}" hint-placeholder-val="{{ true }}">
+<span style="display: inline-block; font-size: 30px; line-height: 1; transform: {{l.glyphT}}">{{l.glyph}}</span>
+</sc-if>
+</div>
+<sc-if value="{{l.dust}}" hint-placeholder-val="{{ false }}">
+<span class="dustA" style="position: absolute; left: -22px; top: 24px; width: 12px; height: 12px; border-radius: 50%; background: rgba(201,196,184,0.55)"></span>
+<span class="dustB" style="position: absolute; left: -18px; top: 28px; width: 9px; height: 9px; border-radius: 50%; background: rgba(201,196,184,0.5)"></span>
+<span class="dustC" style="position: absolute; left: -26px; top: 20px; width: 8px; height: 8px; border-radius: 50%; background: rgba(201,196,184,0.45)"></span>
+</sc-if>
+<sc-if value="{{l.landed}}" hint-placeholder-val="{{ false }}">
+<div class="tagPop" style="position: absolute; left: -34px; top: -30px; width: 68px; display: flex; justify-content: center">
+<span style="font-size: 13px; font-weight: 800; line-height: 1; padding: 4px 7px; border-radius: 5px; background: #F4F1EA; color: #141518; white-space: nowrap">{{l.tag}}</span>
+</div>
+</sc-if>
+</div>
+</div>
+</sc-for>
+</div>
+<sc-if value="{{proofOn}}" hint-placeholder-val="{{ false }}">
+<div class="dim" style="position: absolute; inset: 0; z-index: 19; background: rgba(0,0,0,0.5)"></div>
+<div class="slam" style="position: absolute; left: -24px; right: -24px; top: 360px; height: 104px; z-index: 20; background: #FF9A1F; color: #141518; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 18px 40px rgba(0,0,0,0.6)">
+<div aria-hidden="true" style="position: absolute; left: 0; right: 0; top: 0; height: 10px; background-image: repeating-linear-gradient(-45deg, #141518 0 10px, #FF9A1F 10px 20px)"></div>
+<div aria-hidden="true" style="position: absolute; left: 0; right: 0; bottom: 0; height: 10px; background-image: repeating-linear-gradient(-45deg, #141518 0 10px, #FF9A1F 10px 20px)"></div>
+<span class="bng" style="font-size: 25px; line-height: 1">PROOF OF DELIVERY</span>
+<span class="drum" style="font-size: 13px; font-weight: 800; letter-spacing: 0.22em"><span>D</span><span>R</span><span>U</span><span>M</span><span>R</span><span>O</span><span>L</span><span>L</span><span>.</span><span>.</span><span>.</span></span>
+</div>
+</sc-if>
+<sc-if value="{{confOn}}" hint-placeholder-val="{{ false }}">
+<div style="position: absolute; left: {{confX}}px; top: {{confY}}px; width: 0; height: 0; z-index: 15">
+<sc-for list="{{parts}}" as="p" hint-placeholder-count="12">
+<span class="{{p.cls}}" style="position: absolute; left: -4px; top: -4px; width: {{p.w}}px; height: {{p.h}}px; border-radius: {{p.r}}; background: {{p.c}}; animation-delay: {{p.d}}ms"></span>
+</sc-for>
+</div>
+</sc-if>
+<div style="position: absolute; left: 16px; right: 16px; top: 640px; height: 104px; box-sizing: border-box; border-radius: 10px; background: #0B0B0D; border: 1px solid #2C2D32; overflow: hidden">
+<div style="position: absolute; left: 12px; top: 10px; right: 12px; display: flex; align-items: center; gap: 8px">
+<div class="sig" aria-hidden="true" style="display: flex; align-items: flex-end; gap: 2px; height: 12px"><i style="height: 5px"></i><i style="height: 8px"></i><i style="height: 12px"></i></div>
+<span class="bng" style="font-size: 10px; letter-spacing: 0.12em; color: #A9A59B">DISPATCH</span>
+<sc-if value="{{onAir}}" hint-placeholder-val="{{ false }}">
+<span style="margin-left: auto; display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 800; letter-spacing: 0.12em; color: #FF8A7A"><span class="onair" style="display: block; width: 8px; height: 8px; border-radius: 50%; background: #FF4F3C"></span>ON AIR</span>
+</sc-if>
+</div>
+<sc-for list="{{msgs}}" as="mg" hint-placeholder-count="1">
+<sc-if value="{{mg.on}}" hint-placeholder-val="{{ false }}">
+<div class="msgIn" style="position: absolute; left: 12px; right: 12px; top: 32px; display: flex; flex-direction: column; gap: 3px">
+<span class="typeIn" style="font-size: 16px; font-weight: 800; line-height: 1.2; color: #F4F1EA">{{mg.a}}</span>
+<span class="typeIn2" style="font-size: 15px; font-weight: 700; font-style: italic; line-height: 1.2; color: #FF9A1F">{{mg.b}}</span>
+</div>
+</sc-if>
+</sc-for>
+</div>
+<div style="position: absolute; left: 16px; right: 16px; top: 760px; display: flex; gap: 10px">
+<button type="button" onClick="{{replay}}" class="bng" style="flex: 1; height: 52px; border-radius: 10px; border: none; background: #FF9A1F; color: #141518; font-size: 15px">↺ REPLAY</button>
+<button type="button" onClick="{{jump}}" class="bng" style="flex: 1; height: 52px; border-radius: 10px; border: 2px solid #FF9A1F; background: transparent; color: #FF9A1F; font-size: 12px">SKIP TO PROOF</button>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"speed":{"editor":"range","default":1,"min":0.5,"max":2,"step":0.25,"section":"Playback"},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  componentDidMount() { this.play(0); }
+  componentWillUnmount() { this.stop(); }
+  stop() {
+    (this.timers || []).forEach((t) => clearTimeout(t));
+    this.timers = [];
+    if (this.iv) { clearInterval(this.iv); this.iv = null; }
+  }
+  k() { const s = Number(this.props.speed); return s > 0 ? 1 / s : 1; }
+  acc(logged, truth) {
+    const d0 = Math.log10(1.05), d = Math.abs(Math.log10(logged / truth));
+    if (d <= d0) return 40000;
+    const x = (d - d0) / (1.25 - d0);
+    return x >= 1 ? 0 : 40000 * Math.pow(1 - x, 1.5);
+  }
+  int(n) { return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+  num(x) { return x < 10 ? String(Math.round(x * 10) / 10) : this.int(x); }
+  dur(min) {
+    if (min < 1) return this.num(min * 60) + ' sec';
+    if (min < 60) return this.num(min) + ' min';
+    const h = min / 60;
+    if (h < 48) return this.num(h) + (h < 1.05 ? ' hr' : ' hrs');
+    const d = h / 24;
+    if (d < 60) return this.num(d) + ' days';
+    const mo = d / 30.44;
+    if (mo < 24) return this.num(mo) + ' months';
+    const y = d / 365.25;
+    if (y < 1e6) return this.num(y) + ' years';
+    return this.num(y / 1e6) + ' million years';
+  }
+  verdict(r) {
+    const f = r >= 1 ? r : 1 / r;
+    const dir = r >= 1 ? 'TOO SLOW' : 'TOO FAST';
+    const fs = f >= 10 ? this.int(f) : (Math.round(f * 10) / 10).toFixed(1);
+    if (f <= 1.05) return { top: 'DEAD ON', bot: 'WITHIN 5%', color: '#FFD23F', bull: true };
+    if (f <= 1.25) return { top: 'CLOSE!', bot: '×' + fs + ' ' + dir, color: '#FFD23F', bull: false };
+    return { top: '×' + fs, bot: dir, color: r < 1 ? '#FF6B57' : '#5CC8FF', bull: false };
+  }
+  model() {
+    if (this._m) return this._m;
+    const lo = 1, hi = 129600, tx = 92, pad = 16, tw = 256;
+    const span = Math.log(hi / lo);
+    const pos = (v) => Math.max(0, Math.min(1, Math.log(v / lo) / span));
+    const X = (v) => tx + pad + pos(v) * tw;
+    const cs = [
+      { name: 'Dev', ride: 'Rocket', glyph: '🚀', rot: 45, motion: 'mv-rumble', logged: 20, tag: '20 min', truth: 1200 / 28000 * 60,
+        fact: 'Rocket at ~28,000 km/h: about 2.6 min.', quip: 'Launch prep not included.' },
+      { name: 'Ada', ride: 'Helicopter', glyph: '🚁', flip: true, motion: 'mv-bob', logged: 300, tag: '5 hrs', truth: 1200 / 250 * 60,
+        fact: 'Helicopter at ~250 km/h: about 4.8 hrs.', quip: 'Ada, dead on.' },
+      { name: 'Boris', ride: 'Pogo stick', glyph: '', pogo: true, motion: 'mv-bounce', logged: 4 * 1440, tag: '4 days', truth: 1200 / 4 * 60,
+        fact: 'Pogo stick at ~4 km/h, bouncing non-stop: about 12.5 days.', quip: "You're dreaming." },
+      { name: 'Chloe', ride: 'Shopping trolley', glyph: '🛒', motion: 'mv-wobble', logged: 21 * 1440, tag: '21 days', truth: 1200 / 6 * 60,
+        fact: 'Shopping trolley at ~6 km/h: about 8.3 days.', quip: 'Even with the wonky wheel.' }
+    ];
+    cs.forEach((c) => {
+      c.p = pos(c.logged);
+      c.vx = X(c.logged);
+      c.fx = X(c.truth);
+      c.ratio = c.logged / c.truth;
+      c.v = this.verdict(c.ratio);
+      c.km = Math.round(this.acc(c.logged, c.truth));
+    });
+    const marks = [
+      { label: '1 MIN', v: 1 }, { label: '1 HR', v: 60 }, { label: '1 DAY', v: 1440 },
+      { label: '1 WK', v: 10080 }, { label: '1 MO', v: 43830 }
+    ].map((m) => ({ label: m.label, p: pos(m.v), x: Math.round(X(m.v) * 10) / 10 }));
+    const cols = ['#FF9A1F', '#FFD23F', '#F4F1EA', '#5CC8FF', '#FF6B57'];
+    const parts = [];
+    for (let j = 0; j < 26; j++) {
+      const dot = j % 3 === 0;
+      parts.push({ cls: 'cf cf' + (j % 12), c: cols[j % 5], d: (j % 4) * 70, w: dot ? 6 : 9, h: dot ? 6 : 4, r: dot ? '50%' : '1px' });
+    }
+    this._m = { lo, hi, startX: tx + pad, pos, X, cs, marks, parts };
+    return this._m;
+  }
+  timeline() {
+    const m = this.model(), k = this.k(), ev = [];
+    const SW = 4500 * k;
+    ev.push({ at: 80 * k, s: { phase: 1, lights: 0 } });
+    ev.push({ at: 380 * k, s: { lights: 1 } });
+    ev.push({ at: 680 * k, s: { lights: 2 } });
+    ev.push({ at: 980 * k, s: { lights: 3 } });
+    ev.push({ at: 1250 * k, s: { lights: 4 } });
+    const S = 1550 * k;
+    const drive = { phase: 2, clock: 0 };
+    m.cs.forEach((c, i) => { drive['s' + i] = 1; });
+    ev.push({ at: S, s: drive, fx: () => this.runClock(SW) });
+    m.cs.forEach((c, i) => ev.push({ at: S + c.p * SW + 20, s: { ['s' + i]: 2 } }));
+    const R = S + SW + 350 * k;
+    ev.push({ at: R, s: { phase: 3, clock: 1 } });
+    const P = R + 2600 * k;
+    ev.push({ at: P, s: { phase: 4 } });
+    const Q = P + 1750 * k, step = 1650 * k;
+    ev.push({ at: Q - 1, s: { phase: 5 } });
+    m.cs.forEach((c, i) => {
+      const b = Q + i * step;
+      ev.push({ at: b, s: { ['s' + i]: 3, msg: i } });
+      ev.push({ at: b + 430 * k, s: { ['s' + i]: 4 } });
+      ev.push({ at: b + 650 * k, s: { ['s' + i]: 5 } });
+      ev.push({ at: b + 1150 * k, s: { ['s' + i]: 6 } });
+    });
+    ev.push({ at: Q + m.cs.length * step + 150 * k, s: { phase: 6 } });
+    this._jump = P - 300 * k;
+    this._sw = SW;
+    return ev;
+  }
+  play(from) {
+    this.stop();
+    const ev = this.timeline();
+    const pre = { phase: 0, clock: 0, lights: 0, msg: -1, instant: true, jumped: from > 0 };
+    this.model().cs.forEach((c, i) => { pre['s' + i] = 0; });
+    ev.forEach((e) => { if (e.at < from) Object.assign(pre, e.s); });
+    if (from > 0) pre.clock = 1;
+    this.setState(pre);
+    this.timers.push(setTimeout(() => this.setState({ instant: false }), 50));
+    ev.forEach((e) => {
+      if (e.at < from) return;
+      this.timers.push(setTimeout(() => { this.setState(e.s); if (e.fx) e.fx(); }, e.at - from + 90));
+    });
+  }
+  runClock(SW) {
+    const t0 = Date.now();
+    if (this.iv) clearInterval(this.iv);
+    this.iv = setInterval(() => {
+      const f = Math.min(1, (Date.now() - t0) / SW);
+      this.setState({ clock: f });
+      if (f >= 1 && this.iv) { clearInterval(this.iv); this.iv = null; }
+    }, 50);
+  }
+  renderVals() {
+    const st = this.state || {};
+    const m = this.model();
+    const phase = st.phase || 0;
+    const clock = st.clock || 0;
+    const instant = st.instant !== false;
+    const SW = this._sw || 4500 * this.k();
+    const lanes = m.cs.map((c, i) => {
+      const s = st['s' + i] || 0;
+      const vx = s >= 1 ? c.vx : m.startX;
+      const ms = Math.round(c.p * SW);
+      let mv = '';
+      if (s === 1) mv = c.motion;
+      else if (s >= 2 && !st.jumped) mv = 'mv-skid';
+      return {
+        top: 222 + i * 100,
+        name: c.name, ride: c.ride, glyph: c.glyph,
+        pogo: !!c.pogo, notPogo: !c.pogo,
+        glyphT: c.rot ? 'rotate(' + c.rot + 'deg)' : (c.flip ? 'scaleX(-1)' : 'none'),
+        startX: m.startX,
+        vx: vx.toFixed(1),
+        vT: instant ? 'none' : 'left ' + ms + 'ms linear',
+        trailW: (vx - m.startX).toFixed(1),
+        trailT: instant ? 'none' : 'width ' + ms + 'ms linear',
+        mvCls: mv,
+        rollCls: s === 1 ? 'rolling' : '',
+        landed: s >= 2,
+        dust: s >= 2 && !st.jumped,
+        tag: c.tag,
+        flagOn: s >= 3,
+        fx: c.fx.toFixed(1),
+        gapOn: s >= 4 && !c.v.bull,
+        gx: Math.min(c.fx, c.vx).toFixed(1),
+        gw: Math.abs(c.fx - c.vx).toFixed(1),
+        gColor: c.ratio < 1 ? '#FF6B57' : '#5CC8FF',
+        gOrigin: c.fx > c.vx ? 'left center' : 'right center',
+        bullOn: s >= 4 && c.v.bull,
+        stampOn: s >= 5,
+        vTop: c.v.top, vBot: c.v.bot, vColor: c.v.color,
+        thudCls: s >= 5 ? 'thud' : '',
+        kmOn: s >= 6,
+        kmLabel: '+' + this.int(c.km) + ' km'
+      };
+    });
+    const marks = m.marks.map((mk) => ({ label: mk.label, x: mk.x, lit: phase >= 3 || (phase === 2 && clock >= mk.p - 0.002) }));
+    const n = st.lights || 0;
+    const lights = [0, 1, 2].map((j) => {
+      const go = n >= 4, on = n > j;
+      return {
+        cls: on || go ? 'pop' : '',
+        bg: go ? '#FFF4D6' : (on ? '#FF9A1F' : '#2C2D32'),
+        glow: go ? '0 0 14px 3px rgba(255,244,214,0.8)' : (on ? '0 0 10px 2px rgba(255,154,31,0.7)' : 'none')
+      };
+    });
+    let tickerText = 'STANDING BY';
+    if (phase === 2) tickerText = this.dur(m.lo * Math.pow(m.hi / m.lo, clock));
+    else if (phase >= 3) tickerText = 'ALL ETAs IN';
+    const msgs = [
+      { on: phase === 1, a: 'Couriers are locking in their ETAs…', b: 'Lights on the board.' },
+      { on: phase === 2, a: 'Plotting the Dispatch Board.', b: 'Fastest to slowest.' },
+      { on: phase === 3 || phase === 4, a: 'Radio Defense: make your case.', b: 'Then stamp the best pitch.' }
+    ];
+    m.cs.forEach((c, i) => msgs.push({ on: phase === 5 && st.msg === i, a: c.fact, b: c.quip }));
+    const bi = m.cs.findIndex((c) => c.v.bull);
+    const best = m.cs[bi >= 0 ? bi : 0];
+    msgs.push({ on: phase === 6, a: 'Bullseye: ' + best.name + ', within 5% of the truth.', b: 'Full ' + this.int(best.km) + ' km. Odometer next.' });
+    return {
+      showSign: phase >= 1,
+      lightsOn: phase === 1,
+      lights,
+      goText: n >= 4 ? 'GO!' : '',
+      tickerOn: phase !== 1,
+      tickerText,
+      lanes,
+      marks,
+      shakeCls: phase === 4 ? 'shake' : '',
+      proofOn: phase === 4,
+      onAir: phase === 3 || phase === 4,
+      msgs,
+      confOn: phase === 6 && bi >= 0,
+      confX: best.vx.toFixed(1),
+      confY: 222 + (bi >= 0 ? bi : 0) * 100 + 52,
+      parts: m.parts,
+      replay: () => this.play(0),
+      jump: () => { this.timeline(); this.play(this._jump); }
+    };
+  }
+}
+</script>
+</body>
+</html>

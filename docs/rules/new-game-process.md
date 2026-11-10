@@ -42,6 +42,7 @@ STAGE 1 — Design Brief        STAGE 2 — Technical Spec       STAGE 3 — Imp
 - Suggest audio, CSS classes, or overlay patterns — these are covered by project rules
 
 ### Stage 1 gate — the brief is ready when:
+- [ ] §0 (the world, the Intro copy, the mood beats) is filled in, and its re-check list is ticked. §0d stays blank until Stage 1b
 - [ ] All REQUIRED sections are filled in completely
 - [ ] The Sample Round can be followed without any ambiguity
 - [ ] §12 Open Questions lists real questions, not "none"
@@ -58,12 +59,33 @@ change the **brand colour, terminology or the brief itself** — revise them now
 after the build. One game per session. Why: LI5's pink and GM's radio language were day-1 choices
 the revamp outgrew (`docs/superpowers/specs/2026-11-08-ui-revamp-design.md` § 17).
 
+**It is the revamp's R2 → R2b → R2c, run on a brief instead of a shipped game** (`docs/rules/ui-revamp.md` § 1):
+
+1. **World brief, signed off.** Opus checks the brief's §0 and sharpens it: narrator, scene, 3 mood words, Intro copy and per-role briefs, Line-up or none, the round-intro concept. The owner signs it off.
+2. **Three directions.** A Design canvas of 375×667 boards for the **action screens** (the ones the game is played on), with tweakable states and every value inline. One game only. Frozen shells (menu, How to Play, Settings, chrome, button shapes) are not redesigned.
+3. **Owner picks or mixes.** The brief is revised in the same session — §0d records the pick, and §1/§9/§11/§13 change wherever the direction reopened them.
+4. **A short build plan** from the chosen board (screens, states, motion), appended to the brief's Stage 2 appendix. Stage 2 then carries the board into the tech spec.
+
+**Session inputs:** the brief, `docs/rules/ui-revamp.md` §§ 1–4, `docs/ui-revamp-lessons.md`, and the
+neighbouring games' identity-doc T4 (Theme & Flavour) for the "what this world is NOT" check.
+**A brief written before Nov 2026** enters here too: it adds §0 first (`new-game-brief-template.md` §0
+and its re-check list), then runs these four steps.
+**Provisional until pilot 2 (GM):** the shared scene kit (`js/lib/scene-kit.js`, extracted on second
+use — a new game's scene stays game-owned until then) and a `'seats'` Line-up (only `'teams'` exists;
+a game needing seat order designs it at its own world brief).
+
+### Stage 1b gate — ready for Stage 2 when:
+- [ ] World brief signed off by the owner
+- [ ] A direction picked, and §0d filled in
+- [ ] Every section §0d names as changed has actually been edited (brand colour, §9 terms, Intro copy)
+- [ ] The build plan is in the brief's Stage 2 appendix
+
 ---
 
 ## Stage 2 — Technical Spec
 
 **Who:** Claude Code
-**Documents read:** Phase 1 brief + `logic-engine.md` + `ui-style.md` + `definitions.md` + `docs/game-identities/*.md` (Terminology sections, for the Naming Collision Check below) + `CLAUDE.md` + `docs/code-map.md`
+**Documents read:** Phase 1 brief (with §0d and the Stage 1b build plan) + the picked directions board + `docs/rules/ui-revamp.md` §§ 2–5 (frozen/default rules, the Intro config, scenes, TV labels) + `logic-engine.md` + `ui-style.md` + `definitions.md` + `docs/game-identities/*.md` (Terminology sections, for the Naming Collision Check below) + `CLAUDE.md` + `docs/code-map.md`
 **Document produced:** `new-game-technical-template.md` → saved as `docs/new-game-tech-[name].md`
 **Goal:** A complete technical specification, confirmed by the project owner before any code is written
 
@@ -150,7 +172,8 @@ Any game with a deck, a chain, or a scoring table commits a Node `vm` harness un
 - [ ] `docs/game-identities/[abbr].md` written in full (all T1–T10 sections) and passing `node tools/verify-identity-docs.js`
 - [ ] `CLAUDE.md` project structure map updated
 - [ ] SW version bumped and precache updated
-- [ ] `docs/content-prompts/new-game-brief-prompt.md` synced — existing-games roster table, "taken" abbreviations line, and Sylly-Mode name list all include the new game. Values pulled from *shipped reality* (`docs/game-identities/[abbr].md` + plugin + impl notes), never from the original brief. This file is the first document a future game touches; a stale roster re-imports fixed errors and risks an abbreviation collision.
+- [ ] The Intro runs in every mode the game supports (`node tools/verify-game-intro.js`), every screen carries `data-tv` (`node tools/verify-tv-labels.js`), and the build matches the picked board line by line (`docs/ui-revamp-lessons.md` L8); departures from default rules logged on `docs/ui-revamp-rollout.md`
+- [ ] `docs/rules/new-game-brief-template.md` synced (the prompt merged into it, 15 Oct 2026) — existing-games roster table and "taken" abbreviations line include the new game. Values pulled from *shipped reality* (`docs/game-identities/[abbr].md` + plugin + impl notes), never from the original brief. This file is the first document a future game touches; a stale roster re-imports fixed errors and risks an abbreviation collision.
 - [ ] `docs/phase[N]-snapshot.md` written and confirmed
 
 ---
@@ -168,7 +191,7 @@ Grep every thematic term proposed in the Phase 1 brief across `docs/game-identit
 Search `allScreens[]` in `engine.js` for any proposed `screen-[abbr]-*` ID. Abbreviations must be unique across all 8 games.
 
 **Check 3 — Variable prefixes:**
-Confirm the proposed abbreviation isn't already used. Current prefixes: `li5`, `gm`, `ss`, `jec`, `ygi`, `lttp`, `nat`, `dsd`.
+Confirm the proposed abbreviation isn't already used. The source of truth is the **Active plugin prefixes** list in `.claude/rules/definitions.md` (games *and* reserved lobby-module prefixes), plus the taken line in `new-game-brief-template.md` for games still in design.
 
 **Check 4 — Brand colour:**
 Check `css/styles.css` for `pill-active-[colour]`. If it doesn't exist, it needs to be added — note this in the spec. No SW bump required for CSS changes.

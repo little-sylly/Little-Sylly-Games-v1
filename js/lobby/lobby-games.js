@@ -123,6 +123,17 @@ const GAMES = [
     shelves: ['board'], // Strategy shelf — owner decision, see SHELF_NOTES
   },
   {
+    id: 'eta', gameName: 'ETA?', emoji: '🛵', brandHex: '#EA580C',
+    minPlayers: 3, maxPlayers: 8, playerRangeDisplay: null,
+    supportedModes: ["mdlm"],
+    pitch: "Skateboard to the Moon? Show your working.",
+    playCtaLabel: "Clock On",
+    syllyModeName: 'Backseat Drivers',
+    howItGoes: ['Dot hands you a Ride — nobody tells you its speed', 'Log your ETA, then talk the table through it', 'A parcel drops on the truth — closest earns the Mileage'],
+    minutes: '~15 min',  // brief §5: a 5-Run Shift ≈ 14 min Standard at five couriers (stopwatch estimate)
+    shelves: ['talk', 'guess-draw'], // estimate (guess) + defend it out loud (talk)
+  },
+  {
     id: 'dsd', gameName: 'Deep-Sea Deploy', emoji: '⚓', brandHex: '#0E7490',
     minPlayers: 2, maxPlayers: 6, playerRangeDisplay: '2 (TLM) or 4–6 (MDLM)',
     supportedModes: ["ptp","tlm","mdlm"],
@@ -338,6 +349,7 @@ const LOBBY_FLAVOUR = {
   cjar: 'Hand in the cookie jar. Act natural',
   cld:  'Nudging a penguin into the drink. Gently',
   comb: 'Negotiating with the bees',
+  eta:  'Signing for a parcel that hasn\'t left yet',
 };
 // The room's own lines — boot screen only.
 const LOBBY_ROOM_LINES = [

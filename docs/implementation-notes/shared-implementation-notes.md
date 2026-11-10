@@ -3401,6 +3401,11 @@ Card *art* and card *names* were always separate skinning concerns by constructi
 
 ## Bug Index
 
+**BUG-29 — the Board said "21 of 20 fit." the moment a 21st game registered. [10 Nov 2026, SW v272]**
+**What happened:** `lbFitLine()` (`js/lobby/lobby.js`) — the one count sentence the Board and TV share — compared and printed a literal `20`. Adding ETA? made `GAMES.length` 21; the sentence read *"21 of 20 fit."* and *"All 20 games in the box."* could never fire again. Caught by a `visual-check` screenshot, not a harness (the lobby harnesses assert the order and the rail, not this string).
+**Root cause:** a count written as a number instead of read from the registry it counts. **Lesson:** anything that says "how many games" reads `GAMES.length` (or iterates `GAMES`). The same pass found the same shape in three harnesses (`verify-tv.js` × 4, `verify-mp-configs.js` "20 games registered") — those are deliberate pins and were bumped; the app string was a bug. Grep for the literal suite size when adding a game: `grep -rn "\b20\b" js/lobby`.
+
+
 **BUG-28 — OTHER SIDE ran at double speed after the tab was hidden and shown again. [22 Oct 2026, SW v263]**
 **What happened:** `chicken.js`'s `visibilitychange` handler set `ckRaf = null` on hide without `cancelAnimationFrame`. The frame already requested still fired when the tab came back, and the show branch saw `!ckRaf` and started a second loop beside it — two `ckUpdate`s a frame. Found reading the cabinet for DD-65; the archived bench copy had the correct cancel, so it regressed on the way into production. Every other cabinet cancels.
 **Root cause:** forgetting a RAF handle is not cancelling it. **Lesson:** the null-the-handle-and-restart pattern is only safe after a `cancelAnimationFrame`. And `mutate-arcade.js`'s RAF mutation did a plain first-match `replace` of the cancel line — the fix put an identical line earlier in the file, so the mutation silently hit the wrong function and the harness went blind (15/16). A mutation must anchor to the function it means to break; it now matches inside `resetArcadeChicken()`.
@@ -4710,6 +4715,10 @@ document's `removeEventListener` is real now, or the first check could not fail)
 **Numbers.** `verify-bots.js` 91 (new), `verify-mp-reconnect.js` 152, `mutate-mp-reconnect.js` 17/17,
 `verify-mp-configs.js` § 8 pins the bot adopters (`['cld']`).
 
+### ML-10 — The shared mock DOM lacked `style.setProperty` / `setAttribute` [10 Nov 2026, SW v272]
+**What happened:** `tools/lib/mp-world.js`'s mock element had a plain-object `style` and no attribute methods. ETA's tally sets a CSS custom property per receipt (`card.style.setProperty('--d', …)`) — the loopback threw *setProperty is not a function* inside a click handler. A real browser has both.
+**Root cause:** the mock grew only as far as the games before it needed. **Lesson:** the mock now has `style.setProperty` and `set/get/removeAttribute` (harmless to every existing harness — all re-run green). When a loopback throws on a DOM method a browser has, **extend the mock**; don't guard the game code against a browser that doesn't exist. Related harness gotcha: on this machine the working copy is **CRLF** (autocrlf), so a harness that regex-extracts a function from a source file (`/function x\([\s\S]*?\n\}\n/`) finds nothing — normalise `\r\n` on read first (`verify-eta-loopback.js`).
+
 ## Template Gaps
 
 ### A render-on-demand loop with a wake-on-interval companion cannot be stopped by hiding its canvas
@@ -5040,3 +5049,8 @@ paints, round-trips to the lobby and leaves its RAF handle null.
 Chromium throttles `requestAnimationFrame`, so a canvas sampled after a fixed sleep is sized but
 unpainted — drive frames from inside `page.evaluate`; and `lobbyPresent()` applies the home layout
 *late*, so a test that opens the terminal before the lobby settles gets navigated away mid-measurement.
+
+### DD-69 — Two roll-call skin hooks in the engine Intro: `data-intro-roll`, `data-intro-ready-tag` [10 Nov 2026, SW v272]
+**What:** a game's `<template id="intro-[abbr]">` may now carry `<p data-intro-roll>` (the roll call's heading — ETA: *Sign the timesheet.*) and `<p data-intro-ready-tag>` (a ready chip's stamp in place of ✓ — ETA: *CLOCKED ON*). `mpIntroReadTemplate` reads them; `mpIntroRollHtml` / `mpIntroChip` render them, escaped; colours come from `--intro-stamp` so a game tints them from its own CSS. Without the nodes nothing changes.
+**Decisions:** (1) **A new node, not `data-intro-lineup` reused** — the tech spec first said reuse it, but LI5's Team Lobby shows a roll call and its Line-up prompt (*"Into your groups, please."*) would have become that roll call's heading. A separate node keeps every other game byte-identical. (2) **Skin, not rules** — no packet, no state; `verify-game-intro.js` § 19 asserts both directions (hooks on → heading + stamp; hooks off → plain ✓, no heading) and `mutate-game-intro.js` gained two mutants (28/28).
+**Lesson:** this is the **second sighting** of the lessons-doc candidate "engine-owned screens can't take a game's skin" (LI5 D7, now ETA) — promoted in `docs/ui-revamp-lessons.md` as L10. The pattern that works: tiny, optional, text-only template hooks + a CSS custom property, never a render callback. ETA also needed the scene box's 16:10 aspect lifted (`#game-intro-scene:has(> .eta-intro)`, departure D-ETA-5) — game CSS, not an engine change. Game side: `eta-implementation-notes.md` DD-04.

@@ -19,6 +19,21 @@ Detail: pointer to the canonical doc (snapshot / impl note / spec / memory).
 ```
 
 
+## 2026-11-10 — ETA? built (SW v272): provisional content, engine Intro skin hooks (Architecture)
+**Decision:** ETA? is built and integrated on a flagged provisional content set (swapped wholesale later, no code change); the engine Intro gains two optional text hooks (`data-intro-roll`, `data-intro-ready-tag`) rather than any render callback; a lobby count reads `GAMES.length`, never a literal.
+**Why:** the content rebuild is its own task and shouldn't block engine/UI/harness work; text hooks + a CSS variable let an engine screen wear a world while keeping every other game byte-identical (promoted to revamp lesson L10).
+**Changed:** `js/games/eta{,-scene}.js`, `css/eta.css`, `src/screens/eta.html`, `data/eta-data.json`, `fonts/eta-*.woff2`, `js/engine-intro.js`, `tools/verify-eta-{rules,loopback,content}.js`. **Detail:** `eta-implementation-notes.md`; shared DD-69, BUG-29, ML-10.
+
+## 2026-11-10 — ETA? enters Stage 2 world-first: E.T.A. Couriers, the Clipboard (Strategy)
+**Decision:** ETA? (`eta`) enters Stage 2 with its world set (E.T.A. Couriers, narrator Dot), direction 1 · Clipboard picked, brand colour hi-vis orange, and the Dispatch Board / Radio Defense renamed to The Run Sheet / Talk Me Through It.
+**Why:** North Star (9 Nov 2026) — the world, not the mechanic, makes the game ours; the paperwork world keeps the reveal fun without reading as a racing or sci-fi game, and drops radio language now owned by Great Minds' history.
+**Changed:** brief `docs/new-game-brief-eta.md` (v4); spec `docs/new-game-tech-eta.md`; boards in `docs/new-ideas/eta/for archive/boards/`; future `pill-active-eta`; Ride data gains `mode`. **Detail:** the spec's §16–§17.
+
+## 2026-11-10 — New games go world-first: brief §0 + a Stage 1b gate (Process)
+**Decision:** the Phase 1 brief gains **§0 The World & the Intro** (world, narrator, Intro copy, mood beats, §0d the direction pick); Stage 1b (world brief → three directions → pick → revise the brief) is spelled out with its own gate; the tech template and build checklist gain the Intro, scene, TV-label and built-to-the-board items. A pre-revamp brief adds §0 and enters at Stage 1b.
+**Why:** four far-along concepts (brainstormed before the revamp) are being ported ahead of GM; one pilot settled the process and the Intro, so new games shouldn't be built on a day-1 identity the revamp would then redo. Scene kit and a `'seats'` Line-up stay provisional until GM.
+**Changed:** `docs/rules/new-game-{brief-template,process,technical-template,checklist}.md` (+ two stale refs: the merged brief prompt, the 8-game prefix list). **Detail:** brief template CHANGELOG; `ui-revamp-design.md` § 17.1.
+
 ## 2026-11-10 — A revamp lessons doc; the host can start before everyone is ready (Process)
 **Decision:** `docs/ui-revamp-lessons.md` holds short, growing entries on what bit us in revamp passes (read at R1, add at R13); the Intro's Start no longer needs everyone ready — it warns instead (unplaced players, unready players).
 **Why:** the LI5 playthrough surfaced old styling, stale copy and a stalling Start that a checklist would have caught; the same will recur in the next nineteen games.

@@ -91,9 +91,18 @@ shipped CSS — button colours, sizes, order (*Yay left of Nay, bigger, pink*).
 
 ---
 
+### L10 — An engine-owned screen takes a skin through text hooks and CSS, never a render callback
+**Do:** when the Intro (or any engine screen) needs the world, add a tiny optional **text** node to the
+game's template (`data-intro-roll`, `data-intro-ready-tag`) and a CSS custom property the game sets from
+its own stylesheet (`--intro-stamp`); scope any box change to the game's scene (`#game-intro-scene:has(> .eta-intro)`).
+**Why:** a render hook would hand game code the engine's DOM; text + a variable keeps every other game
+byte-identical and is assertable both ways (`verify-game-intro.js` § 19).
+**Seen:** LI5 (D7, 10 Nov 2026) — the Line-up couldn't take the chalkboard. **Seen again:** ETA, 10 Nov 2026 —
+the roll call needed *Sign the timesheet.* / *CLOCKED ON*, and the 16:10 scene box clipped Dot's clipboard.
+
 ## Candidates (seen once, not yet a rule — promote on the second sighting)
 
-- Engine-owned screens (Intro brief, Line-up) can't take a game's skin (departure D7); watch whether GM
-  wants a `lineup` render hook.
+- A new game's board helpers are mockup code: port the values, then check the helpers against the brief's own
+  strings (ETA: the board's `num()` turned *12.5 days* into *13 days*).
 - The chalk write-on and duster are world-specific; a new world needs its own scene kit, not a reskin of
   `li5-scene.js`.

@@ -1,0 +1,446 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Sat-Nav Radar reveal</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&amp;family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;1,400&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#5BB8FF}a:hover{color:#A9DAFF}
+.rd button{cursor:pointer;transition:transform .08s}
+.rd button:active{transform:translateY(2px)}
+.chk{font-family:'Chakra Petch','Arial Narrow',sans-serif}
+.plx{font-family:'IBM Plex Mono','Courier New',monospace}
+@keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+.beam{animation:spin 3.2s linear infinite}
+.beamFast{animation:spin .55s linear infinite}
+@keyframes pop{0%{transform:scale(0);opacity:0}60%{transform:scale(1.3);opacity:1}100%{transform:scale(1);opacity:1}}
+.pop{animation:pop .4s cubic-bezier(.2,.9,.3,1.4) both}
+@keyframes ripple{0%{transform:scale(.3);opacity:1}100%{transform:scale(3.2);opacity:0}}
+.ripple{animation:ripple .8s ease-out both}
+.ripple2{animation:ripple 1s .2s ease-out both}
+.rippleLoop{animation:ripple 1.6s ease-out infinite}
+@keyframes ringLit{0%{opacity:0;transform:scale(.97)}20%{opacity:1;transform:scale(1.01)}100%{opacity:.55;transform:scale(1)}}
+.ringLit{animation:ringLit .9s ease-out both}
+@keyframes pinDrop{0%{transform:translateY(-64px) scale(.6);opacity:0}50%{transform:translateY(0) scale(1.05,.9);opacity:1}64%{transform:translateY(-8px) scale(.95,1.06)}80%{transform:translateY(0) scale(1.04,.96)}100%{transform:none;opacity:1}}
+.pinDrop{animation:pinDrop .6s cubic-bezier(.45,0,.6,1) both;transform-origin:50% 100%}
+@keyframes growX{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+.growX{animation:growX .4s cubic-bezier(.3,.8,.3,1) both}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.fadeIn{animation:fadeIn .35s ease-out both}
+@keyframes rowIn{0%{transform:translateX(-24px);opacity:0}100%{transform:none;opacity:1}}
+.rowIn{animation:rowIn .35s cubic-bezier(.2,.9,.3,1.2) both}
+@keyframes chip{0%{transform:translateY(8px) scale(.5);opacity:0}60%{transform:translateY(-2px) scale(1.15);opacity:1}100%{transform:none;opacity:1}}
+.chip{animation:chip .4s cubic-bezier(.2,.9,.3,1.3) both}
+@keyframes glitch{0%{transform:translate(0,0);clip-path:inset(0 0 0 0)}10%{transform:translate(-4px,1px);clip-path:inset(10% 0 55% 0)}20%{transform:translate(3px,-1px);clip-path:inset(60% 0 8% 0)}30%{transform:translate(-2px,0);clip-path:inset(0 0 0 0)}45%{transform:translate(2px,1px);clip-path:inset(30% 0 40% 0)}55%{transform:none;clip-path:inset(0 0 0 0)}100%{transform:none;clip-path:inset(0 0 0 0)}}
+.glitch{animation:glitch .5s steps(1,end) 3}
+@keyframes banner{0%{transform:scaleX(0);opacity:0}14%{transform:scaleX(1.04);opacity:1}20%{transform:scaleX(1)}86%{transform:scaleX(1);opacity:1}100%{transform:scaleX(1);opacity:0}}
+.banner{animation:banner 1.9s cubic-bezier(.2,.9,.3,1) both}
+@keyframes dimA{0%{opacity:0}12%{opacity:1}86%{opacity:1}100%{opacity:0}}
+.dim{animation:dimA 1.9s ease-out both}
+@keyframes blink{0%,49%{opacity:1}50%,100%{opacity:.25}}
+.blink{animation:blink .9s steps(1,end) infinite}
+@keyframes bars{0%,100%{transform:scaleY(.3)}50%{transform:scaleY(1)}}
+.sig i{display:block;width:3px;background:#5BB8FF;border-radius:1px;transform-origin:50% 100%;animation:bars .6s ease-in-out infinite}
+.sig i:nth-child(2){animation-delay:.15s}
+.sig i:nth-child(3){animation-delay:.3s}
+.sig i:nth-child(4){animation-delay:.45s}
+@keyframes msgIn{0%{transform:translateY(10px);opacity:0}100%{transform:none;opacity:1}}
+.msgIn{animation:msgIn .3s ease-out both}
+@keyframes typeIn{from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0 0 0 0)}}
+.typeA{animation:typeIn .7s steps(34,end) both}
+.typeB{animation:typeIn .5s .72s steps(24,end) both}
+.cf{animation-duration:1.6s;animation-timing-function:cubic-bezier(.15,.7,.4,1);animation-fill-mode:both}
+@keyframes cf0{0%{transform:translate(0,0) rotate(0);opacity:1}45%{transform:translate(-90px,-70px) rotate(220deg);opacity:1}100%{transform:translate(-118px,60px) rotate(520deg);opacity:0}}
+@keyframes cf1{0%{transform:translate(0,0) rotate(0);opacity:1}45%{transform:translate(-60px,-112px) rotate(-200deg);opacity:1}100%{transform:translate(-80px,30px) rotate(-480deg);opacity:0}}
+@keyframes cf2{0%{transform:translate(0,0) rotate(0);opacity:1}45%{transform:translate(-24px,-134px) rotate(240deg);opacity:1}100%{transform:translate(-34px,20px) rotate(560deg);opacity:0}}
+@keyframes cf3{0%{transform:translate(0,0) rotate(0);opacity:1}45%{transform:translate(16px,-126px) rotate(-260deg);opacity:1}100%{transform:translate(22px,24px) rotate(-540deg);opacity:0}}
+@keyframes cf4{0%{transform:translate(0,0) rotate(0);opacity:1}45%{transform:translate(56px,-104px) rotate(210deg);opacity:1}100%{transform:translate(76px,40px) rotate(500deg);opacity:0}}
+@keyframes cf5{0%{transform:translate(0,0) rotate(0);opacity:1}45%{transform:translate(92px,-74px) rotate(-230deg);opacity:1}100%{transform:translate(120px,60px) rotate(-520deg);opacity:0}}
+@keyframes cf6{0%{transform:translate(0,0) rotate(0);opacity:1}45%{transform:translate(-112px,-30px) rotate(250deg);opacity:1}100%{transform:translate(-146px,80px) rotate(560deg);opacity:0}}
+@keyframes cf7{0%{transform:translate(0,0) rotate(0);opacity:1}45%{transform:translate(112px,-34px) rotate(-250deg);opacity:1}100%{transform:translate(146px,76px) rotate(-560deg);opacity:0}}
+@keyframes cf8{0%{transform:translate(0,0) rotate(0);opacity:1}45%{transform:translate(-40px,-92px) rotate(190deg);opacity:1}100%{transform:translate(-56px,46px) rotate(470deg);opacity:0}}
+@keyframes cf9{0%{transform:translate(0,0) rotate(0);opacity:1}45%{transform:translate(40px,-96px) rotate(-190deg);opacity:1}100%{transform:translate(56px,42px) rotate(-470deg);opacity:0}}
+@keyframes cf10{0%{transform:translate(0,0) rotate(0);opacity:1}45%{transform:translate(-76px,-122px) rotate(270deg);opacity:1}100%{transform:translate(-100px,10px) rotate(600deg);opacity:0}}
+@keyframes cf11{0%{transform:translate(0,0) rotate(0);opacity:1}45%{transform:translate(76px,-118px) rotate(-270deg);opacity:1}100%{transform:translate(100px,14px) rotate(-600deg);opacity:0}}
+.cf0{animation-name:cf0}.cf1{animation-name:cf1}.cf2{animation-name:cf2}.cf3{animation-name:cf3}.cf4{animation-name:cf4}.cf5{animation-name:cf5}
+.cf6{animation-name:cf6}.cf7{animation-name:cf7}.cf8{animation-name:cf8}.cf9{animation-name:cf9}.cf10{animation-name:cf10}.cf11{animation-name:cf11}
+</style>
+</helmet>
+<div class="rd" style="position: relative; width: 390px; height: 844px; overflow: hidden; background: #06122A; color: #EAF4FF; font-family: 'IBM Plex Mono', 'Courier New', monospace">
+<div aria-hidden="true" style="position: absolute; inset: 0; background-image: linear-gradient(rgba(91,184,255,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(91,184,255,0.06) 1px, transparent 1px); background-size: 26px 26px; pointer-events: none"></div>
+<div style="position: absolute; left: 16px; right: 16px; top: 14px; display: flex; justify-content: space-between; align-items: center">
+<div style="display: flex; gap: 6px">
+<span class="chk" style="font-size: 11px; font-weight: 700; letter-spacing: 0.08em; padding: 3px 8px; border-radius: 4px; background: #11264A">RUN 4 / 5</span>
+<span class="chk" style="font-size: 11px; font-weight: 700; letter-spacing: 0.08em; padding: 2px 7px; border-radius: 4px; border: 1px solid #5BB8FF; color: #5BB8FF">COSMIC</span>
+</div>
+<div style="display: flex; align-items: center; gap: 8px">
+<div class="sig" aria-hidden="true" style="display: flex; align-items: flex-end; gap: 2px; height: 12px"><i style="height: 4px"></i><i style="height: 7px"></i><i style="height: 10px"></i><i style="height: 12px"></i></div>
+<span class="chk" style="font-size: 11px; font-weight: 600; letter-spacing: 0.12em; color: #8FB3D9">SAT-NAV DISPATCH</span>
+</div>
+</div>
+<span class="chk" style="position: absolute; left: 16px; top: 42px; font-size: 28px; font-weight: 700; line-height: 1; letter-spacing: 0.01em">EARTH → THE SUN</span>
+<span style="position: absolute; left: 16px; top: 78px; font-size: 12px; font-weight: 500; color: #8FB3D9">≈ 150 million km · GPS ON</span>
+<span style="position: absolute; left: 16px; right: 16px; top: 97px; font-size: 11.5px; font-style: italic; color: #B9CDE6">Briefing: a cleared space corridor runs all the way. No stops.</span>
+<div style="position: absolute; left: 16px; right: 16px; top: 120px; height: 34px; box-sizing: border-box; border-radius: 8px; background: #0A1C3D; border: 1px solid #1C3A68; display: flex; align-items: center; justify-content: space-between; padding: 0 12px">
+<span class="chk" style="font-size: 11px; font-weight: 600; letter-spacing: 0.14em; color: #8FB3D9">ELAPSED</span>
+<span style="font-size: 17px; font-weight: 600; color: #5BB8FF; text-shadow: 0 0 12px rgba(91,184,255,0.6)">{{tickerText}}</span>
+</div>
+<div style="position: absolute; left: 0; top: 160px; width: 390px; height: 360px; overflow: hidden">
+<div style="position: absolute; left: 0; top: 0; width: 390px; height: 360px; transform-origin: 0 0; transform: {{camT}}; transition: transform 650ms cubic-bezier(.45,.05,.25,1)">
+<div class="{{beamCls}}" aria-hidden="true" style="position: absolute; left: 55px; top: 40px; width: 280px; height: 280px; border-radius: 50%; background: conic-gradient(from 0deg, rgba(91,184,255,0.32), rgba(91,184,255,0) 70deg, transparent 360deg); opacity: {{beamOp}}"></div>
+<sc-for list="{{rings}}" as="g" hint-placeholder-count="7">
+<div style="position: absolute; left: {{g.l}}px; top: {{g.t}}px; width: {{g.d}}px; height: {{g.d}}px; box-sizing: border-box; border-radius: 50%; border: 1px solid rgba(91,184,255,0.22)"></div>
+<sc-if value="{{g.lit}}" hint-placeholder-val="{{ false }}">
+<div class="ringLit" style="position: absolute; left: {{g.l}}px; top: {{g.t}}px; width: {{g.d}}px; height: {{g.d}}px; box-sizing: border-box; border-radius: 50%; border: 1.5px solid #5BB8FF; box-shadow: 0 0 10px rgba(91,184,255,0.5), inset 0 0 10px rgba(91,184,255,0.25)"></div>
+</sc-if>
+<span class="{{g.lblCls}}" style="position: absolute; left: {{g.lx}}px; top: {{g.ly}}px; transform: translateY(-50%); font-size: 7.5px; font-weight: 600; letter-spacing: 0.04em; line-height: 1; padding: 1px 3px; border-radius: 2px; background: #06122A; color: {{g.lc}}; white-space: nowrap">{{g.label}}</span>
+</sc-for>
+<sc-for list="{{spokes}}" as="sp" hint-placeholder-count="5">
+<div style="position: absolute; left: 195px; top: 180px; width: 0; height: 0; transform: rotate({{sp.deg}}deg)">
+<div style="position: absolute; left: 22px; top: -0.5px; width: 122px; height: 1px; background: {{sp.lineC}}"></div>
+</div>
+<div style="position: absolute; left: {{sp.lx}}px; top: {{sp.ly}}px; width: 72px; margin-left: -36px; margin-top: -17px; display: flex; flex-direction: column; align-items: center; gap: 1px">
+<span style="font-size: 17px; line-height: 1">{{sp.glyph}}</span>
+<span class="chk" style="font-size: 12px; font-weight: 700; line-height: 1.1; color: {{sp.nameC}}">{{sp.name}}</span>
+</div>
+</sc-for>
+<sc-if value="{{pingOn}}" hint-placeholder-val="{{ false }}">
+<div style="position: absolute; left: 55px; top: 40px; width: 280px; height: 280px; box-sizing: border-box; border-radius: 50%; border: 2px solid #5BB8FF; box-shadow: 0 0 16px rgba(91,184,255,0.7), inset 0 0 22px rgba(91,184,255,0.3); transform: scale({{pingS}}); transition: {{pingT}}"></div>
+</sc-if>
+<div aria-hidden="true" style="position: absolute; left: 175px; top: 160px; width: 40px; height: 40px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #9FD4FF, #2B7FD6 45%, #0B2E63 80%); box-shadow: 0 0 18px rgba(91,184,255,0.55)"></div>
+<div aria-hidden="true" class="rippleLoop" style="position: absolute; left: 175px; top: 160px; width: 40px; height: 40px; box-sizing: border-box; border-radius: 50%; border: 1px solid rgba(91,184,255,0.6)"></div>
+<sc-for list="{{pts}}" as="q" hint-placeholder-count="5">
+<sc-if value="{{q.segOn}}" hint-placeholder-val="{{ false }}">
+<div style="position: absolute; left: 195px; top: 180px; width: 0; height: 0; transform: rotate({{q.deg}}deg)">
+<div class="growX" style="position: absolute; left: {{q.segL}}px; top: -1.5px; width: {{q.segW}}px; height: 3px; border-radius: 2px; background: {{q.vColor}}; box-shadow: 0 0 8px {{q.vColor}}; transform-origin: {{q.segO}}"></div>
+</div>
+</sc-if>
+<sc-if value="{{q.blipOn}}" hint-placeholder-val="{{ false }}">
+<div style="position: absolute; left: {{q.bx}}px; top: {{q.by}}px; width: 0; height: 0; z-index: 3">
+<div class="pop" style="position: absolute; left: -5px; top: -5px; width: 10px; height: 10px; border-radius: 50%; background: #EAF4FF; box-shadow: 0 0 10px 2px rgba(91,184,255,0.9)"></div>
+<div class="ripple" style="position: absolute; left: -8px; top: -8px; width: 16px; height: 16px; box-sizing: border-box; border-radius: 50%; border: 1.5px solid #5BB8FF"></div>
+</div>
+</sc-if>
+<sc-if value="{{q.pinOn}}" hint-placeholder-val="{{ false }}">
+<div style="position: absolute; left: {{q.px}}px; top: {{q.py}}px; width: 0; height: 0; z-index: 4">
+<div class="ripple" style="position: absolute; left: -9px; top: -9px; width: 18px; height: 18px; box-sizing: border-box; border-radius: 50%; border: 2px solid {{q.vColor}}"></div>
+<div class="ripple2" style="position: absolute; left: -9px; top: -9px; width: 18px; height: 18px; box-sizing: border-box; border-radius: 50%; border: 1px solid {{q.vColor}}"></div>
+<div class="pinDrop" style="position: absolute; left: -7px; top: -19px; width: 14px; height: 19px">
+<div style="position: absolute; left: 0; top: 0; width: 14px; height: 14px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); background: {{q.vColor}}; box-shadow: 0 2px 6px rgba(0,0,0,0.5)"></div>
+<div style="position: absolute; left: 4.5px; top: 4.5px; width: 5px; height: 5px; border-radius: 50%; background: #06122A"></div>
+</div>
+</div>
+</sc-if>
+<sc-if value="{{q.tagsOn}}" hint-placeholder-val="{{ false }}">
+<span class="fadeIn" style="position: absolute; left: {{q.btx}}px; top: {{q.bty}}px; width: 70px; margin-left: -35px; margin-top: -4px; text-align: center; font-size: 6px; font-weight: 600; line-height: 8px; color: #EAF4FF; white-space: nowrap">LOGGED {{q.tag}}</span>
+<span class="fadeIn" style="position: absolute; left: {{q.ptx}}px; top: {{q.pty}}px; width: 70px; margin-left: -35px; margin-top: -4px; text-align: center; font-size: 6px; font-weight: 600; line-height: 8px; color: {{q.vColor}}; white-space: nowrap">TRUE {{q.truthLabel}}</span>
+</sc-if>
+</sc-for>
+</div>
+</div>
+<div style="position: absolute; left: 16px; right: 16px; top: 491px; height: 34px">
+<sc-for list="{{msgs}}" as="mg" hint-placeholder-count="1">
+<sc-if value="{{mg.on}}" hint-placeholder-val="{{ false }}">
+<div class="msgIn" style="position: absolute; left: 0; right: 0; top: 0; display: flex; flex-direction: column; gap: 2px">
+<span class="typeA" style="font-size: 11.5px; font-weight: 600; line-height: 1.3; color: #EAF4FF">{{mg.a}}</span>
+<span class="typeB" style="font-size: 11.5px; font-style: italic; line-height: 1.3; color: #FFB37A">{{mg.b}}</span>
+</div>
+</sc-if>
+</sc-for>
+</div>
+<div style="position: absolute; left: 12px; right: 12px; top: 528px; height: 212px; border-radius: 10px; background: #0A1C3D; border: 1px solid #1C3A68"></div>
+<sc-for list="{{rows}}" as="r" hint-placeholder-count="5">
+<sc-if value="{{r.on}}" hint-placeholder-val="{{ true }}">
+<div class="rowIn" style="position: absolute; left: 12px; right: 12px; top: {{r.top}}px; height: 40px; box-sizing: border-box; padding: 0 10px; display: flex; align-items: center; gap: 8px; background: {{r.bg}}; border-radius: 8px; transition: background 0.3s">
+<span style="width: 22px; font-size: 18px; line-height: 1; text-align: center">{{r.glyph}}</span>
+<div style="width: 86px; display: flex; flex-direction: column; gap: 1px">
+<span class="chk" style="font-size: 13px; font-weight: 700; line-height: 1.1">{{r.name}}</span>
+<span style="font-size: 9.5px; line-height: 1.1; color: #8FB3D9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{r.ride}}</span>
+</div>
+<div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px">
+<span style="font-size: 10.5px; line-height: 1.2; white-space: nowrap"><span style="color: #8FB3D9">LOG </span>{{r.tag}}</span>
+<sc-if value="{{r.truthOn}}" hint-placeholder-val="{{ false }}">
+<span class="chip" style="font-size: 10.5px; line-height: 1.2; white-space: nowrap; color: {{r.vColor}}; transform-origin: 0 50%"><span style="color: #8FB3D9">TRUE </span>{{r.truthLabel}}</span>
+</sc-if>
+</div>
+<sc-if value="{{r.truthOn}}" hint-placeholder-val="{{ false }}">
+<div class="chip" style="display: flex; flex-direction: column; align-items: flex-end; gap: 2px">
+<span class="chk" style="font-size: 10.5px; font-weight: 700; line-height: 1; letter-spacing: 0.03em; padding: 3px 6px; border-radius: 4px; background: {{r.vColor}}; color: #06122A; white-space: nowrap">{{r.verdict}}</span>
+<sc-if value="{{r.kmOn}}" hint-placeholder-val="{{ false }}">
+<span class="chip" style="font-size: 10.5px; font-weight: 600; line-height: 1; color: #EAF4FF; white-space: nowrap">{{r.kmLabel}}</span>
+</sc-if>
+</div>
+</sc-if>
+</div>
+</sc-if>
+</sc-for>
+<sc-if value="{{proofOn}}" hint-placeholder-val="{{ false }}">
+<div class="dim" style="position: absolute; inset: 0; z-index: 19; background: rgba(3,9,22,0.6)"></div>
+<div style="position: absolute; left: 0; right: 0; top: 270px; z-index: 20; display: flex; flex-direction: column; align-items: center; gap: 10px">
+<span class="glitch chk" style="font-size: 15px; font-weight: 700; letter-spacing: 0.3em; color: #5BB8FF">RECALCULATING…</span>
+<div class="banner" style="width: 390px; height: 78px; box-sizing: border-box; background: #5BB8FF; color: #06122A; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; box-shadow: 0 0 40px rgba(91,184,255,0.55)">
+<span class="chk" style="font-size: 30px; font-weight: 700; line-height: 1; letter-spacing: 0.04em">PROOF OF DELIVERY</span>
+<span style="font-size: 11px; font-weight: 600; letter-spacing: 0.2em">DROPPING PINS</span>
+</div>
+</div>
+</sc-if>
+<sc-if value="{{confOn}}" hint-placeholder-val="{{ false }}">
+<div style="position: absolute; left: {{confX}}px; top: {{confY}}px; width: 0; height: 0; z-index: 15">
+<sc-for list="{{parts}}" as="p" hint-placeholder-count="12">
+<span class="{{p.cls}}" style="position: absolute; left: -4px; top: -4px; width: {{p.w}}px; height: {{p.h}}px; border-radius: {{p.r}}; background: {{p.c}}; animation-delay: {{p.d}}ms"></span>
+</sc-for>
+</div>
+</sc-if>
+<div style="position: absolute; left: 16px; right: 16px; top: 760px; display: flex; gap: 10px">
+<button type="button" onClick="{{replay}}" class="chk" style="flex: 1; height: 52px; border-radius: 26px; border: none; background: #5BB8FF; color: #06122A; font-size: 16px; font-weight: 700; letter-spacing: 0.06em">↺ REPLAY</button>
+<button type="button" onClick="{{jump}}" class="chk" style="flex: 1; height: 52px; border-radius: 26px; border: 2px solid #5BB8FF; background: transparent; color: #5BB8FF; font-size: 14px; font-weight: 700; letter-spacing: 0.06em">SKIP TO PROOF</button>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"speed":{"editor":"range","default":1,"min":0.5,"max":2,"step":0.25,"section":"Playback"},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  componentDidMount() { this.play(0); }
+  componentWillUnmount() { this.stop(); }
+  stop() {
+    (this.timers || []).forEach((t) => clearTimeout(t));
+    this.timers = [];
+    if (this.iv) { clearInterval(this.iv); this.iv = null; }
+  }
+  k() { const s = Number(this.props.speed); return s > 0 ? 1 / s : 1; }
+  acc(logged, truth) {
+    const d0 = Math.log10(1.05), d = Math.abs(Math.log10(logged / truth));
+    if (d <= d0) return 40000;
+    const x = (d - d0) / (1.25 - d0);
+    return x >= 1 ? 0 : 40000 * Math.pow(1 - x, 1.5);
+  }
+  int(n) { return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+  num(x) { return x < 10 ? String(Math.round(x * 10) / 10) : this.int(x); }
+  dur(min) {
+    if (min < 1) return this.num(min * 60) + ' sec';
+    if (min < 60) return this.num(min) + ' min';
+    const h = min / 60;
+    if (h < 48) return this.num(h) + (h < 1.05 ? ' hr' : ' hrs');
+    const d = h / 24;
+    if (d < 60) return this.num(d) + ' days';
+    const mo = d / 30.44;
+    if (mo < 24) return this.num(mo) + ' months';
+    const y = d / 365.25;
+    if (y < 1e6) return this.num(y) + ' years';
+    return this.num(y / 1e6) + ' million years';
+  }
+  verdict(r) {
+    const f = r >= 1 ? r : 1 / r;
+    const dir = r >= 1 ? 'TOO SLOW' : 'TOO FAST';
+    const fs = f >= 10 ? this.int(f) : (Math.round(f * 10) / 10).toFixed(1);
+    if (f <= 1.05) return { label: 'DEAD ON', color: '#FFD23F', bull: true };
+    if (f <= 1.25) return { label: 'CLOSE · ×' + fs, color: '#FFD23F', bull: false };
+    return { label: '×' + fs + ' ' + dir, color: r < 1 ? '#FF8A4C' : '#6CC4FF', bull: false };
+  }
+  model() {
+    if (this._m) return this._m;
+    const YR = 525960, D = 149.6e6;
+    const lo = 10, hi = 1e7 * YR, cx = 195, cy = 180, r0 = 22, R = 140;
+    const span = Math.log(hi / lo);
+    const f = (v) => Math.max(0, Math.min(1, Math.log(v / lo) / span));
+    const rad = (v) => r0 + f(v) * (R - r0);
+    const cs = [
+      { name: 'Dev', ride: 'Rocket', glyph: '🚀', logged: 45, tag: '45 min', speed: 28000,
+        fact: 'Rocket at ~28,000 km/h: about 7.3 months.', quip: '45 minutes? Launch prep not included.' },
+      { name: 'Ada', ride: 'Passenger jet', glyph: '✈️', logged: 19 * YR, tag: '19 years', speed: 900,
+        fact: 'Passenger jet at ~900 km/h: about 19 years.', quip: 'Ada, dead on.' },
+      { name: 'Boris', ride: 'Family car', glyph: '🚗', logged: 50 * YR, tag: '50 years', speed: 100,
+        fact: 'Family car at ~100 km/h: about 171 years.', quip: 'Bring snacks. Lots of snacks.' },
+      { name: 'Chloe', ride: 'Bicycle', glyph: '🚲', logged: 2000 * YR, tag: '2,000 years', speed: 20,
+        fact: 'Bicycle at ~20 km/h: about 853 years.', quip: 'Strong legs, wrong millennium.' },
+      { name: 'Eli', ride: 'Walking', glyph: '🚶', logged: 2e6 * YR, tag: '2 million years', speed: 5,
+        fact: 'Walking at ~5 km/h: about 3,413 years.', quip: "Two million? You're dreaming." }
+    ];
+    cs.forEach((c, i) => {
+      c.truth = D / c.speed * 60;
+      c.deg = -90 + i * 72;
+      const a = c.deg * Math.PI / 180, ca = Math.cos(a), sa = Math.sin(a);
+      c.f = f(c.logged);
+      c.r1 = rad(c.logged);
+      c.r2 = rad(c.truth);
+      c.bx = cx + c.r1 * ca; c.by = cy + c.r1 * sa;
+      c.px = cx + c.r2 * ca; c.py = cy + c.r2 * sa;
+      c.lx = cx + 162 * ca; c.ly = cy + 162 * sa;
+      const nx = -sa, ny = ca;
+      c.btx = c.bx + nx * 9; c.bty = c.by + ny * 9;
+      c.ptx = c.px - nx * 9; c.pty = c.py - ny * 9;
+      c.mx = (c.bx + c.px) / 2; c.my = (c.by + c.py) / 2;
+      c.ratio = c.logged / c.truth;
+      c.v = this.verdict(c.ratio);
+      c.km = Math.round(this.acc(c.logged, c.truth));
+      c.truthLabel = this.dur(c.truth);
+    });
+    const la = -54 * Math.PI / 180;
+    const rings = [
+      { label: '1 HOUR', v: 60 }, { label: '1 DAY', v: 1440 }, { label: '1 YEAR', v: YR }, { label: '1 CENTURY', v: 100 * YR },
+      { label: '10,000 YRS', v: 1e4 * YR }, { label: '1M YRS', v: 1e6 * YR }, { label: '10M YRS', v: 1e7 * YR }
+    ].map((g) => {
+      const r = rad(g.v);
+      return { label: g.label, f: f(g.v), l: cx - r, t: cy - r, d: 2 * r, lx: cx + r * Math.cos(la) + 2, ly: cy + r * Math.sin(la) };
+    });
+    const cols = ['#5BB8FF', '#FFD23F', '#EAF4FF', '#FF8A4C', '#6CC4FF'];
+    const parts = [];
+    for (let j = 0; j < 26; j++) {
+      const dot = j % 3 === 0;
+      parts.push({ cls: 'cf cf' + (j % 12), c: cols[j % 5], d: (j % 4) * 70, w: dot ? 6 : 9, h: dot ? 6 : 4, r: dot ? '50%' : '1px' });
+    }
+    this._m = { lo, hi, cx, cy, r0, R, cs, rings, parts };
+    return this._m;
+  }
+  timeline() {
+    const m = this.model(), k = this.k(), ev = [];
+    const SW = 5600 * k;
+    ev.push({ at: 80 * k, s: { phase: 1 } });
+    const S = 1000 * k;
+    ev.push({ at: S - 60 * k, s: { pingArm: true } });
+    ev.push({ at: S, s: { phase: 2, clock: 0, ping: true }, fx: () => this.runClock(SW) });
+    m.cs.forEach((c, i) => ev.push({ at: S + c.f * SW, s: { ['s' + i]: 2 } }));
+    const R = S + SW + 350 * k;
+    ev.push({ at: R, s: { phase: 3, clock: 1 } });
+    const P = R + 2600 * k;
+    ev.push({ at: P, s: { phase: 4 } });
+    const Q = P + 1950 * k, step = 1750 * k;
+    ev.push({ at: Q - 1, s: { phase: 5 } });
+    m.cs.forEach((c, i) => {
+      const b = Q + i * step;
+      ev.push({ at: b, s: { focus: i, msg: i } });
+      ev.push({ at: b + 650 * k, s: { ['s' + i]: 3 } });
+      ev.push({ at: b + 1000 * k, s: { ['s' + i]: 4 } });
+      ev.push({ at: b + 1200 * k, s: { ['s' + i]: 5 } });
+      ev.push({ at: b + 1450 * k, s: { ['s' + i]: 6 } });
+    });
+    const E = Q + m.cs.length * step;
+    ev.push({ at: E, s: { focus: -1 } });
+    ev.push({ at: E + 700 * k, s: { phase: 6 } });
+    this._jump = P - 300 * k;
+    this._sw = SW;
+    return ev;
+  }
+  play(from) {
+    this.stop();
+    const ev = this.timeline();
+    const pre = { phase: 0, clock: 0, msg: -1, focus: -1, ping: false, pingArm: false, instant: true, jumped: from > 0 };
+    this.model().cs.forEach((c, i) => { pre['s' + i] = 0; });
+    ev.forEach((e) => { if (e.at < from) Object.assign(pre, e.s); });
+    if (from > 0) pre.clock = 1;
+    this.setState(pre);
+    this.timers.push(setTimeout(() => this.setState({ instant: false }), 50));
+    ev.forEach((e) => {
+      if (e.at < from) return;
+      this.timers.push(setTimeout(() => { this.setState(e.s); if (e.fx) e.fx(); }, e.at - from + 90));
+    });
+  }
+  runClock(SW) {
+    const t0 = Date.now();
+    if (this.iv) clearInterval(this.iv);
+    this.iv = setInterval(() => {
+      const f = Math.min(1, (Date.now() - t0) / SW);
+      this.setState({ clock: f });
+      if (f >= 1 && this.iv) { clearInterval(this.iv); this.iv = null; }
+    }, 50);
+  }
+  renderVals() {
+    const st = this.state || {};
+    const m = this.model();
+    const phase = st.phase || 0;
+    const clock = st.clock || 0;
+    const instant = st.instant !== false;
+    const SW = this._sw || 5600 * this.k();
+    const focus = typeof st.focus === 'number' ? st.focus : -1;
+    let camT = 'translate(0px, 0px) scale(1)';
+    if (focus >= 0) {
+      const c = m.cs[focus], z = 2.4;
+      camT = 'translate(' + (195 - z * c.mx).toFixed(1) + 'px, ' + (180 - z * c.my).toFixed(1) + 'px) scale(' + z + ')';
+    }
+    const ringLit = (g) => phase >= 3 || (phase === 2 && clock >= g.f - 0.003);
+    const rings = m.rings.map((g) => ({
+      label: g.label, l: g.l.toFixed(1), t: g.t.toFixed(1), d: g.d.toFixed(1), lx: g.lx.toFixed(1), ly: g.ly.toFixed(1),
+      lit: ringLit(g), lblCls: ringLit(g) ? 'pop' : '', lc: ringLit(g) ? '#5BB8FF' : '#56739A'
+    }));
+    const pts = m.cs.map((c, i) => {
+      const s = st['s' + i] || 0;
+      const grows = c.r2 >= c.r1;
+      return {
+        deg: c.deg,
+        blipOn: s >= 2,
+        bx: c.bx.toFixed(1), by: c.by.toFixed(1),
+        pinOn: s >= 3,
+        px: c.px.toFixed(1), py: c.py.toFixed(1),
+        segOn: s >= 4 && !c.v.bull,
+        segL: Math.min(c.r1, c.r2).toFixed(1),
+        segW: Math.max(1.5, Math.abs(c.r2 - c.r1)).toFixed(1),
+        segO: grows ? 'left center' : 'right center',
+        vColor: c.v.color,
+        tagsOn: focus === i && s >= 3,
+        btx: c.btx.toFixed(1), bty: c.bty.toFixed(1), ptx: c.ptx.toFixed(1), pty: c.pty.toFixed(1),
+        tag: c.tag, truthLabel: c.truthLabel
+      };
+    });
+    const spokes = m.cs.map((c, i) => {
+      const s = st['s' + i] || 0;
+      return {
+        deg: c.deg, glyph: c.glyph, name: c.name,
+        lx: c.lx.toFixed(1), ly: c.ly.toFixed(1),
+        lineC: focus === i ? 'rgba(91,184,255,0.75)' : 'rgba(91,184,255,0.18)',
+        nameC: s >= 5 ? c.v.color : '#EAF4FF'
+      };
+    });
+    const rows = m.cs.map((c, i) => {
+      const s = st['s' + i] || 0;
+      return {
+        on: s >= 2, top: 534 + i * 41,
+        bg: focus === i ? '#163464' : 'transparent',
+        glyph: c.glyph, name: c.name, ride: c.ride, tag: c.tag,
+        truthOn: s >= 5, truthLabel: c.truthLabel, verdict: c.v.label, vColor: c.v.color,
+        kmOn: s >= 6, kmLabel: (c.km > 0 ? '+' : '') + this.int(c.km) + ' km'
+      };
+    });
+    const pingS = st.ping ? 1 : m.r0 / m.R;
+    let tickerText = 'T+ 0';
+    if (phase === 2) tickerText = this.dur(m.lo * Math.pow(m.hi / m.lo, clock));
+    else if (phase >= 3) tickerText = 'ALL LOGGED';
+    const msgs = [
+      { on: phase === 1, a: 'Acquiring satellites…', b: 'Couriers are locking in their ETAs.' },
+      { on: phase === 2, a: 'Pinging the Dispatch Board.', b: 'Further out means longer.' },
+      { on: phase === 3 || phase === 4, a: 'Radio Defense: make your case.', b: 'Then stamp the best pitch.' }
+    ];
+    m.cs.forEach((c, i) => msgs.push({ on: phase === 5 && st.msg === i, a: c.fact, b: c.quip }));
+    const bi = m.cs.findIndex((c) => c.v.bull);
+    const best = m.cs[bi >= 0 ? bi : 0];
+    msgs.push({ on: phase === 6, a: 'Bullseye: ' + best.name + ', within 5% of the truth.', b: 'Blip to pin = how far off you were.' });
+    return {
+      tickerText,
+      camT,
+      beamCls: phase === 4 ? 'beamFast' : 'beam',
+      beamOp: phase >= 1 ? 1 : 0.3,
+      rings,
+      spokes,
+      pts,
+      pingOn: !!(st.pingArm || st.ping) && phase >= 1 && phase <= 2,
+      pingS: pingS.toFixed(3),
+      pingT: instant || !st.ping ? 'none' : 'transform ' + Math.round(SW) + 'ms linear',
+      rows,
+      msgs,
+      proofOn: phase === 4,
+      confOn: phase === 6 && bi >= 0,
+      confX: best.px.toFixed(1),
+      confY: (160 + best.py).toFixed(1),
+      parts: m.parts,
+      replay: () => this.play(0),
+      jump: () => { this.timeline(); this.play(this._jump); }
+    };
+  }
+}
+</script>
+</body>
+</html>

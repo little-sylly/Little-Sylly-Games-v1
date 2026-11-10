@@ -3359,6 +3359,64 @@ body.flash-red   { background-color: #fecaca; }
 .intro-chip.is-me { background: #e7e5e4; }
 .intro-chip-you { color: #a8a29e; font-weight: 500; }
 .intro-chip-tick { color: #16a34a; }
+/* Roll-call skin hooks (ETA, SW v272) — a game's template opts in with
+   data-intro-roll / data-intro-ready-tag; colours come from --intro-stamp so a
+   game can tint them from its own CSS without touching the engine. */
+.intro-roll-prompt { color: #57534e; font-size: 0.875rem; font-weight: 600; margin-bottom: 0.5rem; }
+.intro-chip-stamp { display: inline-block; margin-left: 0.25rem; padding: 0 0.3rem; border: 2px solid var(--intro-stamp, #16a34a); border-radius: 3px; color: var(--intro-stamp, #16a34a); font-size: 0.625rem; font-weight: 700; letter-spacing: 0.06em; line-height: 1.4; transform: rotate(-6deg); }
 button.intro-chip:active, .intro-col-join:active { transform: scale(0.96); }
 .intro-col-join { min-height: 2.75rem; border-radius: 0.75rem; background: #f5f5f4; color: #57534e; font-weight: 600; font-size: 0.875rem; }
 .intro-col-join:hover { background: #e7e5e4; }
+
+/* ── ETA? (eta) — hi-vis orange #EA580C, WHITE button ink ─────────────────
+   Owner, 10 Nov 2026: #EA580C kept on every brand control (3.56:1 with white —
+   passes for large/bold only; the contrast cost is accepted like FRT/YGI/COMB/CLD,
+   and it is far the best of those). #C2410C is the TEXT rung (.eta-label, 5.18:1).
+   The world's own palette (scene orange #FF6A13, cream, kraft, stamp red, carbon
+   blue) lives in css/eta.css, never here. */
+.pill-active-eta {
+  background-color: #EA580C;
+  color: #fff;
+  font-weight: 600;
+}
+.game-toggle-on-eta {
+  background-color: #EA580C;
+  color: #fff;
+  border-radius: 9999px;
+  padding: 0.4rem 1.2rem;
+  font-weight: 700;
+  font-size: 0.9rem;
+  transition: background 0.2s, color 0.2s;
+  border: none;
+  cursor: pointer;
+}
+/* Custom CTA: MUST declare flex centering (DYB/GTH/FRT/FLW/PKO lesson). */
+.eta-cta { background-color: #EA580C; color: #ffffff; display: flex; align-items: center; justify-content: center; }
+.eta-cta:hover { background-color: #C2410C; }
+.eta-label { color: #C2410C; }
+.eta-medal-slot { display: inline-block; width: 1.4rem; text-align: center; flex-shrink: 0; }
+.eta-range {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  border-radius: 9999px;
+  background: linear-gradient(to right, #FED7AA, #EA580C); /* paper → hi-vis */
+  outline: none;
+  cursor: pointer;
+}
+.eta-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: #EA580C;
+  border: 3px solid #fff;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+}
+.eta-range::-moz-range-thumb {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: #EA580C;
+  border: none;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+}

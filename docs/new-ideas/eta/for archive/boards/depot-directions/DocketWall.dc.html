@@ -1,0 +1,402 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Docket Wall direction</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Saira+Stencil+One&amp;family=Courier+Prime:ital,wght@0,400;0,700;1,400&amp;family=Permanent+Marker&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#EA580C}a:hover{color:#C2410C}
+.dw button{cursor:pointer;transition:transform .08s}
+.dw button:active{transform:translateY(2px)}
+.sten{font-family:'Saira Stencil One','Arial Black',Impact,sans-serif}
+.mark{font-family:'Permanent Marker','Comic Sans MS',cursive}
+.hv{background:#FF6A13;position:relative;overflow:hidden}
+.hv::before{content:'';position:absolute;left:0;right:0;top:50%;height:34%;transform:translateY(-50%);background:linear-gradient(180deg,#D9DEE3,#F4F6F8 45%,#AEB5BD)}
+.sheenLoop::after{content:'';position:absolute;top:0;bottom:0;left:-40%;width:30%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.9),transparent);animation:sheen 2.6s ease-in-out infinite}
+@keyframes sheen{from{left:-40%}to{left:110%}}
+@keyframes typeIn{from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0 0 0 0)}}
+.typeA{animation:typeIn .7s steps(34,end) both}
+.typeB{animation:typeIn .5s .72s steps(26,end) both}
+@keyframes pop{0%{transform:scale(0);opacity:0}60%{transform:scale(1.25);opacity:1}100%{transform:scale(1);opacity:1}}
+.pop{animation:pop .4s cubic-bezier(.2,.9,.3,1.4) both}
+@keyframes cardIn{0%{transform:translateY(-120px) rotate(-10deg);opacity:0}60%{transform:translateY(6px) rotate(1.5deg);opacity:1}80%{transform:translateY(-2px) rotate(-.8deg)}100%{transform:rotate(-1deg);opacity:1}}
+.cardIn{animation:cardIn .8s cubic-bezier(.25,.9,.35,1.15) both}
+@keyframes urgent{0%{transform:rotate(-14deg) scale(3);opacity:0}30%{transform:rotate(-8deg) scale(.9);opacity:1}45%{transform:rotate(-8deg) scale(1.06)}60%,100%{transform:rotate(-8deg) scale(1);opacity:.95}}
+.urgent{animation:urgent .7s .55s ease-out both}
+@keyframes mvBob{0%,100%{transform:translateY(1px) rotate(-4deg)}50%{transform:translateY(-3px) rotate(4deg)}}
+@keyframes mvBounce{0%,100%{transform:translateY(0) scaleY(.82) scaleX(1.1)}45%{transform:translateY(-6px) scaleY(1.1) scaleX(.94)}}
+@keyframes mvRumble{0%{transform:translate(0,0)}25%{transform:translate(-1.5px,1px)}50%{transform:translate(1px,-1.5px)}75%{transform:translate(-1px,-1px)}100%{transform:translate(1.5px,1px)}}
+@keyframes mvWobble{0%,100%{transform:rotate(-10deg)}50%{transform:rotate(10deg)}}
+@keyframes mvCreep{0%,100%{transform:scaleX(1)}50%{transform:scaleX(1.18)}}
+.mv-bob{animation:mvBob .5s ease-in-out infinite}
+.mv-bounce{animation:mvBounce .32s ease-in-out infinite;transform-origin:50% 100%}
+.mv-rumble{animation:mvRumble .07s linear infinite}
+.mv-wobble{animation:mvWobble .2s ease-in-out infinite}
+.mv-creep{animation:mvCreep .6s ease-in-out infinite}
+@keyframes swing{0%{transform:rotate(16deg)}25%{transform:rotate(-11deg)}48%{transform:rotate(7deg)}68%{transform:rotate(-4deg)}84%{transform:rotate(2deg)}100%{transform:rotate(0)}}
+.swing{animation:swing 1.1s ease-out both}
+@keyframes jiggle{0%,100%{transform:rotate(-3deg)}50%{transform:rotate(3deg)}}
+.jiggle{animation:jiggle .25s ease-in-out infinite}
+@keyframes pinDrop{0%{transform:translate(18px,-90px) scale(1.8) rotate(30deg);opacity:0}55%{transform:translate(0,0) scale(1) rotate(0);opacity:1}68%{transform:scale(1.25,.8)}82%{transform:scale(.95,1.05)}100%{transform:none;opacity:1}}
+.pinDrop{animation:pinDrop .55s cubic-bezier(.45,0,.6,1) both}
+@keyframes ripple{0%{transform:scale(.3);opacity:1}100%{transform:scale(2.6);opacity:0}}
+.ripple{animation:ripple .6s .3s ease-out both}
+@keyframes drawX{from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0 0 0 0)}}
+.drawX{animation:drawX .35s .3s ease-out both}
+@keyframes growY{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+.growY{animation:growY .4s cubic-bezier(.3,.8,.3,1) both}
+@keyframes stampHit{0%{transform:translate(60px,-70px) scale(3) rotate(-20deg);opacity:0}35%{transform:scale(.9) rotate(-8deg);opacity:1}55%{transform:scale(1.08) rotate(-8deg)}100%{transform:scale(1) rotate(-8deg);opacity:.95}}
+.stamp{animation:stampHit .55s ease-out both}
+@keyframes thud{0%,100%{transform:none}20%{transform:translateY(4px)}45%{transform:translateY(-2px)}}
+.thud{animation:thud .35s .14s ease-out both}
+@keyframes chip{0%{transform:translateY(10px) scale(.4) rotate(-8deg);opacity:0}60%{transform:translateY(-3px) scale(1.15) rotate(-3deg);opacity:1}100%{transform:rotate(-3deg);opacity:1}}
+.chip{animation:chip .45s cubic-bezier(.2,.9,.3,1.3) both}
+@keyframes litFlash{0%{opacity:0}20%{opacity:1}100%{opacity:.55}}
+.lit{animation:litFlash .8s ease-out both}
+@keyframes proofCard{0%{transform:translateY(-420px) rotate(-18deg)}38%{transform:translateY(0) rotate(4deg)}46%{transform:translateY(-10px) rotate(-3deg)}54%{transform:rotate(2deg)}62%,84%{transform:rotate(-2deg);opacity:1}100%{transform:translateY(520px) rotate(14deg);opacity:1}}
+.proofCard{animation:proofCard 1.85s cubic-bezier(.3,.6,.4,1) both}
+@keyframes jolt{0%,100%{transform:none}15%{transform:translate(-4px,3px)}30%{transform:translate(4px,-2px)}45%{transform:translate(-2px,1px)}}
+.jolt{animation:jolt .45s .55s ease-out both}
+@keyframes msgIn{0%{transform:translateY(12px) rotate(-2deg);opacity:0}100%{transform:rotate(-1.5deg);opacity:1}}
+.noteIn{animation:msgIn .3s ease-out both}
+@keyframes halo{0%,100%{box-shadow:0 0 0 0 rgba(255,106,19,0)}50%{box-shadow:0 0 16px 5px rgba(255,106,19,.7)}}
+.halo{animation:halo 1.1s ease-in-out infinite}
+.cf{animation-duration:1.6s;animation-timing-function:cubic-bezier(.15,.7,.4,1);animation-fill-mode:both}
+@keyframes cf0{0%{transform:translate(0,0) rotate(0);opacity:1}45%{transform:translate(-80px,-70px) rotate(220deg);opacity:1}100%{transform:translate(-108px,60px) rotate(520deg);opacity:0}}
+@keyframes cf1{0%{transform:translate(0,0) rotate(0);opacity:1}45%{transform:translate(-50px,-112px) rotate(-200deg);opacity:1}100%{transform:translate(-70px,30px) rotate(-480deg);opacity:0}}
+@keyframes cf2{0%{transform:translate(0,0) rotate(0);opacity:1}45%{transform:translate(-14px,-134px) rotate(240deg);opacity:1}100%{transform:translate(-24px,20px) rotate(560deg);opacity:0}}
+@keyframes cf3{0%{transform:translate(0,0) rotate(0);opacity:1}45%{transform:translate(16px,-126px) rotate(-260deg);opacity:1}100%{transform:translate(22px,24px) rotate(-540deg);opacity:0}}
+@keyframes cf4{0%{transform:translate(0,0) rotate(0);opacity:1}45%{transform:translate(56px,-104px) rotate(210deg);opacity:1}100%{transform:translate(76px,40px) rotate(500deg);opacity:0}}
+@keyframes cf5{0%{transform:translate(0,0) rotate(0);opacity:1}45%{transform:translate(92px,-74px) rotate(-230deg);opacity:1}100%{transform:translate(120px,60px) rotate(-520deg);opacity:0}}
+@keyframes cf6{0%{transform:translate(0,0) rotate(0);opacity:1}45%{transform:translate(-100px,-30px) rotate(250deg);opacity:1}100%{transform:translate(-136px,80px) rotate(560deg);opacity:0}}
+@keyframes cf7{0%{transform:translate(0,0) rotate(0);opacity:1}45%{transform:translate(112px,-34px) rotate(-250deg);opacity:1}100%{transform:translate(146px,76px) rotate(-560deg);opacity:0}}
+.cf0{animation-name:cf0}.cf1{animation-name:cf1}.cf2{animation-name:cf2}.cf3{animation-name:cf3}.cf4{animation-name:cf4}.cf5{animation-name:cf5}.cf6{animation-name:cf6}.cf7{animation-name:cf7}
+</style>
+</helmet>
+<div class="dw" style="position: relative; width: 375px; height: 667px; overflow: hidden; background-color: #C9A574; background-image: radial-gradient(circle, rgba(70,48,24,0.55) 1.6px, transparent 2.2px); background-size: 15px 15px; background-position: 4px 4px; color: #22201B; font-family: 'Courier Prime', 'Courier New', monospace">
+<div class="{{joltCls}}" style="position: absolute; inset: 0">
+<div style="position: absolute; left: 0; right: 0; top: 0; height: 40px; background: #22201B; display: flex; align-items: center; justify-content: space-between; padding: 0 14px; box-sizing: border-box">
+<span class="sten" style="font-size: 18px; line-height: 1; color: #FF6A13; letter-spacing: 0.04em">E.T.A. JOB BOARD</span>
+<span style="font-size: 9px; font-weight: 700; letter-spacing: 0.12em; color: #E8E2D4">RUN 1 OF 5</span>
+</div>
+<div class="hv {{bandCls}}" style="position: absolute; left: 0; right: 0; top: 40px; height: 9px"></div>
+<sc-if value="{{headOn}}" hint-placeholder-val="{{ true }}">
+<div class="cardIn" style="position: absolute; left: 14px; right: 14px; top: 58px; height: 54px; box-sizing: border-box; padding: 6px 10px; background: #FFFCF3; box-shadow: 0 6px 12px rgba(40,25,10,0.35); display: flex; flex-direction: column; gap: 2px">
+<span style="position: absolute; left: 6px; top: -4px; width: 10px; height: 10px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #FF9A63, #C42A1E); box-shadow: 0 2px 2px rgba(0,0,0,0.4)"></span>
+<span style="position: absolute; right: 6px; top: -4px; width: 10px; height: 10px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #FF9A63, #C42A1E); box-shadow: 0 2px 2px rgba(0,0,0,0.4)"></span>
+<span style="font-size: 8.5px; font-weight: 700; letter-spacing: 0.14em; color: #6B6458">JOB #0047 · EVERY THING, ANYWHERE.</span>
+<span class="sten" style="font-size: 17px; line-height: 1">THE LENGTH OF ITALY</span>
+<span style="font-size: 9.5px; font-style: italic; color: #4F493F">≈ 1,200 km · straight, empty corridor. No stops.</span>
+</div>
+<span class="urgent sten" style="position: absolute; right: 24px; top: 86px; font-size: 12px; line-height: 1; padding: 2px 5px; border: 2px solid #EA580C; border-radius: 3px; color: #EA580C; background: rgba(255,252,243,0.85)">URGENT</span>
+</sc-if>
+<div style="position: absolute; left: 52px; right: 8px; top: 120px; height: 24px; box-sizing: border-box; background: #22201B; border-radius: 3px; display: flex; align-items: center; justify-content: space-between; padding: 0 8px">
+<span class="sten" style="font-size: 11px; color: #E8E2D4; letter-spacing: 0.04em">THE RUN SHEET</span>
+<span style="font-size: 13px; font-weight: 700; color: #FF8A47">{{tickerText}}</span>
+</div>
+<div aria-hidden="true" style="position: absolute; left: 12px; top: 120px; width: 30px; height: 30px; border-radius: 6px; background: linear-gradient(180deg, #FFB000, #F59200); border: 2px solid #22201B; box-sizing: border-box; display: flex; align-items: center; justify-content: center">
+<span style="display: block; width: 10px; height: 10px; border-radius: 50%; background: #22201B"></span>
+</div>
+<div style="position: absolute; left: 16px; top: 150px; width: 26px; height: {{tapeH}}px; transition: {{tapeT}}; overflow: hidden; background: #FFC21A; border-left: 2px solid #22201B; border-right: 2px solid #22201B; box-sizing: border-box; background-image: repeating-linear-gradient(180deg, #22201B 0 1px, transparent 1px 8.5px)">
+<sc-for list="{{marks}}" as="m" hint-placeholder-count="7">
+<span style="position: absolute; left: -2px; top: {{m.ty}}px; width: 26px; height: 2px; background: #22201B"></span>
+</sc-for>
+</div>
+<sc-for list="{{marks}}" as="m" hint-placeholder-count="7">
+<div style="position: absolute; left: 46px; right: 6px; top: {{m.y}}px; height: 0; border-top: 1px dashed rgba(34,32,27,0.25)"></div>
+<sc-if value="{{m.lit}}" hint-placeholder-val="{{ false }}">
+<div class="lit" style="position: absolute; left: 46px; right: 6px; top: {{m.y}}px; height: 0; border-top: 2px dashed #EA580C"></div>
+<span class="pop" style="position: absolute; left: 4px; top: {{m.ly}}px; width: 40px; text-align: center; font-size: 7.5px; font-weight: 700; line-height: 10px; padding: 1px 0; background: #22201B; color: #FFC21A; border-radius: 2px">{{m.label}}</span>
+</sc-if>
+</sc-for>
+<sc-for list="{{cols}}" as="c" hint-placeholder-count="5">
+<div style="position: absolute; left: {{c.x}}px; top: 148px; width: 63px; height: 400px">
+<div aria-hidden="true" style="position: absolute; left: 25px; top: 0; width: 12px; height: 12px; box-sizing: border-box; border: 3px solid #8D9299; border-top-color: transparent; border-radius: 50%"></div>
+<div style="position: absolute; left: 30px; top: 9px; width: 1.5px; height: {{c.strH}}px; background: #6B5A44; transition: {{c.T}}"></div>
+<sc-if value="{{c.gapOn}}" hint-placeholder-val="{{ false }}">
+<div class="growY" style="position: absolute; left: 55px; top: {{c.gy}}px; width: 5px; height: {{c.gh}}px; border-radius: 3px; background: {{c.gColor}}; box-shadow: 0 0 8px {{c.gColor}}; transform-origin: {{c.gOrigin}}"></div>
+</sc-if>
+<div class="{{c.thudCls}}" style="position: absolute; left: 5px; top: {{c.ty}}px; width: 52px; height: 52px; transition: {{c.T}}">
+<div class="{{c.swingCls}}" style="position: absolute; inset: 0; transform-origin: 26px -10px">
+<div class="{{c.haloCls}}" style="position: absolute; left: 0; top: 0; width: 52px; height: 52px; box-sizing: border-box; background: #F2E3C2; border: 1.5px solid #B8995F; border-radius: 4px 4px 4px 4px; clip-path: polygon(10px 0, 42px 0, 52px 10px, 52px 52px, 0 52px, 0 10px); box-shadow: 0 3px 5px rgba(40,25,10,0.35); display: flex; flex-direction: column; align-items: center; padding-top: 9px; gap: 1px">
+<span style="position: absolute; left: 22px; top: 2px; width: 8px; height: 8px; border-radius: 50%; background: #C9A574; box-shadow: inset 0 0 0 1.5px #FF6A13"></span>
+<sc-if value="{{c.pogo}}" hint-placeholder-val="{{ false }}">
+<svg class="{{c.mvCls}}" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 2.5 H11.5" fill="none" stroke="#22201B" style="stroke-width: 1.7; stroke-linecap: round"></path><path d="M8 2.5 V11" fill="none" stroke="#22201B" style="stroke-width: 1.3"></path><path d="M4.8 10 H11.2" fill="none" stroke="#EA580C" style="stroke-width: 1.6; stroke-linecap: round"></path><path d="M8 11 L6.4 11.8 L9.6 12.6 L6.4 13.4 L8 14.2 V15.5" fill="none" stroke="#22201B" style="stroke-width: 1.1; stroke-linejoin: round"></path></svg>
+</sc-if>
+<sc-if value="{{c.notPogo}}" hint-placeholder-val="{{ true }}">
+<span class="{{c.mvCls}}" style="display: inline-block; font-size: 15px; line-height: 1; transform: {{c.glyphT}}">{{c.glyph}}</span>
+</sc-if>
+<span class="sten" style="font-size: 10px; line-height: 1">{{c.name}}</span>
+<span style="font-size: 8.5px; font-weight: 700; line-height: 1.1; white-space: nowrap">{{c.tagText}}</span>
+</div>
+<sc-if value="{{c.stampOn}}" hint-placeholder-val="{{ false }}">
+<div class="stamp" style="position: absolute; left: 2px; top: 30px; z-index: 3; padding: 1px 3px; border: 2px solid {{c.vColor}}; border-radius: 3px; color: {{c.vColor}}; background: rgba(242,227,194,0.92); display: flex; flex-direction: column; align-items: flex-start; white-space: nowrap">
+<span class="sten" style="font-size: 10.5px; line-height: 1">{{c.vTop}}</span>
+<span style="font-size: 6.5px; font-weight: 700; letter-spacing: 0.04em; line-height: 1.15">{{c.vBot}}</span>
+</div>
+</sc-if>
+</div>
+</div>
+<sc-if value="{{c.pinOn}}" hint-placeholder-val="{{ false }}">
+<div class="drawX" style="position: absolute; left: 0; top: {{c.py}}px; width: 63px; height: 4px; margin-top: -2px; border-radius: 2px; background: #C42A1E; opacity: 0.85; z-index: 4"></div>
+<div style="position: absolute; left: 57px; top: {{c.py}}px; width: 0; height: 0; z-index: 5">
+<div class="ripple" style="position: absolute; left: -10px; top: -10px; width: 20px; height: 20px; box-sizing: border-box; border-radius: 50%; border: 2px solid #C42A1E"></div>
+<div class="pinDrop" style="position: absolute; left: -7px; top: -7px; width: 14px; height: 14px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #FF9A63, #C42A1E 70%); box-shadow: 0 3px 3px rgba(0,0,0,0.45)"></div>
+</div>
+</sc-if>
+<sc-if value="{{c.kmOn}}" hint-placeholder-val="{{ false }}">
+<span class="mark chip" style="position: absolute; left: 0; top: {{c.ky}}px; width: 63px; text-align: center; font-size: 11px; line-height: 1; color: #22201B; white-space: nowrap; text-shadow: 0 0 3px #FFF6E0, 0 0 3px #FFF6E0">{{c.kmLabel}}</span>
+</sc-if>
+</div>
+</sc-for>
+</div>
+<sc-if value="{{proofOn}}" hint-placeholder-val="{{ false }}">
+<div class="proofCard" style="position: absolute; left: 36px; right: 36px; top: 250px; height: 116px; z-index: 20; box-sizing: border-box; background: #FFFCF3; border: 3px solid #22201B; box-shadow: 0 16px 34px rgba(0,0,0,0.45); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px">
+<span style="position: absolute; left: 8px; top: -6px; width: 13px; height: 13px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #FF9A63, #C42A1E)"></span>
+<span style="position: absolute; right: 8px; top: -6px; width: 13px; height: 13px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #FF9A63, #C42A1E)"></span>
+<div class="hv" style="position: absolute; left: 0; right: 0; top: 0; height: 12px"></div>
+<span class="sten" style="font-size: 27px; line-height: 1; margin-top: 8px">PROOF OF</span>
+<span class="sten" style="font-size: 27px; line-height: 1; color: #C42A1E">DELIVERY</span>
+<span class="mark" style="font-size: 12px; line-height: 1; color: #2B3A67">pins going in — Dot</span>
+</div>
+</sc-if>
+<sc-if value="{{confOn}}" hint-placeholder-val="{{ false }}">
+<div style="position: absolute; left: {{confX}}px; top: {{confY}}px; width: 0; height: 0; z-index: 15">
+<sc-for list="{{parts}}" as="p" hint-placeholder-count="12">
+<span class="{{p.cls}}" style="position: absolute; left: -4px; top: -4px; width: {{p.w}}px; height: {{p.h}}px; border-radius: {{p.r}}; background: {{p.c}}; animation-delay: {{p.d}}ms"></span>
+</sc-for>
+</div>
+</sc-if>
+<sc-for list="{{msgs}}" as="mg" hint-placeholder-count="1">
+<sc-if value="{{mg.on}}" hint-placeholder-val="{{ false }}">
+<div class="noteIn" style="position: absolute; left: 52px; right: 10px; top: 550px; height: 50px; box-sizing: border-box; padding: 5px 9px; background: #FFE680; box-shadow: 0 5px 10px rgba(40,25,10,0.35); display: flex; flex-direction: column; gap: 1px; transform: rotate(-1.5deg)">
+<span class="typeA" style="font-size: 11px; font-weight: 700; line-height: 1.25">{{mg.a}}</span>
+<span class="typeB mark" style="font-size: 12px; line-height: 1.25; color: #C2410C">{{mg.b}}</span>
+</div>
+</sc-if>
+</sc-for>
+<span aria-hidden="true" class="mark" style="position: absolute; left: 10px; top: 562px; width: 38px; text-align: center; font-size: 13px; line-height: 1; color: #22201B; transform: rotate(-8deg)">DOT</span>
+<div style="position: absolute; left: 14px; right: 14px; top: 608px; display: flex; gap: 10px">
+<button type="button" onClick="{{replay}}" class="sten" style="flex: 1; height: 48px; border-radius: 12px; border: none; background: #EA580C; color: #FFFFFF; font-size: 17px; box-shadow: 0 4px 0 #9A3412">REPLAY</button>
+<button type="button" onClick="{{jump}}" class="sten" style="flex: 1; height: 48px; border-radius: 12px; border: 2px solid #22201B; background: #FFFCF3; color: #22201B; font-size: 14px; box-shadow: 0 4px 0 #22201B">SKIP TO PROOF</button>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"freeze":{"editor":"enum","options":["animate","run-sheet","proof"],"default":"animate","section":"State"},"speed":{"editor":"range","default":1,"min":0.5,"max":2,"step":0.25,"section":"Playback"},"$preview":{"width":375,"height":667}}'>
+class Component extends DCLogic {
+  componentDidMount() { this.apply(); }
+  componentDidUpdate(pp) { if (pp.freeze !== this.props.freeze || pp.speed !== this.props.speed) this.apply(); }
+  componentWillUnmount() { this.stop(); }
+  apply() {
+    const f = this.props.freeze || 'animate';
+    if (f === 'animate') this.play(0);
+    else { this.timeline(); this.settle(f === 'run-sheet' ? this._jump : 1e9); }
+  }
+  stop() {
+    (this.timers || []).forEach((t) => clearTimeout(t));
+    this.timers = [];
+    if (this.iv) { clearInterval(this.iv); this.iv = null; }
+  }
+  k() { const s = Number(this.props.speed); return s > 0 ? 1 / s : 1; }
+  acc(logged, truth) {
+    const d0 = Math.log10(1.05), d = Math.abs(Math.log10(logged / truth));
+    if (d <= d0) return 40000;
+    const x = (d - d0) / (1.25 - d0);
+    return x >= 1 ? 0 : 40000 * Math.pow(1 - x, 1.5);
+  }
+  int(n) { return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+  num(x) { return x < 10 ? String(Math.round(x * 10) / 10) : this.int(x); }
+  dur(min) {
+    if (min < 1) return this.num(min * 60) + ' sec';
+    if (min < 60) return this.num(min) + ' min';
+    const h = min / 60;
+    if (h < 48) return this.num(h) + (h < 1.05 ? ' hr' : ' hrs');
+    const d = h / 24;
+    if (d < 60) return this.num(d) + ' days';
+    const mo = d / 30.44;
+    if (mo < 24) return this.num(mo) + ' months';
+    return this.num(d / 365.25) + ' years';
+  }
+  verdict(r) {
+    const f = r >= 1 ? r : 1 / r;
+    const dir = r >= 1 ? 'TOO SLOW' : 'TOO FAST';
+    const fs = f >= 10 ? this.int(f) : (Math.round(f * 10) / 10).toFixed(1);
+    if (f <= 1.05) return { top: 'DEAD ON', bot: 'WITHIN 5%', color: '#22201B', bull: true };
+    if (f <= 1.25) return { top: 'CLOSE', bot: '×' + fs + ' ' + dir, color: '#22201B', bull: false };
+    return { top: '×' + fs, bot: dir, color: r < 1 ? '#C42A1E' : '#1F4FA6', bull: false };
+  }
+  model() {
+    if (this._m) return this._m;
+    const lo = 1, hi = 5259600, y0 = 22, yh = 330;
+    const span = Math.log(hi / lo);
+    const pos = (v) => Math.max(0, Math.min(1, Math.log(v / lo) / span));
+    const Y = (v) => y0 + pos(v) * yh;
+    const cs = [
+      { name: 'Dev', glyph: '🚀', rot: -45, motion: 'mv-rumble', logged: 20, tag: '20 min', truth: 1200 / 28000 * 60,
+        fact: 'Rocket at ~28,000 km/h: about 2.6 min.', quip: 'Launch prep not included, love.' },
+      { name: 'Ada', glyph: '🚁', motion: 'mv-bob', logged: 300, tag: '5 hrs', truth: 1200 / 250 * 60,
+        fact: 'Helicopter at ~250 km/h: about 4.8 hrs.', quip: 'Ada, dead on. Gold star.' },
+      { name: 'Boris', glyph: '', pogo: true, motion: 'mv-bounce', logged: 4 * 1440, tag: '4 days', truth: 1200 / 4 * 60, ride: 'Pogo stick',
+        fact: 'Pogo stick at ~4 km/h, non-stop: about 12.5 days.', quip: "You're dreaming, Boris." },
+      { name: 'Chloe', glyph: '🛒', motion: 'mv-wobble', logged: 21 * 1440, tag: '21 days', truth: 1200 / 6 * 60,
+        fact: 'Shopping trolley at ~6 km/h: about 8.3 days.', quip: 'Even with the wonky wheel.' },
+      { name: 'Eli', glyph: '🐌', motion: 'mv-creep', logged: 182.5 * 1440, tag: '6 months', truth: 1200 / 0.048 * 60,
+        fact: 'Garden snail at ~0.05 km/h: about 2.9 years.', quip: 'Six months? Not at that pace.' }
+    ];
+    cs.forEach((c) => {
+      c.p = pos(c.logged); c.ly = Y(c.logged); c.fy = Y(c.truth);
+      c.ratio = c.logged / c.truth; c.v = this.verdict(c.ratio);
+      c.km = Math.round(this.acc(c.logged, c.truth));
+    });
+    const marks = [
+      { label: '1 MIN', v: 1 }, { label: '1 HOUR', v: 60 }, { label: '1 DAY', v: 1440 }, { label: '1 WEEK', v: 10080 },
+      { label: '1 MONTH', v: 43830 }, { label: '1 YEAR', v: 525960 }, { label: '10 YRS', v: 5259600 }
+    ].map((mk) => ({ label: mk.label, p: pos(mk.v), y: Math.round(148 + Y(mk.v)), ty: Math.round(Y(mk.v) - 2) }));
+    const cols = ['#FF6A13', '#C42A1E', '#1F4FA6', '#FFC21A', '#D9DEE3'];
+    const parts = [];
+    for (let j = 0; j < 24; j++) {
+      const dot = j % 3 === 0;
+      parts.push({ cls: 'cf cf' + (j % 8), c: cols[j % 5], d: (j % 4) * 70, w: dot ? 6 : 10, h: dot ? 6 : 5, r: dot ? '50%' : '1px' });
+    }
+    this._m = { lo, hi, y0, yh, pos, Y, cs, marks, parts };
+    return this._m;
+  }
+  timeline() {
+    const m = this.model(), k = this.k(), ev = [];
+    const SW = 4600 * k;
+    ev.push({ at: 80 * k, s: { phase: 1 } });
+    const S = 1700 * k;
+    const drive = { phase: 2, clock: 0 };
+    m.cs.forEach((c, i) => { drive['s' + i] = 1; });
+    ev.push({ at: S, s: drive, fx: () => this.runClock(SW) });
+    m.cs.forEach((c, i) => ev.push({ at: S + c.p * SW + 20, s: { ['s' + i]: 2 } }));
+    const R = S + SW + 500 * k;
+    ev.push({ at: R, s: { phase: 3, clock: 1 } });
+    const P = R + 2600 * k;
+    ev.push({ at: P, s: { phase: 4 } });
+    const Q = P + 1900 * k, step = 1300 * k;
+    ev.push({ at: Q - 1, s: { phase: 5 } });
+    m.cs.forEach((c, i) => {
+      const b = Q + i * step;
+      ev.push({ at: b, s: { ['s' + i]: 3, msg: i } });
+      ev.push({ at: b + 500 * k, s: { ['s' + i]: 4 } });
+      ev.push({ at: b + 760 * k, s: { ['s' + i]: 5 } });
+      ev.push({ at: b + 1100 * k, s: { ['s' + i]: 6 } });
+    });
+    ev.push({ at: Q + m.cs.length * step + 200 * k, s: { phase: 6 } });
+    this._jump = P - 300 * k;
+    this._sw = SW;
+    return ev;
+  }
+  base(jumped) {
+    const pre = { phase: 0, clock: 0, msg: -1, instant: true, jumped };
+    this.model().cs.forEach((c, i) => { pre['s' + i] = 0; });
+    return pre;
+  }
+  settle(at) {
+    this.stop();
+    const pre = this.base(true);
+    this.timeline().forEach((e) => { if (e.at < at) Object.assign(pre, e.s); });
+    pre.clock = 1;
+    this.setState(pre);
+  }
+  play(from) {
+    this.stop();
+    const ev = this.timeline();
+    const pre = this.base(from > 0);
+    ev.forEach((e) => { if (e.at < from) Object.assign(pre, e.s); });
+    if (from > 0) pre.clock = 1;
+    this.setState(pre);
+    this.timers.push(setTimeout(() => this.setState({ instant: false }), 50));
+    ev.forEach((e) => {
+      if (e.at < from) return;
+      this.timers.push(setTimeout(() => { this.setState(e.s); if (e.fx) e.fx(); }, e.at - from + 90));
+    });
+  }
+  runClock(SW) {
+    const t0 = Date.now();
+    if (this.iv) clearInterval(this.iv);
+    this.iv = setInterval(() => {
+      const f = Math.min(1, (Date.now() - t0) / SW);
+      this.setState({ clock: f });
+      if (f >= 1 && this.iv) { clearInterval(this.iv); this.iv = null; }
+    }, 50);
+  }
+  renderVals() {
+    const st = this.state || {};
+    const m = this.model();
+    const phase = st.phase || 0;
+    const clock = st.clock || 0;
+    const instant = st.instant !== false;
+    const SW = this._sw || 4600 * this.k();
+    const cols = m.cs.map((c, i) => {
+      const s = st['s' + i] || 0;
+      const ty = s >= 1 ? c.ly : 12;
+      const ms = Math.round(c.p * SW);
+      const tooFast = c.ratio < 1;
+      const top = Math.min(c.ly, c.fy), bot = Math.max(c.ly, c.fy);
+      return {
+        x: 50 + i * 63,
+        name: c.name, glyph: c.glyph, pogo: !!c.pogo, notPogo: !c.pogo,
+        glyphT: c.rot ? 'rotate(' + c.rot + 'deg)' : 'none',
+        ty: ty.toFixed(1), strH: Math.max(0, ty - 9).toFixed(1),
+        T: instant ? 'none' : 'top ' + ms + 'ms linear, height ' + ms + 'ms linear',
+        mvCls: s === 1 ? c.motion : '',
+        swingCls: s === 1 ? 'jiggle' : (s >= 2 && !st.jumped ? 'swing' : ''),
+        tagText: s >= 2 ? c.tag : '…',
+        haloCls: s >= 4 && c.v.bull ? 'halo' : '',
+        pinOn: s >= 3, py: c.fy.toFixed(1),
+        gapOn: s >= 4 && !c.v.bull,
+        gy: top.toFixed(1), gh: Math.max(3, bot - top).toFixed(1),
+        gColor: tooFast ? '#C42A1E' : '#1F4FA6',
+        gOrigin: c.fy > c.ly ? '50% 0' : '50% 100%',
+        stampOn: s >= 5, thudCls: s >= 5 ? 'thud' : '',
+        vTop: c.v.top, vBot: c.v.bot, vColor: c.v.color,
+        kmOn: s >= 6, ky: (Math.max(c.ly + 56, c.fy + 8)).toFixed(1),
+        kmLabel: '+' + this.int(c.km) + ' km'
+      };
+    });
+    const marks = m.marks.map((mk) => {
+      const lit = phase >= 3 || (phase === 2 && clock >= mk.p - 0.002);
+      return { label: mk.label, y: mk.y, ty: mk.ty, ly: mk.y - 6, lit };
+    });
+    let tickerText = '0 min';
+    if (phase === 2) tickerText = this.dur(m.lo * Math.pow(m.hi / m.lo, clock));
+    else if (phase >= 3) tickerText = 'ALL LOGGED';
+    const msgs = [
+      { on: phase === 1, a: 'Job 47 is up. Lock in your ETAs.', b: 'Tags go on the board. No peeking.' },
+      { on: phase === 2, a: 'Hanging the tags…', b: 'Lower down means longer.' },
+      { on: phase === 3 || phase === 4, a: 'Righto. Talk me through it.', b: 'Best pitch gets my stamp.' }
+    ];
+    m.cs.forEach((c, i) => msgs.push({ on: phase === 5 && st.msg === i, a: c.fact, b: c.quip }));
+    const bi = m.cs.findIndex((c) => c.v.bull);
+    const best = m.cs[bi >= 0 ? bi : 0];
+    msgs.push({ on: phase === 6, a: 'Bullseye: ' + best.name + ', within 5%.', b: 'Full ' + this.int(best.km) + ' km. Odometer next.' });
+    return {
+      headOn: phase >= 1,
+      bandCls: phase >= 1 ? 'sheenLoop' : '',
+      tickerText,
+      tapeH: phase >= 2 ? 362 : 22,
+      tapeT: instant || phase !== 2 ? 'none' : 'height ' + Math.round(SW) + 'ms linear',
+      marks, cols,
+      joltCls: phase === 4 ? 'jolt' : '',
+      proofOn: phase === 4,
+      msgs,
+      confOn: phase === 6 && bi >= 0,
+      confX: (50 + (bi >= 0 ? bi : 0) * 63 + 31),
+      confY: (148 + best.ly + 20).toFixed(1),
+      parts: m.parts,
+      replay: () => this.play(0),
+      jump: () => { this.timeline(); this.play(this._jump); }
+    };
+  }
+}
+</script>
+</body>
+</html>

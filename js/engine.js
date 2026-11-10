@@ -101,6 +101,9 @@ const allScreens = [
   // Honeycomb Hills
   'screen-comb-menu', 'screen-comb-standby', 'screen-comb-meadow',
   'screen-comb-gameover',
+  // ETA?
+  'screen-eta-menu', 'screen-eta-standby', 'screen-eta-docket', 'screen-eta-log',
+  'screen-eta-sheet', 'screen-eta-tally', 'screen-eta-gameover',
   // Arcade cabinets (js/lobby/arcade.js, SW v254) — not Sylly Games, but still real screens.
   // One entry per ARC_CABINETS cabinet; an unregistered one is a ghost screen that
   // never hides (its canvas paints under every later screen).
@@ -630,7 +633,7 @@ function updateSliderTheme(gameId) {
     'gth': 'gth-range', 'bld': 'bld-range', 'dyb': 'dyb-range', 'pass': 'pass-range',
     'nt': 'nt-range', 'frt': 'frt-range', 'shp': 'shp-range', 'flw': 'flw-range',
     'pko': 'pko-range', 'cjar': 'cjar-range', 'cld': 'cld-range',
-    'comb': 'comb-range'
+    'comb': 'comb-range', 'eta': 'eta-range'
   };
   const cls = (map[gameId] || 'stone-range') + ' w-full';
   const el = document.getElementById('global-sound-volume');
@@ -652,7 +655,7 @@ function getMuteToggleOnClass(gameId) {
     'frt': 'game-toggle-on-frt',
     'flw': 'game-toggle-on-flw', 'pko': 'game-toggle-on-pko',
     'cjar': 'game-toggle-on-cjar', 'cld': 'game-toggle-on-cld',
-    'comb': 'game-toggle-on-comb'
+    'comb': 'game-toggle-on-comb', 'eta': 'game-toggle-on-eta'
   };
   return map[gameId] || 'game-toggle-on-stone';
 }
@@ -893,6 +896,13 @@ function resetToLobby() {
     const el = document.getElementById(id); if (el) el.style.display = 'none';
   });
   if (typeof combResetState === 'function') combResetState();
+  // ETA? teardown. etaTeardown() owns every ETA timer — the choreography bag, both
+  // stall countdowns, the countdown ticker, the board, the Practice run.
+  ['eta-settings-overlay','eta-how-to-overlay','eta-quit-overlay',
+   'eta-new-shift-overlay','eta-doubletake-overlay'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.style.display = 'none';
+  });
+  if (typeof etaTeardown === 'function') etaTeardown();
   // Help-tip overlay cleanup (Phase 21a)
   ['li5','gm','ss','jec','ygi','lttp','nat','dsd'].forEach(abbr => {
     const el = document.getElementById(`${abbr}-help-tip-overlay`);
@@ -1057,6 +1067,7 @@ const GAME_BRAND_HEX = {
   'btn-jec': '#475569', 'btn-frt': '#FFE500', 'btn-nat': '#65A30D', 'btn-gth': '#B1BCA0',
   'btn-nt': '#10B981', 'btn-sylly-signals': '#14B8A6', 'btn-dsd': '#0E7490', 'btn-cld': '#8ECAE6',
   'btn-dyb': '#6B5744', 'btn-shp': '#3A3D52', 'btn-great-minds': '#A855F7', 'btn-pass': '#18181B',
+  'btn-eta': '#EA580C',
 };
 
 function lobbyHexToHSL(hex) {
