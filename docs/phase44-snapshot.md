@@ -52,7 +52,7 @@ are corrected (`CLAUDE.md`, `phase-audit.md` § 5), and one stale grace period i
 | Screen IDs (plugin ↔ markup ↔ identity doc T7a ↔ `allScreens[]`) | ✅ the same seven `screen-eta-*` in all four |
 | Settings (T6 ↔ `let eta*` defaults) | ✅ Range Everywhere, Shift 5, GPS on, Community Vote on, Off the Map off, Sylly off |
 | Scoring values (T3 / T8 ↔ constants) | ✅ Insurance 3,000 per ×10, cap 4,000; Hazard Pay 4,000; Navigation Assist 80 %; Detour 40 %; banner swing 3,000; Back on Course within ×1.25 |
-| State variables in `code-map.md` | ❌ → ✅ **fixed:** the ETA section had grouped functions but no state; a State table now lists all 49 `let eta*` variables by owner (public / private / host-only / local) |
+| State variables in `code-map.md` | ❌ → ✅ **fixed:** the ETA section had grouped functions but no state; a State table now lists all 53 `let eta*` variables by owner (public / private / host-only / local) |
 | SW precache | ✅ `eta.js`, `eta-scene.js`, `css/eta.css`, `data/eta-data.json`, four `fonts/eta-*.woff2`; `CACHE_NAME` v277 |
 | Implementation notes | ✅ DD-01–15 current. Fixed: the SW v276 bug was unnumbered above BUG-01 (now **BUG-09**); added **ML-04** and **§ Changes from spec** |
 | Deferred work | ✅ the 🔊 / ✕ item and the "phase gate" item resolved and moved to the log; the "nothing has met a real Firebase" line corrected (round 1 did); the maths-round pointer now names its archive path |
