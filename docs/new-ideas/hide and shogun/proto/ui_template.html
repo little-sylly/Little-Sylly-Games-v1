@@ -1,0 +1,800 @@
+<title>Hide and Shogun Alpha</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@500;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap">
+<style>
+/* Layout concept: one-screen playtest table. Opponent card, 5x6 board of ink-wash Shrouds, your card, one status line.
+   Everything else (War Council, rules, log, confirm, chronicle) is a sheet that slides over the table. */
+:root {
+  --bg: #E7E5DE;          /* washi, cool grey */
+  --surface: #F3F1EA;
+  --ink: #1C1D23;         /* sumi */
+  --ink-2: #5B5D68;
+  --line: #CBC8BD;
+  --board: #D6D2C5;
+  --shroud: #4A4E5B;
+  --shroud-hi: #646879;
+  --crim: #B3252C;
+  --crim-ink: #FBF3E4;
+  --ivory: #F7F1E1;
+  --ivory-ink: #1C1D23;
+  --gold: #B5892A;
+  --hl: #C98F00;          /* legal-target highlight */
+  --alarm: #C2410C;       /* Exposed Shogun */
+  --btn: #1C1D23;
+  --btn-ink: #F3F1EA;
+  --font-display: "Shippori Mincho B1", "Hiragino Mincho ProN", "Yu Mincho", Georgia, serif;
+  --font-body: "Zen Kaku Gothic New", "Hiragino Sans", "Yu Gothic", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #14151A; --surface: #1E2027; --ink: #ECE8DD; --ink-2: #A5A7B1; --line: #30323B; --board: #24262E;
+    --shroud: #3E4250; --shroud-hi: #565B6C; --crim: #C23A41; --ivory: #EFE8D6; --gold: #D8A93A; --hl: #F0B93A; --alarm: #FF7A45;
+    --btn: #ECE8DD; --btn-ink: #14151A; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #14151A; --surface: #1E2027; --ink: #ECE8DD; --ink-2: #A5A7B1; --line: #30323B; --board: #24262E;
+  --shroud: #3E4250; --shroud-hi: #565B6C; --crim: #C23A41; --ivory: #EFE8D6; --gold: #D8A93A; --hl: #F0B93A; --alarm: #FF7A45;
+  --btn: #ECE8DD; --btn-ink: #14151A; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.45; -webkit-tap-highlight-color: transparent; }
+button { font: inherit; color: inherit; cursor: pointer; }
+:focus-visible { outline: 3px solid var(--hl); outline-offset: 2px; }
+h1, h2, h3 { font-family: var(--font-display); font-weight: 700; margin: 0; text-wrap: balance; }
+.app { max-width: 520px; margin-inline: auto; padding-inline: 16px; padding-block: 10px 28px; --t: clamp(44px, min(calc((100vw - 82px) / 5), calc((100dvh - 392px) / 6)), 86px); }
+
+/* top bar */
+.top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 8px; padding-block: 4px 10px; }
+.brand { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.brand h1 { font-size: 19px; letter-spacing: .01em; white-space: nowrap; }
+@media (max-width: 440px) { .tag { display: none; } .chip-btn { padding: 6px 8px; } }
+.tag { font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-2); border: 1px solid var(--line); padding: 1px 6px; border-radius: 4px; }
+.nav { display: flex; gap: 6px; }
+.chip-btn { white-space: nowrap; background: transparent; border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; min-height: 36px; font-size: 13px; font-weight: 500; }
+.chip-btn[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.btn { background: var(--btn); color: var(--btn-ink); border: 0; border-radius: 10px; padding: 12px 18px; font-weight: 700; font-size: 15px; min-height: 46px; }
+.btn.ghost { background: transparent; color: var(--ink); border: 1px solid var(--line); font-weight: 500; }
+.btn.small { padding: 8px 12px; min-height: 38px; font-size: 14px; }
+
+/* home */
+.home { display: grid; gap: 18px; padding-block: 18px; }
+.home h2 { font-size: clamp(34px, 11vw, 52px); line-height: 1.02; letter-spacing: -.01em; }
+.home h2 span { color: var(--crim); }
+.home p { margin: 0; color: var(--ink-2); max-width: 42ch; }
+.home .row { display: flex; flex-wrap: wrap; gap: 10px; }
+.summary { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; font-size: 14px; border-block: 1px solid var(--line); padding-block: 12px; }
+.summary dt { color: var(--ink-2); }
+.summary dd { margin: 0; font-weight: 500; }
+
+/* seats */
+.seat { display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; align-items: center; padding: 8px 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; min-height: 66px; }
+.seat.turn { border-color: var(--ink); box-shadow: 0 0 0 1px var(--ink); }
+.seat .who { display: flex; align-items: center; gap: 8px; min-width: 0; font-weight: 700; }
+.seat .who small { font-weight: 400; color: var(--ink-2); }
+.badge { width: 24px; height: 24px; border-radius: 6px; display: grid; place-items: center; flex: none; }
+.badge svg { width: 16px; height: 16px; }
+.badge.c0 { background: var(--ivory); color: var(--ivory-ink); box-shadow: inset 0 0 0 1px var(--line); }
+.badge.c1 { background: var(--crim); color: var(--crim-ink); }
+.badge.cn { background: transparent; color: var(--ink-2); box-shadow: inset 0 0 0 1px var(--line); }
+.seat .meta { grid-column: 1; font-size: 13px; color: var(--ink-2); }
+.seat .state { grid-column: 2; grid-row: 1 / span 3; display: grid; justify-items: end; gap: 4px; }
+.seals { grid-column: 1; display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--ink-2); }
+.seals i { width: 13px; height: 13px; border-radius: 3px; border: 1.5px solid var(--ink-2); display: block; }
+.seals i.on { background: var(--crim); border-color: var(--crim); }
+.seals span { margin-right: 2px; }
+.pill { font-size: 12px; font-weight: 700; letter-spacing: .03em; padding: 2px 8px; border-radius: 99px; border: 1.5px solid var(--line); white-space: nowrap; }
+.pill.guarded { border-color: var(--gold); color: var(--gold); }
+.pill.exposed { border-color: var(--alarm); color: var(--alarm); border-style: dashed; }
+.pips { display: flex; gap: 3px; align-items: center; font-size: 11px; color: var(--ink-2); }
+.pips i { width: 7px; height: 7px; border-radius: 50%; border: 1px solid var(--ink-2); display: block; }
+.pips i.on { background: var(--ink-2); }
+.pips.warn i.on { background: var(--alarm); border-color: var(--alarm); }
+.pips span { margin-right: 4px; }
+
+/* board */
+.stage { position: relative; margin-block: 10px 6px; display: grid; justify-items: center; }
+.frame { display: grid; grid-template-columns: 14px auto; grid-template-rows: auto 14px; gap: 2px; }
+.axis-y { display: grid; grid-template-rows: repeat(6, var(--t)); gap: 4px; padding-block: 6px; font-size: 10px; color: var(--ink-2); align-items: center; justify-items: center; }
+.axis-x { grid-column: 2; display: grid; grid-template-columns: repeat(5, var(--t)); gap: 4px; padding-inline: 6px; font-size: 10px; color: var(--ink-2); justify-items: center; }
+.board { display: grid; grid-template-columns: repeat(5, var(--t)); grid-auto-rows: var(--t); gap: 4px; padding: 6px; background: var(--board); border-radius: 12px; }
+.tile { position: relative; width: var(--t); height: var(--t); border: 0; border-radius: 7px; padding: 0; display: grid; place-items: center; background: transparent; touch-action: manipulation; overflow: visible; }
+.tile.empty { box-shadow: inset 0 0 0 1px var(--line); }
+.tile.shroud { background-color: var(--shroud); background-image:
+  radial-gradient(circle at 50% 50%, transparent 0 24%, rgba(255,255,255,.09) 25% 28%, transparent 29% 44%, rgba(255,255,255,.06) 45% 48%, transparent 49%),
+  radial-gradient(circle at 30% 25%, var(--shroud-hi), var(--shroud) 70%); }
+.tile.up { box-shadow: 0 1px 0 rgba(0,0,0,.25); }
+.tile.ivory { background: var(--ivory); color: var(--ivory-ink); }
+.tile.crimson { background: var(--crim); color: var(--crim-ink); }
+.tile.neutral { background: var(--gold); color: #1C1D23; }
+.tile.dim { opacity: .62; }
+.tile .kanji { font-family: var(--font-display); font-weight: 700; font-size: calc(var(--t) * .42); line-height: 1; margin-top: -14%; }
+.tile .lab { position: absolute; bottom: 6%; left: 0; right: 0; text-align: center; font-size: clamp(8px, calc(var(--t) * .165), 11px); font-weight: 700; letter-spacing: .01em; white-space: nowrap; }
+.tile .crest { position: absolute; top: 4px; right: 4px; width: 13px; height: 13px; }
+.tile .crest svg { width: 100%; height: 100%; display: block; }
+.tile.guarded { box-shadow: 0 0 0 3px var(--gold); }
+.tile.exposed { outline: 3px dashed var(--alarm); outline-offset: 1px; }
+.tile.last-from { box-shadow: inset 0 0 0 2px var(--hl); }
+.tile.last-to { outline: 3px solid var(--hl); outline-offset: 1px; }
+.tile.selected { outline: 3px solid var(--ink); outline-offset: 1px; z-index: 2; }
+.tile.hint { outline: 3px dotted var(--hl); outline-offset: 2px; z-index: 2; }
+.tile.target { box-shadow: inset 0 0 0 2px var(--hl); }
+.tile.target.empty { background: color-mix(in srgb, var(--hl) 16%, transparent); }
+.show-movable .tile.movable::before { content: ""; position: absolute; left: 22%; right: 22%; bottom: -3px; height: 3px; border-radius: 2px; background: var(--hl); }
+.mark { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; }
+.mark svg { width: 46%; height: 46%; filter: drop-shadow(0 0 2px rgba(0,0,0,.55)); }
+.tile.empty .mark svg { filter: none; }
+.toast { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); width: min(92%, 380px); background: var(--ink); color: var(--bg); border-radius: 10px; padding: 10px 14px; font-size: 14px; font-weight: 500; text-align: center; z-index: 5; pointer-events: none; box-shadow: 0 6px 20px rgba(0,0,0,.35); white-space: pre-line; }
+.toast.big { font-family: var(--font-display); font-size: 17px; font-weight: 700; }
+
+/* night + status */
+.night { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--ink-2); padding-block: 4px 8px; justify-content: space-between; }
+.lanterns { display: flex; gap: 2px; flex-wrap: wrap; }
+.lanterns i { width: 7px; height: 11px; border-radius: 3px 3px 5px 5px; border: 1px solid var(--ink-2); display: block; }
+.lanterns i.lit { background: var(--gold); border-color: var(--gold); }
+.status { min-height: 44px; margin: 8px 2px 0; font-size: 14px; display: grid; gap: 2px; }
+.status b { font-weight: 700; }
+.status .ev { border-left: 3px solid var(--gold); padding-left: 8px; font-weight: 500; }
+.status .sub { color: var(--ink-2); font-size: 13px; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+
+/* sheets */
+.sheet { position: fixed; inset: 0; z-index: 20; display: grid; align-items: end; justify-items: center; background: rgba(10,10,14,.55); padding-top: env(safe-area-inset-top, 0px); }
+.sheet.center { align-items: center; }
+.panel { width: min(100%, 560px); max-height: min(88dvh, 100%); overflow: auto; background: var(--surface); color: var(--ink); border-radius: 16px 16px 0 0; padding: 18px 16px calc(18px + env(safe-area-inset-bottom, 0px)); display: grid; gap: 14px; border: 1px solid var(--line); }
+.sheet.center .panel { border-radius: 16px; width: min(calc(100% - 32px), 380px); padding-bottom: 18px; }
+.panel h2 { font-size: 22px; }
+.panel h3 { font-size: 16px; }
+.panel p { margin: 0; }
+.panel .sub { color: var(--ink-2); font-size: 13px; }
+.panel-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.set { display: grid; gap: 6px; padding-block: 10px; border-top: 1px solid var(--line); }
+.set .lbl { font-weight: 700; }
+.seg { display: flex; flex-wrap: wrap; gap: 6px; }
+.seg button { border: 1px solid var(--line); background: transparent; border-radius: 8px; padding: 7px 12px; min-height: 38px; font-size: 14px; }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); font-weight: 700; }
+.rules table { border-collapse: collapse; font-size: 13px; width: 100%; }
+.rules td, .rules th { border-bottom: 1px solid var(--line); padding: 4px 6px; text-align: left; vertical-align: top; }
+.rules th { font-weight: 700; color: var(--ink-2); font-size: 12px; text-transform: uppercase; letter-spacing: .06em; }
+.scroll-x { overflow-x: auto; }
+.rules ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+textarea.out { width: 100%; min-height: 180px; font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 8px; resize: vertical; }
+.log { display: grid; gap: 2px; font-size: 13px; max-height: 50dvh; overflow: auto; }
+.log div { display: grid; grid-template-columns: 2.4em 1fr; gap: 6px; }
+.log .n { color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.log .ev { color: var(--hl); }
+.chron h2 { font-size: 26px; }
+.chron .big { font-family: var(--font-display); font-size: 20px; font-weight: 700; }
+.stats { display: grid; grid-template-columns: auto 1fr; gap: 3px 14px; font-size: 14px; }
+.stats dt { color: var(--ink-2); }
+.stats dd { margin: 0; font-weight: 500; font-variant-numeric: tabular-nums; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; }
+@media (prefers-reduced-motion: no-preference) {
+  .panel { animation: rise .18s ease-out; }
+  @keyframes rise { from { transform: translateY(14px); opacity: .6; } to { transform: none; opacity: 1; } }
+}
+</style>
+
+<div class="app" id="app">
+  <header class="top">
+    <div class="brand"><h1>Hide and Shogun</h1><span class="tag">alpha</span></div>
+    <nav class="nav">
+      <button class="chip-btn" id="btnRules" type="button">Rules</button>
+      <button class="chip-btn" id="btnLog" type="button">Log</button>
+      <button class="chip-btn" id="btnCouncil" type="button">War Council</button>
+    </nav>
+  </header>
+
+  <main class="home" id="home">
+    <h2>Hide <span>and</span> Shogun</h2>
+    <p>Thirty face-down tiles, two clans, one Shogun each. Unveil, march, strike, and topple the enemy Shogun before yours falls. This build plays against a bot so the rules can be tested.</p>
+    <dl class="summary" id="summary"></dl>
+    <div class="row">
+      <button class="btn" id="btnStart" type="button">Raise the Banners</button>
+      <button class="btn ghost" id="btnHomeCouncil" type="button">War Council</button>
+    </div>
+    <p class="sub" id="homeCount" style="font-size:13px"></p>
+  </main>
+
+  <main id="game" hidden>
+    <section class="seat" id="seatTop" aria-label="Opponent"></section>
+    <div class="status" id="status" role="status" aria-live="polite"></div>
+    <div class="stage" id="stage">
+      <div class="frame">
+        <div class="axis-y" id="axisY"></div>
+        <div class="board" id="board" role="grid" aria-label="Battlefield"></div>
+        <div></div>
+        <div class="axis-x" id="axisX"></div>
+      </div>
+      <div class="toast" id="toast" hidden role="status"></div>
+    </div>
+    <div class="night" id="night"></div>
+    <section class="seat" id="seatBottom" aria-label="You"></section>
+    <div class="actions" id="actions"></div>
+  </main>
+</div>
+
+<div class="sheet" id="sheetCouncil" hidden><div class="panel" id="panelCouncil" role="dialog" aria-label="The War Council"></div></div>
+<div class="sheet" id="sheetRules" hidden><div class="panel rules" role="dialog" aria-label="Rule Reference">
+  <div class="panel-head"><h2>Rule Reference</h2><button class="chip-btn" type="button" data-close="sheetRules">Close</button></div>
+  <h3>The ladder</h3>
+  <div class="scroll-x"><table>
+    <tr><th>Rank</th><th>Piece</th><th>Strike</th></tr>
+    <tr><td>8</td><td>Shogun</td><td>Adjacent, equal or lower rank (never a Geisha). Only a Geisha can take him while Guarded.</td></tr>
+    <tr><td>7</td><td>Daimyo</td><td>Adjacent, equal or lower rank. While one lives, the Shogun is Guarded.</td></tr>
+    <tr><td>6</td><td>Onmyoji</td><td>Cast: diagonal neighbour, any piece but a Geisha or Guarded Shogun.</td></tr>
+    <tr><td>5</td><td>Samurai</td><td>Adjacent, equal or lower rank (not a Daimyo or Onmyoji). Charge: 2 empty squares in a line (no Strike).</td></tr>
+    <tr><td>4</td><td>Kunoichi</td><td>Vault: hop exactly one piece in a line and strike the first piece beyond (not adjacent). Anything but a Guarded Shogun, Geisha included.</td></tr>
+    <tr><td>3</td><td>Gunner</td><td>Volley: exactly 2 or 3 squares away in a line, over anything. Any piece but a Geisha or Guarded Shogun. Stays put.</td></tr>
+    <tr><td>2</td><td>Ronin</td><td>Adjacent Ronin, Gunner or Geisha. Exposed Shogun.</td></tr>
+    <tr><td>–</td><td>Geisha</td><td>Adjacent: the enemy Shogun only, even Guarded. Only a Ronin or a Kunoichi can strike her.</td></tr>
+  </table></div>
+  <h3>The turn</h3>
+  <ul>
+    <li>One Command: Unveil a Shroud, March one square, Strike, or Charge (Samurai).</li>
+    <li>The first coloured Unveil raises the banners and sets the colours.</li>
+    <li>A Geisha goes to whoever unveils her. A clan can hold at most half of them; a Geisha unveiled at the cap joins the opponent. Before the banners are raised she waits and takes the flipper's colour.</li>
+    <li>A Shogun is Guarded while any of his own Daimyo lives, face-down ones included.</li>
+  </ul>
+  <h3>The clocks (fixed rules)</h3>
+  <ul>
+    <li><b>Shogun's Shame:</b> 5 of your own Commands with no Unveil and no capture while your Shogun is still face-down, and he is shamed out into the open. From then on only a face-up Daimyo guards him. A Shogun already face-up is never forced.</li>
+    <li><b>The Long Night:</b> 12 quiet Commands in a row (6 each) ends the Battle. More face-up pieces wins; level is a Truce. Hired Geisha count for their clan.</li>
+    <li>No legal Command: you are Surrounded and lose.</li>
+  </ul>
+  <h3>The Campaign</h3>
+  <ul>
+    <li>Win a Battle, earn an Honour Seal. First to 3 Seals (or 5, or a single Battle) takes the Campaign.</li>
+    <li>A Truce earns no Seal and the Battle is replayed.</li>
+    <li>The Omen decides who commands first in Battle 1; after that the Vanguard alternates each Battle.</li>
+  </ul>
+</div></div>
+<div class="sheet" id="sheetLog" hidden><div class="panel" id="panelLog" role="dialog" aria-label="Playtest log"></div></div>
+<div class="sheet center" id="sheetConfirm" hidden><div class="panel" id="panelConfirm" role="dialog" aria-label="Confirm"></div></div>
+<div class="sheet" id="sheetEnd" hidden><div class="panel chron" id="panelEnd" role="dialog" aria-label="The War Chronicle"></div></div>
+
+<script>
+/*__ENGINE__*/
+</script>
+<script>
+/* ===== UI (not part of the rules engine) ===== */
+(function () {
+  'use strict';
+  const E = window.HSG;
+  const $ = id => document.getElementById(id);
+  const LS = {
+    get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
+    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* storage unavailable */ } },
+  };
+  const DEFAULTS = { campaign: 3, hire: 4, level: 'normal', level2: 'hard', first: 'omen', spectate: false, speed: 'normal' };
+  let settings = Object.assign({}, DEFAULTS, LS.get('hsg_alpha_settings', {}));
+  if (![2, 4].includes(settings.hire)) settings.hire = 4;
+  if (![1, 3, 5].includes(settings.campaign)) settings.campaign = 3;
+  delete settings.shame; delete settings.night;   // v4: Shogun's Shame (5) and the Long Night (12) are fixed rules
+  let battleLog = LS.get('hsg_alpha_log', []);
+  if (!Array.isArray(battleLog)) battleLog = [];
+  const SPEED = { slow: 1100, normal: 600, fast: 120 };
+  const LEVELS = E.BOT_LEVELS;
+  const levelLabel = id => (LEVELS.find(l => l.id === id) || LEVELS[1]).label;
+  const botFor = id => E.BOTS[(LEVELS.find(l => l.id === id) || LEVELS[1]).bot];
+  const CLAN = { 0: 'Ivory Moon', 1: 'Crimson Sun' };
+  const CLAN_S = { 0: 'Ivory', 1: 'Crimson' };
+  const SEAT = ['Vanguard', 'Rearguard'];
+  const KANJI = { Sg: '将', Dm: '大', Sm: '侍', Kn: '忍', On: '陽', Gn: '銃', Rn: '浪', Gs: '芸' };
+  const NAME = E.TYPE_NAME;
+  const INFO = {
+    Sg: 'Shogun (8). Marches 1, strikes adjacent. Guarded while one of his Daimyo lives; only a Geisha can take a Guarded Shogun.',
+    Dm: 'Daimyo (7). Strikes adjacent pieces of equal or lower rank. While one lives, the Shogun is Guarded.',
+    On: 'Onmyoji (6). Cast: strikes a diagonal neighbour, any piece but a Geisha or Guarded Shogun. Cannot strike orthogonally.',
+    Sm: 'Samurai (5). Strikes adjacent, equal or lower rank (not a Daimyo or Onmyoji). Charge: 2 empty squares in a line, no Strike.',
+    Kn: 'Kunoichi (4). Vault: hop exactly one piece and strike the first piece beyond it, not adjacent. Anything but a Guarded Shogun, Geisha included.',
+    Gn: 'Gunner (3). Volley: exactly 2 or 3 squares away in a line, over anything, without moving. Not adjacent.',
+    Rn: 'Ronin (2). Strikes an adjacent Ronin, Gunner or Geisha, or an Exposed Shogun.',
+    Gs: 'Geisha. Strikes only the enemy Shogun, even when Guarded. Only a Ronin or a Kunoichi can strike her.',
+  };
+
+  const SVG = {
+    sun: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="5" fill="currentColor"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg>',
+    moon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16.5 3.2a9 9 0 1 0 4.3 14.6A7.6 7.6 0 0 1 16.5 3.2z" fill="currentColor"/></svg>',
+    march: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="5" fill="var(--hl)"/></svg>',
+    charge: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6l7 6-7 6M12 6l7 6-7 6" fill="none" stroke="var(--hl)" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    strike: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7" fill="none" stroke="var(--hl)" stroke-width="2.6"/><path d="M12 1.5v7M12 15.5v7M1.5 12h7M15.5 12h7" stroke="var(--hl)" stroke-width="2.6" stroke-linecap="round"/></svg>',
+    volley: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7" fill="none" stroke="var(--hl)" stroke-width="2.6"/><circle cx="12" cy="12" r="2" fill="var(--hl)"/><path d="M12 1.5v5M12 17.5v5M1.5 12h5M17.5 12h5" stroke="var(--hl)" stroke-width="2.6" stroke-linecap="round"/></svg>',
+    vault: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 18C6 5 18 5 21 18" fill="none" stroke="var(--hl)" stroke-width="3" stroke-dasharray="4 3.5" stroke-linecap="round"/><path d="M17 17l4 1.5 1-4.2" fill="none" stroke="var(--hl)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    cast: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 1.5l2.6 8 8 2.5-8 2.6-2.6 8-2.6-8-8-2.6 8-2.5z" fill="var(--hl)"/></svg>',
+  };
+  const crest = col => col === 0 ? SVG.moon : col === 1 ? SVG.sun : '';
+
+  // ------------------------------------------------------------ game state
+  let G = null;           // current Battle wrapper
+  let toastTimer = null;
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+  function seatLabel(team) { return G.humanTeam === null ? SEAT[team] : (team === G.humanTeam ? 'You' : 'Bot'); }
+  function who(team) { return G.humanTeam === null ? SEAT[team] : (team === G.humanTeam ? 'You' : 'The bot'); }
+  function clanOf(team) { const c = G.B.S.teamCol[team]; return c === null ? null : c; }
+
+  // ------------------------------------------------------------ Campaign (Honour Seals)
+  // Players: 0 = you (or Bot A when watching), 1 = the bot (or Bot B). C.first = who is the Vanguard in the current Battle.
+  let C = null;
+  const playerOfTeam = t => t === 0 ? C.first : 1 - C.first;
+  const teamOfPlayer = p => p === C.first ? 0 : 1;
+  function pName(p) { return C.spect ? (p === 0 ? 'Bot A' : 'Bot B') : (p === 0 ? 'You' : 'The bot'); }
+  function newCampaign() {
+    const rng = E.makeRng();
+    const first = settings.first === 'player' ? 0 : settings.first === 'bot' ? 1 : (rng.random() < 0.5 ? 0 : 1);
+    C = { target: settings.campaign, hire: settings.hire, spect: settings.spectate, levels: settings.spectate ? [settings.level, settings.level2] : [null, settings.level],
+      wins: [0, 0], battleNo: 1, replays: 0, isReplay: false, first, over: false, winner: null, forfeit: false, lastTruce: false };
+    startBattle();
+  }
+  function nextBattle() {
+    if (!C || C.over) return newCampaign();
+    C.isReplay = C.lastTruce;
+    if (C.lastTruce) C.replays++; else { C.battleNo++; C.first = 1 - C.first; }
+    startBattle();
+  }
+
+  function startBattle() {
+    if (!C) return newCampaign();
+    closeAllSheets();
+    clearTimeout(G && G.timer);
+    const rng = E.makeRng();
+    const cfg = E.makeCfg({ hire: C.hire });
+    const B = E.newBattle(cfg, rng);
+    const humanTeam = C.spect ? null : teamOfPlayer(0);
+    const levels = [0, 1].map(t => C.levels[playerOfTeam(t)]);
+    G = { B, rng, humanTeam, levels, bots: levels.map(l => l ? botFor(l) : null), sel: null, targets: new Map(), acts: [], last: null, hint: null,
+      info: null, logLines: [], fallen: [0, 0], hints: 0, reveal: false, paused: false, timer: null, over: false, finished: false,
+      status: '', events: [], showMoves: G ? G.showMoves : false,
+      layout: B.S.board.map(c => ({ 0: 'I', 1: 'C', 2: 'G' }[c[0]]) + c[1]).join(' '), startedAt: Date.now() };
+    $('home').hidden = true; $('game').hidden = false;
+    const first = playerOfTeam(0);
+    const who1 = C.spect ? pName(first) : (first === 0 ? 'you' : 'the bot');
+    let omen;
+    if (C.battleNo === 1 && C.replays === 0) omen = C.spect ? 'The Omen: Bot A (' + levelLabel(C.levels[first]) + ') commands first.' : 'The Omen: ' + who1 + ' command' + (first === 0 ? '' : 's') + ' first.';
+    else if (C.isReplay) omen = 'Truce replay: ' + who1 + ' command' + (first === 0 && !C.spect ? '' : 's') + ' first again.';
+    else omen = 'Battle ' + C.battleNo + ': ' + who1 + ' command' + (first === 0 && !C.spect ? '' : 's') + ' first (the Vanguard alternates).';
+    if (humanTeam === null) G.status = 'Bot vs bot. ' + levelLabel(levels[0]) + ' (Vanguard) against ' + levelLabel(levels[1]) + ' (Rearguard).';
+    C.lastTruce = false;
+    G.events = [omen];
+    advance();
+  }
+
+  function humanTurn() { return G && !G.over && G.humanTeam !== null && G.B.team === G.humanTeam; }
+
+  function advance() {
+    clearTimeout(G.timer);
+    if (G.B.over) return finish();
+    if (E.battleCheckSurrounded(G.B)) return finish();
+    G.acts = E.battleLegal(G.B);
+    render();
+    if (!humanTurn()) scheduleBot();
+  }
+  function scheduleBot() {
+    if (G.paused) return;
+    const d = G.humanTeam === null ? SPEED[settings.speed] : 650;
+    G.timer = setTimeout(botTurn, d);
+  }
+  function botTurn() {
+    if (!G || G.over || G.paused) return;
+    const act = E.choose(G.B.S, G.B.team, G.rng, G.bots[G.B.team]);
+    if (!act) { G.B.over = { over: true, winner: 1 - G.B.team, reason: 'surrounded', events: [] }; return finish(); }
+    doAct(act);
+  }
+
+  function pieceName(t) { return NAME[t]; }
+  function cmdText(team, act, out) {
+    const w = who(team);
+    const k = act[0];
+    if (k === 'U') {
+      const [col, t] = out.revealed;
+      return w + ' unveiled ' + E.sq(act[1]) + ': ' + (col === 2 ? 'a Geisha' : 'an ' + CLAN_S[col] + ' ' + pieceName(t)).replace('an Crimson', 'a Crimson') + '.';
+    }
+    if (k === 'M') return w + ' marched the ' + pieceName(out.piece) + ' ' + E.sq(act[1]) + ' to ' + E.sq(act[2]) + '.';
+    if (k === 'C') return w + ' charged the Samurai ' + E.sq(act[1]) + ' to ' + E.sq(act[2]) + '.';
+    const verb = act[3] === 'v' ? 'volleys' : act[3] === 'k' ? 'vaults onto' : (out.attacker === 'On' ? 'casts on' : 'strikes');
+    return w + ': the ' + pieceName(out.attacker) + ' at ' + E.sq(act[1]) + ' ' + verb + ' ' + E.sq(act[2]) + '. The ' + pieceName(out.victim) + ' falls.';
+  }
+  function eventText(ev) {
+    const S = G.B.S;
+    if (ev.t === 'banners') {
+      if (G.humanTeam === null) return 'Banners raised: the Vanguard is ' + CLAN[S.teamCol[0]] + '.';
+      return 'Banners raised: you are ' + CLAN[S.teamCol[G.humanTeam]] + '.';
+    }
+    if (ev.t === 'hire') {
+      const col = S.teamCol[ev.by];
+      const cl = col === null ? 'the ' + SEAT[ev.by] + ' (colour set when the banners rise)' : CLAN[col];
+      return ev.capped ? 'Geisha at ' + E.sq(ev.idx) + ' joins ' + cl + '. The flipper already holds half.' : 'Geisha at ' + E.sq(ev.idx) + ' hired by ' + cl + '.';
+    }
+    if (ev.t === 'shame') return "The Shogun has appeared! Advance on the enemy!" + (ev.flipped !== null ? ' (' + E.sq(ev.flipped) + ')' : '');
+    if (ev.t === 'night') return 'The Long Night falls.';
+    return '';
+  }
+
+  function doAct(act) {
+    const B = G.B, S = B.S, team = B.team;
+    let victimCol = null;
+    if (act[0] === 'S') victimCol = S.board[act[2]][0];
+    const out = E.battleStep(B, act);
+    if (act[0] === 'S' && (victimCol === 0 || victimCol === 1)) G.fallen[victimCol]++;
+    G.last = { from: act[0] === 'U' ? null : act[1], to: act[0] === 'U' ? act[1] : act[2] };
+    G.sel = null; G.targets = new Map(); G.hint = null; G.info = null;
+    const text = cmdText(team, act, out);
+    const evs = out.events.map(eventText).filter(Boolean);
+    G.logLines.push({ n: S.cmd, text, evs });
+    G.status = text;
+    const shame = out.events.some(e => e.t === 'shame');
+    G.events = evs;
+    if (shame) toast(evs.join('\n'), true, 3200);
+    if (B.over) { G.over = true; render(); return setTimeout(finish, 600); }
+    advance();
+  }
+
+  function onTile(i) {
+    if (!G) return;
+    const S = G.B.S, cell = S.board[i];
+    if (!humanTurn()) {
+      if (cell && cell[2]) { G.info = INFO[cell[1]]; render(); }
+      return;
+    }
+    const me = S.teamCol[G.humanTeam];
+    if (G.sel !== null) {
+      const act = G.targets.get(i);
+      if (act) return doAct(act);
+      if (i === G.sel) { G.sel = null; G.targets = new Map(); G.info = null; return render(); }
+    }
+    if (cell && !cell[2]) { G.sel = null; G.targets = new Map(); G.info = null; return askUnveil(i); }
+    if (cell && cell[2] && me !== null && cell[0] === me) return select(i);
+    G.sel = null; G.targets = new Map();
+    G.info = cell && cell[2] ? INFO[cell[1]] : null;
+    render();
+  }
+  function select(i) {
+    G.sel = i; G.targets = new Map();
+    for (const a of G.acts) if (a[0] !== 'U' && a[1] === i && !G.targets.has(a[2])) G.targets.set(a[2], a);
+    const t = G.B.S.board[i][1];
+    G.info = INFO[t] + (G.targets.size ? '' : ' No legal Command for this piece right now.');
+    render();
+  }
+  function askUnveil(i) {
+    const p = $('panelConfirm');
+    p.innerHTML = '<h2>Unveil this Shroud?</h2><p class="sub">The tile at ' + E.sq(i) + ' turns face-up for both players. This cannot be undone.</p>' +
+      '<div class="row"><button class="btn" id="cfYes" type="button">Unveil</button><button class="btn ghost" id="cfNo" type="button">Cancel</button></div>';
+    $('sheetConfirm').hidden = false;
+    $('cfNo').onclick = () => { $('sheetConfirm').hidden = true; };
+    $('cfYes').onclick = () => { $('sheetConfirm').hidden = true; if (humanTurn()) doAct(['U', i]); };
+    $('cfYes').focus();
+  }
+  function askLeave() {
+    const p = $('panelConfirm');
+    const spect = G.humanTeam === null;
+    p.innerHTML = '<h2>' + (spect ? 'Stop watching?' : 'Leave the Field?') + '</h2><p class="sub">' + (spect ? 'This Battle will not be logged.' : 'The Battle is logged as a forfeit, and the bot takes the Campaign.') + '</p>' +
+      '<div class="row"><button class="btn" id="cfYes" type="button">' + (spect ? 'Stop' : 'Leave') + '</button><button class="btn ghost" id="cfNo" type="button">Stay</button></div>';
+    $('sheetConfirm').hidden = false;
+    $('cfNo').onclick = () => { $('sheetConfirm').hidden = true; };
+    $('cfYes').onclick = () => {
+      $('sheetConfirm').hidden = true;
+      clearTimeout(G.timer);
+      if (spect) { G.over = true; G.finished = true; go_home(); return; }
+      if (!G.over) { C.forfeit = true; G.B.over = { over: true, winner: 1 - G.humanTeam, reason: 'forfeit', events: [] }; G.over = true; finish(); }
+    };
+  }
+  function giveHint() {
+    if (!humanTurn()) return;
+    const act = E.choose(G.B.S, G.humanTeam, E.makeRng(), E.BOTS.hunt);
+    if (!act) return;
+    G.hints++; G.hint = act; G.sel = null; G.targets = new Map();
+    const t = act[0] === 'U' ? null : G.B.S.board[act[1]][1];
+    G.info = act[0] === 'U' ? 'Hint: unveil the Shroud at ' + E.sq(act[1]) + '.' :
+      'Hint: ' + ({ M: 'march', C: 'charge', S: act[3] === 'v' ? 'volley with' : act[3] === 'k' ? 'vault with' : 'strike with' }[act[0]]) + ' the ' + pieceName(t) + ' at ' + E.sq(act[1]) + (act[0] === 'S' && act[3] !== 'v' ? ' onto ' : ' to ') + E.sq(act[2]) + '.';
+    if (act[0] === 'S' && act[3] === 'v') G.info = 'Hint: the Gunner at ' + E.sq(act[1]) + ' volleys ' + E.sq(act[2]) + '.';
+    render();
+  }
+
+  // ------------------------------------------------------------ rendering
+  function toast(text, big, ms) {
+    const t = $('toast');
+    t.textContent = text; t.className = 'toast' + (big ? ' big' : ''); t.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { t.hidden = true; }, ms || 2400);
+  }
+  function tileHTML(i) {
+    const S = G.B.S, c = S.board[i];
+    const cls = ['tile']; let inner = ''; let desc = E.sq(i) + ' ';
+    if (c === null) { cls.push('empty'); desc += 'empty'; }
+    else if (!c[2] && !G.reveal) { cls.push('shroud'); desc += 'Shroud'; }
+    else {
+      const up = c[2];
+      cls.push('up', c[0] === 0 ? 'ivory' : c[0] === 1 ? 'crimson' : 'neutral');
+      if (!up) cls.push('dim');
+      inner = '<span class="kanji" aria-hidden="true">' + KANJI[c[1]] + '</span><span class="lab">' + NAME[c[1]] + '</span>' + (c[0] < 2 ? '<span class="crest">' + crest(c[0]) + '</span>' : '');
+      desc += (c[0] === 2 ? 'Geisha for hire' : CLAN_S[c[0]] + ' ' + pieceName(c[1])) + (up ? '' : ' (unveiled at the end)');
+      if (c[1] === 'Sg' && up) { const ex = E.exposed(S, c[0]); cls.push(ex ? 'exposed' : 'guarded'); desc += ex ? ', Exposed' : ', Guarded'; }
+    }
+    const ta = G.targets.get(i);
+    if (ta) {
+      cls.push('target');
+      const k = ta[0] === 'M' ? 'march' : ta[0] === 'C' ? 'charge' : ta[3] === 'v' ? 'volley' : ta[3] === 'k' ? 'vault' : (S.board[ta[1]][1] === 'On' ? 'cast' : 'strike');
+      inner += '<span class="mark">' + SVG[k] + '</span>'; desc += ', can ' + k;
+    }
+    if (G.sel === i) cls.push('selected');
+    if (G.last && G.last.from === i) cls.push('last-from');
+    if (G.last && G.last.to === i) cls.push('last-to');
+    if (G.hint && (G.hint[1] === i || (G.hint[0] !== 'U' && G.hint[2] === i))) cls.push('hint');
+    if (G.movable && G.movable.has(i)) cls.push('movable');
+    return '<button class="' + cls.join(' ') + '" type="button" data-i="' + i + '" role="gridcell" aria-label="' + esc(desc) + '">' + inner + '</button>';
+  }
+  function shogunChip(team) {
+    const S = G.B.S, col = S.teamCol[team];
+    if (col === null) return '<span class="pill">Shogun hidden</span>';
+    const sg = S.board.find(c => c && c[0] === col && c[1] === 'Sg');
+    if (!sg) return '<span class="pill exposed">Shogun fallen</span>';
+    if (!sg[2]) return '<span class="pill">Shogun hidden</span>';
+    return E.exposed(S, col) ? '<span class="pill exposed">Shogun Exposed</span>' : '<span class="pill guarded">Shogun Guarded</span>';
+  }
+  function pipsHTML(team) {
+    const S = G.B.S, cfg = S.cfg, col = S.teamCol[team];
+    if (!cfg.forcedFight) return '<div class="pips"><span>Shame off</span></div>';
+    if (col !== null && !E.shogunDown(S, col)) return '<div class="pips"><span>' + (S.fo[col] ? 'Shamed out' : 'Shogun in the open') + '</span></div>';
+    let h = '<div class="pips' + (S.stall[team] >= cfg.ffN - 2 ? ' warn' : '') + '" title="Shogun\'s Shame: own Commands without an Unveil or capture"><span>Shame</span>';
+    for (let k = 0; k < cfg.ffN; k++) h += '<i class="' + (k < S.stall[team] ? 'on' : '') + '"></i>';
+    return h + '</div>';
+  }
+  function seatHTML(team) {
+    const S = G.B.S, col = S.teamCol[team];
+    const turn = !G.over && G.B.team === team;
+    const nm = G.humanTeam === null ? ('Bot ' + levelLabel(G.levels[team])) : (team === G.humanTeam ? 'You' : 'Bot · ' + levelLabel(G.levels[team]));
+    const badge = '<span class="badge ' + (col === null ? 'cn' : 'c' + col) + '">' + (col === null ? '' : crest(col)) + '</span>';
+    const up = col === null ? '–' : E.countPieces(S, col, true);
+    const fallen = col === null ? 0 : G.fallen[col];
+    let seals = '';
+    if (C.target > 1) {
+      const w = C.wins[playerOfTeam(team)];
+      seals = '<div class="seals" role="img" aria-label="Honour Seals ' + w + ' of ' + C.target + '"><span>Seals</span>';
+      for (let k = 0; k < C.target; k++) seals += '<i class="' + (k < w ? 'on' : '') + '"></i>';
+      seals += '</div>';
+    }
+    return { turn, html: '<div class="who">' + badge + '<span>' + esc(nm) + ' <small>' + SEAT[team] + (turn ? ' · to command' : '') + '</small></span></div>' +
+      '<div class="meta">' + (col === null ? 'Colours not yet decided' : CLAN[col]) + ' · face-up ' + up + ' · fallen ' + fallen + '</div>' + seals +
+      '<div class="state">' + shogunChip(team) + pipsHTML(team) + '</div>' };
+  }
+  function nightHTML() {
+    const S = G.B.S, n = S.cfg.night;
+    let h = '<div class="lanterns" aria-hidden="true">';
+    for (let k = 0; k < n; k++) h += '<i class="' + (k < n - S.quiet ? 'lit' : '') + '"></i>';
+    return h + '</div><span>Long Night · ' + (n - S.quiet) + ' left</span>';
+  }
+  function render() {
+    if (!G) return;
+    const S = G.B.S;
+    G.movable = null;
+    if (G.showMoves && humanTurn()) { G.movable = new Set(); for (const a of G.acts) if (a[0] !== 'U') G.movable.add(a[1]); }
+    $('board').className = 'board' + (G.showMoves ? ' show-movable' : '');
+    let b = ''; for (let i = 0; i < E.N; i++) b += tileHTML(i);
+    $('board').innerHTML = b;
+    if (!$('axisX').childElementCount) {
+      $('axisX').innerHTML = 'ABCDE'.split('').map(x => '<span>' + x + '</span>').join('');
+      $('axisY').innerHTML = [1, 2, 3, 4, 5, 6].map(x => '<span>' + x + '</span>').join('');
+    }
+    const top = G.humanTeam === null ? 1 : 1 - G.humanTeam, bottom = 1 - top;
+    const st = seatHTML(top), sb = seatHTML(bottom);
+    $('seatTop').innerHTML = st.html; $('seatTop').className = 'seat' + (st.turn ? ' turn' : '');
+    $('seatBottom').innerHTML = sb.html; $('seatBottom').className = 'seat' + (sb.turn ? ' turn' : '');
+    $('night').innerHTML = nightHTML();
+    let prompt;
+    if (G.over) prompt = 'The Battle is over.';
+    else if (humanTurn()) prompt = G.B.S.teamCol[G.humanTeam] === null ? 'Your Command. Tap a Shroud to Unveil it.' : 'Your Command. Tap a piece to move it, or a Shroud to Unveil.';
+    else if (G.humanTeam === null) prompt = G.paused ? 'Paused.' : (SEAT[G.B.team] + ' (' + levelLabel(G.levels[G.B.team]) + ') is thinking…');
+    else prompt = 'The bot is thinking…';
+    $('status').innerHTML = '<div><b>' + esc(prompt) + '</b> <span class="sub">' + (C.target > 1 ? 'Battle ' + C.battleNo + ' · first to ' + C.target + ' Seals · ' : '') + 'Command ' + (S.cmd + (G.over ? 0 : 1)) + '</span></div>' +
+      G.events.map(e => '<div class="ev">' + esc(e) + '</div>').join('') + (G.info ? '<div class="sub">' + esc(G.info) + '</div>' : '') + (G.status ? '<div class="sub">' + esc(G.status) + '</div>' : '');
+    let acts = '';
+    if (G.humanTeam !== null) {
+      acts += '<button class="btn ghost small" id="aHint" type="button"' + (humanTurn() ? '' : ' disabled') + '>Hint</button>';
+      acts += '<button class="chip-btn" id="aMoves" type="button" aria-pressed="' + G.showMoves + '">Show movable pieces</button>';
+    } else {
+      acts += '<button class="btn ghost small" id="aPause" type="button">' + (G.paused ? 'Resume' : 'Pause') + '</button>';
+      if (G.paused && !G.over) acts += '<button class="btn ghost small" id="aStep" type="button">Step</button>';
+    }
+    acts += '<button class="btn ghost small" id="aLog" type="button">Battle log</button>';
+    if (!G.over) acts += '<button class="btn ghost small" id="aLeave" type="button">' + (G.humanTeam === null ? 'Stop watching' : 'Leave the Field') + '</button>';
+    $('actions').innerHTML = acts;
+    const on = (id, fn) => { const e = $(id); if (e) e.onclick = fn; };
+    on('aHint', giveHint);
+    on('aMoves', () => { G.showMoves = !G.showMoves; render(); });
+    on('aPause', () => { G.paused = !G.paused; if (!G.paused) scheduleBot(); else clearTimeout(G.timer); render(); });
+    on('aStep', () => { if (!G.over) botTurn(); });
+    on('aLog', openBattleLog);
+    on('aLeave', askLeave);
+  }
+
+  // ------------------------------------------------------------ end of a Battle + the playtest log
+  function buildRecord() {
+    const B = G.B, S = B.S, o = B.over;
+    const spect = G.humanTeam === null;
+    const cnt = col => S.board.filter(c => c && c[0] === col).length;
+    let result;
+    if (o.winner === -1) result = 'truce'; else if (spect) result = 'n/a'; else result = o.winner === G.humanTeam ? 'win' : 'loss';
+    const left = E.piecesLeft(S);
+    const rec = {
+      v: 'hsg-alpha-2', ts: new Date().toISOString(), mode: spect ? 'bot-vs-bot' : 'vs-bot',
+      settings: { campaignTo: C.target, floatingWorld: S.cfg.hire, botLevel: spect ? G.levels[0] : G.levels[1 - G.humanTeam], botLevel2: spect ? G.levels[1] : null },
+      first: settings.first, campaign: { to: C.target, battle: C.battleNo, truceReplay: !!C.isReplay, sealTo: G.sealTo === null ? null : pName(G.sealTo),
+        seals: C.spect ? { botA: C.wins[0], botB: C.wins[1] } : { you: C.wins[0], bot: C.wins[1] }, over: C.over, winner: C.winner === null ? null : pName(C.winner), forfeit: C.forfeit },
+      vanguard: spect ? 'bot ' + levelLabel(G.levels[0]) : (G.humanTeam === 0 ? 'player' : 'bot'),
+      playerSeat: spect ? null : SEAT[G.humanTeam], playerClan: spect || S.teamCol[G.humanTeam] === null ? null : CLAN[S.teamCol[G.humanTeam]],
+      result, winnerSeat: o.winner === -1 ? null : SEAT[o.winner], reason: o.reason, commands: S.cmd,
+      shogunKilledBy: o.sgBy ? NAME[o.sgBy] : null, shogunWasExposed: o.sgBy ? !!o.sgExposed : null,
+      fallenShogun: o.reason === 'shogun' ? CLAN[o.fallen] : null,
+      nightFaceUp: o.nightCounts ? { vanguard: o.nightCounts[0], rearguard: o.nightCounts[1] } : null,
+      faceUp: S.teamCol[0] === null ? null : { ivory: E.countPieces(S, 0, true), crimson: E.countPieces(S, 1, true) },
+      piecesLeft: { ivory: cnt(0), crimson: cnt(1), ivoryByType: left[0], crimsonByType: left[1] },
+      shroudsLeft: S.shrouds, unveils: B.unveils, strikes: B.kills,
+      shame: { vanguardTriggeredAtCmd: B.shame[0], rearguardTriggeredAtCmd: B.shame[1], shogunFlipped: B.shameFlipped.slice() },
+      geisha: B.hires.map(h => ({ cmd: h.cmd, square: E.sq(h.idx), flippedBy: SEAT[h.flippedBy], hiredBy: SEAT[h.hiredBy], joinedOpponent: h.joinedOpponent })),
+      hintsUsed: G.hints, seconds: Math.round((Date.now() - G.startedAt) / 1000), layout: G.layout, moves: B.moves.slice(),
+    };
+    return rec;
+  }
+  function reasonText(o) {
+    const S = G.B.S;
+    if (o.reason === 'shogun') return o.sgBy === 'Gs' ? 'Gekokujo! The Geisha fells the Shogun.' : 'Gekokujo! The ' + NAME[o.sgBy] + ' topples the Shogun' + (o.sgExposed ? ' (he was Exposed).' : '.');
+    if (o.reason === 'night_count') return 'The Long Night has fallen. Most face-up pieces holds the field.';
+    if (o.reason === 'night_tie') return 'The Long Night has fallen. A Truce: both banners stand until dawn.';
+    if (o.reason === 'surrounded') return SEAT[1 - o.winner] + ' is Surrounded: no legal Command.';
+    if (o.reason === 'forfeit') return 'You left the field.';
+    return 'The Battle is over.';
+  }
+  function finish() {
+    if (!G || G.finished) return;
+    G.finished = true; G.over = true;
+    clearTimeout(G.timer);
+    const o = G.B.over, S = G.B.S;
+    G.sealTo = null;
+    if (o.reason === 'forfeit') { C.over = true; C.winner = playerOfTeam(o.winner); }
+    else if (o.winner === -1) C.lastTruce = true;
+    else {
+      G.sealTo = playerOfTeam(o.winner); C.wins[G.sealTo]++;
+      if (C.wins[G.sealTo] >= C.target) { C.over = true; C.winner = G.sealTo; }
+    }
+    const rec = buildRecord();
+    battleLog.push(rec); LS.set('hsg_alpha_log', battleLog);
+    G.record = rec;
+    render();
+    const spect = G.humanTeam === null;
+    let head;
+    if (o.winner === -1) head = 'A Truce';
+    else if (spect) head = 'Victory to the ' + SEAT[o.winner];
+    else head = o.winner === G.humanTeam ? 'Victory to you' : 'Defeat. The bot wins';
+    const clanLine = o.winner === -1 || S.teamCol[o.winner] === null ? '' : ' (' + CLAN[S.teamCol[o.winner]] + ')';
+    const fu = rec.faceUp;
+    let camp = '';
+    if (o.winner === -1) camp = '<p class="sub">A Truce earns no Seal. The Battle will be replayed.</p>';
+    else if (G.sealTo !== null) camp = '<p class="sub">' + esc(pName(G.sealTo)) + ' earn' + (C.spect || G.sealTo === 1 ? 's' : '') + ' an Honour Seal.</p>';
+    if (C.target > 1) camp += '<p><b>Seals:</b> ' + esc(pName(0)) + ' ' + C.wins[0] + ' · ' + esc(pName(1)) + ' ' + C.wins[1] + ' (first to ' + C.target + ')</p>';
+    if (C.over && C.target > 1) camp += '<p class="big">' + (C.spect ? esc(pName(C.winner)) + ' takes the Campaign.' : C.winner === 0 ? 'The Campaign is yours.' : 'The bot takes the Campaign.') + '</p>';
+    const again = C.over ? (C.target > 1 ? 'New Campaign' : 'Raise the Banners Again') : (o.winner === -1 ? 'Replay the Battle' : 'Next Battle');
+    G.againLabel = again;
+    $('panelEnd').innerHTML = '<h2>The War Chronicle</h2><p class="big">' + esc(head + clanLine) + '</p><p>' + esc(reasonText(o)) + '</p>' + camp +
+      '<dl class="stats"><dt>Commands</dt><dd>' + S.cmd + '</dd>' +
+      (fu ? '<dt>Face-up pieces</dt><dd>Crimson Sun ' + fu.crimson + ' · Ivory Moon ' + fu.ivory + '</dd>' : '') +
+      '<dt>Pieces left</dt><dd>Crimson Sun ' + rec.piecesLeft.crimson + ' · Ivory Moon ' + rec.piecesLeft.ivory + '</dd>' +
+      '<dt>Shrouds still down</dt><dd>' + S.shrouds + '</dd>' +
+      '<dt>Shogun\'s Shame</dt><dd>' + (rec.shame.vanguardTriggeredAtCmd || rec.shame.rearguardTriggeredAtCmd ? 'triggered' : 'did not trigger') + '</dd>' +
+      '<dt>Geisha hired</dt><dd>' + (rec.geisha.length ? rec.geisha.map(g => esc(g.hiredBy) + (g.joinedOpponent ? ' (at the cap)' : '')).join(', ') : 'none') + '</dd></dl>' +
+      '<div class="row"><button class="btn" id="endAgain" type="button">' + again + '</button><button class="btn ghost" id="endCouncil" type="button">War Council</button></div>' +
+      '<div class="row"><button class="btn ghost small" id="endReveal" type="button">Turn over the Shrouds</button><button class="btn ghost small" id="endBoard" type="button">Look at the board</button><button class="btn ghost small" id="endLog" type="button">Playtest log</button></div>';
+    $('sheetEnd').hidden = false;
+    $('endAgain').onclick = nextBattle;
+    $('endCouncil').onclick = () => { $('sheetEnd').hidden = true; openCouncil(); };
+    $('endReveal').onclick = () => { G.reveal = true; $('sheetEnd').hidden = true; render(); };
+    $('endBoard').onclick = () => { $('sheetEnd').hidden = true; showEndBar(); };
+    $('endLog').onclick = () => { $('sheetEnd').hidden = true; openExport(); };
+  }
+  function showEndBar() {
+    $('actions').innerHTML = '<button class="btn small" id="bAgain" type="button">' + G.againLabel + '</button><button class="btn ghost small" id="bReveal" type="button">Turn over the Shrouds</button><button class="btn ghost small" id="bChron" type="button">War Chronicle</button><button class="btn ghost small" id="bHome" type="button">Leave the Field</button>';
+    $('bAgain').onclick = nextBattle;
+    $('bReveal').onclick = () => { G.reveal = !G.reveal; render(); showEndBar(); };
+    $('bChron').onclick = () => { $('sheetEnd').hidden = false; };
+    $('bHome').onclick = go_home;
+  }
+  function go_home() { clearTimeout(G && G.timer); G = null; C = null; $('game').hidden = true; $('home').hidden = false; renderHome(); closeAllSheets(); }
+
+  // ------------------------------------------------------------ sheets: War Council, battle log, export
+  function closeAllSheets() { for (const id of ['sheetCouncil', 'sheetRules', 'sheetLog', 'sheetConfirm', 'sheetEnd']) $(id).hidden = true; }
+  const DEFS = [
+    { key: 'campaign', label: 'The Campaign', desc: 'Win a Battle, earn an Honour Seal. First to 3 or 5 Seals takes the Campaign. A Truce earns no Seal and the Battle is replayed. Shogun\'s Shame (5 Commands) and the Long Night (12 Commands) are fixed rules.', opts: [[1, 'Single Battle'], [3, 'First to 3'], [5, 'First to 5']] },
+    { key: 'hire', label: 'The Floating World', desc: 'How many Geisha are for hire. A clan can hold at most half.', opts: [[2, 'Quiet Evening (2)'], [4, 'Grand Banquet (4)']] },
+    { key: 'spectate', label: 'Who plays', desc: 'Play the bot yourself, or watch two bots play (handy for sanity checks).', opts: [[false, 'You vs bot'], [true, 'Bot vs bot']] },
+    { key: 'level', label: null, desc: 'Easy picks random Commands but never misses a Shogun capture. Normal and Hard are the cautious and aggressive heuristic bots. Expert fishes for Gunner and Onmyoji shots. Expert+ also searches three moves ahead once every Shroud is gone.', opts: LEVELS.map(l => [l.id, l.label]) },
+    { key: 'level2', label: 'Second bot (Rearguard)', desc: 'Only used when watching bot vs bot.', opts: LEVELS.map(l => [l.id, l.label]), only: 'spectate' },
+    { key: 'first', label: 'Who commands first in Battle 1 (The Omen)', desc: 'The Omen is a coin toss. Or choose. After Battle 1 the Vanguard alternates each Battle.', opts: [['omen', 'Omen (random)'], ['player', 'You'], ['bot', 'Bot']] },
+    { key: 'speed', label: 'Bot speed', desc: 'Delay between bot Commands.', opts: [['slow', 'Slow'], ['normal', 'Normal'], ['fast', 'Fast']] },
+  ];
+  function openCouncil() {
+    const p = $('panelCouncil');
+    let h = '<div class="panel-head"><h2>The War Council</h2><button class="chip-btn" type="button" data-close="sheetCouncil">Done</button></div>';
+    if (G && !G.over) h += '<p class="sub">Changes apply from the next Campaign.</p>';
+    for (const d of DEFS) {
+      if (d.only === 'spectate' && !settings.spectate) continue;
+      let lbl = d.label;
+      if (d.key === 'level') lbl = settings.spectate ? 'First bot (Vanguard)' : 'Bot level';
+      h += '<div class="set"><div class="lbl">' + esc(lbl) + '</div><div class="seg" role="group" aria-label="' + esc(lbl) + '">';
+      for (const [v, t] of d.opts) h += '<button type="button" data-k="' + d.key + '" data-v="' + esc(String(v)) + '" aria-pressed="' + (settings[d.key] === v) + '">' + esc(t) + '</button>';
+      h += '</div><div class="sub">' + esc(d.desc) + '</div></div>';
+    }
+    p.innerHTML = h;
+    $('sheetCouncil').hidden = false;
+    p.querySelectorAll('[data-k]').forEach(btn => btn.onclick = () => {
+      const d = DEFS.find(x => x.key === btn.dataset.k);
+      const opt = d.opts.find(o => String(o[0]) === btn.dataset.v);
+      settings[d.key] = opt[0];
+      LS.set('hsg_alpha_settings', settings);
+      openCouncil(); renderHome();
+    });
+  }
+  function recToCSVRow(r) {
+    const cm = r.campaign || { seals: {} };
+    const cols = [r.ts, r.mode, r.settings.campaignTo, cm.battle, r.settings.floatingWorld, r.settings.botLevel, r.settings.botLevel2, r.first, r.vanguard, r.playerSeat, r.playerClan,
+      r.result, r.winnerSeat, r.reason, r.commands, r.shogunKilledBy, r.shogunWasExposed, r.faceUp && r.faceUp.ivory, r.faceUp && r.faceUp.crimson, r.piecesLeft.ivory, r.piecesLeft.crimson,
+      r.shroudsLeft, r.shame.vanguardTriggeredAtCmd, r.shame.rearguardTriggeredAtCmd, r.shame.shogunFlipped.join('/'),
+      r.geisha.map(g => 'c' + g.cmd + ':' + g.flippedBy[0] + '>' + g.hiredBy[0] + (g.joinedOpponent ? '*' : '')).join(' '), r.hintsUsed, r.seconds, cm.sealTo, Object.values(cm.seals).join('-'), cm.over, cm.winner];
+    return cols.map(v => { const s = v === null || v === undefined ? '' : String(v); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }).join(',');
+  }
+  const CSV_HEAD = 'time,mode,campaignTo,battleNo,floatingWorld,botLevel,botLevel2,first,vanguard,playerSeat,playerClan,result,winnerSeat,reason,commands,shogunKilledBy,shogunExposed,ivoryFaceUp,crimsonFaceUp,ivoryLeft,crimsonLeft,shroudsLeft,shameVanguardCmd,shameRearguardCmd,shameFlipped,geisha(cmd:flipper>hirer *=joined opponent),hints,seconds,sealTo,sealsAfter,campaignOver,campaignWinner';
+  let exportMode = 'json', clearArm = false;
+  function openExport() {
+    const p = $('panelLog');
+    const text = exportMode === 'json' ? JSON.stringify(battleLog, null, 1) : [CSV_HEAD].concat(battleLog.map(recToCSVRow)).join('\n');
+    const wins = battleLog.filter(r => r.result === 'win').length, losses = battleLog.filter(r => r.result === 'loss').length, tr = battleLog.filter(r => r.result === 'truce').length;
+    const camps = battleLog.filter(r => r.campaign && r.campaign.over && r.campaign.to > 1 && r.mode === 'vs-bot'), campsWon = camps.filter(r => r.campaign.winner === 'You').length;
+    p.innerHTML = '<div class="panel-head"><h2>Playtest log</h2><button class="chip-btn" type="button" data-close="sheetLog">Close</button></div>' +
+      '<p class="sub">' + battleLog.length + ' Battles recorded on this device (you: ' + wins + ' won, ' + losses + ' lost, ' + tr + ' truce; Campaigns finished: ' + camps.length + ', won ' + campsWon + '). Copy it and paste it back into the chat.</p>' +
+      '<div class="seg"><button type="button" id="xJson" aria-pressed="' + (exportMode === 'json') + '">JSON (full, with moves)</button><button type="button" id="xCsv" aria-pressed="' + (exportMode === 'csv') + '">CSV (one row each)</button></div>' +
+      '<textarea class="out" id="xOut" readonly aria-label="Playtest data"></textarea>' +
+      '<div class="row"><button class="btn small" id="xCopy" type="button">Copy ' + exportMode.toUpperCase() + '</button><button class="btn ghost small" id="xClear" type="button">' + (clearArm ? 'Tap again to clear' : 'Clear log') + '</button></div><p class="sub" id="xMsg"></p>';
+    $('xOut').value = text;
+    $('sheetLog').hidden = false;
+    $('xJson').onclick = () => { exportMode = 'json'; openExport(); };
+    $('xCsv').onclick = () => { exportMode = 'csv'; openExport(); };
+    $('xCopy').onclick = async () => {
+      const ta = $('xOut');
+      try { await navigator.clipboard.writeText(ta.value); $('xMsg').textContent = 'Copied.'; }
+      catch (e) { ta.focus(); ta.select(); let okc = false; try { okc = document.execCommand('copy'); } catch (_) { /* fall through */ } $('xMsg').textContent = okc ? 'Copied.' : 'Text selected. Copy it with your device\'s copy command.'; }
+    };
+    $('xClear').onclick = () => { if (!clearArm) { clearArm = true; openExport(); return; } clearArm = false; battleLog = []; LS.set('hsg_alpha_log', battleLog); openExport(); renderHome(); };
+  }
+  function openBattleLog() {
+    const p = $('panelLog');
+    let h = '<div class="panel-head"><h2>Battle log</h2><button class="chip-btn" type="button" data-close="sheetLog">Close</button></div><div class="log">';
+    for (const l of G.logLines) { h += '<div><span class="n">' + l.n + '</span><span>' + esc(l.text) + '</span></div>'; for (const e of l.evs) h += '<div><span></span><span class="ev">' + esc(e) + '</span></div>'; }
+    if (!G.logLines.length) h += '<p class="sub">No Commands yet.</p>';
+    p.innerHTML = h + '</div><div class="row"><button class="btn ghost small" id="lgExport" type="button">Playtest log (all Battles)</button></div>';
+    $('sheetLog').hidden = false;
+    $('lgExport').onclick = openExport;
+    const lg = p.querySelector('.log'); lg.scrollTop = lg.scrollHeight;
+  }
+
+  function renderHome() {
+    const s = settings;
+    const rows = [['The Campaign', s.campaign === 1 ? 'Single Battle' : 'First to ' + s.campaign + ' Seals'], ['The Floating World', s.hire === 4 ? 'Grand Banquet (4)' : 'Quiet Evening (2)'],
+      [s.spectate ? 'Bots' : 'Bot level', s.spectate ? levelLabel(s.level) + ' v ' + levelLabel(s.level2) : levelLabel(s.level)], ['Commands first', { omen: 'The Omen (random)', player: 'You', bot: 'Bot' }[s.first]]];
+    $('summary').innerHTML = rows.map(r => '<dt>' + esc(r[0]) + '</dt><dd>' + esc(r[1]) + '</dd>').join('');
+    $('homeCount').textContent = battleLog.length ? battleLog.length + ' Battles recorded on this device.' : 'No Battles recorded yet.';
+    $('btnStart').textContent = s.spectate ? 'Watch the Battle' : 'Raise the Banners';
+  }
+
+  // ------------------------------------------------------------ wiring
+  $('board').addEventListener('click', e => { const t = e.target.closest('.tile'); if (t) onTile(+t.dataset.i); });
+  $('btnStart').onclick = newCampaign;
+  $('btnHomeCouncil').onclick = openCouncil;
+  $('btnCouncil').onclick = openCouncil;
+  $('btnRules').onclick = () => { $('sheetRules').hidden = false; };
+  $('btnLog').onclick = () => { if (G && G.logLines.length && !G.over) openBattleLog(); else openExport(); };
+  document.addEventListener('click', e => { const c = e.target.closest('[data-close]'); if (c) $(c.dataset.close).hidden = true; if (e.target.classList && e.target.classList.contains('sheet') && e.target.id !== 'sheetEnd' && e.target.id !== 'sheetConfirm') e.target.hidden = true; });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') for (const id of ['sheetCouncil', 'sheetRules', 'sheetLog', 'sheetConfirm']) $(id).hidden = true; });
+  window.__hsg = { get G() { return G; }, get C() { return C; }, settings, newCampaign, nextBattle, startBattle, finish, E, render, select };   // test hook
+  renderHome();
+})();
+</script>

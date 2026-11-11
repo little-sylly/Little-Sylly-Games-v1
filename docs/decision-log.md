@@ -19,6 +19,12 @@ Detail: pointer to the canonical doc (snapshot / impl note / spec / memory).
 ```
 
 
+## 2026-11-11 — Hide and Shogun gets its world; the v4 rules are trimmed, not redesigned (Strategy)
+**Decision:** `hsg` enters Stage 1b as **the Paper Castle** (hide-and-seek in a castle of paper doors, narrated by a rakugo Storyteller, "war with a wink"); the Geisha becomes a **Fox**, the cast goes plain-English, Shogun's Shame is cut, a Truce replay flips the first move; no further rule changes before human playtests.
+**Why:** an Opus review against Banqi found the core gains real (capture-the-Shogun win, distinct pieces, the comeback fox) but the rules over-patched by bot-tuning; the Geisha read badly for a family suite named for a child.
+**Changed:** `docs/new-game-brief-hide-and-shogun.md` (moved from the idea folder, draft v5), the idea folder's reference engines (Shame off by default; tests opt in), the template's roster row. **Detail:** brief §19.
+**Stage 1b closed the same day:** the owner took direction A's world (lacquer, lamplit paper, the Storyteller) with C's Castle (ink shadow-puppet pieces in a clan sash), and **Lantern gold `#B8862B`** as the brand. Lamp amber was rejected because the yellow shelf is full and amber is the scene's own light. Brief §0d + the Stage 2 appendix's build plan.
+
 ## 2026-11-11 (Phase 44) — E.T.A.'s phase gate passes; the phase stays open on the 3-phone re-play (Process)
 **Decision:** Protocol A passed for E.T.A.; the brief, spec, boards and maths round leave the repo; phase 44 stays open until R15 (≥ 3 phones on the current build).
 **Why:** every check is green, but round 1 is the only real table it has met — the content, Dotty and the units chip are unplayed (the phase-40 precedent).
