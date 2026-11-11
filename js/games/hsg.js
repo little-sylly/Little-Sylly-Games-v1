@@ -1007,9 +1007,17 @@ function hsgSealRowHTML(pub, seat) {
 
 const hsgEsc = s => String(s).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
 
+// The Shogun's status, drawn ON his tile: 'guarded' | 'exposed' | '' (not a Shogun in the open).
+// A Guard still behind a door counts, so this reads pub.guards, never the board.
+function hsgShogunState(pub, cell) {
+  const inf = hsgCellInfo(cell);
+  if (inf.kind !== 'piece' || inf.id !== 'Sg' || inf.col < 0) return '';
+  return pub.guards[inf.col] > 0 ? 'guarded' : 'exposed';
+}
+
 // THE RENDER SEAM — every tile in the game (the board, S10's gallery, S11's
 // Practice) is built here and nowhere else (spec §10). cell is a board string
-// ('Sg1' '#' '.' 'Fxp0'); opts = { size, mark, dir, armed, screen, last }.
+// ('Sg1' '#' '.' 'Fxp0'); opts = { size, mark, dir, armed, screen, last, guard: 'guarded'|'exposed' (a Shogun only) }.
 // A skin's image replaces the lamplit square and the silhouette; the game still
 // prints the crest, rank and name plate itself (brief §11: the art never paints the name).
 function hsgRenderTile(cell, opts) {
@@ -1040,6 +1048,7 @@ function hsgRenderTile(cell, opts) {
     h += '<span class="hsg-tile-crest" style="background:' + ink + '"><svg viewBox="0 0 12 12" aria-hidden="true"><path d="' + crest + '" fill="#FFF6DD"/></svg></span>'
        + (rank ? '<span class="hsg-rank">' + rank + '</span>' : '')
        + '<span class="hsg-sash" style="background:' + ink + '">' + hsgTypeName(inf.id) + '</span>';
+    if (inf.id === 'Sg' && opts.guard) h += '<span class="hsg-sg-frame is-' + opts.guard + '"></span><span class="hsg-sg-flag is-' + opts.guard + '">' + (opts.guard === 'guarded' ? 'Guarded' : 'Exposed') + '</span>';
   }
   if (opts.screen) h += '<span class="hsg-mark-screen"></span>';
   const m = opts.mark;
@@ -1089,6 +1098,7 @@ function hsgSquareLabel(pub, i, opts) {
     : inf.id === 'Fx' ? (inf.col >= 0 ? HSG_SHORT[inf.col] + ' fox' : 'a fox') : HSG_SHORT[inf.col] + ' ' + hsgTypeName(inf.id);
   const how = { dot: 'march here', chev: 'charge here', strike: 'strike', diag: 'strike', volley: 'volley', leap: 'leap' }[opts.mark];
   if (how) what += ', ' + how;
+  if (opts.guard) what += ', ' + opts.guard;
   if (opts.armed) what += ', tap again to open';
   return HsgRules.sq(i) + ', ' + what;
 }
@@ -1142,8 +1152,8 @@ function hsgRenderCastle() {
   for (let i = 0; i < HSG_CELLS; i++) {
     const sq = grid.children[i], m = mk.marks[i];
     const opts = { mark: m ? m.mark : '', dir: m ? m.dir : '', armed: i === hsgDoorArmed,
-      screen: mk.screens.indexOf(i) >= 0, last: i === lastSq };
-    const key = pub.board[i] + '|' + opts.mark + opts.dir + '|' + (opts.armed ? 1 : 0) + (opts.screen ? 1 : 0) + (opts.last ? 1 : 0);
+      screen: mk.screens.indexOf(i) >= 0, last: i === lastSq, guard: hsgShogunState(pub, pub.board[i]) };
+    const key = pub.board[i] + '|' + opts.guard + '|' + opts.mark + opts.dir + '|' + (opts.armed ? 1 : 0) + (opts.screen ? 1 : 0) + (opts.last ? 1 : 0);
     if (sq.getAttribute('data-key') !== key) {
       sq.innerHTML = '';
       sq.appendChild(hsgRenderTile(pub.board[i], opts));
@@ -1953,10 +1963,10 @@ const HSG_LESSONS = [
   { title: 'The Guard', goal: 'Take the last Guard, then the Shogun.', rows: 2, teamCol: [1, 0], dm: [1, 1],
     board: ['.', 'Sg0', '.', '.', '.', '.', 'Gd0', 'Gd1', '.', '.'],
     steps: [
-      { pick: 'While a Guard stands (even one still behind a door) the Shogun is Guarded, and nothing can touch him. Tap your Guard.',
+      { pick: 'While a Guard stands (even one still behind a door) the Shogun is Guarded (gold frame, see his flag) and nothing can touch him. Tap your Guard.',
         go: 'Strike their Guard.', from: () => [7], to: () => [6],
         allow: a => hsgPracIs(a, 'S', 7, 6), want: a => hsgPracIs(a, 'S', 7, 6) },
-      { pick: 'That was their last Guard, so the Shogun is Unguarded. Tap your Guard.',
+      { pick: 'That was their last Guard, so his flag flips to Exposed. Tap your Guard.',
         go: 'Strike the Shogun!', from: () => [6], to: () => [1],
         allow: a => hsgPracIs(a, 'S', 6, 1), want: a => hsgPracIs(a, 'S', 6, 1) }],
     win: () => 'The Shogun falls and the Battle is yours. Take the Guards first.' },
@@ -2139,7 +2149,7 @@ function hsgRenderPractice() {
     const b = el('button', 'hsg-sq' + (i === hsgPracSel ? ' is-picked' : '') + (i === hsgPracArmed ? ' is-armed' : '') + (ring.indexOf(i) >= 0 ? ' is-coach' : ''));
     b.type = 'button'; b.setAttribute('data-i', String(i));
     const m = mk.marks[i];
-    const opts = { mark: m ? m.mark : '', dir: m ? m.dir : '', armed: i === hsgPracArmed, screen: mk.screens.indexOf(i) >= 0 };
+    const opts = { mark: m ? m.mark : '', dir: m ? m.dir : '', armed: i === hsgPracArmed, screen: mk.screens.indexOf(i) >= 0, guard: hsgShogunState(pub, pub.board[i]) };
     b.appendChild(hsgRenderTile(pub.board[i], opts));
     b.setAttribute('aria-label', hsgSquareLabel(pub, i, opts));
     b.addEventListener('click', () => hsgPracTap(i));

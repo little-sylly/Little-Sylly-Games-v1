@@ -259,3 +259,6 @@ Nine lessons (brief §24), each a fixed engine state (`HsgRules.applyAct`, doors
 **Lesson learned:** a `from` ring that names fixed squares breaks once a piece has moved (lesson 9, first draft stuck on step 2) — a ring is a function of the state (`hsgPracOwn`).
 **Layout:** at 320×452 the sheet's header and three tabs leave ~190 px for the body, so a lesson scrolls inside it (same as Rules and Household); the coach line scrolls itself into view on each beat. Tabs squeezed to one row with a scoped CSS rule. Revisit at S12.
 **Not taught:** the full strike chart (Household), Sylly Mode (none), the Campaign.
+
+### DD-13 — The Shogun's Guarded / Exposed status lives on his tile (playtest, 12 Nov 2026)
+The bar's Guard ring was too quiet and Practice has no bars. `hsgRenderTile` takes `opts.guard` for an open Shogun: frame + flag, gold/solid vs red/dashed (never colour alone). Both the Castle and Practice pass `hsgShogunState(pub, cell)`; the Castle's tile key includes it so the tile redraws when the last Guard falls.
