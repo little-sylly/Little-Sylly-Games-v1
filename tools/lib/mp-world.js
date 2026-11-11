@@ -245,6 +245,7 @@ function boot(name, uid, phone, skew = 0) {
   };
   ['playLaunch', 'playExit', 'playDone', 'playSuccess', 'playBoing', 'playWhoosh', 'playPillClick', 'playTick']
     .forEach(n => { S[n] = () => {}; });
+  S.bindCardHold = () => {};          // engine.js press-and-hold binder; a presentational seam the wire never reaches
   S.lobbyLeaveForGame = () => { S.__leftForGame++; };
   // Mirrors the multiplayer half of engine.js resetToLobby() — lines 881-897 — plus
   // the one call this plan adds there. Task 4 asserts engine.js really makes it.

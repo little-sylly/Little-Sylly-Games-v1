@@ -555,7 +555,7 @@ section('8 · The codec');
   const endPub = d2.get('hsgPub');
   check('an ending pub survives the wire byte-identical', eq(d2.ctx.hsgWirePub(wire(endPub)), endPub) && endPub.result.gekokujo === true);
   check('the pub never carries the layout, the seed or the engine state', Object.keys(endPub).sort().join() ===
-    'battleNo,board,campaignLen,cmd,firstSeat,foxTotal,foxesHeld,guards,last,quiet,replay,result,seals,seatCol,struck,turnSeat');
+    'battleNo,board,campaignLen,cmd,firstSeat,foxTotal,foxesHeld,guards,last,quiet,replay,result,seals,seatCol,struck,turnSeat,wins');
   check('the result block holds only its six fields', Object.keys(endPub.result).sort().join() === 'by,campaignOver,counts,gekokujo,reason,winnerSeat');
 }
 

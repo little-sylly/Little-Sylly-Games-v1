@@ -83,6 +83,7 @@ let hsgBattleNo    = 1;        // a Truce replay keeps the number
 let hsgReplay      = false;
 let hsgFirstSeat   = 0;        // seat that opens this Battle; flips every Battle, replays included
 let hsgSeals       = [0, 0];   // per seat
+let hsgWins        = [];       // every Seal won, in order: seat | (clan colour << 1); colour 2 = no banner (hsgWinPack)
 let hsgStruck      = [0, 0];   // pieces struck per COLOUR, this Battle (War Chronicle stat)
 let hsgLast        = { k: 'none' };     // the last Command — see hsgBuildPub
 let hsgResult      = { reason: 'none' };// the Battle's result — see hsgBuildPub
@@ -184,6 +185,7 @@ function hsgWirePub(p) {
     quiet:       hsgNum(p.quiet, 0),
     struck:      hsgWireArr(p.struck, 2, 0),
     seals:       hsgWireArr(p.seals, 2, 0),
+    wins:        hsgWireList(p.wins).filter(w => typeof w === 'number' && w >= 0 && w <= 5),   // [] is erased in flight → rebuilt here
     campaignLen: hsgNum(p.campaignLen, 3),
     last:        { k: 'none' },
     result:      { reason: 'none' },
@@ -237,7 +239,7 @@ function hsgBuildPub() {
     foxTotal: S.cfg.hire,
     quiet: S.quiet,
     struck: hsgStruck.slice(),
-    seals: hsgSeals.slice(), campaignLen: hsgCampaignLen,
+    seals: hsgSeals.slice(), wins: hsgWins.slice(), campaignLen: hsgCampaignLen,
     last: hsgLast, result: res,
   });
 }
@@ -309,7 +311,7 @@ function hsgOnEnter() {
 // A fresh Campaign: Seals cleared, Battle 1, the fan tossed again.
 // (New Campaign on one phone, and the host's first Battle.)
 function hsgStartCampaign() {
-  hsgSeals = [0, 0];
+  hsgSeals = [0, 0]; hsgWins = [];
   hsgBattleNo = 1;
   hsgReplay = false;
   hsgFirstSeat = Math.random() < 0.5 ? 0 : 1;     // the Storyteller's fan toss
@@ -465,7 +467,12 @@ function hsgResultOf(o) {
 // beat. Host / one phone only; hsgHostCommand builds the snapshot afterwards.
 function hsgEndBattle(result) {
   if (hsgPhase === 'ending') return;               // idempotent: a Battle ends once
-  if (result.winnerSeat >= 0) hsgSeals[result.winnerSeat]++;
+  if (result.winnerSeat >= 0) {
+    hsgSeals[result.winnerSeat]++;
+    // The Seal is struck in the colour of the clan it was won as — a seat's clan changes Battle to Battle.
+    const tc = hsgB ? hsgB.S.teamCol[hsgTeamOfSeat(result.winnerSeat, hsgFirstSeat)] : null;
+    hsgWins.push(hsgWinPack(result.winnerSeat, tc === null || tc === undefined ? -1 : tc));
+  }
   result.campaignOver = hsgSeals.some(n => n >= hsgCampaignLen);
   hsgResult = result;
   hsgPhase = 'ending';
@@ -649,7 +656,7 @@ const hsgUnlock = () => { if (typeof mpUnlockSync === 'function') mpUnlockSync()
 function hsgTakePub(pub) {
   hsgPub = pub;
   hsgBattleNo = pub.battleNo; hsgReplay = pub.replay; hsgFirstSeat = pub.firstSeat;
-  hsgSeals = pub.seals.slice();
+  hsgSeals = pub.seals.slice(); hsgWins = pub.wins.slice();
   hsgSel = -1; hsgDoorArmed = -1;
 }
 
@@ -741,7 +748,7 @@ function hsgTeardown() {
   hsgStopBattleScene();
   hsgB = null; hsgPub = null; hsgPhase = 'idle';
   hsgSel = -1; hsgDoorArmed = -1;
-  hsgSeals = [0, 0]; hsgBattleNo = 1; hsgReplay = false;
+  hsgSeals = [0, 0]; hsgWins = []; hsgBattleNo = 1; hsgReplay = false;
   hsgStruck = [0, 0]; hsgLast = { k: 'none' }; hsgResult = { reason: 'none' };
   hsgNewsFx = [];
   hsgDragCancel();
@@ -972,6 +979,30 @@ const HSG_BRACKETS = 'M3 15 V3 H15 M43 3 H55 V15 M55 43 V55 H43 M15 55 H3 V43';
 const HSG_DIAMOND  = 'M20 12 L29 3 L38 12 M46 20 L55 29 L46 38 M38 46 L29 55 L20 46 M12 38 L3 29 L12 20';
 const HSG_CHEV_ROT = { d: 0, u: 180, r: -90, l: 90, '': 0 };
 
+// ── Honour Seals: struck in the clan's own colour and symbol (Sun / Moon) ────
+// hsgWins holds one packed int per Seal won, in the order won: seat | colour << 1,
+// colour 2 = the winner had no banner (cannot normally happen; drawn neutral).
+const hsgWinPack = (seat, col) => seat | ((col === 0 || col === 1 ? col : 2) << 1);
+const hsgWinSeat = w => w & 1;
+const hsgWinCol  = w => w >> 1;
+const hsgSeatWins = (pub, seat) => pub.wins.filter(w => hsgWinSeat(w) === seat);
+
+// One Seal. `col` undefined → an empty slot waiting to be won.
+function hsgSealHTML(col) {
+  if (col === undefined) return '<span class="hsg-seal"></span>';
+  const ink = col === 0 || col === 1 ? HSG_INK[col] : HSG_FOX_INK;
+  const glyph = col === 1 ? HSG_SUN : col === 0 ? HSG_MOON : HSG_PAW;
+  return '<span class="hsg-seal is-won" style="background:' + ink + '"><svg viewBox="0 0 12 12" aria-hidden="true"><path d="' + glyph + '" fill="#F3EAD7"/></svg></span>';
+}
+
+// A seat's row of Seals: the ones won (each in its clan's colour), then empty slots.
+function hsgSealRowHTML(pub, seat) {
+  const won = hsgSeatWins(pub, seat);
+  let h = '';
+  for (let k = 0; k < pub.campaignLen; k++) h += hsgSealHTML(k < won.length ? hsgWinCol(won[k]) : undefined);
+  return h;
+}
+
 const hsgEsc = s => String(s).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
 
 // THE RENDER SEAM — every tile in the game (the board, S10's gallery, S11's
@@ -1042,8 +1073,7 @@ function hsgBarHTML(pub, s) {
   const guarded = col < 0 || pub.guards[col] > 0;
   const guard = '<svg class="hsg-guard" viewBox="0 0 18 18" role="img" aria-label="' + (guarded ? 'Guarded' : 'Unguarded') + '"><circle cx="9" cy="9" r="6.5" fill="none" '
     + (guarded ? 'stroke="#C9A14A" stroke-width="2.6"' : 'stroke="rgba(243,234,215,.35)" stroke-width="2" stroke-dasharray="3 3"') + '/></svg>';
-  let seals = '';
-  for (let k = 0; k < pub.campaignLen; k++) seals += '<span class="hsg-seal' + (k < pub.seals[s] ? ' is-won' : '') + '"></span>';
+  const seals = hsgSealRowHTML(pub, s);
   return crest
     + '<div class="hsg-bar-who"><span class="hsg-bar-name">' + hsgEsc(hsgName(s)) + '</span><span class="hsg-bar-clan">' + (col >= 0 ? HSG_CLAN[col] : 'No banner yet') + '</span></div>'
     + '<div class="hsg-slots" role="img" aria-label="Foxes: ' + held + ' of ' + share + '">' + foxes + '</div>'
@@ -1101,6 +1131,7 @@ function hsgRenderCastle() {
       b.type = 'button';
       b.className = 'hsg-sq';
       b.setAttribute('data-i', String(i));
+      hsgBindCardHold(b, i);                           // long-press a piece → its Household row (S10)
       grid.appendChild(b);
     }
   }
@@ -1292,10 +1323,10 @@ function hsgReducedMotion() {
 // side's Seals filling from its own name inwards.
 function hsgTallyHTML(pub) {
   const L = hsgBottomSeat(), R = 1 - L;
-  const box = on => '<span class="hsg-seal' + (on ? ' is-won' : '') + '"></span>';
+  const wl = hsgSeatWins(pub, L), wr = hsgSeatWins(pub, R);
   let left = '', right = '';
-  for (let k = 0; k < pub.campaignLen; k++) left += box(k < pub.seals[L]);
-  for (let k = pub.campaignLen - 1; k >= 0; k--) right += box(k < pub.seals[R]);
+  for (let k = 0; k < pub.campaignLen; k++) left += hsgSealHTML(k < wl.length ? hsgWinCol(wl[k]) : undefined);
+  for (let k = pub.campaignLen - 1; k >= 0; k--) right += hsgSealHTML(k < wr.length ? hsgWinCol(wr[k]) : undefined);
   const n = s => pub.seals[s] + (pub.seals[s] === 1 ? ' Seal' : ' Seals');
   return '<span class="hsg-bi-name">' + hsgEsc(hsgName(L)) + '</span>'
     + '<span class="hsg-seals" role="img" aria-label="' + hsgEsc(hsgName(L)) + ' ' + n(L) + ', ' + hsgEsc(hsgName(R)) + ' ' + n(R) + '">'
@@ -1600,6 +1631,36 @@ function hsgChronicleModel(pub) {
 
 const HSG_CLOTH = { 0: '#2F3A6B', 1: '#A8321F', '-1': '#5A4636' };
 
+// The Honour Seals ledger: one lane per player, one column per Battle that gave a
+// Seal, left to right in the order they were won. Each Seal is struck in the clan
+// it was won as, so the page reads "who is ahead, and how it got there" at a glance.
+function hsgLedgerHTML(pub) {
+  const lanes = [hsgBottomSeat(), 1 - hsgBottomSeat()];
+  // Room for the Seals still to come (at least the Campaign's length), capped at the most Battles
+  // a Campaign can take — so the cells stay big and grow a column as the war drags on.
+  const cols = Math.min(2 * pub.campaignLen - 1, Math.max(pub.campaignLen, pub.wins.length + 1));
+  const spoken = [];
+  const lane = s => {
+    let cells = '';
+    for (let c = 0; c < cols; c++) {
+      const w = pub.wins[c];
+      cells += '<span class="hsg-ch-cell">' + (w !== undefined && hsgWinSeat(w) === s ? hsgSealHTML(hsgWinCol(w)) : '') + '</span>';
+    }
+    return '<span class="hsg-ch-lname">' + hsgEsc(hsgName(s)) + '</span>' + cells
+      + '<span class="hsg-ch-lsum">' + pub.seals[s] + '</span>';
+  };
+  pub.wins.forEach((w, i) => {
+    const c = hsgWinCol(w);
+    spoken.push('Seal ' + (i + 1) + ': ' + hsgName(hsgWinSeat(w)) + (c === 0 || c === 1 ? ' (' + HSG_CLAN[c] + ')' : ''));
+  });
+  let nums = '<span></span>';
+  for (let c = 0; c < cols; c++) nums += '<span class="hsg-ch-num">' + (c < pub.wins.length ? c + 1 : '') + '</span>';
+  return '<div class="hsg-ch-tallybox hsg-ch-seals"><span class="hsg-ch-tally-k">Honour Seals · first to ' + pub.campaignLen + '</span>'
+    + '<div class="hsg-ch-ledger" style="--cols:' + cols + '" role="img" aria-label="Honour Seals, in the order won. '
+    + hsgEsc(spoken.length ? spoken.join('. ') : 'None won yet') + '">'
+    + lane(lanes[0]) + lane(lanes[1]) + nums + '<span></span></div></div>';
+}
+
 // Draws one War Chronicle into its body and sets the Next Battle label. `final` is
 // the gameover (the Campaign is won); otherwise the screen between Battles.
 function hsgPaintChronicle(final) {
@@ -1608,7 +1669,9 @@ function hsgPaintChronicle(final) {
   const m = hsgChronicleModel(hsgPub);
   if (!body || !m) return;
   const banner = b => '<div class="hsg-ch-banner is-' + b.state + '" style="--cloth:' + (HSG_CLOTH[b.col] || HSG_CLOTH['-1']) + '">'
-    + (b.state === 'won' ? '<span class="hsg-ch-stamp" aria-hidden="true">勝</span>' : '')
+    + (b.col === 0 || b.col === 1
+        ? '<span class="hsg-ch-emblem" aria-hidden="true"><svg viewBox="0 0 12 12"><path d="' + (b.col === 1 ? HSG_SUN : HSG_MOON) + '" fill="#F3EAD7"/></svg></span>' : '')
+    + (b.state === 'won' ? '<span class="hsg-ch-stamp" style="background:' + (HSG_INK[b.col] || HSG_FOX_INK) + '" aria-hidden="true">勝</span>' : '')
     + '<span class="hsg-ch-clan">' + hsgEsc(b.clan) + '</span>'
     + '<span class="hsg-ch-who">' + hsgEsc(b.name) + '</span></div>';
   body.innerHTML =
@@ -1617,15 +1680,12 @@ function hsgPaintChronicle(final) {
     + '<h3 class="hsg-ch-head">' + hsgEsc(m.head) + '</h3>'
     + '<p class="hsg-ch-sub">' + hsgEsc(m.sub) + '</p>'
     + '<p class="hsg-ch-quote">' + hsgEsc(m.quote) + '</p>'
+    + (m.showTally ? hsgLedgerHTML(hsgPub) : '')      // the Seals are the focus: before the stats
     + '<div class="hsg-ch-stats">'
     +   '<div class="hsg-ch-stat"><span class="hsg-ch-stat-k">Commands</span><span class="hsg-ch-stat-v">' + m.commands + '</span></div>'
     +   '<div class="hsg-ch-stat"><span class="hsg-ch-stat-k">Pieces struck</span><span class="hsg-ch-stat-v is-two">'
     +     m.struck.map(x => '<span>' + x[0] + ' ' + x[1] + '</span>').join('') + '</span></div>'
-    + '</div>'
-    + (m.showTally
-        ? '<div class="hsg-ch-tallybox"><span class="hsg-ch-tally-k">Honour Seals · first to ' + hsgPub.campaignLen + '</span>'
-          + '<div class="hsg-ch-tally">' + hsgTallyHTML(hsgPub) + '</div></div>'
-        : '');
+    + '</div>';
   if (!final) {
     const btn = document.getElementById('btn-hsg-chron-next');
     if (btn) btn.textContent = m.cta;
@@ -1657,17 +1717,152 @@ function hsgSyncSettingsUI() {
   }
 }
 
-// The Rules body is the only one for now; S10 (Household) and S11 (Practice) add tabs.
-function hsgOpenHowTo() {
+// ── S10 — The Household: the How to Play gallery tab ─────────────────────────
+// One row per piece, drawn through hsgRenderTile (the only tile seam — a skin reaches
+// the gallery for free), then the ladder, the upsets and the loop. Pure data first.
+const HSG_HOUSEHOLD = [
+  { id: 'Sg', line: 'Strikes an adjacent piece, a fox excepted.',                         tip: 'Only a fox can reach him while a Guard stands.' },
+  { id: 'Gd', line: 'Strikes an adjacent piece, a fox excepted.',                         tip: 'While any Guard stands, even behind a door, the Shogun is Guarded.' },
+  { id: 'Mk', line: 'Marches and strikes on the diagonal. Takes anything but a fox.',     tip: 'The only piece that strikes diagonally.' },
+  { id: 'Sm', line: 'Strikes an adjacent piece of equal or lower rank. Charges 2.',       tip: 'The Charge needs two empty squares in a line.' },
+  { id: 'Nj', line: 'Leaps over exactly one piece to take anything beyond it, a fox too.', tip: 'Can’t hit an adjacent piece.' },
+  { id: 'Ar', line: 'Volleys a piece 2 or 3 squares away and stays put. Not a fox.',      tip: 'Can’t hit an adjacent piece.' },
+  { id: 'Fm', line: 'Strikes an adjacent Farmer, Archer or fox.',                         tip: 'Lowest rank, but chases off foxes.' },
+  { id: 'Fx', line: 'Strikes an adjacent Shogun, even a Guarded one. Nothing else.',      tip: 'Your third fox goes to your opponent.' },
+];
+const HSG_UPSETS = [
+  ['Archer', 'volleys a Guard or a Monk from across the board — rank doesn’t matter at range.'],
+  ['Ninja', 'leaps a screen to take anything beyond it, a fox included.'],
+  ['Monk', 'takes anything on the diagonal that no other piece can reach.'],
+  ['Farmer', 'chases off an Archer — and the foxes.'],
+  ['Fox', 'takes a Guarded Shogun, the top of the ladder.'],
+];
+const HSG_LOOP = [
+  ['Ar', 'The Archer volleys the Samurai from a distance.'],
+  ['Sm', 'The Samurai cuts down the Farmer up close.'],
+  ['Fm', 'The Farmer chases off the Archer.'],
+];
+// A piece's board string for the gallery: Crimson Sun's piece; the fox is the one nobody has found.
+const hsgGalleryCell = id => (id === 'Fx' ? 'Fxp0' : id + '1');
+
+function hsgRenderHousehold(highlightId) {
+  const box = document.getElementById('hsg-household-box');
+  if (!box) return;
+  box.innerHTML = '';
+  const card = cls => { const d = document.createElement('div'); d.className = 'bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2 ' + (cls || ''); return d; };
+  const text = (tag, cls, t) => { const e = document.createElement(tag); e.className = cls; e.textContent = t; return e; };
+  const label = t => text('p', 'text-xs font-semibold uppercase tracking-widest hsg-label', t);
+  const tile = (id, size) => {
+    const cell = hsgGalleryCell(id), inf = hsgCellInfo(cell);
+    const url = (typeof assetFace === 'function') && assetFace('hsg', inf.assetId);
+    return artMakeZoomable(hsgRenderTile(cell, { size }), url, hsgTypeName(id));
+  };
+
+  // The ladder
+  const ladder = card();
+  ladder.append(label('The ladder'), text('p', 'font-bold text-stone-800', 'Higher (or equal) strikes lower, up close'));
+  const chips = document.createElement('div');
+  chips.className = 'flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm text-stone-500';
+  HsgRules.IDS.filter(id => id !== 'Fx').forEach((id, k) => {
+    if (k) chips.appendChild(text('span', 'text-stone-300', '›'));
+    const c = text('span', 'font-semibold text-stone-700', HsgRules.RANK[id] + ' ' + hsgTypeName(id));
+    chips.appendChild(c);
+  });
+  ladder.append(chips, text('p', 'text-stone-500 text-sm', 'The ranged and the sneaky ignore it — that’s the next two cards.'));
+  box.appendChild(ladder);
+
+  // One row per piece, through the seam
+  HSG_HOUSEHOLD.forEach(p => {
+    const row = document.createElement('div');
+    row.className = 'flex items-center gap-3 rounded-2xl p-2.5 bg-white shadow-sm hsg-ref-row';
+    row.setAttribute('data-hsg-card-id', p.id);
+    const wrap = document.createElement('div');
+    wrap.className = 'flex-shrink-0';
+    wrap.appendChild(tile(p.id, 56));
+    const txt = document.createElement('div');
+    txt.className = 'flex flex-col gap-0.5 min-w-0';
+    txt.append(
+      text('p', 'font-bold text-stone-700 text-sm', hsgTypeName(p.id) + (p.id === 'Fx' ? '' : ' · rank ' + HsgRules.RANK[p.id])),
+      text('p', 'text-stone-500 text-xs', p.line),
+      text('p', 'text-stone-400 text-xs', 'Easy to miss: ' + p.tip.charAt(0).toLowerCase() + p.tip.slice(1)));
+    row.append(wrap, txt);
+    box.appendChild(row);
+  });
+
+  // The upsets
+  const up = card();
+  up.append(label('The upsets'), text('p', 'font-bold text-stone-800', 'Lower beats higher, five ways'));
+  const ul = document.createElement('ul');
+  ul.className = 'list-disc pl-5 flex flex-col gap-1 text-stone-500 text-sm';
+  HSG_UPSETS.forEach(([who, what]) => {
+    const li = document.createElement('li');
+    li.append(text('span', 'font-semibold text-stone-700', who), document.createTextNode(' ' + what));
+    ul.appendChild(li);
+  });
+  up.append(ul, text('p', 'text-stone-500 text-sm', 'Easy to miss: an Archer or a Ninja is helpless against the piece next to it.'));
+  box.appendChild(up);
+
+  // The loop triangle
+  const loop = card();
+  loop.append(label('The loop'), text('p', 'font-bold text-stone-800', 'Nobody is safe everywhere'));
+  const tri = document.createElement('div');
+  tri.className = 'flex items-center justify-center gap-2';
+  HSG_LOOP.forEach(([id], k) => {
+    if (k) tri.appendChild(text('span', 'text-stone-400 font-bold text-lg', '→'));
+    const w = document.createElement('div'); w.className = 'flex flex-col items-center gap-1';
+    w.appendChild(tile(id, 52));
+    tri.appendChild(w);
+  });
+  tri.appendChild(text('span', 'text-stone-400 font-bold text-lg', '↺'));
+  const lul = document.createElement('ul');
+  lul.className = 'list-disc pl-5 flex flex-col gap-1 text-stone-500 text-sm';
+  HSG_LOOP.forEach(([, line]) => lul.appendChild(text('li', '', line)));
+  loop.append(tri, lul);
+  box.appendChild(loop);
+
+  if (highlightId) refHighlightRow(box, 'data-hsg-card-id', highlightId, 'hsg-ref-row-ping');
+}
+
+function hsgSetHowToTab(tab, highlightId) {
+  const hh = tab === 'household';
+  const rules = document.getElementById('hsg-howto-body-rules');
+  const home  = document.getElementById('hsg-howto-body-household');
+  if (rules) rules.style.display = hh ? 'none' : 'flex';
+  if (home)  home.style.display  = hh ? 'flex' : 'none';
+  document.querySelectorAll('[data-hsg-howto-tab]').forEach(b => {
+    b.classList.remove('pill-active-hsg');         // .pill is the base — never removed
+    if (b.getAttribute('data-hsg-howto-tab') === tab) b.classList.add('pill-active-hsg');
+  });
+  if (hh) hsgRenderHousehold(highlightId);
+}
+
+// highlightId set → the Household tab, scrolled to that piece (refHighlightRow owns the scroll).
+function hsgOpenHowTo(tab, highlightId) {
   const ov = document.getElementById('hsg-how-to-overlay');
   if (!ov) return;
+  hsgSetHowToTab(highlightId ? 'household' : (tab || 'rules'), highlightId);
   // .overlay-data-inner, NOT .overflow-y-auto — the latter returns null silently.
   const inner = ov.querySelector('.overlay-data-inner');
   if (inner) inner.scrollTop = 0;
-  const body = document.getElementById('hsg-howto-body-rules');
-  if (body) body.scrollTop = 0;
+  if (!highlightId) ['hsg-howto-body-rules', 'hsg-howto-body-household'].forEach(id => {
+    const body = document.getElementById(id);
+    if (body) body.scrollTop = 0;
+  });
   ov.style.display = 'flex';
 }
+
+// Long-press a piece on the board → its row in the Household. A drag in flight is not a hold;
+// the hold swallows the click that would follow it so the piece isn't also selected.
+function hsgHoldSquare(i) {
+  if (!hsgPub || (hsgDrag && hsgDrag.moved)) return;
+  const inf = hsgCellInfo(hsgPub.board[i]);
+  if (inf.kind !== 'piece') return;                // a door or a bare floor has no row
+  hsgDragCancel();
+  hsgDragEndAt = Date.now();
+  playDone();
+  hsgOpenHowTo('household', inf.id);
+}
+function hsgBindCardHold(el, i) { bindCardHold(el, () => hsgHoldSquare(i)); }
 
 function hsgShow(id, on) {
   const el = document.getElementById(id);
@@ -1743,6 +1938,10 @@ if (typeof document !== 'undefined' && document.addEventListener) {
     // delegated backdrop tap-to-dismiss finds and clicks them.
     on('btn-hsg-settings-close', () => { playDone(); hsgShow('hsg-settings-overlay', false); });
     on('btn-hsg-howto-close',    () => { playDone(); hsgShow('hsg-how-to-overlay', false); });
+    on('btn-hsg-howto-household-close', () => { playDone(); hsgShow('hsg-how-to-overlay', false); });
+    document.querySelectorAll('[data-hsg-howto-tab]').forEach(b => {
+      b.addEventListener('click', () => { playPillClick(); hsgSetHowToTab(b.getAttribute('data-hsg-howto-tab')); });
+    });
     on('btn-hsg-how-to',         () => { playDone(); hsgOpenHowTo(); });
 
     // War Council pills. Values are numbers in state, strings in the DOM.

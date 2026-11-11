@@ -12616,15 +12616,17 @@ Reboot
     </div>
   </div>
 
-  <!-- HSG HOW TO PLAY — S3 ships the Rules tab only, as a plain single body. The tab bar
-       (Rules · Practice · The Household) arrives with the gallery (S10) and Practice (S11);
-       until then a one-tab bar would be decoration. Copy: brief §18. -->
+  <!-- HSG HOW TO PLAY — tab bar: The Rules · The Household (S10); Practice joins in S11. Copy: brief §18. -->
   <div id="hsg-how-to-overlay" style="display:none"
     class="fixed inset-0 bg-black/40 z-[90] flex items-end justify-center">
     <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
       <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
         <h2 class="text-xl font-bold text-stone-800">How to Play 🏯</h2>
         <p class="text-xs text-stone-400 mt-1">Two clans, thirty doors, a Shogun hiding behind one of them.</p>
+      </div>
+      <div class="px-5 pt-3 pb-3 border-b border-stone-200 flex-shrink-0 flex gap-2">
+        <button id="btn-hsg-howto-tab-rules" class="pill pill-active-hsg" data-hsg-howto-tab="rules">The Rules</button>
+        <button id="btn-hsg-howto-tab-household" class="pill" data-hsg-howto-tab="household">The Household</button>
       </div>
       <div id="hsg-howto-body-rules" class="overflow-y-auto flex flex-col gap-4 px-5 py-5">
 
@@ -12704,6 +12706,13 @@ Reboot
         </div>
 
         <button id="btn-hsg-howto-close"
+          class="hsg-cta min-h-14 w-full rounded-2xl text-xl font-semibold active:scale-95 transition-all duration-150">Got it</button>
+      </div>
+
+      <!-- The Household tab (S10): painted by hsgRenderHousehold() — every tile through hsgRenderTile. -->
+      <div id="hsg-howto-body-household" style="display:none" class="overflow-y-auto flex flex-col gap-4 px-5 py-5">
+        <div id="hsg-household-box" class="flex flex-col gap-4"></div>
+        <button id="btn-hsg-howto-household-close"
           class="hsg-cta min-h-14 w-full rounded-2xl text-xl font-semibold active:scale-95 transition-all duration-150">Got it</button>
       </div>
     </div>

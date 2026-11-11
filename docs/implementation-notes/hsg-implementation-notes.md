@@ -233,3 +233,20 @@ goes early. See DD-09.
 **Candidate rule for ui-motion.md:** a transient that *carries information* needs a still form chosen in
 JS (shown held, without animation, for the same time). A transient that is *only motion* may be skipped.
 Becomes a rule if a second game repeats it.
+
+## S10 — The Household, plus the seals and door pass (12 Nov 2026)
+
+### DD-10 — Honour Seals carry the clan they were won as (`pub.wins`)
+**Decision:** the shared red seal is gone. `hsgWins` records each Seal as `seat | colour << 1`, rides on the
+public copy as `pub.wins` (rebuilt on receipt with `hsgWireList`, since `[]` is erased in flight), and every
+seal (bars, Battle intro tally, Chronicle) is drawn in that clan's colour with its Sun / Moon symbol.
+**Why a record, not a count:** a seat's clan changes every Battle, so `seals[seat]` can't say which colour a
+Seal was. The record also gives the Chronicle its *order of wins*.
+**Chronicle:** the ledger (`hsgLedgerHTML`) now comes before the stats — a lane per player, a column per Seal,
+left to right in the order won. Columns = Campaign length, growing one per Battle up to 2N−1.
+`verify-hsg.js`'s pub-key allow-list gained `wins`; `tools/lib/mp-world.js` stubs `bindCardHold`.
+### DD-11 — The Household tab
+One row per piece through `hsgRenderTile` (never hand-built), then the ladder, the five upsets and the
+Archer → Samurai → Farmer → Archer loop. Long-press a board piece → its row (`hsgBindCardHold`); the hold
+cancels any drag in flight and swallows the follow-up click. Doors got a lacquer rim so a closed square reads
+as a square, not as part of the grid.

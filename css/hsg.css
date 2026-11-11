@@ -96,11 +96,15 @@
 .hsg-fox-slot.is-held { border-style: solid; border-color: #F3EAD7; }
 .hsg-guard { width: 18px; height: 18px; flex-shrink: 0; }
 .hsg-seals { display: flex; gap: 3px; flex-shrink: 0; }
+/* An Honour Seal: empty until won, then struck in the clan's own colour with its
+   symbol (Sun / Moon) — there is no shared seal, background is set inline. */
 .hsg-seal {
-  width: 14px; height: 14px; box-sizing: border-box; border-radius: 3px;
+  width: 14px; height: 14px; box-sizing: border-box; border-radius: 50%; flex-shrink: 0;
   border: 1.5px solid rgba(243,234,215,.4);
+  display: inline-flex; align-items: center; justify-content: center;
 }
-.hsg-seal.is-won { background: #C8402A; border-color: #C9A14A; }
+.hsg-seal.is-won { border-color: #C9A14A; }
+.hsg-seal svg { width: 68%; height: 68%; }
 
 /* ── The lantern beam: 12 lit = 12 − quiet Commands ────────────────────────── */
 .hsg-beam {
@@ -162,14 +166,19 @@
 }
 .hsg-tile > * { position: absolute; }
 .hsg-tile-asset { inset: 0; width: 100%; height: 100%; object-fit: cover; }
+/* A closed door is a framed panel: a thick lacquer rim with a gold inner line, a
+   bevel and a drop shadow mark WHERE the square is; the kumiko lines inside are
+   thin and soft so they read as paper detail, never as the board's grid. */
 .hsg-door {
-  inset: 0;
-  background-image: linear-gradient(#3A1F1A, #3A1F1A), linear-gradient(#3A1F1A, #3A1F1A),
-                    linear-gradient(#3A1F1A, #3A1F1A),
-                    radial-gradient(circle at 50% 52%, #FFF3D1 0%, #F8DFA3 45%, #EDC67C 100%);
-  background-size: 2.5px 100%, 100% 2.5px, 100% 2.5px, 100% 100%;
+  inset: 0; box-sizing: border-box;
+  border: .32em solid #8A3B22; border-radius: 3px;
+  background-image: linear-gradient(rgba(122,74,46,.5), rgba(122,74,46,.5)), linear-gradient(rgba(122,74,46,.5), rgba(122,74,46,.5)),
+                    linear-gradient(rgba(122,74,46,.5), rgba(122,74,46,.5)),
+                    radial-gradient(circle at 50% 52%, #FFF3D1 0%, #F8DFA3 45%, #E8BE70 100%);
+  background-size: 1.5px 100%, 100% 1.5px, 100% 1.5px, 100% 100%;
   background-position: 50% 0, 0 33%, 0 67%, 0 0;
   background-repeat: no-repeat;
+  box-shadow: inset 0 0 0 1px #D8AE5A, inset 0 0 9px rgba(110,55,20,.4), 0 2px 3px rgba(0,0,0,.55);
 }
 .hsg-floor { inset: 0; background: radial-gradient(circle at 50% 45%, #6A4A30 0%, #4A3022 70%, #3A2418 100%); }
 .hsg-lit   { inset: 0; background: radial-gradient(circle at 50% 40%, #FFF6DD 0%, #F6E2B0 55%, #E6C688 100%); }
@@ -304,7 +313,7 @@
 }
 .hsg-bi-name { min-width: 0; max-width: 34vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hsg-bi-tally .hsg-seals { gap: 4px; align-items: center; }
-.hsg-bi-tally .hsg-seal { width: 12px; height: 12px; border-radius: 2px; }
+.hsg-bi-tally .hsg-seal { width: 16px; height: 16px; }
 .hsg-bi-dot { opacity: .6; padding: 0 2px; }
 /* the stage: 315 × 262 at most, smaller when the glass is short; HsgScene fills it */
 .hsg-bi-stage { position: relative; flex: 1 1 262px; min-height: 0; width: 100%; max-width: 315px; max-height: 262px; }
@@ -431,7 +440,7 @@
 }
 .hsg-ch-banners { display: flex; justify-content: space-around; align-items: flex-start; gap: 12px; padding: 0 6px; }
 .hsg-ch-banner {
-  --len: 84px;
+  --len: 104px;
   position: relative; flex: 1 1 0; min-width: 0; max-width: 150px; height: var(--len);
   box-sizing: border-box; padding: 10px 6px 18px;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
@@ -440,8 +449,8 @@
   clip-path: polygon(0 0, 100% 0, 100% 100%, 50% calc(100% - 12px), 0 100%);
   transform-origin: 50% 0;
 }
-.hsg-ch-banner.is-won  { --len: 118px; }
-.hsg-ch-banner.is-even { --len: 98px; }
+.hsg-ch-banner.is-won  { --len: 142px; }
+.hsg-ch-banner.is-even { --len: 114px; }
 /* dimmed with a filter, not opacity: the unfurl ends at opacity 1 and would undo it */
 .hsg-ch-banner.is-lost { filter: saturate(.4) brightness(.62); }
 .hsg-ch-clan { font-size: 13px; font-weight: 700; line-height: 1.1; color: #F3EAD7; overflow-wrap: anywhere; }
@@ -479,7 +488,38 @@
 .hsg-ch-tally-k { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #D9C3A0; }
 .hsg-ch-tally { display: flex; align-items: center; justify-content: center; gap: 8px; max-width: 100%; font-size: 13px; color: #E3C894; line-height: 1.2; }
 .hsg-ch-tally .hsg-seals { gap: 4px; align-items: center; }
-.hsg-ch-tally .hsg-seal { width: 14px; height: 14px; border-radius: 2px; }
+.hsg-ch-tally .hsg-seal { width: 14px; height: 14px; }
+
+/* The Seals ledger — the Chronicle's focus: a lane per player, a column per Seal won,
+   left to right in the order won. Sits before the stats and is the biggest thing on the page. */
+.hsg-ch-seals { padding: 12px 12px 10px; gap: 8px; background: rgba(0,0,0,.3); box-shadow: inset 0 0 0 1.5px rgba(201,161,74,.55); }
+.hsg-ch-seals .hsg-ch-tally-k { font-size: 12px; color: #E3C894; }
+.hsg-ch-ledger {
+  width: 100%; display: grid; align-items: center; column-gap: 4px; row-gap: 6px;
+  grid-template-columns: minmax(0, 68px) repeat(var(--cols), minmax(0, 1fr)) auto;
+}
+.hsg-ch-lname { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; font-size: 14px; font-weight: 700; color: #F3EAD7; }
+.hsg-ch-lsum  { padding-left: 4px; font-size: 22px; font-weight: 700; line-height: 1; color: #F3EAD7; }
+.hsg-ch-cell {
+  position: relative; display: flex; align-items: center; justify-content: center;
+  width: 100%; max-width: 46px; aspect-ratio: 1; justify-self: center; box-sizing: border-box;
+  border-radius: 50%; border: 1.5px dashed rgba(243,234,215,.22);
+}
+.hsg-ch-cell .hsg-seal { position: absolute; inset: -1.5px; width: auto; height: auto; border-width: 2px; box-shadow: 0 2px 4px rgba(0,0,0,.45); }
+.hsg-ch-num { font-size: 11px; line-height: 1; color: #D9C3A0; text-align: center; }
+
+/* The Household gallery: a long-pressed board piece scrolls to its row and rings it
+   (box-shadow transition, not animation — the global reduced-motion block zeroes it). */
+.hsg-ref-row { transition: box-shadow .25s ease-out; }
+.hsg-ref-row-ping { box-shadow: 0 0 0 3px #E3C894, 0 2px 8px rgba(184,134,43,.35); }
+
+/* the clan's symbol hangs at the head of its banner */
+.hsg-ch-emblem {
+  width: 26px; height: 26px; box-sizing: border-box; border-radius: 50%; margin-bottom: 2px;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(0,0,0,.28); border: 1.5px solid #C9A14A;
+}
+.hsg-ch-emblem svg { width: 16px; height: 16px; }
 
 @keyframes hsgUnfurl { from { opacity: 0; transform: scaleY(.25); } to { opacity: 1; transform: none; } }
 @keyframes hsgStampIn { from { opacity: 0; transform: rotate(-6deg) scale(1.7); } to { opacity: 1; transform: rotate(-6deg); } }
@@ -505,10 +545,14 @@
   .hsg-scene-line { font-size: 15px; }
   /* the War Chronicle: a shorter hang and tighter rows (it still scrolls as a Stack below ~600 px) */
   .hsg-ch { gap: 6px; }
-  .hsg-ch-banner { --len: 66px; padding: 6px 6px 14px; }
-  .hsg-ch-banner.is-won  { --len: 92px; }
-  .hsg-ch-banner.is-even { --len: 78px; }
+  .hsg-ch-banner { --len: 82px; padding: 6px 6px 14px; }
+  .hsg-ch-banner.is-won  { --len: 118px; }
+  .hsg-ch-banner.is-even { --len: 92px; }
+  .hsg-ch-emblem { width: 20px; height: 20px; margin-bottom: 0; }
+  .hsg-ch-emblem svg { width: 12px; height: 12px; }
   .hsg-ch-stamp { width: 22px; height: 22px; font-size: 12px; margin-bottom: 2px; }
+  .hsg-ch-seals { padding: 8px 10px 8px; gap: 6px; }
+  .hsg-ch-lsum { font-size: 19px; }
   .hsg-ch-head { font-size: 26px; margin-top: 2px; }
   .hsg-ch-sub { font-size: 14px; }
   .hsg-ch-quote { font-size: 13px; padding: 6px 10px; }
