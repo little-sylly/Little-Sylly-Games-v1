@@ -172,6 +172,11 @@ seat 0 →  Sylvia: 12 stashed  ·  Max/Ruby/Theo: ••• stashed
 seat 1 →  Max:    30 stashed  ·  Sylvia/Ruby/Theo: ••• stashed
 ```
 
+**Test visibility with `el.checkVisibility()`, never `el.offsetParent !== null`.** `offsetParent` is
+`null` for anything `position: fixed` or inside a fixed screen (the engine Intro, overlays). A driver
+that reads it sees every button as hidden and taps nothing; the HSG S8 Solo run lost a 10-minute
+timeout to this.
+
 **Always attach `page.on('pageerror')`.** A render throw inside a SYNC applier escapes
 through `mpHandleEnvelope` and strands that device on the previous screen — CJAR BUG-06,
 which survived 222 green harness checks. Here it prints.

@@ -5,14 +5,15 @@
 //
 // ── BUILT SO FAR: S2 (state machine) · S3 (menu, War Council) · S4 (Castle) ─
 // ── · S5 (the Intro's scene + the Battle intro) · S6 (both War Chronicles) ──
-// ── · S7 (multi-device: the packet layer, the client path) ──────────────────
+// ── · S7 (multi-device: the packet layer, the client path) · S8 (bots, Solo) ─
 // The Campaign, the host's Command pipeline, the public-copy codec, the masked
 // state, and the Castle on one phone: hsgRenderTile (the art seam), the board,
 // the bars, the lantern beam, the message card, tap-tap, the two-tap door,
 // drag and drop. The Battle intro (toss · battle · replay) and the Intro's
 // Storyteller (hsgIntroScene over js/games/hsg-scene.js). The five packets and
 // their receivers (hsgHandleEnvelope — S7), proved by tools/verify-hsg-loopback.js.
-// Bots are S8, reconnect + the moments S9.
+// The bots' view / decide / submit (S8), proved by tools/verify-hsg-bots.js.
+// Reconnect + the moments are S9.
 //
 // Spec: docs/new-game-tech-hsg.md (§2 state flow, §4 state, §6 scoring, §7
 // validation, §11 packets + bots). It wins over the brief.
@@ -57,8 +58,8 @@
 //             js/games/hsg-scene.js (HsgScene — pure; the Storyteller),
 //             engine.js (showScreen — S3 registers the screens),
 //             engine-multiplayer.js (mpSendEnvelope, mpSendPrivate, mpPlayerSlots,
-//               mpIsBotSlot, mpBotsPrompt, mpSeatLabel, mpUnlockSync)
-// Read by: tools/verify-hsg.js (and verify-hsg-loopback / -bots from S7/S8).
+//               mpIsBotSlot, mpBotsPrompt, mpBotsCancel, mpSeatLabel, mpUnlockSync)
+// Read by: tools/verify-hsg.js, verify-hsg-loopback.js, verify-hsg-bots.js.
 // ═══════════════════════════════════════════════════════════════════════════
 
 // ── Settings (persist between play-agains; ride SETTINGS_SYNC) ─────────────
@@ -487,6 +488,63 @@ function hsgOpenCommand() {
   if (typeof mpIsBotSlot === 'function' && mpIsBotSlot(mpPlayerSlots[seat]) && typeof mpBotsPrompt === 'function') {
     mpBotsPrompt(hsgPub.cmd, [seat]);
   }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ── Bots (S8, spec §11 § Bots) — view → decide → submit ─────────────────────
+// ═══════════════════════════════════════════════════════════════════════════
+// The engine owns the timers (mpBotsPrompt); the game owns what a bot may see,
+// how it thinks, and the one record path its Command takes. Suite level →
+// prototype bot: Easy = easy, Medium = cautious, Hard = search3 (HsgRules.BOT_LEVELS).
+const HSG_BOT_THINK = { easy: [700, 1200], medium: [900, 1600], hard: [1100, 2000] };
+
+function hsgBotThinkMs(d, rng) {
+  const r = HSG_BOT_THINK[d] || HSG_BOT_THINK.medium;
+  return r[0] + rng() * (r[1] - r[0]);
+}
+
+// The seat's view: the public snapshot, plus the UNSEEN COUNTS (S.pool — how many
+// of each piece of each colour are still behind doors; anyone who has watched
+// every door open could work it out). Never a door's contents, never the seed.
+// A copy, not a reference: decide runs a think-time later, after hsgB has moved on.
+function hsgBotView(i) {
+  const unseen = {};
+  if (hsgB) Object.keys(hsgB.S.pool).forEach(k => { unseen[k] = hsgB.S.pool[k]; });
+  return { me: i, pub: hsgWirePub(hsgPub), unseen };
+}
+
+// The engine hands decide a bare () => float; HsgRules.choose wants the
+// prototype's rng object. Same stream, nothing else read.
+function hsgBotRng(rnd) {
+  const shuffle = arr => {
+    for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); const t = arr[i]; arr[i] = arr[j]; arr[j] = t; }
+    return arr;
+  };
+  return {
+    random: rnd,
+    choice: arr => arr[Math.floor(rnd() * arr.length)],
+    shuffle,
+    sample: (arr, k) => shuffle(arr.slice()).slice(0, k),
+  };
+}
+
+// PURE: reads only the view. Builds the masked state (every closed door an
+// opaque [-1,'?',false]), restores the unseen counts, and asks the engine's bot.
+// choose() reads a closed cell's contents only in evaluate(), which runs only
+// once no door is left closed — so the mask is never the thing it reasons about.
+function hsgBotDecide(view, difficulty, rng) {
+  const S = hsgMaskedState(view.pub);
+  S.pool = Object.assign({}, view.unseen);
+  const bot = HsgRules.BOTS[HsgRules.BOT_LEVELS[difficulty] || 'cautious'];
+  return HsgRules.choose(S, hsgTeamOfSeat(view.me, view.pub.firstSeat), hsgBotRng(rng), bot);
+}
+
+// The host's own record path, like its taps. A stale tag (the board moved on
+// while the bot thought) is dropped silently — hsgRepairSeat has nothing to
+// repair for a bot, and the bot that is current has already been prompted.
+function hsgBotSubmit(i, move, tag) {
+  if (!hsgPub || tag !== hsgPub.cmd || hsgPhase !== 'castle' || !Array.isArray(move)) return false;
+  return hsgHostCommand(i, move).ok;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

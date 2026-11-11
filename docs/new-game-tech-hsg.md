@@ -585,6 +585,11 @@ strength between the three is untested; the bots harness *reports* it (not an as
 - **Think time:** Easy 700–1,200 ms, Medium 900–1,600, Hard 1,100–2,000 — long enough to follow, and
   longer than a strike's animation. Hard's look-ahead runs inside `decide`; the harness times it (§15).
 
+*As built (S8):* the view is `{ me, pub, unseen }`, and `unseen` is a copy of the host's `S.pool`. The
+pub can't rebuild it (a struck piece's identity isn't kept), so taking it from the host costs no packet
+field (impl notes DD-07). `hsgBotRng` adapts the engine's bare `() => float` to `choose()`'s rng object.
+`hsgBotSubmit` also drops a wrong phase or a missing move. Hard measured 2.8 ms max on Node.
+
 ### Reconnect — adopt
 
 `reconnect: { sendState: idx => hsgSendState(idx), pause: () => {}, resume: () => {} }`

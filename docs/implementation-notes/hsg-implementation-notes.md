@@ -64,6 +64,11 @@ not a callback, and write base styles as the end state.
 **Why:** the two screens differ only in headline and buttons, and S7's client paints from the same pub, so the model is what `verify-hsg` pins (§ 13) and the DOM half stays presentation. Forfeit ("Priya left the field") is not built: Leave the Field dissolves the session for both (spec §11), so there is no screen to show it on.
 **Lesson:** a keyframe that ends at `opacity: 1` with fill-mode `both` silently undoes a static `opacity` dim on the same element — dim the loser banner with `filter`, not `opacity`.
 
+### DD-07 — The bot's view is the pub plus the host's unseen counts, not counts rebuilt from the pub (S8)
+**What:** `hsgBotView(i)` returns `{ me, pub, unseen }`, where `unseen` is a copy of `hsgB.S.pool`, the per-colour, per-piece count still behind doors. `hsgBotDecide` rebuilds the board with `hsgMaskedState(pub)`, puts `unseen` back as `S.pool`, and calls `HsgRules.choose()` through `hsgBotRng`, a `{ random, choice, shuffle, sample }` adapter over the engine's bare `() => float`.
+**Why:** the counts *are* public (anyone watching every door open could keep them), but the pub can't rebuild them: a struck piece leaves the board, and the pub keeps only a per-colour struck count plus the last victim. Keeping a running tally on the pub would have meant a new packet field for one consumer. Taking the counts from the host is the same information with no wire cost. Fairness holds because shuffling the closed doors leaves the multiset, and so `S.pool`, unchanged. `verify-hsg-bots` proves it at all three levels.
+**Think times:** Easy 700–1,200 ms, Medium 900–1,600 ms, Hard 1,100–2,000 ms (spec §11). Hard's `decide` measured at a max of 2.8 ms on Node with the look-ahead running, far under the 150 ms budget.
+
 ---
 
 ## Bug Index
@@ -130,6 +135,19 @@ client's pub **and** every string its renderers wrote (text, HTML, classes, attr
 appended children) are byte-identical.
 **Why:** a pub-only check would miss a renderer that read something other than the pub. The DOM walk
 catches it with no extra assertions per screen.
+
+### ML-04 — A decision-only fairness check can't fire here, so compare the view too, with a leaky control (S8)
+**What:** `HsgRules.choose()` reads a closed door's contents only in `evaluate()`, which runs only when
+no door is left closed. So a `decide` that reasoned over the host's **real** board would make the same
+decisions as the masked one, and "same decision under a shuffled layout" would stay green over a real
+leak. `verify-hsg-bots` compares the **view** byte for byte as well, and runs a deliberately leaky view
+(the layout attached) through the same comparison to show it goes red.
+**Mutants:** a layout leak, no stale-tag drop, the wrong seat→team map and a wrong think range each go
+red. Sharing `S.pool` by reference instead of copying it survives: `choose` only reads the pool, so that
+mutant is equivalent and the copy is defensive.
+**Lesson:** before trusting a fairness check, ask whether the code under test ever *reads* the hidden
+state. If it never does, the decision can't reveal a leak; the view, which is the actual contract, has
+to be what you check.
 
 ---
 

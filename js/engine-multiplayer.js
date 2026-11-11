@@ -576,9 +576,9 @@ const MP_GAME_CONFIGS = {
     // one phone -> the names screen. hsgOnEnter() owns all three (spec §11).
     onPassThePhone: () => hsgOnEnter(),
     recommendedMode: 'mdlm',
-    // 'solo' joins at S8 with the bots entry (it requires one); the reconnect hook (S9)
-    // is not adopted yet, so its verify-mp-configs pin stays put.
-    supportedModes:  ['ptp', 'mdlm'],
+    // 'solo' needs the bots entry below (S8). The reconnect hook (S9) is not adopted
+    // yet, so its verify-mp-configs pin stays put.
+    supportedModes:  ['ptp', 'mdlm', 'solo'],
     multiplayerOnly: false,
     rosterConfig:    { type: 'none' },    // two individuals, seat order from the lobby
     // Bare constants: no setting changes the player range (spec §5).
@@ -594,6 +594,16 @@ const MP_GAME_CONFIGS = {
       scene:    () => (typeof hsgIntroScene !== 'undefined' ? hsgIntroScene : null),
       brief:    () => (typeof hsgCampaignLen === 'undefined' || hsgCampaignLen === 3) ? 'default'
                      : hsgCampaignLen === 1 ? 'single' : 'five',
+    },
+    // Bots (S8, spec §11). Arrow wrappers: this object is built before hsg.js loads.
+    // Easy = easy, Medium = cautious, Hard = search3 (HsgRules.BOT_LEVELS).
+    bots: {
+      names:     ['Sylvia', 'Sam', 'The Lamplighter', 'The Gardener', 'The Cook', 'The Night Watch', 'The Tea Master'],
+      pillClass: 'pill-active-hsg',
+      view:      i => hsgBotView(i),
+      decide:    (v, d, rng) => hsgBotDecide(v, d, rng),
+      submit:    (i, move, tag) => hsgBotSubmit(i, move, tag),
+      thinkMs:   (d, rng) => hsgBotThinkMs(d, rng),
     },
   },
   comb: {
