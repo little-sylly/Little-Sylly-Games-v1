@@ -681,3 +681,16 @@
   .hsg-ch *, .hsg-ch *::before, .hsg-ch *::after,
   .hsg-scene *, .hsg-scene *::before, .hsg-scene *::after { animation: none !important; transition: none !important; }
 }
+
+/* ── Practice (S11): small fixed boards in the How to Play sheet ───────────── */
+.hsg-prac-grid .hsg-sq { transition: transform .12s ease-out, box-shadow .25s ease-out; }
+.hsg-sq.is-coach { box-shadow: 0 0 0 3px #F2B45A, 0 0 14px 3px rgba(242,180,90,.6); z-index: 1; }   /* the soft ring on the control being taught */
+.hsg-prac-frame { width: fit-content; }
+.hsg-prac-beam {
+  display: flex; align-items: center; justify-content: space-between; box-sizing: border-box;
+  height: 24px; padding: 0 8px; border-top: 2px solid #C9A14A; border-radius: 3px;
+  background: linear-gradient(#2A1712, #1C0F0B);
+}
+.hsg-prac-tick { background: #B8862B; color: #fff; }
+/* three tabs must share one row at 320 px */
+#hsg-how-to-overlay [data-hsg-howto-tab] { padding-left: .6rem; padding-right: .6rem; white-space: nowrap; font-size: .85rem; }

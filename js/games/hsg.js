@@ -288,7 +288,8 @@ function hsgMaskedState(pub) {
 // Same answer as the host's engine (before the banners a seat can only Open).
 function hsgLegalFor(pub, seat) {
   const S = hsgMaskedState(pub);
-  return HsgRules.battleLegal({ S, team: hsgTeamOfSeat(seat, pub.firstSeat), over: null });
+  const acts = HsgRules.battleLegal({ S, team: hsgTeamOfSeat(seat, pub.firstSeat), over: null });
+  return pub.pracFilter ? acts.filter(pub.pracFilter) : acts;   // Practice only (S11): keeps a lesson on its board and goal
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -745,6 +746,7 @@ function hsgClientNextBattle() {
 // Settings (hsgCampaignLen, hsgFoxes) persist. S3 wires this into resetToLobby().
 function hsgTeardown() {
   hsgStopTimers();
+  hsgPracStop(); hsgPracLesson = -1; hsgPracS = null;
   hsgStopBattleScene();
   hsgB = null; hsgPub = null; hsgPhase = 'idle';
   hsgSel = -1; hsgDoorArmed = -1;
@@ -1824,11 +1826,15 @@ function hsgRenderHousehold(highlightId) {
 }
 
 function hsgSetHowToTab(tab, highlightId) {
-  const hh = tab === 'household';
+  const hh = tab === 'household', pr = tab === 'practice';
   const rules = document.getElementById('hsg-howto-body-rules');
   const home  = document.getElementById('hsg-howto-body-household');
-  if (rules) rules.style.display = hh ? 'none' : 'flex';
+  const prac  = document.getElementById('hsg-howto-body-practice');
+  if (rules) rules.style.display = (hh || pr) ? 'none' : 'flex';
   if (home)  home.style.display  = hh ? 'flex' : 'none';
+  if (prac)  prac.style.display  = pr ? 'flex' : 'none';
+  hsgPracStop();                                   // leaving (or re-entering) Practice always stops its clock
+  if (pr) { hsgPracLesson = -1; hsgPracS = null; hsgRenderPractice(); }
   document.querySelectorAll('[data-hsg-howto-tab]').forEach(b => {
     b.classList.remove('pill-active-hsg');         // .pill is the base — never removed
     if (b.getAttribute('data-hsg-howto-tab') === tab) b.classList.add('pill-active-hsg');
@@ -1844,7 +1850,7 @@ function hsgOpenHowTo(tab, highlightId) {
   // .overlay-data-inner, NOT .overflow-y-auto — the latter returns null silently.
   const inner = ov.querySelector('.overlay-data-inner');
   if (inner) inner.scrollTop = 0;
-  if (!highlightId) ['hsg-howto-body-rules', 'hsg-howto-body-household'].forEach(id => {
+  if (!highlightId) ['hsg-howto-body-rules', 'hsg-howto-body-household', 'hsg-howto-body-practice'].forEach(id => {
     const body = document.getElementById(id);
     if (body) body.scrollTop = 0;
   });
@@ -1863,6 +1869,301 @@ function hsgHoldSquare(i) {
   hsgOpenHowTo('household', inf.id);
 }
 function hsgBindCardHold(el, i) { bindCardHold(el, () => hsgHoldSquare(i)); }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ── S11 — Practice: nine lessons on small fixed boards (brief §24) ──────────
+// ═══════════════════════════════════════════════════════════════════════════
+// Lessons form (COMB's shape). Every lesson is a real engine state (HsgRules.applyAct)
+// drawn through hsgRenderTile and tapped through hsgTapDecide / hsgMarksFor — the same
+// code the Castle runs. No multiplayer: nothing here sends a packet or touches hsgB /
+// hsgPub. Only the top `rows` rows of the 5×6 board are drawn; hsgLegalFor's pracFilter
+// keeps every Command inside them and on the lesson's goal, so a stray tap can't strand
+// the board. The player is always "You" (Crimson, seat 0); the scripted opponent is Sam.
+// Own timer bag (hsgPracTimers): stopped on tab-away, on close and in hsgTeardown().
+const HSG_PRAC_T = 48;
+const hsgPracRM = () => { try { return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); } catch (_) { return false; } };
+let hsgPracTimers = [];
+let hsgPracDone   = [];         // lesson indexes finished this visit (memory only)
+let hsgPracLesson = -1;         // -1 = the picker
+let hsgPracS      = null;       // the lesson's engine state
+let hsgPracStep   = 0;
+let hsgPracSel    = -1;
+let hsgPracArmed  = -1;
+let hsgPracBusy   = false;      // Sam's scripted reply is on its way
+let hsgPracEnd    = null;       // set when the lesson is won: { text }
+let hsgPracNote   = '';         // the reply's one-line caption
+
+function hsgPracLater(fn, ms) {
+  const h = setTimeout(() => { hsgPracTimers = hsgPracTimers.filter(x => x !== h); fn(); }, ms);
+  hsgPracTimers.push(h);
+  return h;
+}
+function hsgPracStop() {
+  hsgPracTimers.forEach(h => clearTimeout(h));
+  hsgPracTimers = [];
+  hsgPracBusy = false;
+}
+
+const hsgPracAll = n => Array.from({ length: n }, (_, i) => i);
+const hsgPracIs = (a, k, i, j, kind) => a[0] === k && a[1] === i && (j === undefined || a[2] === j) && (kind === undefined || a[3] === kind);
+// every piece of yours in the open (the ring on a lesson that lets you pick any of them)
+const hsgPracOwn = S => S.board.map((c, i) => (c && c[2] && c[0] === S.teamCol[0] ? i : -1)).filter(i => i >= 0);
+const hsgPracAnyOpen = a => a[0] === 'U';
+const hsgPracFoxStrike = (a, S) => a[0] === 'S' && a[1] === 2 && !!S.board[a[2]] && S.board[a[2]][1] === 'Fx';
+
+// board: row-major tokens, 5 per row. '.' empty · 'Sm1' open · '?Fm0' behind a door.
+// Colours: 1 = Crimson Sun (You) · 0 = Indigo Moon (Sam) · a '?Fx' is a fox nobody has found.
+const HSG_LESSONS = [
+  { title: 'Open a door', goal: 'Open one and the banners rise.', rows: 2, teamCol: null,
+    board: ['?Fm1', '?Ar0', '?Sm1', '?Mk0', '?Fm0', '?Gd1', '?Fm1', '?Nj0', '?Ar1', '?Sm0'],
+    steps: [{ pick: 'Every piece hides behind a door. Tap one.', armed: 'It lifted and asks “Open?”. Tap the same door again.', door: true,
+      from: () => hsgPracAll(10), allow: hsgPracAnyOpen, want: hsgPracAnyOpen }],
+    win: S => 'The banners rise: whoever finds the first clan piece decides who is Crimson and who is Indigo. You are ' + HSG_SHORT[S.teamCol[0]] + '.' },
+
+  { title: 'The ladder', goal: 'Strike a lower piece up close.', rows: 1, teamCol: [1, 0],
+    board: ['Sm1', 'Fm0', '.', 'Fm1', 'Sm0'],
+    steps: [{ pick: 'Tap your Samurai (rank 5).', go: 'Strike the Farmer (rank 2). Higher beats lower, up close.', from: () => [0], to: () => [1],
+      allow: a => hsgPracIs(a, 'S', 0, 1), want: a => hsgPracIs(a, 'S', 0, 1) }],
+    win: () => 'The Samurai takes the Farmer’s square. Higher (or equal) rank wins up close; the specialists bend that rule.' },
+
+  { title: 'The Archer', goal: 'Volley a piece 2 or 3 squares away.', rows: 1, teamCol: [1, 0],
+    board: ['Ar1', '.', '.', 'Sm0', '.'],
+    steps: [{ pick: 'Tap your Archer.', go: 'The Samurai is three squares away. Volley it!', from: () => [0], to: () => [3],
+      allow: a => hsgPracIs(a, 'S', 0, 3, 'v'), want: a => hsgPracIs(a, 'S', 0, 3, 'v') }],
+    win: () => 'Volley! The Archer fired from range and stayed put. Remember: beside a piece, an Archer is helpless.' },
+
+  { title: 'The Ninja', goal: 'Leap over a screen.', rows: 1, teamCol: [1, 0],
+    board: ['Nj1', 'Fm1', 'Ar0', '.', '.'],
+    steps: [{ pick: 'Tap your Ninja.', go: 'Leap over your Farmer (the screen) onto the Archer.', from: () => [0], to: () => [2],
+      allow: a => hsgPracIs(a, 'S', 0, 2, 'l'), want: a => hsgPracIs(a, 'S', 0, 2, 'l') }],
+    win: () => 'Leap! The Ninja needs exactly one piece in between, and can’t hit anything beside it.' },
+
+  { title: 'The Monk', goal: 'Strike on the diagonal.', rows: 2, teamCol: [1, 0],
+    board: ['.', '.', 'Ar0', '.', '.', '.', 'Mk1', '.', '.', '.'],
+    steps: [{ pick: 'Tap your Monk.', go: 'The Archer sits on his diagonal. Strike it.', from: () => [6], to: () => [2],
+      allow: a => hsgPracIs(a, 'S', 6, 2), want: a => hsgPracIs(a, 'S', 6, 2) }],
+    win: () => 'The Monk strikes corner to corner, the one direction nobody else can.' },
+
+  { title: 'The Samurai', goal: 'Charge past an Archer.', rows: 1, teamCol: [1, 0],
+    board: ['Sm1', '.', '.', 'Ar0', '.'],
+    steps: [{ pick: 'Tap your Samurai.', go: 'The chevrons show the Charge: two empty squares in a line. Land beside the Archer.', from: () => [0], to: () => [2],
+      allow: a => hsgPracIs(a, 'C', 0, 2), want: a => hsgPracIs(a, 'C', 0, 2) }],
+    win: () => 'Charged! The Archer shoots from 2–3 squares away, but beside the Samurai it can’t touch him, and he strikes next.' },
+
+  { title: 'The Guard', goal: 'Take the last Guard, then the Shogun.', rows: 2, teamCol: [1, 0], dm: [1, 1],
+    board: ['.', 'Sg0', '.', '.', '.', '.', 'Gd0', 'Gd1', '.', '.'],
+    steps: [
+      { pick: 'While a Guard stands (even one still behind a door) the Shogun is Guarded, and nothing can touch him. Tap your Guard.',
+        go: 'Strike their Guard.', from: () => [7], to: () => [6],
+        allow: a => hsgPracIs(a, 'S', 7, 6), want: a => hsgPracIs(a, 'S', 7, 6) },
+      { pick: 'That was their last Guard, so the Shogun is Unguarded. Tap your Guard.',
+        go: 'Strike the Shogun!', from: () => [6], to: () => [1],
+        allow: a => hsgPracIs(a, 'S', 6, 1), want: a => hsgPracIs(a, 'S', 6, 1) }],
+    win: () => 'The Shogun falls and the Battle is yours. Take the Guards first.' },
+
+  { title: 'The foxes', goal: 'Find one, then stop the enemy’s.', rows: 1, teamCol: [1, 0], hire: 2,
+    board: ['.', '?Fx', 'Fm1', '?Fx', '.'],
+    steps: [
+      { pick: 'Foxes hide behind doors too. Tap a door.', armed: 'Tap the same door again to open it.', door: true,
+        from: () => [1, 3], allow: hsgPracAnyOpen, want: hsgPracAnyOpen },
+      { pick: 'She sides with you: each clan can take half the foxes. Now tap the other door.', armed: 'Tap the same door again to open it.', door: true,
+        from: S => [1, 3].filter(i => !S.board[i][2]), allow: hsgPracAnyOpen, want: hsgPracAnyOpen },
+      { pick: 'That fox went to your opponent, and only a Farmer or the Ninja can stop her. Tap your Farmer.',
+        go: 'Strike the enemy fox.', from: () => [2], to: S => [1, 3].filter(i => S.board[i] && S.board[i][0] === S.teamCol[1]),
+        allow: hsgPracFoxStrike, want: hsgPracFoxStrike }],
+    win: () => 'She’s gone. Foxes slip past a Guarded Shogun, so keep a Farmer or the Ninja close.' },
+
+  { title: 'The Last Lantern', goal: 'Watch the count run down.', rows: 2, teamCol: [1, 0], quiet: 8, beam: true,
+    board: ['Fm1', 'Sm1', '.', 'Ar1', '?Fm0', '.', '?Gd0', '.', 'Mk0', 'Fm0'],
+    steps: [
+      { pick: 'Twelve quiet Commands in a row end the Battle; the lanterns above the board count them down. Tap a piece of yours.',
+        go: 'March it. A March burns a lantern; opening a door or striking relights them all.', from: hsgPracOwn,
+        allow: a => a[0] === 'M', want: a => a[0] === 'M', reply: true },
+      { pick: 'Sam marched too: both players burn lanterns. Tap a piece and march again.',
+        go: 'March it. Almost out.', from: hsgPracOwn,
+        allow: a => a[0] === 'M', want: a => a[0] === 'M', reply: true }],
+    win: (S, end) => 'The last lantern goes out! You have ' + end.counts[0] + ' pieces in the open, Sam has ' + end.counts[1]
+      + '. Closed doors count for no one. ' + (end.counts[0] > end.counts[1] ? 'You take the Battle.' : end.counts[0] < end.counts[1] ? 'Sam takes it.' : 'A Truce.') },
+];
+
+function hsgPracCell(tok) {
+  if (tok === '.') return null;
+  const closed = tok.charAt(0) === '?';
+  const t = closed ? tok.slice(1) : tok;
+  const type = t.slice(0, 2);
+  return [type === 'Fx' ? HsgRules.NEUTRAL : +t.charAt(2), type, !closed];
+}
+
+function hsgPracBuild(L) {
+  const board = new Array(HSG_CELLS).fill(null);
+  L.board.forEach((tok, i) => { board[i] = hsgPracCell(tok); });
+  const cfg = HsgRules.makeCfg({ hire: L.hire || 4 });
+  return { board, teamCol: L.teamCol ? L.teamCol.slice() : [null, null], dm: (L.dm || [2, 2]).slice(), quiet: L.quiet || 0,
+    pool: {}, cmd: 0, cfg, shrouds: board.filter(c => c && !c[2]).length, hired: [0, 0], pending: [] };
+}
+
+// The public-copy shape hsgTapDecide / hsgMarksFor / hsgLegalFor read, built from the lesson's state,
+// plus pracFilter (the one hook hsgLegalFor knows about: a Practice-only narrowing of the legal Commands).
+function hsgPracPub() {
+  const S = hsgPracS, L = HSG_LESSONS[hsgPracLesson], step = L.steps[Math.min(hsgPracStep, L.steps.length - 1)];
+  const lim = L.rows * 5;
+  return { battleNo: 1, replay: false, firstSeat: 0, turnSeat: 0, cmd: S.cmd,
+    board: S.board.map(c => hsgCellString(c, 0)),
+    seatCol: [S.teamCol[0] === null ? -1 : S.teamCol[0], S.teamCol[1] === null ? -1 : S.teamCol[1]],
+    guards: S.dm.slice(), foxesHeld: S.hired.slice(), foxTotal: S.cfg.hire, quiet: S.quiet,
+    struck: [0, 0], seals: [0, 0], wins: [], campaignLen: 1, last: { k: 'none' }, result: { reason: 'none' },
+    pracFilter: a => (a[0] === 'U' ? a[1] < lim : a[1] < lim && a[2] < lim) && step.allow(a, S) };
+}
+
+function hsgPracStart(n) {
+  hsgPracStop();
+  hsgPracLesson = n;
+  hsgPracS = hsgPracBuild(HSG_LESSONS[n]);
+  hsgPracStep = 0; hsgPracSel = -1; hsgPracArmed = -1; hsgPracEnd = null; hsgPracNote = '';
+  hsgRenderPractice();
+}
+
+function hsgPracSoundFor(a, out) {
+  if (a[0] === 'U') hsgSound(out.revealed && out.revealed[1] === 'Fx' ? 'fox' : 'open');
+  else if (a[0] === 'S') hsgSound(out.over && out.reason === 'shogun' ? 'foundYou' : a[3] === 'v' ? 'volley' : a[3] === 'l' ? 'leap' : 'strike');
+  else hsgSound('march');
+}
+
+function hsgPracTap(i) {
+  if (!hsgPracS || hsgPracBusy || hsgPracEnd) return;
+  const r = hsgTapDecide(hsgPracPub(), 0, hsgPracSel, hsgPracArmed, i);
+  hsgPracSel = r.sel; hsgPracArmed = r.armed;
+  if (r.act) hsgPracApply(r.act); else hsgRenderPractice();
+}
+
+function hsgPracApply(act) {
+  const L = HSG_LESSONS[hsgPracLesson], step = L.steps[hsgPracStep], S = hsgPracS;
+  const out = HsgRules.applyAct(S, 0, act);
+  hsgPracSel = -1; hsgPracArmed = -1;
+  hsgPracSoundFor(act, out);
+  if (out.over && out.reason !== 'shogun') hsgSound('lantern');
+  hsgPracStep++;
+  const finish = end => {
+    hsgPracEnd = { text: L.win(S, end) };
+    if (hsgPracDone.indexOf(hsgPracLesson) < 0) hsgPracDone.push(hsgPracLesson);
+    playSuccess();
+    hsgRenderPractice();
+  };
+  if (step.reply && !out.over) {
+    // Sam's scripted March, so the lantern really runs down (instant when motion is reduced)
+    hsgPracBusy = true; hsgPracNote = 'Sam marches too.';
+    hsgRenderPractice();
+    const reply = () => {
+      hsgPracBusy = false; hsgPracNote = '';
+      const m = HsgRules.legal(S, S.teamCol[1]).find(a => a[0] === 'M');
+      const o2 = m ? HsgRules.applyAct(S, 1, m) : { over: false };
+      if (m) hsgSound('march');
+      if (o2.over) { hsgSound('lantern'); finish(o2); }
+      else if (hsgPracStep >= L.steps.length) finish(o2);
+      else hsgRenderPractice();
+    };
+    if (hsgPracRM()) reply(); else hsgPracLater(reply, 600);
+    return;
+  }
+  if (hsgPracStep >= L.steps.length) finish(out); else hsgRenderPractice();
+}
+
+function hsgPracCaption(L) {
+  if (hsgPracEnd) return hsgPracEnd.text;
+  if (hsgPracNote) return hsgPracNote;
+  const step = L.steps[hsgPracStep];
+  if (hsgPracArmed >= 0) return step.armed || step.pick;
+  return hsgPracSel >= 0 && step.go ? step.go : step.pick;
+}
+
+function hsgRenderPractice() {
+  const box = document.getElementById('hsg-practice-box');
+  if (!box) return;
+  box.innerHTML = '';
+  const el = (tag, cls, t) => { const e = document.createElement(tag); if (cls) e.className = cls; if (t !== undefined) e.textContent = t; return e; };
+
+  if (hsgPracLesson < 0 || !hsgPracS) {                       // the picker
+    const head = el('div', 'bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2');
+    head.append(el('p', 'text-xs font-semibold uppercase tracking-widest hsg-label', 'Practice'),
+      el('p', 'font-bold text-stone-800', 'Nine small boards'),
+      el('p', 'text-stone-500 text-sm', 'One idea each, about half a minute. Pick any, leave any time.'));
+    box.appendChild(head);
+    HSG_LESSONS.forEach((L, n) => {
+      const b = el('button', 'flex items-center gap-3 rounded-2xl p-3 bg-white shadow-sm min-h-14 text-left active:scale-95 transition-transform duration-100');
+      b.type = 'button'; b.setAttribute('data-hsg-lesson', String(n));
+      const done = hsgPracDone.indexOf(n) >= 0;
+      const num = el('span', 'flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ' + (done ? 'hsg-prac-tick' : 'bg-stone-200 text-stone-600'), done ? '✓' : String(n + 1));
+      const txt = el('span', 'flex flex-col min-w-0');
+      txt.append(el('span', 'font-bold text-stone-800 text-sm', L.title), el('span', 'text-stone-500 text-xs', L.goal));
+      b.append(num, txt);
+      b.addEventListener('click', () => { playPillClick(); hsgPracStart(n); });
+      box.appendChild(b);
+    });
+    return;
+  }
+
+  const L = HSG_LESSONS[hsgPracLesson], S = hsgPracS, pub = hsgPracPub();
+  const top = el('div', 'flex items-center justify-between gap-2');
+  const back = el('button', 'min-h-11 px-3 rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-sm transition-transform duration-100', '← Lessons');
+  back.type = 'button'; back.id = 'btn-hsg-prac-back';
+  back.addEventListener('click', () => { playExit(); hsgPracStop(); hsgPracLesson = -1; hsgPracS = null; hsgRenderPractice(); });
+  const count = hsgPracEnd ? 'Done' : (hsgPracStep + 1) + ' / ' + L.steps.length;
+  top.append(back, el('p', 'text-xs font-semibold uppercase tracking-widest hsg-label', 'Lesson ' + (hsgPracLesson + 1) + ' of ' + HSG_LESSONS.length + ' · ' + count));
+  box.appendChild(top);
+
+  const coach = el('div', 'bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-1');
+  const cap = el('p', 'text-stone-500 text-sm', hsgPracCaption(L));
+  cap.id = 'hsg-prac-caption'; cap.setAttribute('aria-live', 'polite');
+  coach.append(el('p', 'font-bold text-stone-800', L.title), cap);
+  if (L.teamCol) coach.append(el('p', 'text-stone-400 text-xs', 'You are ' + HSG_SHORT[L.teamCol[0]] + ' · Sam is ' + HSG_SHORT[L.teamCol[1]]));
+  box.appendChild(coach);
+  if (cap.scrollIntoView) cap.scrollIntoView({ block: 'nearest' });   // a new coach line comes back into view
+
+  if (L.beam) {
+    const lit = Math.max(0, 12 - S.quiet);
+    const beam = el('div', 'hsg-prac-beam');
+    beam.setAttribute('role', 'img'); beam.setAttribute('aria-label', lit + ' of 12 lanterns lit');
+    for (let k = 0; k < 12; k++) beam.appendChild(el('span', 'hsg-lantern' + (k < lit ? ' is-lit' : '')));
+    box.appendChild(beam);
+  }
+
+  // the board: the top rows of the real grid, every tile through the seam
+  const frame = el('div', 'hsg-frame hsg-prac-frame');
+  frame.style.cssText = '--hsg-fp:6px;--hsg-fb:2px;--hsg-tg:3px;--hsg-t:' + HSG_PRAC_T + 'px';
+  const grid = el('div', 'hsg-grid hsg-prac-grid');
+  const live = !hsgPracEnd && !hsgPracBusy;
+  const mk = live ? hsgMarksFor(pub, 0, hsgPracSel) : { marks: {}, screens: [] };
+  const step = L.steps[Math.min(hsgPracStep, L.steps.length - 1)];
+  const ring = !live ? [] : hsgPracArmed >= 0 ? [hsgPracArmed] : hsgPracSel >= 0 ? (step.to ? step.to(S) : []) : (step.from ? step.from(S) : []);
+  for (let i = 0; i < L.rows * 5; i++) {
+    const b = el('button', 'hsg-sq' + (i === hsgPracSel ? ' is-picked' : '') + (i === hsgPracArmed ? ' is-armed' : '') + (ring.indexOf(i) >= 0 ? ' is-coach' : ''));
+    b.type = 'button'; b.setAttribute('data-i', String(i));
+    const m = mk.marks[i];
+    const opts = { mark: m ? m.mark : '', dir: m ? m.dir : '', armed: i === hsgPracArmed, screen: mk.screens.indexOf(i) >= 0 };
+    b.appendChild(hsgRenderTile(pub.board[i], opts));
+    b.setAttribute('aria-label', hsgSquareLabel(pub, i, opts));
+    b.addEventListener('click', () => hsgPracTap(i));
+    grid.appendChild(b);
+  }
+  grid.style.gridTemplateColumns = 'repeat(5, ' + HSG_PRAC_T + 'px)';
+  frame.appendChild(grid);
+  const wrap = el('div', 'flex justify-center');
+  wrap.appendChild(frame);
+  box.appendChild(wrap);
+
+  const row = el('div', 'flex gap-2');
+  const again = el('button', 'min-h-14 flex-1 rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-lg transition-all duration-150', 'Practice again');
+  again.type = 'button'; again.id = 'btn-hsg-prac-again';
+  again.addEventListener('click', () => { playPillClick(); hsgPracStart(hsgPracLesson); });
+  row.appendChild(again);
+  if (hsgPracEnd && hsgPracLesson < HSG_LESSONS.length - 1) {
+    const next = el('button', 'hsg-cta min-h-14 flex-1 rounded-2xl font-semibold text-lg active:scale-95 transition-all duration-150', 'Next lesson');
+    next.type = 'button'; next.id = 'btn-hsg-prac-next';
+    next.addEventListener('click', () => { playPillClick(); hsgPracStart(hsgPracLesson + 1); });
+    row.appendChild(next);
+  }
+  box.appendChild(row);
+}
 
 function hsgShow(id, on) {
   const el = document.getElementById(id);
@@ -1937,8 +2238,10 @@ if (typeof document !== 'undefined' && document.addEventListener) {
     // Overlay dismissals — ids end in a `close`/`cancel` segment so the engine's
     // delegated backdrop tap-to-dismiss finds and clicks them.
     on('btn-hsg-settings-close', () => { playDone(); hsgShow('hsg-settings-overlay', false); });
-    on('btn-hsg-howto-close',    () => { playDone(); hsgShow('hsg-how-to-overlay', false); });
-    on('btn-hsg-howto-household-close', () => { playDone(); hsgShow('hsg-how-to-overlay', false); });
+    const closeHowTo = () => { playDone(); hsgPracStop(); hsgShow('hsg-how-to-overlay', false); };
+    on('btn-hsg-howto-close',    closeHowTo);
+    on('btn-hsg-howto-household-close', closeHowTo);
+    on('btn-hsg-howto-practice-close', closeHowTo);
     document.querySelectorAll('[data-hsg-howto-tab]').forEach(b => {
       b.addEventListener('click', () => { playPillClick(); hsgSetHowToTab(b.getAttribute('data-hsg-howto-tab')); });
     });

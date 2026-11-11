@@ -250,3 +250,12 @@ One row per piece through `hsgRenderTile` (never hand-built), then the ladder, t
 Archer → Samurai → Farmer → Archer loop. Long-press a board piece → its row (`hsgBindCardHold`); the hold
 cancels any drag in flight and swallows the follow-up click. Doors got a lacquer rim so a closed square reads
 as a square, not as part of the grid.
+
+## S11 — Practice (12 Nov 2026)
+
+### DD-12 — Practice runs the real rules through the Castle's own tap code
+Nine lessons (brief §24), each a fixed engine state (`HsgRules.applyAct`, doors holding real hidden pieces) turned into a public-copy-shaped object by `hsgPracPub()`, so `hsgTapDecide` / `hsgMarksFor` / `hsgRenderTile` run unchanged. Only the top `rows` rows are drawn; `hsgLegalFor` got one optional line (`pub.pracFilter`) that narrows legal Commands to the drawn rows **and the taught move**, so a stray tap can't strand a board and a lifted piece shows exactly one mark. Sam (the cast) only moves in the Last Lantern lesson: a scripted March per player March, so the beam really runs 8 → 12; the reply waits 600 ms on `hsgPracTimers`, or is instant when `matchMedia('(prefers-reduced-motion: reduce)')` is true.
+**Why a filter, not free play:** the brief's checks are single moves; letting the player wander makes every lesson need a recovery path. "Practice again" is the recovery.
+**Lesson learned:** a `from` ring that names fixed squares breaks once a piece has moved (lesson 9, first draft stuck on step 2) — a ring is a function of the state (`hsgPracOwn`).
+**Layout:** at 320×452 the sheet's header and three tabs leave ~190 px for the body, so a lesson scrolls inside it (same as Rules and Household); the coach line scrolls itself into view on each beat. Tabs squeezed to one row with a scoped CSS rule. Revisit at S12.
+**Not taught:** the full strike chart (Household), Sylly Mode (none), the Campaign.
