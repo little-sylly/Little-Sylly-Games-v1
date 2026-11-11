@@ -3,14 +3,16 @@
 // every one. Find their Shogun before they find yours.
 // Two players, host-authoritative, hidden information (the closed doors).
 //
-// ── STAGE S2 — THE STATE MACHINE, HEADLESS ──────────────────────────────────
-// This file is the Campaign, the host's Command pipeline, the public-copy codec
-// and the masked state. There is NO markup, NO render function and NO packet
-// RECEIVER here yet: screens are S3–S6, the client path is S7, bots S8,
-// reconnect S9. The send sites below (HSG_BATTLE_START, HSG_COMMAND_DONE,
-// HSG_STATE) are drafts until S7 writes their receivers and re-reads them
-// through a loopback (logic-engine.md — "a send site written without a
-// receiver is a draft").
+// ── BUILT SO FAR: S2 (state machine) · S3 (menu, War Council) · S4 (Castle) ─
+// ── · S5 (the Intro's scene + the Battle intro) · S6 (both War Chronicles) ──
+// ── · S7 (multi-device: the packet layer, the client path) ──────────────────
+// The Campaign, the host's Command pipeline, the public-copy codec, the masked
+// state, and the Castle on one phone: hsgRenderTile (the art seam), the board,
+// the bars, the lantern beam, the message card, tap-tap, the two-tap door,
+// drag and drop. The Battle intro (toss · battle · replay) and the Intro's
+// Storyteller (hsgIntroScene over js/games/hsg-scene.js). The five packets and
+// their receivers (hsgHandleEnvelope — S7), proved by tools/verify-hsg-loopback.js.
+// Bots are S8, reconnect + the moments S9.
 //
 // Spec: docs/new-game-tech-hsg.md (§2 state flow, §4 state, §6 scoring, §7
 // validation, §11 packets + bots). It wins over the brief.
@@ -52,6 +54,7 @@
 //     Battle). The seed never leaves the host and is never put in a packet.
 //
 // Depends on: js/games/hsg-rules.js (HsgRules — pure),
+//             js/games/hsg-scene.js (HsgScene — pure; the Storyteller),
 //             engine.js (showScreen — S3 registers the screens),
 //             engine-multiplayer.js (mpSendEnvelope, mpSendPrivate, mpPlayerSlots,
 //               mpIsBotSlot, mpBotsPrompt, mpSeatLabel, mpUnlockSync)
@@ -87,11 +90,26 @@ let hsgSel         = -1;       // square of the lifted piece, -1 = none
 let hsgDoorArmed   = -1;       // square of the lifted door ("Open?"), -1 = none
 let hsgFlavourIdx  = 0;        // Battle intro line (host-picked in multi-device)
 let hsgTimers      = [];       // EVERY setTimeout handle this game owns — hsgStopTimers() clears all
+let hsgNewsFx      = [];       // the last Command's moment keys (HSG_COMMAND_DONE's fx) — the message card's news
+let hsgDrag        = null;     // a drag in progress: { from, x0, y0, moved, pid, ghost } — DOM only
+let hsgDragEndAt   = 0;        // Date.now() when a drag dropped: swallows the click that follows it
+let hsgBattleScene = null;     // the Battle intro's own HsgScene instance (mounted per Battle; stopped on leaving)
 
 // ── Constants ───────────────────────────────────────────────────────────────
 const HSG_BATTLE_INTRO_MS = 3500;   // "about 3.5 s, by itself" (spec §2)
+const HSG_TOSS_INTRO_MS   = 4500;   // Battle 1: the fan is in the air first, then the verdict needs reading (DD-04)
+const HSG_SNAP_MS         = 900;    // the Storyteller snaps his fan and the call appears (Battle N / replay)
+const HSG_TOSS_LAND_MS    = 1700;   // …or the tossed fan lands and the call appears (Battle 1)
 const HSG_ENDING_MS       = 2400;   // the Found you! / last-lantern / Cornered beat before the Chronicle
-const HSG_FLAVOUR_LINES   = 5;      // brief §0c — one picked per Battle by the host
+// brief §0c — one picked per Battle by the host (its index rides HSG_BATTLE_START)
+const HSG_FLAVOUR = [
+  'Everyone hide! Ready or not…',
+  'The doors are shut. Somebody is giggling behind one.',
+  'Thirty doors, two Shoguns, and far too many foxes.',
+  'Quietly now. Shoguns are terrible at hiding.',
+  'The lamps are lit. The hunt begins.',
+];
+const HSG_FLAVOUR_LINES   = HSG_FLAVOUR.length;
 const HSG_CELLS           = 30;     // 5 × 6
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -167,7 +185,9 @@ function hsgWirePub(p) {
     result:      { reason: 'none' },
   };
   const lk = hsgStr(last.k, 'none');
-  if (lk !== 'none') out.last = { k: lk, i: hsgNum(last.i, 0), j: hsgNum(last.j, 0), kind: hsgStr(last.kind, '') };
+  // seat = who made it; vid = the piece struck ('' unless a Strike) — both were in the open.
+  if (lk !== 'none') out.last = { k: lk, i: hsgNum(last.i, 0), j: hsgNum(last.j, 0), kind: hsgStr(last.kind, ''),
+    seat: hsgNum(last.seat, 0), vid: hsgStr(last.vid, '') };
   const rr = hsgStr(res.reason, 'none');
   if (rr !== 'none') {
     out.result = {
@@ -276,7 +296,9 @@ function hsgOnEnter() {
   const mode = window.syllyMultiplayerMode;
   if (mode === 'single') { hsgGo('screen-hsg-setup'); return; }
   hsgNames = [0, 1].map(i => mpSeatLabel(i));
-  if (mode === 'client') { hsgGo('screen-hsg-standby'); return; }
+  // A client holds nothing until the host's HSG_BATTLE_START: clear what a previous
+  // match (a Play Again in the same room) left behind, then wait. Safe to re-run.
+  if (mode === 'client') { hsgTeardown(); hsgGo('screen-hsg-standby'); return; }
   hsgStartCampaign();
 }
 
@@ -302,19 +324,56 @@ function hsgStartBattle() {
   hsgStruck = [0, 0];
   hsgLast = { k: 'none' };
   hsgResult = { reason: 'none' };
-  hsgSel = -1; hsgDoorArmed = -1;
+  hsgSel = -1; hsgDoorArmed = -1; hsgNewsFx = [];
   hsgFlavourIdx = Math.floor(Math.random() * HSG_FLAVOUR_LINES);
   hsgPhase = 'battle-intro';
   hsgPub = hsgBuildPub();
   if (hsgIsHost()) mpSendEnvelope({ type: 'SYNC', payload: { action: 'HSG_BATTLE_START', pub: hsgPub, flavourIdx: hsgFlavourIdx } });
+  hsgShowBattleIntro();
+}
+
+// Paints and shows the Battle intro from hsgPub + hsgFlavourIdx, and schedules its
+// two beats: the fan snap (sound — the picture is CSS on the same number) and the
+// end. Every device runs this itself — the client from HSG_BATTLE_START (S7) — so
+// the timing is a pure function of the pub (hsgBattleIntroMs) and nothing is sent.
+function hsgShowBattleIntro() {
+  const bi = hsgBattleIntroText(hsgPub, hsgFlavourIdx);
+  hsgPaintBattleIntro(bi);
   hsgGo('screen-hsg-battle-intro');
-  hsgLater(hsgBattleIntroDone, HSG_BATTLE_INTRO_MS);
+  hsgLater(() => { if (hsgPhase === 'battle-intro') hsgSound('fan'); }, bi.snapMs);
+  hsgLater(hsgBattleIntroDone, bi.ms);
+}
+
+// The Battle intro's words and timing — pure, from the public copy alone (spec §2
+// sub-states: toss · battle · replay). Battle 1 of a Campaign is the fan toss; a
+// Truce replay keeps the Battle number and says "again".
+function hsgBattleIntroText(pub, flavourIdx) {
+  const state = pub.replay ? 'replay' : pub.battleNo === 1 ? 'toss' : 'battle';
+  const who = hsgName(pub.firstSeat);
+  const idx = Number.isInteger(flavourIdx) && flavourIdx >= 0 && flavourIdx < HSG_FLAVOUR_LINES ? flavourIdx : 0;
+  return {
+    state,
+    title:   'Battle ' + pub.battleNo + (state === 'replay' ? ', again' : ''),
+    flavour: state === 'toss'   ? 'Ahem! Who goes first? The fan decides…'
+           : state === 'replay' ? 'A Truce! Everyone back behind the doors.'
+           : HSG_FLAVOUR[idx],
+    call:    state === 'toss'   ? 'It lands on ' + who + '. ' + who + ' opens the first door.'
+           : state === 'replay' ? who + ' opens the first door this time.'
+           : who + ' opens the first door.',
+    ms:      hsgBattleIntroMs(pub),
+    snapMs:  state === 'toss' ? HSG_TOSS_LAND_MS : HSG_SNAP_MS,
+  };
+}
+function hsgBattleIntroMs(pub) {
+  return (!pub.replay && pub.battleNo === 1) ? HSG_TOSS_INTRO_MS : HSG_BATTLE_INTRO_MS;
 }
 
 // The host's Battle intro ends (each device runs its own timer; nothing is sent).
 function hsgBattleIntroDone() {
   if (hsgPhase !== 'battle-intro') return;
+  hsgStopBattleScene();
   hsgPhase = 'castle';
+  hsgRenderCastle();                               // painted before it is shown
   hsgGo('screen-hsg-castle');
   hsgOpenCommand();
 }
@@ -322,10 +381,13 @@ function hsgBattleIntroDone() {
 // Next Battle / Replay the Battle. EITHER player may tap it: the first tap wins
 // (spec §17 #8). `tag` is the { battleNo, replay } the tapper was looking at —
 // a double start is refused because the first one changes both. Host / one phone.
+// Refused for a client seat in a lobby → privately repaired with HSG_STATE, which
+// releases the sync lock its tap took (the same contract as hsgHostCommand).
 function hsgHostNextBattle(seat, tag) {
   if (seat !== 0 && seat !== 1) return { ok: false, why: 'seat' };
-  if (hsgPhase !== 'chronicle') return { ok: false, why: 'phase' };
-  if (tag && (tag.battleNo !== hsgBattleNo || tag.replay !== hsgReplay)) return { ok: false, why: 'stale' };
+  const refuse = why => { hsgRepairSeat(seat); return { ok: false, why }; };
+  if (hsgPhase !== 'chronicle') return refuse('phase');
+  if (tag && (tag.battleNo !== hsgBattleNo || tag.replay !== hsgReplay)) return refuse('stale');
   hsgReplay = hsgResult.reason === 'truce';       // a Truce keeps the Battle number
   if (!hsgReplay) hsgBattleNo++;
   hsgFirstSeat = 1 - hsgFirstSeat;                // alternates every Battle, replays included
@@ -365,9 +427,10 @@ function hsgHostCommand(seat, act, cmd) {
     if (victimCell[0] === 0 || victimCell[0] === 1) hsgStruck[victimCell[0]]++;
     if (victimCell[1] === 'Gd') fx.push('guardFall:' + victimCell[0]);
   }
-  hsgLast = act[0] === 'U' ? { k: 'U', i: act[1], j: act[1], kind: '' }
-          : { k: act[0], i: act[1], j: act[2], kind: act[0] === 'S' ? act[3] : '' };
+  hsgLast = act[0] === 'U' ? { k: 'U', i: act[1], j: act[1], kind: '', seat, vid: '' }
+          : { k: act[0], i: act[1], j: act[2], kind: act[0] === 'S' ? act[3] : '', seat, vid: victimCell ? victimCell[1] : '' };
   hsgSel = -1; hsgDoorArmed = -1;
+  hsgNewsFx = fx;
 
   // Then, in this order (spec §6): a Shogun struck → the Last Lantern → is the
   // player to move Cornered? battleStep already did the first two; the third is ours.
@@ -375,6 +438,7 @@ function hsgHostCommand(seat, act, cmd) {
   if (B.over) hsgEndBattle(hsgResultOf(B.over));
   hsgPub = hsgBuildPub();                          // ONE snapshot, after everything settled
   if (hsgIsHost()) mpSendEnvelope({ type: 'SYNC', payload: { action: 'HSG_COMMAND_DONE', pub: hsgPub, act: act, fx: fx } });
+  hsgRenderCastle();                               // the host's own screen draws the pub, like everyone's
   if (!B.over) hsgOpenCommand();
   return { ok: true, over: !!B.over, fx };
 }
@@ -405,9 +469,11 @@ function hsgEndBattle(result) {
 }
 
 // The ending beat is over: the War Chronicle between Battles, or the last one.
+// Reads the PUB's result, not hsgResult — a client runs this too and holds only the pub.
 function hsgFinishEnding() {
-  if (hsgPhase !== 'ending') return;
-  hsgPhase = hsgResult.campaignOver ? 'gameover' : 'chronicle';
+  if (hsgPhase !== 'ending' || !hsgPub) return;
+  hsgPhase = hsgPub.result.campaignOver ? 'gameover' : 'chronicle';
+  hsgPaintChronicle(hsgPhase === 'gameover');
   hsgGo(hsgPhase === 'gameover' ? 'screen-hsg-gameover' : 'screen-hsg-chronicle');
 }
 
@@ -426,10 +492,14 @@ function hsgOpenCommand() {
 // ═══════════════════════════════════════════════════════════════════════════
 // ── Host → one seat: HSG_STATE ──────────────────────────────────────────────
 // ═══════════════════════════════════════════════════════════════════════════
-// The phase a rejoiner needs (spec §11): mid-Battle-intro skips the intro.
+// The phase a rejoiner needs (spec §11): mid-Battle-intro skips the intro. The
+// ending beat of a Battle that won the Campaign is the GAMEOVER, not a Chronicle —
+// the S6 draft said 'chronicle' for every ending, which would have stranded a
+// rejoiner on the between-Battles screen with a Next Battle the host refuses.
 function hsgPhaseForWire() {
   if (hsgPhase === 'gameover') return 'gameover';
-  if (hsgPhase === 'chronicle' || hsgPhase === 'ending') return 'chronicle';
+  if (hsgPhase === 'ending') return hsgResult.campaignOver ? 'gameover' : 'chronicle';
+  if (hsgPhase === 'chronicle') return 'chronicle';
   return 'castle';
 }
 // reconnect.sendState(idx), and the repair after a refused Command. The whole
@@ -450,13 +520,1003 @@ function hsgRepairSeat(seat) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+// ── S7 — Multi-device: the packet layer ────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════
+// Two client ACTIONs in, three host SYNCs out (spec §11).
+//   HOST    takes a sender's seat from the envelope's originId — never from the
+//           payload — and hands it to the same appliers its own taps use. Every
+//           refusal repairs that seat privately (HSG_STATE), which also releases
+//           the sync lock its tap took.
+//   CLIENT  applies whole snapshots only, each through hsgWirePub. The snapshot
+//           wins over whatever is on screen — except over a NEWER snapshot of the
+//           same Battle: the public channel (BATTLE_START, COMMAND_DONE) and the
+//           private one (STATE) are not ordered against each other.
+// Every function reached from here is inside the router's try/catch, and a throw
+// is a console.warn (logic-engine.md: a swallow needs an observable side effect).
+
+// A sender's seat: its uid's index in mpPlayerSlots. -1 = not seated — dropped.
+function hsgSeatOf(originId) {
+  if (!originId || typeof mpPlayerSlots === 'undefined' || !mpPlayerSlots) return -1;
+  for (let i = 0; i < 2; i++) if (mpPlayerSlots[i] && mpPlayerSlots[i].uid === originId) return i;
+  return -1;
+}
+
+// The same Battle. A Truce replay keeps battleNo and replay, but the first move
+// flips every Battle, so the three together tell consecutive Battles apart.
+const hsgSameBattle = (a, b) => !!a && !!b && a.battleNo === b.battleNo && a.replay === b.replay && a.firstSeat === b.firstSeat;
+// Older than what this phone holds: the same Battle with fewer Commands, or the
+// same Command again once this phone already has the Battle's result.
+const hsgIsStale = pub => hsgSameBattle(hsgPub, pub)
+  && (pub.cmd < hsgPub.cmd || (pub.cmd === hsgPub.cmd && hsgPub.result.reason !== 'none'));
+
+function hsgHandleEnvelope(env) {
+  if (!env || !env.payload || !env.payload.action) return;
+  const p = env.payload, a = p.action;
+  try {
+    if (env.type === 'ACTION') { hsgHandleAction(a, p, env.originId); return; }
+    if (env.type === 'SYNC' && window.syllyMultiplayerMode === 'client') hsgHandleSync(a, p);
+  } catch (e) {
+    if (typeof console !== 'undefined' && console.warn) console.warn('[hsg] ' + a, e);
+  }
+}
+
+// Host only (Firebase indexes every write to /events, so a client sees ACTIONs too).
+function hsgHandleAction(a, p, originId) {
+  if (window.syllyMultiplayerMode !== 'host') return;
+  const seat = hsgSeatOf(originId);
+  if (seat < 0) return;
+  if (a === 'HSG_COMMAND') {
+    // A missing tag is a stale one (-1 never matches), never "skip the check".
+    hsgHostCommand(seat, hsgWireList(p.act), typeof p.cmd === 'number' ? p.cmd : -1);
+  } else if (a === 'HSG_NEXT_BATTLE') {
+    hsgHostNextBattle(seat, { battleNo: hsgNum(p.battleNo, -1), replay: p.replay === true });
+  }
+}
+
+function hsgHandleSync(a, p) {
+  if (a === 'HSG_BATTLE_START')      hsgApplyBattleStart(hsgWirePub(p.pub), p.flavourIdx);
+  else if (a === 'HSG_COMMAND_DONE') hsgApplyCommandDone(hsgWirePub(p.pub), hsgWireList(p.fx));
+  else if (a === 'HSG_STATE')        hsgApplyState(hsgWirePub(p.pub), hsgStr(p.phase, 'castle'));
+}
+
+const hsgUnlock = () => { if (typeof mpUnlockSync === 'function') mpUnlockSync(); };
+
+// Take a snapshot as this phone's own. The Campaign counters are mirrored so a
+// client's variables say what its screen says (renderers still read only the pub).
+function hsgTakePub(pub) {
+  hsgPub = pub;
+  hsgBattleNo = pub.battleNo; hsgReplay = pub.replay; hsgFirstSeat = pub.firstSeat;
+  hsgSeals = pub.seals.slice();
+  hsgSel = -1; hsgDoorArmed = -1;
+}
+
+// The client's Castle, from wherever it was (a missed start, a repair, the intro).
+function hsgEnterCastle() {
+  hsgStopTimers();
+  hsgStopBattleScene();
+  hsgPhase = 'castle';
+  hsgRenderCastle();
+  hsgGo('screen-hsg-castle');
+}
+
+// The client's ending beat: the same 2.4 s as the host's, off the same snapshot.
+function hsgClientEnding() {
+  hsgStopTimers();
+  hsgStopBattleScene();
+  hsgDragCancel();
+  hsgPhase = 'ending';
+  hsgRenderCastle();
+  hsgGo('screen-hsg-castle');
+  hsgLater(hsgFinishEnding, HSG_ENDING_MS);
+}
+
+// HSG_BATTLE_START — a new Battle: this phone runs its own Battle intro.
+function hsgApplyBattleStart(pub, flavourIdx) {
+  hsgUnlock();
+  if (hsgSameBattle(hsgPub, pub)) return;          // a repair already put this Battle on screen
+  hsgStopTimers();
+  hsgDragCancel();
+  hsgTakePub(pub);
+  hsgFlavourIdx = Number.isInteger(flavourIdx) ? flavourIdx : 0;   // hsgBattleIntroText range-checks it
+  hsgNewsFx = [];
+  hsgPhase = 'battle-intro';
+  hsgShowBattleIntro();
+}
+
+// HSG_COMMAND_DONE — after every Command: redraw, or the ending beat.
+function hsgApplyCommandDone(pub, fx) {
+  hsgUnlock();
+  if (hsgIsStale(pub)) return;
+  hsgDragCancel();
+  hsgTakePub(pub);
+  hsgNewsFx = fx.filter(k => typeof k === 'string');
+  if (pub.result.reason !== 'none') { hsgClientEnding(); return; }
+  if (hsgPhase === 'battle-intro') return;         // the intro ends on its own timer and draws this board
+  if (hsgPhase === 'castle') hsgRenderCastle();
+  else hsgEnterCastle();                           // a missed HSG_BATTLE_START: the snapshot is the Battle
+}
+
+// HSG_STATE — the private repair after a refused ACTION (and, from S9, a rejoin).
+function hsgApplyState(pub, phase) {
+  hsgUnlock();
+  if (hsgIsStale(pub)) return;
+  const same = hsgSameBattle(hsgPub, pub);
+  if (!same) hsgNewsFx = [];
+  hsgTakePub(pub);
+  if (phase === 'chronicle' || phase === 'gameover') {
+    if (same && hsgPhase === 'ending') return;     // its own ending beat is already on the way there
+    hsgStopTimers();
+    hsgStopBattleScene();
+    hsgPhase = phase;
+    hsgPaintChronicle(phase === 'gameover');
+    hsgGo(phase === 'gameover' ? 'screen-hsg-gameover' : 'screen-hsg-chronicle');
+    return;
+  }
+  if (same && hsgPhase === 'battle-intro') return; // the intro is already playing this Battle
+  if (hsgPhase === 'castle') hsgRenderCastle();
+  else hsgEnterCastle();
+}
+
+// The client's Next Battle / Replay the Battle: ask, with the tag it was looking at.
+function hsgClientNextBattle() {
+  if (hsgPhase !== 'chronicle' || !hsgPub || window.syllySyncLocked) return;
+  mpLockSync();
+  mpSendEnvelope({ type: 'ACTION', payload: { action: 'HSG_NEXT_BATTLE', battleNo: hsgPub.battleNo, replay: hsgPub.replay } });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // ── Teardown (resetToLobby / quit-confirm) ──────────────────────────────────
 // ═══════════════════════════════════════════════════════════════════════════
 // Settings (hsgCampaignLen, hsgFoxes) persist. S3 wires this into resetToLobby().
 function hsgTeardown() {
   hsgStopTimers();
+  hsgStopBattleScene();
   hsgB = null; hsgPub = null; hsgPhase = 'idle';
   hsgSel = -1; hsgDoorArmed = -1;
   hsgSeals = [0, 0]; hsgBattleNo = 1; hsgReplay = false;
   hsgStruck = [0, 0]; hsgLast = { k: 'none' }; hsgResult = { reason: 'none' };
+  hsgNewsFx = [];
+  hsgDragCancel();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ── S4 — The Castle: what a tap MEANS (pure — verify-hsg.js drives these) ───
+// ═══════════════════════════════════════════════════════════════════════════
+// These decide legality, so they live with the rules, not the DOM
+// (new-game-checklist: "scope the harness by what a function DECIDES"). Each
+// reads only the public copy it is handed — never hsgB.
+
+// Who taps on this phone. One phone: whoever's Command it is (the phone lies
+// flat between them). Multi-device / Solo: this phone's own seat.
+function hsgCommanderSeat() {
+  if (window.syllyMultiplayerMode === 'single') return hsgPub ? hsgPub.turnSeat : 0;
+  return typeof mpMyPlayerIdx === 'number' ? mpMyPlayerIdx : 0;
+}
+// Whose bar sits at the bottom. One phone: fixed to the first name entered —
+// nothing flips. Multi-device / Solo: always your own.
+function hsgBottomSeat() {
+  if (window.syllyMultiplayerMode === 'single') return 0;
+  return typeof mpMyPlayerIdx === 'number' ? mpMyPlayerIdx : 0;
+}
+
+// A board cell string → what is drawn there. `assetId` is the art seam's key:
+// the piece id + colour ('Sg1'); a fox found before the banners is 'Fx2'.
+function hsgCellInfo(cell) {
+  if (cell === '#') return { kind: 'door', id: '', col: -1, pending: -1, assetId: 'door' };
+  if (typeof cell !== 'string' || cell.length < 3) return { kind: 'empty', id: '', col: -1, pending: -1, assetId: '' };
+  if (cell.indexOf('Fxp') === 0) return { kind: 'piece', id: 'Fx', col: -1, pending: +cell.slice(3), assetId: 'Fx2' };
+  return { kind: 'piece', id: cell.slice(0, 2), col: +cell.slice(2), pending: -1, assetId: cell };
+}
+
+// One of THIS seat's pieces in the open (a fox that has sided with you included;
+// one still waiting for the banners belongs to nobody yet).
+function hsgIsOwnPiece(pub, seat, i) {
+  if (!pub) return false;
+  const inf = hsgCellInfo(pub.board[i]);
+  return inf.kind === 'piece' && inf.col >= 0 && inf.col === pub.seatCol[seat];
+}
+
+const hsgRowCol = i => [Math.floor(i / 5), i % 5];
+// The direction a Charge travels: 'd' 'u' 'r' 'l' (the chevrons point that way).
+function hsgDirOf(i, j) {
+  const [ri, ci] = hsgRowCol(i), [rj, cj] = hsgRowCol(j);
+  if (rj > ri && cj === ci) return 'd';
+  if (rj < ri && cj === ci) return 'u';
+  if (cj > ci && rj === ri) return 'r';
+  if (cj < ci && rj === ri) return 'l';
+  return '';
+}
+// The piece a Leap jumps: the first occupied square between i and j.
+function hsgScreenOf(board, i, j) {
+  const [ri, ci] = hsgRowCol(i), [rj, cj] = hsgRowCol(j);
+  const dr = Math.sign(rj - ri), dc = Math.sign(cj - ci);
+  let r = ri + dr, c = ci + dc;
+  while (r !== rj || c !== cj) {
+    if (board[r * 5 + c] !== '.') return r * 5 + c;
+    r += dr; c += dc;
+  }
+  return -1;
+}
+
+// The lifted piece's marks, shape-coded, from its LEGAL Commands only:
+//   dot  March · chev  Charge · strike  up close · diag  the Monk's diagonal ·
+//   volley  the Archer · leap  the Ninja (and `screens` = the piece it jumps).
+// → { marks: { [square]: { mark, dir } }, screens: [square], acts: [action] }
+function hsgMarksFor(pub, seat, sel) {
+  const out = { marks: {}, screens: [], acts: [] };
+  if (!pub || sel < 0 || !hsgIsOwnPiece(pub, seat, sel)) return out;
+  const id = hsgCellInfo(pub.board[sel]).id;
+  out.acts = hsgLegalFor(pub, seat).filter(a => a[0] !== 'U' && a[1] === sel);
+  out.acts.forEach(a => {
+    const j = a[2];
+    let mark;
+    if (a[0] === 'M') mark = 'dot';
+    else if (a[0] === 'C') mark = 'chev';
+    else if (a[3] === 'v') mark = 'volley';
+    else if (a[3] === 'l') { mark = 'leap'; const s = hsgScreenOf(pub.board, sel, j); if (s >= 0) out.screens.push(s); }
+    else mark = id === 'Mk' ? 'diag' : 'strike';
+    out.marks[j] = { mark, dir: hsgDirOf(sel, j) };
+  });
+  return out;
+}
+
+// One tap on square i, for `seat`, with `sel` (a lifted piece) and `armed` (a
+// lifted door) as they stand. → { sel, armed, act } — act is the engine action
+// to send, or null. Brief §14: only legal squares light up; anything else just
+// puts the piece down. A door takes two taps on the SAME door; no popup.
+function hsgTapDecide(pub, seat, sel, armed, i) {
+  const none = { sel: -1, armed: -1, act: null };
+  if (!pub || pub.result.reason !== 'none' || pub.turnSeat !== seat) return { sel, armed, act: null };  // read-only
+  if (i < 0 || i >= HSG_CELLS) return none;
+  const legal = hsgLegalFor(pub, seat);
+  if (pub.board[i] === '#') {
+    if (armed !== i) return { sel: -1, armed: i, act: null };            // lift it: "Open?"
+    const a = legal.find(x => x[0] === 'U' && x[1] === i);
+    return { sel: -1, armed: -1, act: a || null };                       // the second tap opens it
+  }
+  if (sel >= 0) {
+    const a = legal.find(x => x[0] !== 'U' && x[1] === sel && x[2] === i);
+    if (a) return { sel: -1, armed: -1, act: a };
+  }
+  if (hsgIsOwnPiece(pub, seat, i)) return { sel: sel === i ? -1 : i, armed: -1, act: null };
+  return none;
+}
+
+// ── The message card's words (pure: pub + names → [title, sub]) ──────────────
+const HSG_CLAN  = { 0: 'Indigo Moon', 1: 'Crimson Sun' };
+const HSG_SHORT = { 0: 'Indigo', 1: 'Crimson' };
+const hsgName = s => (hsgNames[s] || ('Lord ' + (s + 1)));
+const hsgPoss = s => hsgName(s) + '’s';
+const hsgTypeName = id => HsgRules.TYPE_NAME[id] || id;
+
+// "Priya’s Monk just marched." — what the last Command was, so the player who
+// looked away can see what happened (brief §14).
+function hsgLastText(pub) {
+  const L = pub.last;
+  if (!L || L.k === 'none') return '';
+  const who = hsgName(L.seat);
+  if (L.k === 'U') {
+    const inf = hsgCellInfo(pub.board[L.j]);
+    if (inf.id === 'Fx') return who + ' just found a fox.';
+    if (inf.kind !== 'piece') return who + ' just opened a door.';
+    return who + ' just found ' + (inf.col === 0 ? 'an Indigo ' : 'a Crimson ') + hsgTypeName(inf.id) + '.';
+  }
+  const at = hsgCellInfo(pub.board[L.k === 'S' && L.kind === 'v' ? L.i : L.j]);
+  const piece = at.kind === 'piece' ? hsgTypeName(at.id) : 'piece';
+  if (L.k === 'M') return hsgPoss(L.seat) + ' ' + piece + ' just marched.';
+  if (L.k === 'C') return hsgPoss(L.seat) + ' ' + piece + ' just charged.';
+  const victim = L.vid === 'Fx' ? 'a fox' : 'a ' + hsgTypeName(L.vid);
+  const verb = L.kind === 'v' ? ' just shot ' : L.kind === 'l' ? ' just leapt onto ' : ' just struck ';
+  return hsgPoss(L.seat) + ' ' + piece + verb + victim + '.';
+}
+
+// The last Command's moment, in words (S9 adds the pictures).
+function hsgNewsText(pub, fx) {
+  const list = fx || [];
+  if (list.indexOf('banners') >= 0) {
+    const crim = pub.seatCol[0] === 1 ? 0 : 1;
+    return ['“The banners are raised!”', hsgName(crim) + ' is Crimson Sun. ' + hsgName(1 - crim) + ' is Indigo Moon.'];
+  }
+  const fox = list.find(k => k.indexOf('fox:') === 0);
+  if (fox) {
+    const parts = fox.split(':'), r = +parts[1], capped = parts[2] === '1';
+    const share = Math.floor(pub.foxTotal / 2), held = pub.foxesHeld[r];
+    let sub;
+    if (capped) sub = hsgName(1 - r) + ' already has ' + (share === 1 ? 'a fox' : 'both foxes') + ', so this one joins ' + hsgName(r) + '.';
+    else if (held >= share) sub = 'That’s ' + (share === 1 ? hsgPoss(r) + ' fox' : 'both of ' + hsgPoss(r) + ' foxes') + '. Any more join ' + hsgName(1 - r) + '.';
+    else sub = hsgName(r) + ' has ' + held + ' of ' + share + ' foxes.';
+    return ['“The fox sides with ' + hsgName(r) + '!”', sub];
+  }
+  const gd = list.find(k => k.indexOf('guardFall:') === 0);
+  if (gd) {
+    const col = +gd.split(':')[1];
+    return ['“A Guard falls!”', pub.guards[col] > 0 ? 'One Guard still stands for ' + HSG_CLAN[col] + '.' : HSG_CLAN[col] + '’s Shogun is Unguarded.'];
+  }
+  return null;
+}
+
+// The ending beat's words. War Chronicle copy (brief §17) is S6's; this is the card.
+function hsgResultText(pub) {
+  const r = pub.result, w = r.winnerSeat, l = 1 - w, c = r.counts;
+  if (r.reason === 'shogun') return r.gekokujo
+    ? ['“Gekokujo!”', hsgPoss(w) + ' Farmer topples the Shogun!']
+    : ['“Found you!”', hsgPoss(w) + ' ' + hsgTypeName(r.by) + ' finds ' + hsgPoss(l) + ' Shogun.'];
+  if (r.reason === 'lantern') return ['“The last lantern is out.”', 'In the open: Crimson ' + c[1] + ' · Indigo ' + c[0] + '. ' + hsgName(w) + ' holds the castle.'];
+  if (r.reason === 'truce') return ['“A Truce!”', 'Both households stand, ' + c[0] + ' apiece. The Battle will be replayed.'];
+  if (r.reason === 'cornered') return ['“Cornered!”', hsgName(l) + ' has nowhere left to hide. ' + hsgName(w) + ' wins the Battle.'];
+  return ['', ''];
+}
+
+// The card for the moment the board is in. v = { me, mine, sel, armed, news }.
+function hsgCardText(pub, v) {
+  if (pub.result.reason !== 'none') return hsgResultText(pub);
+  const last = hsgLastText(pub);
+  if (!v.mine) return [hsgPoss(pub.turnSeat) + ' Command', ('You’re watching. ' + last).trim()];
+  if (v.armed >= 0) return ['“Somebody’s there…”', 'Tap the door again to slide it open. Tap anywhere else to cancel.'];
+  if (v.sel >= 0) {
+    const marks = hsgMarksFor(pub, v.me, v.sel).marks;
+    const kinds = new Set(Object.keys(marks).map(k => marks[k].mark));
+    const how = [];
+    if (kinds.has('dot'))    how.push('March to a dot');
+    if (kinds.has('chev'))   how.push('Charge to the chevrons');
+    if (kinds.has('strike')) how.push('Strike inside the brackets');
+    if (kinds.has('diag'))   how.push('Strike on the diagonal');
+    if (kinds.has('volley')) how.push('Volley inside the brackets');
+    if (kinds.has('leap'))   how.push('Leap over the outlined piece');
+    const title = hsgTypeName(hsgCellInfo(pub.board[v.sel]).id);
+    return [title, how.length ? how.join(' · ') + '.' : 'Nowhere to go from here. Tap another piece, or a door.'];
+  }
+  const news = hsgNewsText(pub, v.news);
+  if (news) return news;
+  const lit = 12 - pub.quiet;
+  if (lit <= 3) return ['“' + ['', 'One lantern', 'Two lanterns', 'Three lanterns'][lit] + ' left!”',
+    'Open a door or strike to relight them, or the households get counted.'];
+  const title = 'Your Command, ' + hsgName(v.me);
+  if (pub.cmd === 0) return [title, 'Every door is shut. Tap one, then tap it again to slide it open.'];
+  if (pub.seatCol[v.me] < 0) return [title, (last + ' The first clan piece found raises the banners.').trim()];
+  return [title, (last + ' Tap a piece or a door.').trim()];
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ── S4 — The Castle: drawing (DOM — every path guarded, so the harness's
+//    null document never reaches it) ────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════
+const HSG_INK     = { 0: '#2B3A67', 1: '#B3261E' };   // Indigo Moon, Crimson Sun
+const HSG_FOX_INK = '#5C4A3A';                       // a fox found before the banners: no clan yet
+// Shadow-puppet silhouettes, sumi ink, viewBox 0 0 40 40 — ported from the board
+// ("Mix · The Castle"). The final silhouettes are an art task (brief §11).
+const HSG_GLYPH = {
+  Sg: 'M8 5 Q20 17 32 5 Q20 12 8 5Z M9 24 Q9 12 20 12 Q31 12 31 24Z M5 24 L35 24 L38 32 L2 32Z',
+  Gd: 'M19 6 L21 6 L21 38 L19 38Z M20 0 L24 8 L16 8Z M10 13 L30 13 L30 25 Q20 34 10 25Z',
+  Mk: 'M4 17 Q20 3 36 17Z M12 19 L28 19 L32 38 L8 38Z',
+  Sm: 'M5 31 L29 3 L33 6 L9 35Z M35 31 L11 3 L7 6 L31 35Z M3 29 L11 36 L8 39 L1 32Z M37 29 L29 36 L32 39 L39 32Z',
+  Nj: 'M7 17 A13 13 0 1 0 33 17 A13 13 0 1 0 7 17Z M11 15 L29 15 L29 20 L11 20Z M8 30 L32 30 L35 39 L5 39Z',
+  Ar: 'M11 3 Q33 20 11 37 L14 37 Q29 20 14 3Z M11 3 L12.5 3 L12.5 37 L11 37Z M4 19 L32 19 L32 21 L4 21Z M31 15.5 L39 20 L31 24.5Z',
+  Fm: 'M1 20 L20 7 L39 20 Q20 25 1 20Z M13 24 L27 24 L30 38 L10 38Z',
+  Fx: 'M5 5 L15 14 L25 14 L35 5 L33 22 L20 35 L7 22Z M12 20 L17 22 L13 25Z M28 20 L23 22 L27 25Z',
+};
+const HSG_EVENODD = { Nj: true, Fx: true };
+// Crests, viewBox 0 0 12 12 — the second cue, so colour is never the only one.
+const HSG_SUN  = 'M1 6 A5 5 0 1 0 11 6 A5 5 0 1 0 1 6Z';
+const HSG_MOON = 'M8.5 1.6 A5 5 0 1 0 8.5 10.4 A4 4 0 1 1 8.5 1.6Z';
+const HSG_PAW  = 'M1.4 5.4A1.2 1.2 0 1 0 3.8 5.4A1.2 1.2 0 1 0 1.4 5.4Z M4.7 3.6A1.3 1.3 0 1 0 7.3 3.6A1.3 1.3 0 1 0 4.7 3.6Z M8.2 5.4A1.2 1.2 0 1 0 10.6 5.4A1.2 1.2 0 1 0 8.2 5.4Z M3 9Q3 6.6 6 6.6Q9 6.6 9 9Q9 11 6 10.8Q3 11 3 9Z';
+const HSG_BRACKETS = 'M3 15 V3 H15 M43 3 H55 V15 M55 43 V55 H43 M15 55 H3 V43';
+const HSG_DIAMOND  = 'M20 12 L29 3 L38 12 M46 20 L55 29 L46 38 M38 46 L29 55 L20 46 M12 38 L3 29 L12 20';
+const HSG_CHEV_ROT = { d: 0, u: 180, r: -90, l: 90, '': 0 };
+
+const hsgEsc = s => String(s).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+
+// THE RENDER SEAM — every tile in the game (the board, S10's gallery, S11's
+// Practice) is built here and nowhere else (spec §10). cell is a board string
+// ('Sg1' '#' '.' 'Fxp0'); opts = { size, mark, dir, armed, screen, last }.
+// A skin's image replaces the lamplit square and the silhouette; the game still
+// prints the crest, rank and name plate itself (brief §11: the art never paints the name).
+function hsgRenderTile(cell, opts) {
+  opts = opts || {};
+  const el = document.createElement('div');
+  el.className = 'hsg-tile';
+  if (opts.size) el.style.setProperty('--hsg-t', opts.size + 'px');
+  const inf = hsgCellInfo(cell);
+  let h = '';
+  if (inf.kind === 'door') {
+    const url = (typeof assetBack === 'function') && assetBack('hsg');
+    h += url ? '<img class="hsg-tile-asset" src="' + hsgEsc(url) + '" alt="">' : '<span class="hsg-door"></span>';
+    if (opts.armed) {
+      // the same vague shadow behind every door — it never hints at what is there
+      h += '<svg class="hsg-shade" viewBox="0 0 40 48" aria-hidden="true"><path d="M11 13 A9 9 0 1 0 29 13 A9 9 0 1 0 11 13Z M6 48 Q6 26 20 24 Q34 26 34 48Z" fill="rgba(43,38,32,.32)"/></svg>'
+         + '<span class="hsg-open-chip">Open?</span>';
+    }
+  } else if (inf.kind === 'empty') {
+    h += '<span class="hsg-floor"></span>';
+  } else {
+    const url = (typeof assetFace === 'function') && assetFace('hsg', inf.assetId);
+    const ink = inf.col >= 0 ? HSG_INK[inf.col] : HSG_FOX_INK;
+    const crest = inf.id === 'Fx' ? HSG_PAW : inf.col === 1 ? HSG_SUN : HSG_MOON;
+    const rank = HsgRules.RANK[inf.id] || '';
+    h += url ? '<img class="hsg-tile-asset" src="' + hsgEsc(url) + '" alt="">'
+             : '<span class="hsg-lit"></span><svg class="hsg-glyph" viewBox="0 0 40 40" aria-hidden="true"><path d="'
+               + HSG_GLYPH[inf.id] + '" fill="#2B2620" fill-rule="' + (HSG_EVENODD[inf.id] ? 'evenodd' : 'nonzero') + '"/></svg>';
+    h += '<span class="hsg-tile-crest" style="background:' + ink + '"><svg viewBox="0 0 12 12" aria-hidden="true"><path d="' + crest + '" fill="#FFF6DD"/></svg></span>'
+       + (rank ? '<span class="hsg-rank">' + rank + '</span>' : '')
+       + '<span class="hsg-sash" style="background:' + ink + '">' + hsgTypeName(inf.id) + '</span>';
+  }
+  if (opts.screen) h += '<span class="hsg-mark-screen"></span>';
+  const m = opts.mark;
+  if (m === 'dot') h += '<span class="hsg-mark-dot"></span>';
+  else if (m === 'chev') {
+    h += '<svg class="hsg-mark-chev" viewBox="0 0 28 32" aria-hidden="true" style="transform:rotate(' + HSG_CHEV_ROT[opts.dir || ''] + 'deg)">'
+       + '<path d="M4 4 L14 13 L24 4 M4 17 L14 26 L24 17" fill="none" stroke="#F2B45A" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  } else if (m === 'strike' || m === 'volley' || m === 'diag' || m === 'leap') {
+    h += '<svg class="hsg-mark-full" viewBox="0 0 58 58" aria-hidden="true"><path d="' + (m === 'diag' ? HSG_DIAMOND : HSG_BRACKETS)
+       + '" fill="none" stroke="#2B2620" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>'
+       + (m === 'leap' ? '<path d="M14 24 Q29 4 44 24 M38 16 L44 24 L35 25" fill="none" stroke="#2B2620" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>' : '')
+       + '</svg>';
+  }
+  if (opts.last) h += '<span class="hsg-mark-last"></span>';
+  el.innerHTML = h;
+  return el;
+}
+
+// A player's bar: crest, name, clan, fox slots, the Guard ring, the Seals.
+function hsgBarHTML(pub, s) {
+  const col = pub.seatCol[s];
+  const ink = col >= 0 ? HSG_INK[col] : HSG_FOX_INK;
+  const crest = col >= 0
+    ? '<span class="hsg-crest" style="background:' + ink + '" role="img" aria-label="' + HSG_CLAN[col] + '"><svg viewBox="0 0 12 12" aria-hidden="true"><path d="' + (col === 1 ? HSG_SUN : HSG_MOON) + '" fill="#F3EAD7"/></svg></span>'
+    : '<span class="hsg-crest is-none" role="img" aria-label="No banner yet"></span>';
+  const share = Math.floor(pub.foxTotal / 2), held = pub.foxesHeld[s];
+  let foxes = '';
+  for (let k = 0; k < share; k++) {
+    const on = k < held;
+    foxes += '<span class="hsg-fox-slot' + (on ? ' is-held' : '') + '"' + (on ? ' style="background:' + ink + '"' : '') + '>'
+           + '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="' + HSG_PAW + '" fill="' + (on ? '#F3EAD7' : 'rgba(243,234,215,.35)') + '"/></svg></span>';
+  }
+  const guarded = col < 0 || pub.guards[col] > 0;
+  const guard = '<svg class="hsg-guard" viewBox="0 0 18 18" role="img" aria-label="' + (guarded ? 'Guarded' : 'Unguarded') + '"><circle cx="9" cy="9" r="6.5" fill="none" '
+    + (guarded ? 'stroke="#C9A14A" stroke-width="2.6"' : 'stroke="rgba(243,234,215,.35)" stroke-width="2" stroke-dasharray="3 3"') + '/></svg>';
+  let seals = '';
+  for (let k = 0; k < pub.campaignLen; k++) seals += '<span class="hsg-seal' + (k < pub.seals[s] ? ' is-won' : '') + '"></span>';
+  return crest
+    + '<div class="hsg-bar-who"><span class="hsg-bar-name">' + hsgEsc(hsgName(s)) + '</span><span class="hsg-bar-clan">' + (col >= 0 ? HSG_CLAN[col] : 'No banner yet') + '</span></div>'
+    + '<div class="hsg-slots" role="img" aria-label="Foxes: ' + held + ' of ' + share + '">' + foxes + '</div>'
+    + guard
+    + '<div class="hsg-seals" role="img" aria-label="Honour Seals: ' + pub.seals[s] + ' of ' + pub.campaignLen + '">' + seals + '</div>';
+}
+
+function hsgSquareLabel(pub, i, opts) {
+  const inf = hsgCellInfo(pub.board[i]);
+  let what = inf.kind === 'door' ? 'closed door' : inf.kind === 'empty' ? 'empty'
+    : inf.id === 'Fx' ? (inf.col >= 0 ? HSG_SHORT[inf.col] + ' fox' : 'a fox') : HSG_SHORT[inf.col] + ' ' + hsgTypeName(inf.id);
+  const how = { dot: 'march here', chev: 'charge here', strike: 'strike', diag: 'strike', volley: 'volley', leap: 'leap' }[opts.mark];
+  if (how) what += ', ' + how;
+  if (opts.armed) what += ', tap again to open';
+  return HsgRules.sq(i) + ', ' + what;
+}
+
+// Draws the whole Castle from hsgPub (+ this phone's UI state) — never from hsgB.
+// Idempotent: a tile is redrawn only when what it shows changed, so the slot's
+// lift and glow transition instead of jumping.
+function hsgRenderCastle() {
+  if (typeof document === 'undefined' || !document.getElementById) return;
+  const grid = document.getElementById('hsg-grid');
+  if (!grid || !hsgPub) return;
+  const pub = hsgPub;
+  const cmdr = hsgCommanderSeat(), bottom = hsgBottomSeat();
+  const live = hsgPhase === 'castle' && pub.result.reason === 'none';
+  const mine = live && pub.turnSeat === cmdr;
+  if (!mine) { hsgSel = -1; hsgDoorArmed = -1; }
+
+  const setText = (id, t) => { const el = document.getElementById(id); if (el) el.textContent = t; };
+  setText('hsg-castle-battle', 'Battle ' + pub.battleNo + (pub.replay ? ' · Replay' : ''));
+  setText('hsg-castle-terms', pub.campaignLen === 1 ? 'Single Battle' : 'First to ' + pub.campaignLen + ' Seals');
+
+  [['hsg-bar-top', 1 - bottom], ['hsg-bar-bottom', bottom]].forEach(([id, s]) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.innerHTML = hsgBarHTML(pub, s);
+    el.classList.toggle('is-active', live && pub.turnSeat === s);
+  });
+
+  const beam = document.getElementById('hsg-beam');
+  if (beam) {
+    const lit = Math.max(0, 12 - pub.quiet);
+    let h = '';
+    for (let k = 0; k < 12; k++) h += '<span class="hsg-lantern' + (k < lit ? ' is-lit' + (lit <= 3 ? ' is-flicker' : '') : '') + '"></span>';
+    beam.innerHTML = h;
+    beam.setAttribute('aria-label', lit + ' of 12 lanterns lit');
+  }
+
+  if (grid.children.length !== HSG_CELLS) {
+    grid.innerHTML = '';
+    for (let i = 0; i < HSG_CELLS; i++) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'hsg-sq';
+      b.setAttribute('data-i', String(i));
+      grid.appendChild(b);
+    }
+  }
+  const mk = mine ? hsgMarksFor(pub, cmdr, hsgSel) : { marks: {}, screens: [] };
+  const lastSq = pub.last.k !== 'none' ? pub.last.j : -1;
+  for (let i = 0; i < HSG_CELLS; i++) {
+    const sq = grid.children[i], m = mk.marks[i];
+    const opts = { mark: m ? m.mark : '', dir: m ? m.dir : '', armed: i === hsgDoorArmed,
+      screen: mk.screens.indexOf(i) >= 0, last: i === lastSq };
+    const key = pub.board[i] + '|' + opts.mark + opts.dir + '|' + (opts.armed ? 1 : 0) + (opts.screen ? 1 : 0) + (opts.last ? 1 : 0);
+    if (sq.getAttribute('data-key') !== key) {
+      sq.innerHTML = '';
+      sq.appendChild(hsgRenderTile(pub.board[i], opts));
+      sq.setAttribute('data-key', key);
+    }
+    sq.classList.toggle('is-picked', i === hsgSel);
+    sq.classList.toggle('is-armed', i === hsgDoorArmed);
+    sq.setAttribute('aria-label', hsgSquareLabel(pub, i, opts));
+  }
+
+  const [title, sub] = hsgCardText(pub, { me: cmdr, mine, sel: hsgSel, armed: hsgDoorArmed, news: hsgNewsFx });
+  setText('hsg-card-title', title);
+  setText('hsg-card-sub', sub);
+}
+
+// ── Input: tap-tap, the two-tap door, drag and drop ───────────────────────────
+// The board is read-only unless it is this phone's Command and nothing is in flight.
+function hsgCanCommand() {
+  return hsgPhase === 'castle' && !!hsgPub && hsgPub.result.reason === 'none'
+    && hsgPub.turnSeat === hsgCommanderSeat() && !window.syllySyncLocked;
+}
+
+function hsgTap(i) {
+  if (!hsgCanCommand()) return;                    // waiting, sending or ending: nothing (spec §7)
+  const r = hsgTapDecide(hsgPub, hsgCommanderSeat(), hsgSel, hsgDoorArmed, i);
+  hsgSel = r.sel; hsgDoorArmed = r.armed;
+  if (r.act) { hsgSubmitCommand(r.act); return; }
+  hsgRenderCastle();
+}
+
+// One phone and the host apply directly (the engine drops a self-sent ACTION);
+// hsgHostCommand repaints. A client locks, asks the host with the cmd tag it was
+// looking at, and waits for HSG_COMMAND_DONE (or HSG_STATE, if refused). A second
+// tap is stopped twice over: hsgCanCommand reads the lock, and mpSendEnvelope drops
+// any ACTION the lock did not authorise.
+function hsgSubmitCommand(act) {
+  if (window.syllyMultiplayerMode === 'client') {
+    mpLockSync();
+    mpSendEnvelope({ type: 'ACTION', payload: { action: 'HSG_COMMAND', cmd: hsgPub.cmd, act: act } });
+    hsgRenderCastle();
+    return;
+  }
+  const r = hsgHostCommand(hsgCommanderSeat(), act);
+  if (!r.ok) hsgRenderCastle();
+}
+
+// Tapping anywhere off the squares puts a lifted piece or door back down.
+function hsgTapOff() {
+  if (hsgSel < 0 && hsgDoorArmed < 0) return;
+  if (Date.now() - hsgDragEndAt < 400) return;     // the click a drop leaves behind (pointer capture retargets it)
+  hsgSel = -1; hsgDoorArmed = -1;
+  hsgRenderCastle();
+}
+
+function hsgSquareAt(x, y) {
+  const el = document.elementFromPoint ? document.elementFromPoint(x, y) : null;
+  const sq = el && el.closest ? el.closest('.hsg-sq') : null;
+  return sq ? +sq.getAttribute('data-i') : -1;
+}
+
+function hsgDragStart(e) {
+  if (e.button !== undefined && e.button !== 0) return;
+  const sq = e.target && e.target.closest ? e.target.closest('.hsg-sq') : null;
+  if (!sq || !hsgCanCommand()) return;
+  const i = +sq.getAttribute('data-i');
+  if (!hsgIsOwnPiece(hsgPub, hsgCommanderSeat(), i)) return;
+  hsgDrag = { from: i, x0: e.clientX, y0: e.clientY, moved: false, pid: e.pointerId, ghost: null };
+}
+
+function hsgDragMove(e) {
+  const d = hsgDrag;
+  if (!d || e.pointerId !== d.pid) return;
+  const host = document.getElementById('hsg-castle'), layer = document.getElementById('hsg-castle-fx');
+  const grid = document.getElementById('hsg-grid');
+  if (!host || !layer || !grid) return;
+  if (!d.moved) {
+    const dx = e.clientX - d.x0, dy = e.clientY - d.y0;
+    if (dx * dx + dy * dy < 64) return;            // under 8 px it is still a tap
+    if (!hsgCanCommand()) { hsgDrag = null; return; }
+    d.moved = true;
+    try { grid.setPointerCapture(d.pid); } catch (_) {}
+    hsgSel = d.from; hsgDoorArmed = -1;
+    hsgRenderCastle();                             // its marks light up while it travels
+    const src = grid.children[d.from];
+    if (src) src.classList.add('is-dragging');
+    d.ghost = hsgRenderTile(hsgPub.board[d.from], {});
+    d.ghost.classList.add('hsg-ghost');
+    layer.appendChild(d.ghost);
+  }
+  const hr = host.getBoundingClientRect(), t = d.ghost.offsetWidth || 58;
+  // held a little above the finger, so the player can see what they carry
+  d.ghost.style.transform = 'translate3d(' + (e.clientX - hr.left - t / 2) + 'px,' + (e.clientY - hr.top - t * 0.85) + 'px,0)';
+  e.preventDefault();
+}
+
+function hsgDragEnd(e) {
+  const d = hsgDrag;
+  if (!d || (e && e.pointerId !== d.pid)) return;
+  const dropped = d.moved && e && e.type === 'pointerup';
+  const j = dropped ? hsgSquareAt(e.clientX, e.clientY) : -1;
+  hsgDragCancel();
+  if (!dropped) return;
+  hsgDragEndAt = Date.now();
+  if (!hsgCanCommand()) { hsgRenderCastle(); return; }
+  // Dropped on a lit square → that Command; anywhere else → the piece stays lifted,
+  // so tap-tap can finish what the drag started.
+  const r = hsgTapDecide(hsgPub, hsgCommanderSeat(), d.from, -1, j);
+  if (r.act) { hsgSel = -1; hsgSubmitCommand(r.act); return; }
+  hsgSel = d.from; hsgDoorArmed = -1;
+  hsgRenderCastle();
+}
+
+// Drops any drag in flight: the ghost and the dimmed source square. Safe headless.
+function hsgDragCancel() {
+  const d = hsgDrag;
+  hsgDrag = null;
+  if (!d || typeof document === 'undefined' || !document.getElementById) return;
+  if (d.ghost && d.ghost.parentNode) d.ghost.parentNode.removeChild(d.ghost);
+  const grid = document.getElementById('hsg-grid');
+  const src = grid && grid.children ? grid.children[d.from] : null;
+  if (src && src.classList) src.classList.remove('is-dragging');
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ── S5 — The Storyteller: the Battle intro, the Intro's scene, the fan snap ─
+// ═══════════════════════════════════════════════════════════════════════════
+// The one sound S5 needs; S9 fills in the rest of the map (spec §9).
+const HSG_SOUND = {
+  fan: () => { if (typeof playFanSnap === 'function') playFanSnap(); },
+};
+function hsgSound(key) {
+  const f = HSG_SOUND[key];
+  try { if (f) f(); } catch (_) { /* a sound never stops a Battle */ }
+}
+
+// The Intro's scene, as the engine sees it. HsgScene stays pure; this wrapper adds
+// the one thing the game owns — the fan snap's sound — when the beats END LIVE
+// (a line was showing). A re-mount (tab-away) or a returning Intro sends beat(-1)
+// with no line before it, so it stays quiet.
+const hsgIntroScene = {
+  last: null,
+  mount(el, opts) { hsgIntroScene.last = null; HsgScene.mount(el, opts); },
+  beat(i, text) {
+    const was = hsgIntroScene.last;
+    hsgIntroScene.last = i;
+    HsgScene.beat(i, text);
+    if (i < 0 && typeof was === 'number' && was >= 0) hsgSound('fan');
+  },
+  stop() { hsgIntroScene.last = null; HsgScene.stop(); },
+};
+
+function hsgStopBattleScene() {
+  if (hsgBattleScene) { try { hsgBattleScene.stop(); } catch (_) {} }
+}
+
+function hsgReducedMotion() {
+  try { return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); }
+  catch (_) { return false; }
+}
+
+// The Seal tally under the title: you (the bottom bar's seat) on the left, each
+// side's Seals filling from its own name inwards.
+function hsgTallyHTML(pub) {
+  const L = hsgBottomSeat(), R = 1 - L;
+  const box = on => '<span class="hsg-seal' + (on ? ' is-won' : '') + '"></span>';
+  let left = '', right = '';
+  for (let k = 0; k < pub.campaignLen; k++) left += box(k < pub.seals[L]);
+  for (let k = pub.campaignLen - 1; k >= 0; k--) right += box(k < pub.seals[R]);
+  const n = s => pub.seals[s] + (pub.seals[s] === 1 ? ' Seal' : ' Seals');
+  return '<span class="hsg-bi-name">' + hsgEsc(hsgName(L)) + '</span>'
+    + '<span class="hsg-seals" role="img" aria-label="' + hsgEsc(hsgName(L)) + ' ' + n(L) + ', ' + hsgEsc(hsgName(R)) + ' ' + n(R) + '">'
+    + left + '<span class="hsg-bi-dot" aria-hidden="true">·</span>' + right + '</span>'
+    + '<span class="hsg-bi-name is-right">' + hsgEsc(hsgName(R)) + '</span>';
+}
+
+// Draws the Battle intro. An interstitial (auto-advances, no controls) → no chrome
+// (ui-style.md § Global UI Protocol 5). Its one-shot motion is CSS, timed by the
+// custom properties set here, and replayed by re-adding .is-playing.
+function hsgPaintBattleIntro(bi) {
+  if (typeof document === 'undefined' || !document.getElementById || !hsgPub) return;
+  const root = document.getElementById('hsg-bi');
+  if (!root) return;
+  const set = (id, t) => { const el = document.getElementById(id); if (el) el.textContent = t; };
+  set('hsg-bi-title', bi.title);
+  set('hsg-bi-flavour', '“' + bi.flavour + '”');
+  set('hsg-bi-call', bi.call);
+  const tally = document.getElementById('hsg-bi-tally');
+  if (tally) tally.innerHTML = hsgTallyHTML(hsgPub);
+  if (root.style && root.style.setProperty) {
+    root.style.setProperty('--hsg-snap', bi.snapMs + 'ms');
+    root.style.setProperty('--hsg-bi-ms', bi.ms + 'ms');
+  }
+  root.setAttribute('data-state', bi.state);
+  const stage = document.getElementById('hsg-bi-stage');
+  if (stage && typeof HsgScene !== 'undefined') {
+    if (!hsgBattleScene) hsgBattleScene = HsgScene.make();
+    try {
+      hsgBattleScene.mount(stage, { mode: 'battle', toss: bi.state === 'toss', reducedMotion: hsgReducedMotion() });
+    } catch (e) { console.warn('[hsg] battle scene', e); }
+  }
+  if (root.classList) { root.classList.remove('is-playing'); void root.offsetWidth; root.classList.add('is-playing'); }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ── S6 — The War Chronicle (both end screens, one painter) ──────────────────
+// ═══════════════════════════════════════════════════════════════════════════
+// Board "A · War Chronicle", brief §17. Two cloth banners hang from a beam (the
+// winner's longer and stamped, the loser's dim; a Truce hangs them level), then
+// the headline, the sub-line, the quote, two stat boxes and the Seal tally.
+// screen-hsg-chronicle (between Battles) and screen-hsg-gameover (the Campaign
+// won) are the same picture; only the headline and the buttons differ.
+
+// The five result variants (brief §17) → their headline. hsgChronicleModel picks one
+// from hsgPub.result.reason + .gekokujo and nothing else.
+const HSG_CHRON_HEAD = {
+  shogun:   'Found you!',
+  gekokujo: 'Gekokujo!',
+  lantern:  'The Last Lantern',
+  truce:    'A Truce!',
+  cornered: 'Cornered!',
+};
+
+// Pure: the public copy → every word and flag the Chronicle shows. Reads only
+// hsgPub (and names), so a client (S7) paints exactly what the host does.
+function hsgChronicleModel(pub) {
+  const r = pub.result;
+  const variant = r.reason === 'shogun' ? (r.gekokujo ? 'gekokujo' : 'shogun') : r.reason;
+  if (!HSG_CHRON_HEAD[variant]) return null;                    // no result yet: nothing to chronicle
+  const truce = variant === 'truce';
+  const w = r.winnerSeat, l = 1 - w;
+  const clan = s => (pub.seatCol[s] >= 0 ? HSG_CLAN[pub.seatCol[s]] : 'No banner');
+  const c = r.counts || [0, 0];
+  const quote = {
+    shogun:   '“The fox slips past the Guards and the Shogun is found!”',
+    gekokujo: '“The farmer topples the Shogun!”',
+    lantern:  'The last lantern is out. Pieces in the open: Crimson ' + c[1] + ' · Indigo ' + c[0] + '. ' + clan(w) + ' holds the castle.',
+    truce:    'A Truce! Both households stand. No Seal; the Battle will be replayed.',
+    cornered: clan(l) + ' is Cornered. Nowhere left to hide.',
+  }[variant];
+  const title = HSG_CHRON_HEAD[variant];
+  const final = r.campaignOver === true;
+  const wins = truce ? '' : clan(w) + ' wins Battle ' + pub.battleNo + '.';
+  const bottom = hsgBottomSeat();
+  return {
+    variant, final, truce,
+    head: final ? hsgName(w) + ' takes the Campaign!' : title,
+    // The Campaign headline takes the slot, so the variant's own title moves to the sub-line.
+    sub: final ? (title + ' ' + wins).trim() : truce ? 'No Seal this Battle.' : wins,
+    quote,
+    commands: pub.cmd,
+    struck: [['Crimson', pub.struck[1]], ['Indigo', pub.struck[0]]],
+    showTally: pub.campaignLen > 1,
+    cta: truce ? 'Replay the Battle' : 'Next Battle',
+    banners: [bottom, 1 - bottom].map(s => ({
+      seat: s, name: hsgName(s), clan: clan(s), col: pub.seatCol[s],
+      state: truce ? 'even' : s === w ? 'won' : 'lost',
+    })),
+  };
+}
+
+const HSG_CLOTH = { 0: '#2F3A6B', 1: '#A8321F', '-1': '#5A4636' };
+
+// Draws one War Chronicle into its body and sets the Next Battle label. `final` is
+// the gameover (the Campaign is won); otherwise the screen between Battles.
+function hsgPaintChronicle(final) {
+  if (typeof document === 'undefined' || !document.getElementById || !hsgPub) return;
+  const body = document.getElementById(final ? 'hsg-go-body' : 'hsg-chron-body');
+  const m = hsgChronicleModel(hsgPub);
+  if (!body || !m) return;
+  const banner = b => '<div class="hsg-ch-banner is-' + b.state + '" style="--cloth:' + (HSG_CLOTH[b.col] || HSG_CLOTH['-1']) + '">'
+    + (b.state === 'won' ? '<span class="hsg-ch-stamp" aria-hidden="true">勝</span>' : '')
+    + '<span class="hsg-ch-clan">' + hsgEsc(b.clan) + '</span>'
+    + '<span class="hsg-ch-who">' + hsgEsc(b.name) + '</span></div>';
+  body.innerHTML =
+      '<div class="hsg-ch-hang" role="img" aria-label="' + hsgEsc(m.banners.map(b => b.name + ', ' + b.clan).join(' and ')) + '">'
+    +   '<div class="hsg-ch-rod"></div><div class="hsg-ch-banners">' + m.banners.map(banner).join('') + '</div></div>'
+    + '<h3 class="hsg-ch-head">' + hsgEsc(m.head) + '</h3>'
+    + '<p class="hsg-ch-sub">' + hsgEsc(m.sub) + '</p>'
+    + '<p class="hsg-ch-quote">' + hsgEsc(m.quote) + '</p>'
+    + '<div class="hsg-ch-stats">'
+    +   '<div class="hsg-ch-stat"><span class="hsg-ch-stat-k">Commands</span><span class="hsg-ch-stat-v">' + m.commands + '</span></div>'
+    +   '<div class="hsg-ch-stat"><span class="hsg-ch-stat-k">Pieces struck</span><span class="hsg-ch-stat-v is-two">'
+    +     m.struck.map(x => '<span>' + x[0] + ' ' + x[1] + '</span>').join('') + '</span></div>'
+    + '</div>'
+    + (m.showTally
+        ? '<div class="hsg-ch-tallybox"><span class="hsg-ch-tally-k">Honour Seals · first to ' + hsgPub.campaignLen + '</span>'
+          + '<div class="hsg-ch-tally">' + hsgTallyHTML(hsgPub) + '</div></div>'
+        : '');
+  if (!final) {
+    const btn = document.getElementById('btn-hsg-chron-next');
+    if (btn) btn.textContent = m.cta;
+  }
+  if (body.classList) { body.classList.remove('is-playing'); void body.offsetWidth; body.classList.add('is-playing'); }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ── S3 — Menu, War Council, How to Play shell, quit, wiring ─────────────────
+// ═══════════════════════════════════════════════════════════════════════════
+// The only part of this file that touches the DOM. Every id comes from
+// src/screens/hsg.html. Kept apart so verify-hsg.js (null document) never runs it.
+
+function hsgShowMenu() { hsgGo('screen-hsg-menu'); }
+
+// Both settings cards repaint from here — from the pill handler AND from the
+// SETTINGS_SYNC apply, so a client's read-only overlay shows the room's rules.
+function hsgSyncSettingsUI() {
+  const setPills = (group, val) => {
+    document.querySelectorAll(`[data-group="${group}"]`).forEach(p => {
+      p.classList.toggle('pill-active-hsg', Number(p.getAttribute('data-val')) === val);
+    });
+  };
+  setPills('hsg-campaign', hsgCampaignLen);
+  setPills('hsg-foxes', hsgFoxes);
+  const line = document.getElementById('hsg-val-foxes');
+  if (line) {
+    line.textContent = hsgFoxes === 2 ? '2 foxes · 4 Farmers a clan' : '4 foxes · 3 Farmers a clan';
+  }
+}
+
+// The Rules body is the only one for now; S10 (Household) and S11 (Practice) add tabs.
+function hsgOpenHowTo() {
+  const ov = document.getElementById('hsg-how-to-overlay');
+  if (!ov) return;
+  // .overlay-data-inner, NOT .overflow-y-auto — the latter returns null silently.
+  const inner = ov.querySelector('.overlay-data-inner');
+  if (inner) inner.scrollTop = 0;
+  const body = document.getElementById('hsg-howto-body-rules');
+  if (body) body.scrollTop = 0;
+  ov.style.display = 'flex';
+}
+
+function hsgShow(id, on) {
+  const el = document.getElementById(id);
+  if (el) el.style.display = on ? 'flex' : 'none';
+}
+
+// Pass-the-Phone names -> the Campaign. Blank = "Lord 1" / "Lord 2"; identical names
+// (trim, case-insensitive) are refused with a shake on the second input.
+function hsgSetupStart() {
+  const a = document.getElementById('hsg-name-0');
+  const b = document.getElementById('hsg-name-1');
+  const err = document.getElementById('hsg-setup-err');
+  const n0 = ((a && a.value) || '').trim() || 'Lord 1';
+  const n1 = ((b && b.value) || '').trim() || 'Lord 2';
+  if (n0.toLowerCase() === n1.toLowerCase()) {
+    if (err) err.style.display = 'block';
+    if (b) {
+      b.classList.remove('shake'); void b.offsetWidth; b.classList.add('shake');
+      setTimeout(() => b.classList.remove('shake'), 560);   // .shake is `infinite` globally
+    }
+    return;
+  }
+  if (err) err.style.display = 'none';
+  hsgNames = [n0, n1];
+  hsgStartCampaign();
+}
+
+// The quit contract (logic-engine.md § Mid-Game Quit Contract): a lobby session is
+// dissolved through the engine — tell the host, then resetToLobby(). Never the menu.
+function hsgQuitConfirm() {
+  hsgShow('hsg-quit-overlay', false);
+  if (window.syllyMultiplayerMode !== 'single') { mpNotifyPlayerLeft(); resetToLobby(); return; }
+  hsgTeardown();
+  hsgShowMenu();
+}
+
+if (typeof document !== 'undefined' && document.addEventListener) {
+  document.addEventListener('DOMContentLoaded', () => {
+    // New-game sound re-wiring: this markup sits after engine.js's parse-time
+    // querySelectorAll, so it cannot reach it. FRT is the reference.
+    document.querySelectorAll(
+      '#screen-hsg-menu .btn-open-sound, #screen-hsg-setup .btn-open-sound, ' +
+      '#screen-hsg-standby .btn-open-sound, #screen-hsg-castle .btn-open-sound, ' +
+      '#screen-hsg-chronicle .btn-open-sound, #screen-hsg-gameover .btn-open-sound'
+    ).forEach(btn => btn.addEventListener('click', openSoundOverlay));
+
+    const on = (id, fn) => { const el = document.getElementById(id); if (el) el.addEventListener('click', fn); };
+
+    // Lobby entry — the exact suite pattern. activeGameId drives the slider/mute theme
+    // and the music, so it is set BEFORE the showScreen that triggers them.
+    on('btn-hsg', () => { playLaunch(); activeGameId = 'hsg'; hsgShowMenu(); });
+
+    // Play CTA, dual context: single -> pick create/join/one-phone; anything else is a
+    // lobby session whose entry is hsgOnEnter() (host -> Battle 1, client -> standby).
+    on('btn-hsg-menu-play', () => {
+      playLaunch();
+      if (window.syllyMultiplayerMode === 'single') mpShowModeScreen('hsg');
+      else hsgOnEnter();
+    });
+    on('btn-hsg-menu-how-to', () => { playDone(); hsgOpenHowTo(); });
+    on('btn-hsg-menu-settings', () => {
+      playDone();
+      const ov = document.getElementById('hsg-settings-overlay');
+      if (!ov) return;
+      const inner = ov.querySelector('.overlay-data-inner');
+      if (inner) inner.scrollTop = 0;
+      hsgSyncSettingsUI();
+      ov.style.display = 'flex';
+    });
+    on('btn-hsg-menu-back', () => { playExit(); resetToLobby(); });
+
+    // Overlay dismissals — ids end in a `close`/`cancel` segment so the engine's
+    // delegated backdrop tap-to-dismiss finds and clicks them.
+    on('btn-hsg-settings-close', () => { playDone(); hsgShow('hsg-settings-overlay', false); });
+    on('btn-hsg-howto-close',    () => { playDone(); hsgShow('hsg-how-to-overlay', false); });
+    on('btn-hsg-how-to',         () => { playDone(); hsgOpenHowTo(); });
+
+    // War Council pills. Values are numbers in state, strings in the DOM.
+    const bindPill = (group, fn) => {
+      document.querySelectorAll(`[data-group="${group}"]`).forEach(pill => {
+        pill.addEventListener('click', () => {
+          playPillClick();
+          fn(Number(pill.getAttribute('data-val')));
+          hsgSyncSettingsUI();
+        });
+      });
+    };
+    bindPill('hsg-campaign', v => { hsgCampaignLen = v; });
+    bindPill('hsg-foxes',    v => { hsgFoxes = v; });
+    hsgSyncSettingsUI();
+
+    on('btn-hsg-setup-start', () => { playLaunch(); hsgSetupStart(); });
+
+    // The Castle (S4). One delegated listener per gesture on the grid; the 30
+    // squares are created on the first paint. A click straight after a drop is
+    // the drop's own click — swallowed.
+    const grid = document.getElementById('hsg-grid');
+    if (grid) {
+      grid.addEventListener('click', e => {
+        const sq = e.target && e.target.closest ? e.target.closest('.hsg-sq') : null;
+        if (!sq) return;                                 // a gap between squares counts as "off"
+        e.stopPropagation();
+        if (Date.now() - hsgDragEndAt < 400) return;
+        hsgTap(+sq.getAttribute('data-i'));
+      });
+      grid.addEventListener('pointerdown', hsgDragStart);
+      grid.addEventListener('pointermove', hsgDragMove);
+      grid.addEventListener('pointerup', hsgDragEnd);
+      grid.addEventListener('pointercancel', hsgDragEnd);
+    }
+    const castle = document.getElementById('hsg-castle');
+    if (castle) castle.addEventListener('click', hsgTapOff);
+    on('btn-hsg-chron-next', () => {
+      playLaunch();
+      const mode = window.syllyMultiplayerMode;
+      if (!hsgPub) return;
+      if (mode === 'client') { hsgClientNextBattle(); return; }   // either player may tap it (spec §17 #8)
+      hsgHostNextBattle(mode === 'single' ? 0 : mpMyPlayerIdx, { battleNo: hsgPub.battleNo, replay: hsgPub.replay });
+    });
+
+    // Quit (Castle / Chronicle / setup / standby ✕) and its two buttons.
+    document.querySelectorAll('.btn-hsg-quit-open').forEach(b =>
+      b.addEventListener('click', () => { playDone(); hsgShow('hsg-quit-overlay', true); }));
+    on('btn-hsg-quit-confirm', () => { playExit(); hsgQuitConfirm(); });
+    on('btn-hsg-quit-cancel',  () => { playDone(); hsgShow('hsg-quit-overlay', false); });
+
+    // Gameover: ✕ and Leave the Field go straight to the lobby (the game is over);
+    // New Campaign confirms through its Decision Modal, label set per mode when opened.
+    on('btn-hsg-go-exit',  () => { playExit(); resetToLobby(); });
+    on('btn-hsg-go-leave', () => { playExit(); resetToLobby(); });
+    on('btn-hsg-go-new', () => {
+      playDone();
+      const mode = window.syllyMultiplayerMode;
+      const btn = document.getElementById('btn-hsg-new-confirm');
+      if (btn) btn.textContent = mode === 'host' ? 'Restart in the lobby' : mode === 'client' ? 'Leave Session' : 'Toss the fan';
+      hsgShow('hsg-new-campaign-overlay', true);
+    });
+    on('btn-hsg-new-cancel', () => { playDone(); hsgShow('hsg-new-campaign-overlay', false); });
+    on('btn-hsg-new-confirm', () => {
+      playLaunch();
+      hsgShow('hsg-new-campaign-overlay', false);
+      const mode = window.syllyMultiplayerMode;
+      if (mode !== 'single') { mpReturnToLobby(); return; }   // host restarts in the lobby; client leaves
+      hsgStartCampaign();
+    });
+  });
 }

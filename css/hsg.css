@@ -1,0 +1,528 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   hsg.css — Hide and Shogun’s world: the lamplit room (S4, SW v279); the Battle
+   intro and the Storyteller scene (S5, SW v280).
+   Brand classes (hsg-cta, pill-active-hsg, …) live in css/styles.css with the
+   suite's other brand rules; this file is the world only.
+
+   Source board: "Mix · The Castle (C's action in A's world)" on the Stage 1b
+   directions canvas (spec §1). Values are ported from it; where a value scales
+   with the tile it is written in em of the tile's own font-size, which is
+   pinned to --hsg-t (10 px at the board's 58 px tile).
+
+   THE CASTLE IS A FIXED-HEIGHT, NON-SCROLLING BOARD — a logged departure from
+   the Stack (spec §17 #7, docs/ui-revamp-rollout.md). The tile size is the
+   smaller of what the width and the height leave once the fixed chrome is
+   paid for, so the whole Castle always fits the glass:
+     --hsg-t = min(58px, width budget / 5, height budget / 6)
+   Below 600 px of height a compact tier shrinks the chrome. The brief's
+   merged-bar strip for 320×452 is settled at S12 (spec §16 Q7), not here.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── The room ──────────────────────────────────────────────────────────────── */
+.hsg-room {
+  --hsg-vh: 100vh;
+  background: radial-gradient(120% 75% at 50% 48%, #4A2A20 0%, #2A1712 62%, #1C0F0B 100%);
+  color: #F3EAD7;
+}
+@supports (height: 100dvh) { .hsg-room { --hsg-vh: 100dvh; } }
+
+/* The Castle column. showScreen() sets the <section>'s display inline, so the
+   layout lives on this inner element. */
+.hsg-castle {
+  --hsg-head: 48px; --hsg-bar: 40px; --hsg-beam: 24px; --hsg-card: 58px;
+  --hsg-gap: 6px; --hsg-padt: 6px; --hsg-padb: 10px;
+  --hsg-fp: 7px;  --hsg-fb: 2px;  --hsg-tg: 3px;
+  --hsg-fixed: calc(var(--hsg-head) + 2 * var(--hsg-bar) + var(--hsg-beam) + var(--hsg-card)
+             + 5 * var(--hsg-gap) + var(--hsg-padt) + var(--hsg-padb)
+             + 2 * var(--hsg-fp) + 2 * var(--hsg-fb) + 5 * var(--hsg-tg));
+  --hsg-t: max(30px, min(58px,
+             calc((100vw - 32px - 2 * var(--hsg-fp) - 2 * var(--hsg-fb) - 4 * var(--hsg-tg)) / 5),
+             calc((var(--hsg-vh) - var(--hsg-fixed)) / 6)));
+  --hsg-w: min(343px, calc(100vw - 32px));
+  position: relative;
+  width: 100%;
+  height: var(--hsg-vh);
+  box-sizing: border-box;
+  padding: var(--hsg-padt) 0 var(--hsg-padb);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: var(--hsg-gap);
+  overflow: hidden;
+  user-select: none; -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ── Header ────────────────────────────────────────────────────────────────── */
+.hsg-head {
+  width: 100%; max-width: 375px; height: var(--hsg-head); flex-shrink: 0;
+  box-sizing: border-box; padding: 0 4px 0 16px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.hsg-head-title { font-size: 18px; font-weight: 700; line-height: 1.1; }
+.hsg-head-sub   { font-size: 12px; font-weight: 500; line-height: 1.1; color: #E3C894; }
+.hsg-chrome {
+  min-width: 44px; min-height: 44px; color: #F3EAD7;
+  display: inline-flex; align-items: center; justify-content: center;
+  transition: transform .1s ease-out;
+}
+.hsg-chrome:active { transform: scale(.9); }
+
+/* ── A player's bar (the opponent above the board, you below) ──────────────── */
+.hsg-bar {
+  width: var(--hsg-w); height: var(--hsg-bar); flex-shrink: 0;
+  box-sizing: border-box; padding: 0 10px;
+  display: flex; align-items: center; gap: 8px;
+  border-radius: 10px;
+  background: rgba(0,0,0,.24); box-shadow: inset 0 0 0 1px rgba(243,234,215,.12);
+}
+.hsg-bar.is-active { background: rgba(242,180,90,.16); box-shadow: inset 0 0 0 1.5px #F2B45A; }
+.hsg-crest {
+  width: 24px; height: 24px; box-sizing: border-box; border-radius: 50%; flex-shrink: 0;
+  border: 1.5px solid #F3EAD7;
+  display: flex; align-items: center; justify-content: center;
+}
+.hsg-crest.is-none { background: #4A3328; border-style: dashed; border-color: rgba(243,234,215,.45); }
+.hsg-crest svg { width: 12px; height: 12px; }
+.hsg-bar-who { display: flex; flex-direction: column; line-height: 1.05; min-width: 0; flex: 1 1 auto; }
+.hsg-bar-name { font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hsg-bar-clan { font-size: 10.5px; color: #D9C3A0; white-space: nowrap; }
+.hsg-slots { display: flex; gap: 4px; flex-shrink: 0; }
+.hsg-fox-slot {
+  width: 18px; height: 18px; box-sizing: border-box; border-radius: 50%;
+  border: 1.5px dashed rgba(243,234,215,.45);
+  display: flex; align-items: center; justify-content: center;
+}
+.hsg-fox-slot svg { width: 12px; height: 12px; }
+.hsg-fox-slot.is-held { border-style: solid; border-color: #F3EAD7; }
+.hsg-guard { width: 18px; height: 18px; flex-shrink: 0; }
+.hsg-seals { display: flex; gap: 3px; flex-shrink: 0; }
+.hsg-seal {
+  width: 14px; height: 14px; box-sizing: border-box; border-radius: 3px;
+  border: 1.5px solid rgba(243,234,215,.4);
+}
+.hsg-seal.is-won { background: #C8402A; border-color: #C9A14A; }
+
+/* ── The lantern beam: 12 lit = 12 − quiet Commands ────────────────────────── */
+.hsg-beam {
+  width: var(--hsg-w); height: var(--hsg-beam); flex-shrink: 0;
+  box-sizing: border-box; padding: 0 8px;
+  display: flex; align-items: center; justify-content: space-between;
+  background: linear-gradient(#2A1712, #1C0F0B);
+  border-top: 2px solid #C9A14A; border-radius: 3px;
+}
+.hsg-lantern {
+  width: 14px; height: 17px; box-sizing: border-box; border-radius: 7px / 8px;
+  border-top: 2px solid #1C0F0B; border-bottom: 2px solid #1C0F0B;
+  background: #4A3328;
+  transition: opacity .3s ease-out;
+}
+.hsg-lantern.is-lit {
+  background: radial-gradient(circle at 50% 40%, #FFE2A1, #F2B45A 60%, #D98A2B);
+  box-shadow: 0 0 8px 2px rgba(242,180,90,.55);
+}
+@keyframes hsgFlick { 0%,100% { opacity: 1 } 35% { opacity: .45 } 50% { opacity: .95 } 70% { opacity: .35 } }
+.hsg-lantern.is-flicker { animation: hsgFlick 1.4s ease-in-out infinite; }
+
+/* ── The board: a lacquer frame with a gold-leaf rim ───────────────────────── */
+.hsg-frame {
+  flex-shrink: 0;
+  padding: var(--hsg-fp);
+  background: #3A1F1A;
+  border: var(--hsg-fb) solid #C9A14A; border-radius: 6px;
+  box-shadow: 0 0 44px 6px rgba(242,180,90,.22), inset 0 0 0 1px #1C0F0B;
+}
+.hsg-grid {
+  display: grid;
+  grid-template-columns: repeat(5, var(--hsg-t));
+  grid-auto-rows: var(--hsg-t);
+  gap: var(--hsg-tg);
+  touch-action: none;            /* the board drags; it never scrolls or zooms */
+}
+/* A square: the slot the player taps. The seam's tile sits inside it; the lift
+   and the glow live HERE so they can transition while the tile is redrawn. */
+.hsg-sq {
+  position: relative; display: block; padding: 0; border: 0; margin: 0;
+  width: var(--hsg-t); height: var(--hsg-t);
+  background: transparent; color: inherit; font: inherit;
+  transition: transform .12s ease-out;
+}
+.hsg-sq.is-picked { transform: translateY(-3px); z-index: 2;
+  box-shadow: 0 0 0 3px #FFF3D1, 0 0 22px 7px rgba(255,214,140,.85); }
+.hsg-sq.is-armed  { transform: translateY(-7px); z-index: 2;
+  box-shadow: 0 12px 18px rgba(0,0,0,.6), 0 0 24px 6px rgba(255,214,140,.6); }
+.hsg-sq.is-dragging { opacity: .35; }
+.hsg-sq:focus-visible { outline: 2px solid #F2B45A; outline-offset: 2px; }
+
+/* ── The tile (hsgRenderTile) ──────────────────────────────────────────────── */
+.hsg-tile {
+  position: relative; width: var(--hsg-t); height: var(--hsg-t);
+  font-size: max(7px, calc(var(--hsg-t) * .1724));   /* 10 px at the board's 58 px */
+  line-height: 1;
+  pointer-events: none;          /* taps belong to the square */
+}
+.hsg-tile > * { position: absolute; }
+.hsg-tile-asset { inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.hsg-door {
+  inset: 0;
+  background-image: linear-gradient(#3A1F1A, #3A1F1A), linear-gradient(#3A1F1A, #3A1F1A),
+                    linear-gradient(#3A1F1A, #3A1F1A),
+                    radial-gradient(circle at 50% 52%, #FFF3D1 0%, #F8DFA3 45%, #EDC67C 100%);
+  background-size: 2.5px 100%, 100% 2.5px, 100% 2.5px, 100% 100%;
+  background-position: 50% 0, 0 33%, 0 67%, 0 0;
+  background-repeat: no-repeat;
+}
+.hsg-floor { inset: 0; background: radial-gradient(circle at 50% 45%, #6A4A30 0%, #4A3022 70%, #3A2418 100%); }
+.hsg-lit   { inset: 0; background: radial-gradient(circle at 50% 40%, #FFF6DD 0%, #F6E2B0 55%, #E6C688 100%); }
+.hsg-glyph { left: 20.7%; top: 5.2%; width: 58.6%; height: 58.6%; }
+.hsg-tile-crest {
+  top: .2em; left: .2em; width: 1.4em; height: 1.4em; box-sizing: border-box; border-radius: 50%;
+  border: 1px solid #2B2620;
+  display: flex; align-items: center; justify-content: center;
+}
+.hsg-tile-crest svg { width: .9em; height: .9em; }
+.hsg-rank { top: .15em; right: .4em; font-weight: 700; color: #3A1F1A; }
+.hsg-sash {
+  left: 0; right: 0; bottom: 0; height: 1.6em; line-height: 1.6em;
+  color: #FFF6DD; font-weight: 600; text-align: center; white-space: nowrap; overflow: hidden;
+  border-top: 1px solid #C9A14A;
+}
+/* the first tap on a door: a vague shadow through the paper, the same for every door */
+.hsg-shade { left: 15.5%; top: 10.3%; width: 69%; height: 82.8%; }
+.hsg-open-chip {
+  left: 8.6%; right: 8.6%; top: 31%; height: 38%;
+  border-radius: 999px; background: #B8862B; color: #FFFFFF;
+  font-size: 1.2em; font-weight: 600;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 2px 6px rgba(43,38,32,.35);
+}
+/* move marks (shape-coded; only legal squares ever carry one) */
+.hsg-mark-dot {
+  left: 36.2%; top: 36.2%; width: 27.6%; height: 27.6%; border-radius: 50%;
+  background: #F2B45A; box-shadow: 0 0 12px 3px rgba(242,180,90,.75);
+}
+.hsg-mark-chev { left: 25.9%; top: 22.4%; width: 48.3%; height: 55.2%; }
+.hsg-mark-full { left: 0; top: 0; width: 100%; height: 100%; }
+.hsg-mark-screen { inset: 8%; border: 2px dashed rgba(43,38,32,.75); border-radius: 4px; }
+.hsg-mark-last   { inset: -2px; border: 2px dashed #F2B45A; }
+
+/* ── The message card: the Storyteller speaks; the board is the control ────── */
+.hsg-card {
+  width: var(--hsg-w); height: var(--hsg-card); flex-shrink: 0;
+  box-sizing: border-box; padding: 7px 12px 7px 8px;
+  border-radius: 12px; background: #F3EAD7; color: #2B2620;
+  display: flex; gap: 10px; align-items: center;
+  box-shadow: 0 0 0 2px #C9A14A;
+}
+.hsg-portrait {
+  width: 42px; height: 42px; border-radius: 50%; flex-shrink: 0; overflow: hidden;
+  background: radial-gradient(circle at 50% 45%, #FFF3D1, #F2B45A 75%);
+  box-shadow: 0 0 0 1.5px #3A1F1A;
+  display: flex; align-items: center; justify-content: center;
+}
+.hsg-portrait svg { width: 40px; height: 40px; }
+.hsg-card-text { display: flex; flex-direction: column; gap: 2px; line-height: 1.22; min-width: 0; }
+.hsg-card-title { font-size: 15px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hsg-card-sub {
+  font-size: 12px; color: #5C4A3A;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+
+/* ── The moment layer: drag ghost now, every S9 moment later ───────────────── */
+.hsg-fx { position: absolute; inset: 0; pointer-events: none; z-index: 20; overflow: hidden; }
+.hsg-ghost {
+  position: absolute; left: 0; top: 0; pointer-events: none;
+  filter: drop-shadow(0 10px 14px rgba(0,0,0,.55));
+  will-change: transform;
+}
+
+/* ── Compact tier: short glass (iPhone SE 375×548, Display Zoom 320×452) ───── */
+@media (max-height: 600px) {
+  .hsg-castle {
+    --hsg-head: 44px; --hsg-bar: 30px; --hsg-beam: 18px; --hsg-card: 50px;
+    --hsg-gap: 4px; --hsg-padt: 4px; --hsg-padb: 6px;
+    --hsg-fp: 5px; --hsg-tg: 2px;
+  }
+  .hsg-head-title { font-size: 16px; }
+  .hsg-head-sub { font-size: 11px; }
+  .hsg-bar { padding: 0 8px; gap: 6px; border-radius: 8px; }
+  .hsg-bar-clan { display: none; }           /* the crest still carries the clan */
+  .hsg-bar-name { font-size: 14px; }
+  .hsg-crest { width: 20px; height: 20px; }
+  .hsg-crest svg { width: 10px; height: 10px; }
+  .hsg-fox-slot { width: 15px; height: 15px; }
+  .hsg-fox-slot svg { width: 10px; height: 10px; }
+  .hsg-guard { width: 15px; height: 15px; }
+  .hsg-seal { width: 11px; height: 11px; }
+  .hsg-lantern { width: 11px; height: 13px; }
+  .hsg-card { padding: 3px 10px 3px 6px; gap: 8px; }
+  .hsg-card-text { gap: 1px; line-height: 1.15; }
+  .hsg-portrait { width: 32px; height: 32px; }
+  .hsg-portrait svg { width: 30px; height: 30px; }
+  .hsg-card-title { font-size: 13px; }
+  .hsg-card-sub { font-size: 11px; line-height: 1.15; }   /* two lines: the half that matters is often the second */
+}
+
+/* ═══ S5 — The Battle intro (board "A · Battle intro") ══════════════════════════
+   An interstitial: no chrome. Fixed-height like the Castle (the stage takes what
+   the glass leaves; nothing scrolls). Every one-shot runs under .is-playing (re-
+   added per Battle by hsgPaintBattleIntro) and is timed by two custom properties
+   that hsg.js sets from its constants: --hsg-snap (the fan snaps / lands and the
+   call appears — the game plays playFanSnap() on the same number) and --hsg-bi-ms
+   (the whole intro — the progress bar). Base styles are the FINAL pose, so
+   `animation: none` (reduced motion) shows the finished picture at once. */
+.hsg-bi {
+  --hsg-snap: 900ms; --hsg-bi-ms: 3500ms;
+  position: relative; width: 100%; height: var(--hsg-vh);
+  box-sizing: border-box; padding: 0 16px 40px;
+  display: flex; flex-direction: column; align-items: center; gap: 14px;
+  overflow: hidden; text-align: center;
+  user-select: none; -webkit-user-select: none;
+}
+/* the beam: a full-bleed rail, twelve lanterns on cords of different lengths */
+.hsg-bi-beam {
+  position: relative; flex-shrink: 0;
+  width: min(343px, 100%); padding: 12px 6px 0; box-sizing: border-box;
+  display: flex; justify-content: space-between; align-items: flex-start;
+}
+.hsg-bi-beam::before {
+  content: ''; position: absolute; top: 0; left: calc(50% - 50vw); width: 100vw; height: 12px;
+  background: linear-gradient(#3A1F1A, #2A1712); border-bottom: 2px solid #C9A14A; box-sizing: border-box;
+}
+.hsg-bi-beam span { display: flex; flex-direction: column; align-items: center; }
+.hsg-bi-beam span::before { content: ''; width: 1.5px; height: var(--c); background: #C9A14A; }
+.hsg-bi-beam span::after {
+  content: ''; width: 18px; height: 22px; box-sizing: border-box; border-radius: 9px / 11px;
+  background: radial-gradient(circle at 50% 40%, #FFE2A1, #F2B45A 60%, #D98A2B);
+  box-shadow: 0 0 10px 3px rgba(242,180,90,.5);
+  border-top: 3px solid #1C0F0B; border-bottom: 3px solid #1C0F0B;
+}
+.hsg-bi-head { flex-shrink: 0; margin-top: auto; display: flex; flex-direction: column; align-items: center; gap: 6px; max-width: 100%; }
+.hsg-bi-title { margin: 0; font-size: 42px; font-weight: 700; line-height: 1; letter-spacing: .01em; color: #F3EAD7; }
+.hsg-bi-tally {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  max-width: 100%; font-size: 13px; color: #E3C894; line-height: 1.2;
+}
+.hsg-bi-name { min-width: 0; max-width: 34vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hsg-bi-tally .hsg-seals { gap: 4px; align-items: center; }
+.hsg-bi-tally .hsg-seal { width: 12px; height: 12px; border-radius: 2px; }
+.hsg-bi-dot { opacity: .6; padding: 0 2px; }
+/* the stage: 315 × 262 at most, smaller when the glass is short; HsgScene fills it */
+.hsg-bi-stage { position: relative; flex: 1 1 262px; min-height: 0; width: 100%; max-width: 315px; max-height: 262px; }
+.hsg-bi-stage > .hsg-scene { position: absolute; inset: 0; }
+.hsg-bi-card {
+  flex-shrink: 0; margin-bottom: auto;
+  width: min(327px, 100%); box-sizing: border-box; padding: 12px 16px;
+  border-radius: 14px; background: #F3EAD7; color: #2B2620; box-shadow: 0 0 0 2px #C9A14A;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.hsg-bi-flavour { font-size: 14px; color: #5C4A3A; line-height: 1.3; }
+.hsg-bi-call { font-size: 20px; font-weight: 700; line-height: 1.2; overflow-wrap: anywhere; }
+.hsg-bi-progress {
+  position: absolute; left: 50%; bottom: 22px; width: 120px; margin-left: -60px; height: 4px;
+  border-radius: 2px; background: rgba(243,234,215,.18); overflow: hidden;
+}
+.hsg-bi-progress > i { display: block; height: 100%; background: #F2B45A; transform-origin: 0 50%; }
+
+@keyframes hsgFadeUp  { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes hsgLampOn  { from { opacity: .18; } to { opacity: 1; } }
+@keyframes hsgProgress { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+.hsg-bi.is-playing .hsg-bi-beam span::after { animation: hsgLampOn 320ms ease-out both; animation-delay: calc(120ms + var(--i) * 60ms); }
+.hsg-bi.is-playing .hsg-bi-head    { animation: hsgFadeUp 300ms cubic-bezier(.22,1,.36,1) both; }
+.hsg-bi.is-playing .hsg-bi-flavour { animation: hsgFadeUp 300ms 150ms cubic-bezier(.22,1,.36,1) both; }
+.hsg-bi.is-playing .hsg-bi-call    { animation: hsgFadeUp 280ms var(--hsg-snap) cubic-bezier(.22,1,.36,1) both; }
+.hsg-bi.is-playing .hsg-bi-progress > i { animation: hsgProgress var(--hsg-bi-ms) linear both; }
+
+/* ═══ The Storyteller (HsgScene, js/games/hsg-scene.js) ═════════════════════════
+   One stage SVG (315 × 262) in two settings: the Battle intro (.is-battle) and the
+   engine Intro's scene box (.is-intro). The figure is a nested <svg>, so the
+   transform-origins below are in HIS 200 × 216 coordinates. */
+.hsg-scene { position: relative; }
+.hsg-stage { position: relative; width: 100%; height: 100%; }
+.hsg-stage-svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.hsg-st-arm   { transform-origin: 136px 118px; }
+.hsg-fan-shut { opacity: 0; transition: opacity 120ms ease-out; }
+.hsg-fan-open { transition: opacity 120ms ease-out; }
+.hsg-fan-arc, .hsg-fan-air { display: none; }
+.hsg-fan-air  { transform-origin: 30px 40px; }
+
+@keyframes hsgShow     { from { opacity: 0; } to { opacity: 1; } }
+@keyframes hsgHide     { from { opacity: 1; } to { opacity: 0; } }
+@keyframes hsgFlicker  { 0%, 100% { opacity: 1; } 30% { opacity: .82; } 45% { opacity: .96; } 70% { opacity: .78; } }
+@keyframes hsgPaneL    { from { transform: translateX(-150px); } to { transform: none; } }
+@keyframes hsgPaneR    { from { transform: translateX(150px); } to { transform: none; } }
+@keyframes hsgArmRaise { from { transform: rotate(0); } to { transform: rotate(-14deg); } }
+@keyframes hsgFanFlick { 0% { transform: rotate(-14deg); } 60% { transform: rotate(5deg); } 100% { transform: rotate(0); } }
+@keyframes hsgFanLift  { 0% { transform: rotate(0); } 35% { transform: rotate(-12deg); } 100% { transform: rotate(0); } }
+@keyframes hsgArmToss  { 0% { transform: rotate(0); } 30% { transform: rotate(8deg); } 60% { transform: rotate(-22deg); } 100% { transform: rotate(-6deg); } }
+@keyframes hsgFanFly {
+  0%   { transform: translate(131px, 30px) rotate(-160deg) scale(.6); opacity: 0; }
+  8%   { opacity: 1; }
+  50%  { transform: translate(60px, -40px) rotate(-60deg) scale(.9); }
+  100% { transform: none; opacity: 1; }
+}
+@keyframes hsgFanLand  { 0% { transform: translateY(-4px); } 55% { transform: translateY(2px); } 100% { transform: none; } }
+
+/* the lamp behind the paper breathes (the one loop — the static tier stops it) */
+.hsg-glow { animation: hsgFlicker 2.6s ease-in-out infinite; }
+
+/* Battle N / replay: the doors slide shut, the lamp comes up, he raises the fan and snaps it */
+.hsg-scene.is-battle .hsg-pane-l { animation: hsgPaneL 650ms 120ms cubic-bezier(.22,1,.36,1) both; }
+.hsg-scene.is-battle .hsg-pane-r { animation: hsgPaneR 650ms 120ms cubic-bezier(.22,1,.36,1) both; }
+.hsg-scene.is-battle .hsg-glow   { animation: hsgShow 600ms 500ms ease-out both, hsgFlicker 2.6s 1.1s ease-in-out infinite; }
+.hsg-scene.is-battle .hsg-st-arm { animation: hsgArmRaise 400ms 300ms ease-out both, hsgFanFlick 260ms var(--hsg-snap) ease-out forwards; }
+.hsg-scene.is-battle .hsg-fan-open { opacity: 0; animation: hsgHide 120ms var(--hsg-snap) both; }
+.hsg-scene.is-battle .hsg-fan-shut { opacity: 1; animation: hsgShow 120ms var(--hsg-snap) both; }
+/* Battle 1: he tosses it; it flies off and lands (on --hsg-snap) — the hand ends empty */
+.hsg-scene.is-toss .hsg-st-arm   { animation: hsgArmToss 600ms 250ms ease-out both; }
+.hsg-scene.is-toss .hsg-fan-open { opacity: 0; animation: hsgHide 80ms 450ms both; }
+.hsg-scene.is-toss .hsg-fan-shut { opacity: 0; animation: none; }
+.hsg-scene.is-toss .hsg-fan-arc  { display: inline; animation: hsgShow 500ms 900ms both; }
+.hsg-scene.is-toss .hsg-fan-air  { display: inline; animation: hsgFanFly 1100ms 450ms cubic-bezier(.3,.7,.4,1) both, hsgFanLand 240ms var(--hsg-snap) ease-out forwards; }
+
+/* The engine Intro: the room under the scene box, the stage, then the line card
+   (the engine's own narrator line goes sr-only once a scene has beat()). Scoped
+   to this scene only — departure logged on docs/ui-revamp-rollout.md. */
+#game-intro-scene:has(> .hsg-scene) {
+  aspect-ratio: auto;
+  background: radial-gradient(120% 80% at 50% 40%, #4A2A20 0%, #2A1712 62%, #1C0F0B 100%);
+}
+#screen-game-intro:has(.hsg-scene) { --intro-stamp: #9C6A1E; }
+.hsg-scene.is-intro { padding: 12px; display: flex; flex-direction: column; gap: 10px; color: #F3EAD7; }
+.hsg-scene.is-intro .hsg-stage { height: clamp(132px, 30vh, 210px); }
+.hsg-scene-card {
+  min-height: 52px; box-sizing: border-box; padding: 10px 14px; text-align: left;
+  border-radius: 12px; background: #F3EAD7; color: #2B2620; box-shadow: 0 0 0 2px #C9A14A;
+  display: flex; align-items: center;
+}
+.hsg-scene-line { font-size: 17px; font-weight: 700; line-height: 1.3; }
+.hsg-scene-line.is-new { animation: hsgFadeUp 260ms cubic-bezier(.22,1,.36,1) both; }
+.hsg-scene.is-intro .hsg-st-arm.is-lift  { animation: hsgFanLift 520ms ease-out; }
+.hsg-scene.is-intro .hsg-st-arm.is-flick { animation: hsgFanFlick 240ms ease-out; }
+.hsg-scene.is-intro.is-snapped .hsg-fan-open { opacity: 0; }
+.hsg-scene.is-intro.is-snapped .hsg-fan-shut { opacity: 1; }
+.hsg-scene.is-intro.is-snapped .hsg-scene-card { display: none; }
+
+/* The automatic static tier (a slow phone): the lamp stops breathing and, in the
+   Intro, the fan is held still. One-shots in the Battle intro still finish. */
+.hsg-scene.is-static .hsg-glow { animation: none; }
+.hsg-scene.is-static.is-intro .hsg-st-arm { animation: none; }
+/* Reduced motion (the scene's own flag): the final pose at once, nothing loops. */
+.hsg-scene.is-reduced *, .hsg-scene.is-reduced *::before, .hsg-scene.is-reduced *::after { animation: none !important; transition: none !important; }
+
+/* ═══ S6 — The War Chronicle (board "A · War Chronicle") ═══════════════════════
+   Both end screens (#hsg-chron-body, #hsg-go-body). A Stack: the section centres
+   one column and scrolls it as a unit on a short phone. Two cloth banners hang
+   from a beam — the winner's longer and stamped, the loser's dim, a Truce level.
+   Base styles are the FINAL pose; .is-playing (re-added per paint) runs the
+   one-shot unfurl and stamp, transform + opacity only, and the reduced-motion
+   block below switches them off. Brand-coded controls stay #B8862B (.hsg-cta);
+   the cloth, the seals and the rest are the world's own palette. */
+.hsg-ch-eyebrow {
+  margin: 0; padding-left: 4px; font-size: 13px; font-weight: 700;
+  letter-spacing: .18em; text-transform: uppercase; color: #E3C894;
+}
+.hsg-ch { display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; color: #F3EAD7; }
+
+/* the beam and the two banners that hang from it */
+.hsg-ch-hang { position: relative; width: 100%; padding-top: 10px; }
+.hsg-ch-rod {
+  position: absolute; top: 0; left: 0; right: 0; height: 10px; box-sizing: border-box; border-radius: 3px;
+  background: linear-gradient(#3A1F1A, #2A1712); border-bottom: 2px solid #C9A14A;
+}
+.hsg-ch-banners { display: flex; justify-content: space-around; align-items: flex-start; gap: 12px; padding: 0 6px; }
+.hsg-ch-banner {
+  --len: 84px;
+  position: relative; flex: 1 1 0; min-width: 0; max-width: 150px; height: var(--len);
+  box-sizing: border-box; padding: 10px 6px 18px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  background: linear-gradient(rgba(255,255,255,.1), rgba(0,0,0,.14)), var(--cloth);
+  border-top: 3px solid #C9A14A;
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% calc(100% - 12px), 0 100%);
+  transform-origin: 50% 0;
+}
+.hsg-ch-banner.is-won  { --len: 118px; }
+.hsg-ch-banner.is-even { --len: 98px; }
+/* dimmed with a filter, not opacity: the unfurl ends at opacity 1 and would undo it */
+.hsg-ch-banner.is-lost { filter: saturate(.4) brightness(.62); }
+.hsg-ch-clan { font-size: 13px; font-weight: 700; line-height: 1.1; color: #F3EAD7; overflow-wrap: anywhere; }
+.hsg-ch-who  { font-size: 12px; line-height: 1.1; color: #E3C894; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hsg-ch-stamp {
+  width: 28px; height: 28px; box-sizing: border-box; border-radius: 5px; margin-bottom: 4px;
+  display: flex; align-items: center; justify-content: center;
+  background: #C8402A; border: 1.5px solid #C9A14A; color: #F3EAD7; font-size: 15px; font-weight: 700; line-height: 1;
+  transform: rotate(-6deg);
+}
+
+.hsg-ch-head { margin: 2px 0 0; max-width: 100%; font-size: 30px; font-weight: 700; line-height: 1.05; color: #F3EAD7; overflow-wrap: anywhere; }
+.hsg-ch-sub  { margin: 0; max-width: 100%; font-size: 15px; line-height: 1.3; color: #E3C894; }
+.hsg-ch-quote {
+  margin: 0; width: 100%; box-sizing: border-box; padding: 8px 12px; text-align: left;
+  font-size: 14px; font-style: italic; line-height: 1.35; color: #F3EAD7;
+  border-left: 3px solid #C9A14A; background: rgba(0,0,0,.22); border-radius: 0 10px 10px 0;
+}
+
+.hsg-ch-stats { display: flex; gap: 8px; width: 100%; }
+.hsg-ch-stat {
+  flex: 1 1 0; min-width: 0; box-sizing: border-box; padding: 8px 10px;
+  border-radius: 12px; background: #F3EAD7; color: #2B2620; box-shadow: 0 0 0 2px #C9A14A;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.hsg-ch-stat-k { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #7A5517; }
+.hsg-ch-stat-v { font-size: 22px; font-weight: 700; line-height: 1.1; }
+.hsg-ch-stat-v.is-two { display: flex; flex-direction: column; font-size: 15px; line-height: 1.25; }
+
+.hsg-ch-tallybox {
+  width: 100%; box-sizing: border-box; padding: 8px 10px; border-radius: 12px;
+  background: rgba(0,0,0,.24); box-shadow: inset 0 0 0 1px rgba(243,234,215,.12);
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+}
+.hsg-ch-tally-k { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #D9C3A0; }
+.hsg-ch-tally { display: flex; align-items: center; justify-content: center; gap: 8px; max-width: 100%; font-size: 13px; color: #E3C894; line-height: 1.2; }
+.hsg-ch-tally .hsg-seals { gap: 4px; align-items: center; }
+.hsg-ch-tally .hsg-seal { width: 14px; height: 14px; border-radius: 2px; }
+
+@keyframes hsgUnfurl { from { opacity: 0; transform: scaleY(.25); } to { opacity: 1; transform: none; } }
+@keyframes hsgStampIn { from { opacity: 0; transform: rotate(-6deg) scale(1.7); } to { opacity: 1; transform: rotate(-6deg); } }
+.hsg-ch.is-playing .hsg-ch-banner { animation: hsgUnfurl 300ms cubic-bezier(.22,1,.36,1) both; }
+.hsg-ch.is-playing .hsg-ch-banner.is-lost { animation-delay: 80ms; }
+.hsg-ch.is-playing .hsg-ch-stamp { animation: hsgStampIn 220ms 280ms cubic-bezier(.22,1,.36,1) both; }
+.hsg-ch.is-playing .hsg-ch-head  { animation: hsgFadeUp 280ms 160ms cubic-bezier(.22,1,.36,1) both; }
+.hsg-ch.is-playing .hsg-ch-sub, .hsg-ch.is-playing .hsg-ch-quote { animation: hsgFadeUp 280ms 240ms cubic-bezier(.22,1,.36,1) both; }
+
+/* Compact tier: short glass (375×548, 320×452) */
+@media (max-height: 600px) {
+  .hsg-bi { gap: 8px; padding-bottom: 28px; }
+  .hsg-bi-beam { padding-top: 10px; }
+  .hsg-bi-beam::before { height: 10px; }
+  .hsg-bi-beam span::before { height: calc(var(--c) * .6); }
+  .hsg-bi-beam span::after { width: 14px; height: 17px; border-top-width: 2px; border-bottom-width: 2px; }
+  .hsg-bi-title { font-size: 32px; }
+  .hsg-bi-card { padding: 9px 12px; gap: 4px; }
+  .hsg-bi-flavour { font-size: 13px; }
+  .hsg-bi-call { font-size: 17px; }
+  .hsg-bi-progress { bottom: 12px; }
+  .hsg-scene-card { min-height: 46px; padding: 8px 12px; }
+  .hsg-scene-line { font-size: 15px; }
+  /* the War Chronicle: a shorter hang and tighter rows (it still scrolls as a Stack below ~600 px) */
+  .hsg-ch { gap: 6px; }
+  .hsg-ch-banner { --len: 66px; padding: 6px 6px 14px; }
+  .hsg-ch-banner.is-won  { --len: 92px; }
+  .hsg-ch-banner.is-even { --len: 78px; }
+  .hsg-ch-stamp { width: 22px; height: 22px; font-size: 12px; margin-bottom: 2px; }
+  .hsg-ch-head { font-size: 26px; margin-top: 2px; }
+  .hsg-ch-sub { font-size: 14px; }
+  .hsg-ch-quote { font-size: 13px; padding: 6px 10px; }
+  .hsg-ch-stat { padding: 6px 10px; }
+  .hsg-ch-stat-v { font-size: 19px; }
+  .hsg-ch-stat-v.is-two { font-size: 13px; line-height: 1.2; }
+  .hsg-ch-tallybox { padding: 6px 10px; gap: 4px; }
+}
+
+/* ── Reduced motion: every moving thing has a still form ───────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .hsg-lantern.is-flicker { animation: none; opacity: .7; }
+  .hsg-sq { transition: none; }
+  /* the global block only shortens durations — delays would still hide the call */
+  .hsg-bi *, .hsg-bi *::before, .hsg-bi *::after,
+  .hsg-ch *, .hsg-ch *::before, .hsg-ch *::after,
+  .hsg-scene *, .hsg-scene *::before, .hsg-scene *::after { animation: none !important; transition: none !important; }
+}

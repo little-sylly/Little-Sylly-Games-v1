@@ -97,7 +97,9 @@ Colours: `0` Indigo Moon · `1` Crimson Sun · `2` a fox nobody has found yet (o
 ```js
 intro: {
   template: 'intro-hsg',            // <template> in src/screens/hsg.html
-  scene:    () => HsgScene,         // js/games/hsg-scene.js — mount(el, opts) / stop() / beat(i, text)
+  // js/games/hsg-scene.js — mount(el, opts) / stop() / beat(i, text). Built (S5): the engine gets
+  // hsgIntroScene, a thin wrapper in hsg.js that plays the fan snap when the beats end live.
+  scene:    () => (typeof hsgIntroScene !== 'undefined' ? hsgIntroScene : null),
   // one brief for everyone (nothing is secret); the variant only follows The Campaign setting.
   // typeof guard: this object is built before hsg.js loads (and verify-mp-configs runs it bare).
   brief:    () => (typeof hsgCampaignLen === 'undefined' || hsgCampaignLen === 3) ? 'default'
@@ -150,7 +152,7 @@ stateDiagram-v2
     SETUP --> BATTLE_INTRO : the two names
     STANDBY --> BATTLE_INTRO : HSG_BATTLE_START arrives
     state CAMPAIGN {
-        BATTLE_INTRO --> CASTLE : about 3.5 s, by itself
+        BATTLE_INTRO --> CASTLE : 3.5 s by itself (4.5 s for Battle 1's fan toss)
         CASTLE --> CASTLE : a Command (HSG_COMMAND_DONE)
         CASTLE --> CHRONICLE : Battle over, Campaign goes on
         CHRONICLE --> BATTLE_INTRO : Next Battle or Replay the Battle
@@ -175,7 +177,7 @@ between `MODE` and `INTRO`, where a bot can take the second seat.
 | Screen | Sub-states | State variable |
 |--------|-----------|----------------|
 | `screen-hsg-castle` | `idle` (my Command, nothing picked) · `picked` (a piece lifted, its marks lit) · `door` (a door lifted, "Open?" showing) · `waiting` (the other player's Command, read-only) · `sending` (my Command sent, awaiting the host) · `ending` (the Found you! / last-lantern / Cornered beat, then the War Chronicle) | `hsgUi` — derived each render from `hsgPub.turnSeat`, `hsgSel`, `hsgDoorArmed`, `syllySyncLocked`, `hsgPhase` |
-| `screen-hsg-battle-intro` | `toss` (Battle 1: the fan in the air) · `battle` (Battle N) · `replay` (after a Truce) | derived from `hsgPub.battleNo`, `hsgPub.replay` |
+| `screen-hsg-battle-intro` | `toss` (Battle 1: the fan in the air) · `battle` (Battle N) · `replay` (after a Truce — a Truce in Battle 1 replays, it does not toss again) | `hsgBattleIntroText(pub, flavourIdx)` → state, title, flavour, call, `ms` (4.5 s toss / 3.5 s), `snapMs` (1.7 s landing / 0.9 s snap). Pure, so the client (S7) derives the same timing from the same pub |
 | `screen-hsg-chronicle` / `-gameover` | five result variants: Found you! · Gekokujo! · The Last Lantern · Truce · Cornered (brief §17) | `hsgPub.result.reason` + `.gekokujo` |
 
 **Host phase** — the host's own bookkeeping, also what `reconnect.sendState` tells a rejoiner:
@@ -280,7 +282,9 @@ it is ever `null`, `{}` or `[]`; every collection has a fixed length and is rebu
   quiet: 0,                  // quiet Commands in a row; lanterns lit = 12 - quiet
   struck: [0, 0],            // per colour
   seals: [0, 0], campaignLen: 3,
-  last: { k: 'none' },       // or { k: 'U'|'M'|'C'|'S', i, j, kind } — the last Command
+  last: { k: 'none' },       // or { k: 'U'|'M'|'C'|'S', i, j, kind, seat, vid } — the last Command;
+                             //   seat = who made it, vid = the piece struck ('' otherwise) — both
+                             //   already in the open; added S4 so the message card can say it
   result: { reason: 'none' } // or { reason: 'shogun'|'lantern'|'truce'|'cornered',
                              //      winnerSeat (-1 = Truce), by (piece id), gekokujo,
                              //      counts: [indigo, crimson], campaignOver }
@@ -496,7 +500,7 @@ Command has settled (Seal awarded, next-player Cornered check done).
 | `HSG_NEXT_BATTLE` | client → host (ACTION) | `{ battleNo, replay }` — the tag | the client taps Next Battle / Replay the Battle |
 | `HSG_BATTLE_START` | host → all (SYNC) | `{ pub, flavourIdx }` | each Battle, replays included |
 | `HSG_COMMAND_DONE` | host → all (SYNC) | `{ pub, act, fx }` — `fx`: moment keys (`'banners'`, `'fox:<seat>:<capped>'`, `'guardFall:<col>'`); read as `p.fx \|\| []` | after every Command, the host's, the client's or a bot's |
-| `HSG_STATE` | host → one seat (private) | `{ pub, phase }` | `reconnect.sendState(idx)`, and as the repair after a refused `HSG_COMMAND` |
+| `HSG_STATE` | host → one seat (private) | `{ pub, phase }` | `reconnect.sendState(idx)`, and as the repair after a refused `HSG_COMMAND` **or `HSG_NEXT_BATTLE`** (S7). `phase` is `'gameover'` for the ending beat of a Battle that won the Campaign (BUG-02) |
 
 **What the client never receives:** the layout, the engine state, the RNG seed, the unseen-piece
 counts. The layout is shuffled on the host from a local seed that never leaves it. *(A seeded deal is
@@ -533,6 +537,11 @@ it applies directly, then broadcasts.
 **Applying a snapshot (every device, `hsgApplyPub(pub, act, fx)`):** idempotent, and the snapshot
 always wins — a new one cancels any animation still playing and draws the final position. It
 releases the sync lock and re-derives `hsgUi`.
+*As built (S7):* three client appliers, one per packet (`hsgApplyBattleStart` / `hsgApplyCommandDone`
+/ `hsgApplyState`), each releasing the lock first. "Wins" means *newer*: the public and private
+channels are not ordered against each other, so a snapshot of the same Battle (same `battleNo`,
+`replay` and `firstSeat`) with fewer Commands — or the same Command once the result is held — is ignored, and so
+is an `HSG_BATTLE_START` for a Battle already on screen (impl notes ML-01).
 
 **Waiting for the host's answer.** After a client's second tap on a door it starts the 150 ms shadow
 flicker at once, and the slide plays when `HSG_COMMAND_DONE` lands — the flicker covers the round

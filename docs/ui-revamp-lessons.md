@@ -91,7 +91,13 @@ shipped CSS — button colours, sizes, order (*Yay left of Nay, bigger, pink*).
   heredoc died mid-parse once).
 - **Intro harness:** a change to the Start gate touches `verify-game-intro.js` § 6–9 and the
   `mutate-game-intro.js` mutants that name Start; update both in the same commit.
-**Seen:** LI5, S4–S8.
+**Seen:** LI5, S4–S8. **Seen again:** HSG S4, 11 Nov 2026 — a 3 s wait was not enough: the lobby boot
+took the screen back ~5 s after load, and a later context lost it mid-run. Wait 8 s, and re-`showScreen`
+before every click and screenshot (an `ensure()` helper), not just once.
+**Seen again:** HSG S5, 12 Nov 2026 — a driver written without `ensure()` lost the first seeded screen at
+2 of 3 sizes, even after the 8 s wait. **Underneath:** `ensure()` belongs in the driver template, not in
+memory. Check `style.display` of the target section before every measure and every shot.
+**Seen again:** HSG S6, 12 Nov 2026 — even with the 8 s wait and a double seed, one variant in six still measured `display:none`. Seed **three times** with 400 ms between, and treat a `shown:"none"` row as a flake to re-run, never as data.
 
 ---
 
@@ -103,6 +109,10 @@ its own stylesheet (`--intro-stamp`); scope any box change to the game's scene (
 byte-identical and is assertable both ways (`verify-game-intro.js` § 19).
 **Seen:** LI5 (D7, 10 Nov 2026) — the Line-up couldn't take the chalkboard. **Seen again:** ETA, 10 Nov 2026 —
 the roll call needed *Sign the timesheet.* / *CLOCKED ON*, and the 16:10 scene box clipped Dot's clipboard.
+**Seen again:** HSG S5, 12 Nov 2026 — the third scene in a row to need `aspect-ratio: auto` on
+`#game-intro-scene` (a `beat()` scene carries its own line card, so 16:10 is never right). Its own
+line card also stacked a second speaker label on the engine's narrator card (hsg TG-03). **Promote at the
+batch boundary:** a scene with `beat()` sizes its own box and shows the line, not the speaker.
 
 ## Candidates (seen once, not yet a rule — promote on the second sighting)
 

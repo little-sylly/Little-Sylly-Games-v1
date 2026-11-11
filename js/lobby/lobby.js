@@ -123,7 +123,8 @@ function lbEl(tag, cls, html) {
 // Empty since Bailed's badge landed (bld.png, 27 Sep 2026); kept so the next game
 // that ships before its art needs one line, not a new code path.
 // E.T.A.'s sticker landed with SW v274 (data/stickers/eta.png), so the set is empty again.
-const LB_NO_STICKER = new Set();
+// Hide and Shogun's sticker (data/stickers/hsg.png) lands with its art pass (S12).
+const LB_NO_STICKER = new Set(['hsg']);
 function lbBadgeInner(g) {
   const emoji = typeof g === 'string' ? g : g.emoji;
   const id = typeof g === 'string' ? null : g.id;

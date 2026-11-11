@@ -87,7 +87,7 @@ const PLUGIN = {
   ygi: 'ygi.js', lttp: 'lttp.js', nat: 'nat.js', dsd: 'dsd.js', gth: 'gth.js',
   dyb: 'dyb.js', bld: 'bld.js', pass: 'pass.js', nt: 'nt.js', frt: 'frt.js',
   shp: 'shp.js', flw: 'flw.js', pko: 'pko.js', cjar: 'cjar.js', cld: 'cld.js',
-  comb: 'comb.js', eta: 'eta.js',
+  comb: 'comb.js', eta: 'eta.js', hsg: 'hsg.js',
 };
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -97,7 +97,7 @@ console.log('='.repeat(70));
 // ── 1. Schema ────────────────────────────────────────────────────────────────
 // A missing display field renders the literal string "undefined" on screen-mp-mode.
 section('1. Entry schema (every field the mode/lobby screens read)');
-check('21 games registered', IDS.length, 21);
+check('22 games registered', IDS.length, 22);
 ok('every game has a plugin file mapping', IDS.every(id => PLUGIN[id]),
    'unmapped: ' + IDS.filter(id => !PLUGIN[id]).join(', '));
 
@@ -320,7 +320,7 @@ function introProblems(c, html) {
   return p;
 }
 const INTRO_GAMES = IDS.filter(id => CONFIGS[id].intro !== undefined);
-check('the intro adopters are exactly the reviewed list', INTRO_GAMES, ['li5', 'eta']);   // LI5 pilot S1; ETA (first new game, SW v272)
+check('the intro adopters are exactly the reviewed list', INTRO_GAMES, ['li5', 'hsg', 'eta']);     // LI5 pilot S1; ETA (first new game, SW v272); HSG S5 (SW v280)
 for (const id of INTRO_GAMES) {
   const pr = introProblems(CONFIGS[id], indexSrc);
   ok(id + ': intro is whole', pr.length === 0, pr.join('; '));

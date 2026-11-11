@@ -25,7 +25,9 @@
 //   5. Every ending (Found you!, Gekokujo!, Last Lantern, Truce, Cornered) with
 //      the right Seal, the right counts and the right screen.
 //   6. The Battle-intro and ending timers are SCHEDULED, and cleared by a
-//      teardown. Host-mode packets: shape, wire round-trip, repair, bot prompts.
+//      teardown. The Battle intro's three states (toss · battle · replay) and
+//      its length come from the pub alone; the Intro brief variant follows The
+//      Campaign and exists in the template (S5). Host-mode packets: shape, wire round-trip, repair, bot prompts.
 //
 // Not covered, deliberately: the client RECEIVE path (S7 loopback), the bots'
 // decisions (S8), layout. Headless harnesses cannot see those.
@@ -159,7 +161,7 @@ section('1 · Loading, and a Battle begins');
   d.ctx.hsgStartCampaign();
   check('Campaign start → Battle intro phase', d.get('hsgPhase') === 'battle-intro');
   check('Battle intro routes to screen-hsg-battle-intro', d.lastScreen() === 'screen-hsg-battle-intro');
-  check('the Battle intro timer is SCHEDULED at 3.5 s', eq(d.pendingMs(), [3500]), JSON.stringify(d.pendingMs()));
+  check('Battle 1 (the fan toss): the landing beat (1.7 s) and the end (4.5 s) are SCHEDULED', eq(d.pendingMs(), [1700, 4500]), JSON.stringify(d.pendingMs()));
   check('nothing was broadcast in single mode', d.sent.length === 0 && d.priv.length === 0);
   const p = d.get('hsgPub');
   check('opening board is thirty closed doors', p.board.length === 30 && p.board.every(c => c === '#'));
@@ -326,7 +328,7 @@ section('4 · The endings, built by hand');
   check('Found you!: +1 Seal for the striker', eq(p.seals, [1, 0]));
   check('Found you!: Battle ends at once, phase ending, ending beat scheduled', r.over && d.get('hsgPhase') === 'ending' && eq(d.pendingMs(), [2400]));
   check('Found you!: the strike stays on the board for the end screen', p.board[idx(2, 1)] === 'Sm0');
-  check('Found you!: last Command recorded', eq(p.last, { k: 'S', i: idx(1, 1), j: idx(2, 1), kind: 'x' }));
+  check('Found you!: last Command recorded (who made it, what it struck)', eq(p.last, { k: 'S', i: idx(1, 1), j: idx(2, 1), kind: 'x', seat: 0, vid: 'Sg' }), JSON.stringify(p.last));
   d.fire();
   check('ending beat over → War Chronicle (not Gameover: First to 3)', d.get('hsgPhase') === 'chronicle' && d.lastScreen() === 'screen-hsg-chronicle');
 
@@ -447,7 +449,7 @@ section('6 · The Campaign: Seals, Truce, who opens');
   check('(Chronicle) a bad seat is refused', d.ctx.hsgHostNextBattle(5, { battleNo: 1, replay: false }).ok === false);
   check('Next Battle starts Battle 2, replay false', next(d, 1).ok && d.get('hsgBattleNo') === 2 && d.get('hsgReplay') === false && d.get('hsgPhase') === 'battle-intro');
   check('...a second tap (the other player) is refused — the first tap wins', next(d, 0).ok === false && d.get('hsgBattleNo') === 2);
-  check('...the Battle intro timer is scheduled again', eq(d.pendingMs(), [3500]));
+  check('...Battle 2: the snap (0.9 s) and the end (3.5 s) are scheduled', eq(d.pendingMs(), [900, 3500]), JSON.stringify(d.pendingMs()));
   check('...Seals carried over, struck stat reset', eq(d.get('hsgSeals'), [1, 0]) && eq(d.get('hsgPub').struck, [0, 0]) && d.get('hsgPub').result.reason === 'none');
   play(1); check('First to 3: 1-1 goes on', d.get('hsgPhase') === 'chronicle'); next(d, 0);
   play(0); check('First to 3: 2-1 goes on', d.get('hsgPhase') === 'chronicle' && eq(d.get('hsgSeals'), [2, 1])); next(d, 0);
@@ -520,7 +522,7 @@ section('7 · Refusals change nothing');
   const e = makeDevice();
   e.set('hsgSeed', 4); e.ctx.hsgStartCampaign();
   r = e.ctx.hsgHostCommand(e.get('hsgPub').turnSeat, ['U', 0]);
-  check('a Command during the Battle intro is accepted; the intro timer still runs', r.ok === true && e.get('hsgPhase') === 'battle-intro' && e.pendingMs().includes(3500));
+  check('a Command during the Battle intro is accepted; the intro timer still runs', r.ok === true && e.get('hsgPhase') === 'battle-intro' && e.pendingMs().includes(4500));
   e.fire();
   check('...and the intro then lands on the castle', e.get('hsgPhase') === 'castle');
 }
@@ -597,6 +599,9 @@ section('9 · Host mode: packets, repair, bot prompts');
   check('HSG_STATE mid-Battle-intro tells a rejoiner "castle"', d.priv[0].env.payload.phase === 'castle');
   d.set('hsgPhase', 'ending'); d.ctx.hsgSendState(1);
   check('HSG_STATE during the ending beat tells a rejoiner "chronicle"', d.priv[1].env.payload.phase === 'chronicle');
+  d.set('hsgResult', { reason: 'shogun', campaignOver: true });
+  check('…but "gameover" when that Battle won the Campaign (S7 — the S6 draft said "chronicle")', d.ctx.hsgPhaseForWire() === 'gameover');
+  d.set('hsgResult', { reason: 'none' });
   d.set('hsgPhase', 'chronicle'); d.ctx.hsgSendState(1);
   d.set('hsgPhase', 'gameover'); d.ctx.hsgSendState(1);
   check('HSG_STATE phases: chronicle and gameover', d.priv[2].env.payload.phase === 'chronicle' && d.priv[3].env.payload.phase === 'gameover');
@@ -648,7 +653,7 @@ section('10 · Entry and timers');
   // Every timer this game owns dies with a teardown, mid-intro and mid-ending
   const t = makeDevice();
   t.set('hsgSeed', 1); t.ctx.hsgStartCampaign();
-  check('a Battle intro leaves one timer', t.timers.length === 1);
+  check('a Battle intro leaves its two beats (the snap / landing + the end)', t.timers.length === 2);
   t.ctx.hsgTeardown();
   check('teardown clears a running Battle intro', t.timers.length === 0);
   fresh(t, { first: 0 });
@@ -662,6 +667,197 @@ section('10 · Entry and timers');
   u.ctx.hsgHostCommand(0, ['S', idx(1, 1), idx(2, 1), 'x']);
   u.ctx.hsgEndBattle({ reason: 'shogun', winnerSeat: 1, by: 'Sm', gekokujo: false, counts: [0, 0], campaignOver: false });
   check('hsgEndBattle is idempotent: a second call awards nothing', eq(u.get('hsgSeals'), [1, 0]));
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+section('11 · The Castle: what a tap means (S4 — hsgTapDecide / hsgMarksFor)');
+{
+  // These DECIDE legality on the phone, so they are rules logic: every one reads
+  // the public copy only, and must agree with the host engine.
+  const d = makeDevice(); fresh(d, { first: 0 });
+  const tap = (pub, seat, sel, armed, i) => d.ctx.hsgTapDecide(pub, seat, sel, armed, i);
+  let p = d.get('hsgPub');
+  const door = p.board.indexOf('#');
+  let r = tap(p, 0, -1, -1, door);
+  check('first tap on a door lifts it ("Open?"), sends nothing', r.armed === door && r.sel === -1 && r.act === null);
+  r = tap(p, 0, -1, door, door);
+  check('second tap on the SAME door opens it', eq(r.act, ['U', door]) && r.armed === -1);
+  const other = p.board.indexOf('#', door + 1);
+  r = tap(p, 0, -1, door, other);
+  check('a tap on a different door moves the lift, sends nothing', r.armed === other && r.act === null);
+  r = tap(p, 1, -1, door, door);
+  check('not my Command: a tap changes nothing and sends nothing', r.armed === door && r.act === null);
+
+  // A crafted position: seat 0 (team 0 = Indigo 0) to move.
+  craft(d, { cells: {
+    [idx(2, 2)]: [0, 'Sm', true],                         // Indigo Samurai C3, open space around
+    [idx(2, 3)]: [1, 'Fm', true],                         // Crimson Farmer below it (strikable up close)
+    [idx(0, 0)]: [0, 'Mk', true], [idx(1, 1)]: [1, 'Ar', true],   // Monk A1, Crimson Archer diagonal B2
+    [idx(4, 0)]: [0, 'Nj', true], [idx(4, 1)]: [1, 'Fm', true], [idx(4, 3)]: [1, 'Gd', true],  // Ninja E1, screen E2, target E4
+    [idx(0, 5)]: [0, 'Sg', true], [idx(4, 5)]: [1, 'Sg', true],
+    [idx(3, 5)]: [1, 'Gd', false],                        // a closed door
+  }, dm: [0, 2], teamCol: [0, 1], mover: 0 });
+  p = d.get('hsgPub');
+  const legal = d.ctx.hsgLegalFor(p, 0);
+  // Every lifted piece's marks are exactly its legal Commands — nothing more lights up.
+  let markFail = 0, tapFail = 0;
+  for (let s = 0; s < 30; s++) {
+    if (!d.ctx.hsgIsOwnPiece(p, 0, s)) continue;
+    const mk = d.ctx.hsgMarksFor(p, 0, s);
+    const want = legal.filter(a => a[0] !== 'U' && a[1] === s).map(a => a[2]).sort((a, b) => a - b);
+    const got = Object.keys(mk.marks).map(Number).sort((a, b) => a - b);
+    if (!eq(want, got)) markFail++;
+    for (let j = 0; j < 30; j++) {
+      const t = tap(p, 0, s, -1, j);
+      const exp = legal.find(a => a[0] !== 'U' && a[1] === s && a[2] === j);
+      if (exp ? !eq(t.act, exp) : (t.act !== null && p.board[j] !== '#')) tapFail++;
+    }
+  }
+  check('every lifted piece lights exactly its legal targets', markFail === 0, 'n: ' + markFail);
+  check('tap-tap sends exactly the legal Command for a lit square, and nothing for an unlit one', tapFail === 0, 'n: ' + tapFail);
+  const sm = d.ctx.hsgMarksFor(p, 0, idx(2, 2)).marks;
+  check('Samurai: March = dot, Charge = chevrons pointing the way, up-close Strike = brackets',
+    sm[idx(2, 1)]?.mark === 'dot' && sm[idx(2, 0)]?.mark === 'chev' && sm[idx(2, 0)]?.dir === 'u' && sm[idx(2, 3)]?.mark === 'strike',
+    JSON.stringify(sm));
+  const mk = d.ctx.hsgMarksFor(p, 0, idx(0, 0)).marks;
+  check('Monk: the diagonal strike has its own mark', mk[idx(1, 1)] && mk[idx(1, 1)].mark === 'diag', JSON.stringify(mk));
+  const nj = d.ctx.hsgMarksFor(p, 0, idx(4, 0));
+  check('Ninja: a Leap is marked, and the piece it jumps is outlined', nj.marks[idx(4, 3)] && nj.marks[idx(4, 3)].mark === 'leap' && eq(nj.screens, [idx(4, 1)]), JSON.stringify(nj));
+  check('a lifted enemy piece shows no marks', Object.keys(d.ctx.hsgMarksFor(p, 0, idx(2, 3)).marks).length === 0);
+  r = tap(p, 0, -1, -1, idx(2, 2));
+  check('tap your own piece: it lifts', r.sel === idx(2, 2) && r.act === null);
+  r = tap(p, 0, idx(2, 2), -1, idx(2, 2));
+  check('tap it again: it is put down', r.sel === -1 && r.act === null);
+  r = tap(p, 0, idx(2, 2), -1, idx(0, 0));
+  check('tap another of yours: the lift moves to it', r.sel === idx(0, 0));
+  r = tap(p, 0, idx(2, 2), -1, idx(3, 4));
+  check('tap an unlit square: the piece is put down, nothing sent', r.sel === -1 && r.act === null);
+  r = tap(p, 0, idx(2, 2), -1, idx(3, 5));
+  check('tap a door with a piece lifted: the door lifts instead', r.armed === idx(3, 5) && r.sel === -1 && r.act === null);
+  r = tap(p, 0, -1, -1, idx(2, 3));
+  check('tap an enemy piece with nothing lifted: nothing', r.sel === -1 && r.act === null);
+
+  // The decided Command really is accepted by the host, and the phone's tag is right.
+  const act = tap(p, 0, idx(2, 2), -1, idx(2, 3)).act;
+  const res = d.ctx.hsgHostCommand(0, act, p.cmd);
+  check('a tapped Command is accepted by the host as-is', res.ok === true, JSON.stringify(res));
+  check('the message card can name it: last.vid is the struck piece', d.get('hsgPub').last.vid === 'Fm' && d.get('hsgPub').last.seat === 0);
+
+  // After the Battle ends the board is read-only.
+  const e = makeDevice(); fresh(e, { first: 0 });
+  craft(e, { cells: { [idx(1, 1)]: [0, 'Sm', true], [idx(2, 1)]: [1, 'Sg', true], [idx(0, 5)]: [0, 'Sg', true] }, dm: [1, 0] });
+  e.ctx.hsgHostCommand(0, ['S', idx(1, 1), idx(2, 1), 'x']);
+  const ep = e.get('hsgPub');
+  r = e.ctx.hsgTapDecide(ep, ep.turnSeat, -1, -1, idx(0, 5));
+  check('a finished Battle: taps decide nothing', r.act === null && r.sel === -1);
+
+  // Before the banners nothing is anyone's: only doors respond.
+  const b = makeDevice(); fresh(b, { first: 0 });
+  const bp = b.get('hsgPub');
+  check('before the banners no piece is "own"', [...Array(30).keys()].every(i => !b.ctx.hsgIsOwnPiece(bp, 0, i) && !b.ctx.hsgIsOwnPiece(bp, 1, i)));
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+section('12 · The Battle intro + the Intro brief (S5)');
+{
+  // hsgBattleIntroText decides which of the three states shows (spec §2) and how long
+  // the interstitial runs — the client (S7) runs the same function on the same pub.
+  const d = makeDevice();
+  d.set('hsgNames', ['Hana', 'Priya']);
+  const pub = (o) => Object.assign({ battleNo: 1, replay: false, firstSeat: 0 }, o);
+  let bi = d.ctx.hsgBattleIntroText(pub({}), 2);
+  check('Battle 1 is the fan toss', bi.state === 'toss' && bi.title === 'Battle 1');
+  check('...the toss names the first lord twice', bi.call === 'It lands on Hana. Hana opens the first door.', bi.call);
+  check('...4.5 s, the call on the landing (1.7 s)', bi.ms === 4500 && bi.snapMs === 1700);
+  check('...the toss line replaces the flavour line', /^Ahem! Who goes first\?/.test(bi.flavour));
+  bi = d.ctx.hsgBattleIntroText(pub({ battleNo: 2, firstSeat: 1 }), 3);
+  check('Battle 2 is a plain Battle, 3.5 s, the snap at 0.9 s', bi.state === 'battle' && bi.title === 'Battle 2' && bi.ms === 3500 && bi.snapMs === 900);
+  check('...the host-picked flavour line, by index', bi.flavour === d.get('HSG_FLAVOUR')[3] && bi.call === 'Priya opens the first door.');
+  const lines = [0, 1, 2, 3, 4].map(i => d.ctx.hsgBattleIntroText(pub({ battleNo: 3 }), i).flavour);
+  check('all five flavour lines are reachable and distinct', new Set(lines).size === 5);
+  check('an out-of-range or missing index falls back to line 0, never undefined',
+    [-1, 5, 2.5, undefined, null, '3'].every(x => d.ctx.hsgBattleIntroText(pub({ battleNo: 3 }), x).flavour === lines[0]));
+  bi = d.ctx.hsgBattleIntroText(pub({ battleNo: 2, replay: true }), 1);
+  check('a Truce replay keeps the number and says again', bi.state === 'replay' && bi.title === 'Battle 2, again' && bi.ms === 3500);
+  check('...the Truce line, and "this time"', /^A Truce!/.test(bi.flavour) && bi.call === 'Hana opens the first door this time.');
+  bi = d.ctx.hsgBattleIntroText(pub({ battleNo: 1, replay: true }), 1);
+  check('a Truce in Battle 1 replays — no second toss', bi.state === 'replay' && bi.title === 'Battle 1, again' && bi.ms === 3500);
+
+  // The real flow agrees: the scheduled end IS hsgBattleIntroMs(pub), toss then not.
+  d.set('hsgSeed', 3); d.ctx.hsgStartCampaign();
+  check('the Campaign start schedules hsgBattleIntroMs(pub) (toss)', d.pendingMs().includes(d.ctx.hsgBattleIntroMs(d.get('hsgPub'))) && d.ctx.hsgBattleIntroMs(d.get('hsgPub')) === 4500);
+  d.fire();
+  check('the snap beat then the end: castle, no timer left', d.get('hsgPhase') === 'castle' && d.timers.length === 0);
+  d.ctx.hsgStartBattle(); d.ctx.hsgTeardown();
+  check('a teardown mid-intro clears both beats', d.timers.length === 0 && d.get('hsgPhase') === 'idle');
+
+  // The Intro brief: MP_GAME_CONFIGS.hsg.intro.brief picks a variant from The Campaign,
+  // and every variant it can pick exists in the real template (the engine would
+  // otherwise fall back to 'default' — "First to 3" in a Single Battle).
+  const eng = fs.readFileSync(path.join(ROOT, 'js/engine-multiplayer.js'), 'utf8');
+  const st = eng.indexOf('const MP_GAME_CONFIGS = {');
+  const lit = eng.slice(eng.indexOf('{', st), eng.indexOf('\n};', st) + 2);
+  const bare = { window: { mpLobbyStyle: 'individual' } };
+  vm.createContext(bare);
+  const cfg = vm.runInContext('(' + lit + ')', bare).hsg;
+  check('hsg adopts the Intro: template intro-hsg, a scene, a brief, no Line-up', !!cfg.intro && cfg.intro.template === 'intro-hsg' && typeof cfg.intro.scene === 'function' && typeof cfg.intro.brief === 'function' && !cfg.intro.lineup);
+  check('...the scene getter is safe before hsg.js loads (null, not a throw)', cfg.intro.scene() === null);
+  const pick = len => { if (len === undefined) delete bare.hsgCampaignLen; else bare.hsgCampaignLen = len; return cfg.intro.brief(0, -1); };
+  check('brief: no game file → default; 3 → default; 1 → single; 5 → five', eq([pick(undefined), pick(3), pick(1), pick(5)], ['default', 'default', 'single', 'five']));
+  const html = fs.readFileSync(path.join(ROOT, 'src/screens/hsg.html'), 'utf8');
+  const tpl = (html.match(/<template id="intro-hsg">([\s\S]*?)<\/template>/) || [])[1] || '';
+  const third = key => {
+    const m = tpl.match(new RegExp('<ul data-intro-brief="' + key + '">([\\s\\S]*?)</ul>'));
+    const li = m ? (m[1].match(/<li>[^<]*<\/li>/g) || []) : [];
+    return li.length === 3 ? li[2] : '';
+  };
+  check('the template has all three brief variants, three lines each', ['default', 'single', 'five'].every(k => third(k) !== ''));
+  check('...and each third line matches its Campaign', /First to 3 Seals/.test(third('default')) && /One Battle decides it/.test(third('single')) && /First to 5 Seals/.test(third('five')));
+  check('the template carries four narrator lines + the roll-call hooks', (tpl.match(/data-intro-line/g) || []).length === 4 && /data-intro-roll>The lords take their cushions\.</.test(tpl) && /data-intro-ready-tag>BOWED IN</.test(tpl));
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+section('13 · The War Chronicle (S6 — hsgChronicleModel picks the variant)');
+{
+  const d = makeDevice();
+  d.set('hsgNames', ['Hana', 'Priya']);
+  // seat 0 = Crimson (col 1), seat 1 = Indigo (col 0). pub.struck is per COLOUR [Indigo, Crimson].
+  const mk = (result, over) => Object.assign({ battleNo: 2, cmd: 38, seatCol: [1, 0], struck: [6, 4], seals: [1, 0], campaignLen: 3,
+    result: Object.assign({ reason: 'none', winnerSeat: -1, by: '', gekokujo: false, counts: [8, 9], campaignOver: false }, result) }, over || {});
+  const model = (r, o) => d.ctx.hsgChronicleModel(mk(r, o));
+
+  check('no result yet → no Chronicle', model({}) === null);
+  const m1 = model({ reason: 'shogun', winnerSeat: 0, by: 'Sm' });
+  check('Found you!: the brief §17 headline, sub-line and quote', m1.variant === 'shogun' && m1.head === 'Found you!' && m1.sub === 'Crimson Sun wins Battle 2.' && /^“The fox slips past the Guards/.test(m1.quote));
+  check('...Next Battle, a Seal tally, the stats from the pub', m1.cta === 'Next Battle' && m1.showTally && m1.commands === 38 && eq(m1.struck, [['Crimson', 4], ['Indigo', 6]]));
+  const m2 = model({ reason: 'shogun', winnerSeat: 1, by: 'Fm', gekokujo: true });
+  check('Gekokujo!: a Farmer’s win has its own headline and quote', m2.variant === 'gekokujo' && m2.head === 'Gekokujo!' && m2.sub === 'Indigo Moon wins Battle 2.' && /farmer topples the Shogun/.test(m2.quote));
+  const m3 = model({ reason: 'lantern', winnerSeat: 0, counts: [8, 9] });
+  check('The Last Lantern: the counts and who holds the castle', m3.head === 'The Last Lantern' && m3.quote === 'The last lantern is out. Pieces in the open: Crimson 9 · Indigo 8. Crimson Sun holds the castle.');
+  const m4 = model({ reason: 'truce', winnerSeat: -1, counts: [7, 7] });
+  check('Truce: no winner, no Seal, and the button reads Replay the Battle', m4.truce && m4.head === 'A Truce!' && m4.sub === 'No Seal this Battle.' && m4.cta === 'Replay the Battle' && m4.banners.every(b => b.state === 'even'));
+  const m5 = model({ reason: 'cornered', winnerSeat: 0 });
+  check('Cornered: names the cornered clan (the loser)', m5.head === 'Cornered!' && m5.quote === 'Indigo Moon is Cornered. Nowhere left to hide.');
+  check('the winner’s banner is won, the other lost (and the bottom seat hangs first)', eq(m1.banners.map(b => b.state), ['won', 'lost']) && m1.banners[0].name === 'Hana');
+  const mf = model({ reason: 'shogun', winnerSeat: 1, by: 'Sm', campaignOver: true }, { seals: [1, 3] });
+  check('Campaign won: the headline is the Campaign, the variant title moves to the sub-line', mf.final && mf.head === 'Priya takes the Campaign!' && mf.sub === 'Found you! Indigo Moon wins Battle 2.');
+  check('a Single Battle (First to 1) shows no Seal tally', model({ reason: 'cornered', winnerSeat: 0, campaignOver: true }, { campaignLen: 1 }).showTally === false);
+
+  // The real flow: the ending beat paints the right screen for the right reason.
+  const e = makeDevice();
+  fresh(e, { len: 1, seed: 5 });
+  e.ctx.hsgEndBattle({ reason: 'cornered', winnerSeat: 0, by: '', gekokujo: false, counts: [3, 2], campaignOver: false });
+  e.set('hsgPub', e.ctx.hsgBuildPub());
+  e.fire();
+  check('First to 1 → the ending beat opens the gameover, not the Chronicle', e.lastScreen() === 'screen-hsg-gameover' && e.get('hsgPhase') === 'gameover');
+  const f = makeDevice();
+  fresh(f, { len: 3, seed: 5 });
+  f.ctx.hsgEndBattle({ reason: 'truce', winnerSeat: -1, by: '', gekokujo: false, counts: [3, 3], campaignOver: false });
+  f.set('hsgPub', f.ctx.hsgBuildPub());
+  f.fire();
+  check('a Truce → the Chronicle; Replay keeps the Battle number and flips the first move',
+    f.lastScreen() === 'screen-hsg-chronicle' && (() => { const was = f.get('hsgFirstSeat'); f.ctx.hsgHostNextBattle(0, { battleNo: 1, replay: false });
+      return f.get('hsgBattleNo') === 1 && f.get('hsgReplay') === true && f.get('hsgFirstSeat') === 1 - was && f.lastScreen() === 'screen-hsg-battle-intro'; })());
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

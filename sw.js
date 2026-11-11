@@ -1,7 +1,7 @@
 // Little Sylly Games — Service Worker v236
 // All assets are local — no external CDN URLs, no opaque response issues.
 
-const CACHE_NAME = 'sylly-games-v277';
+const CACHE_NAME = 'sylly-games-v282';
 
 const PRECACHE_URLS = [
   './',
@@ -42,6 +42,9 @@ const PRECACHE_URLS = [
   'js/games/comb.js',
   'js/games/eta-scene.js',
   'js/games/eta.js',
+  'js/games/hsg-rules.js',
+  'js/games/hsg-scene.js',
+  'js/games/hsg.js',
   'js/lib/cards.js',
   'js/lib/art.js',
   'js/lib/music.js',
@@ -66,6 +69,7 @@ const PRECACHE_URLS = [
   'css/arcade.css',
   'css/li5.css',
   'css/eta.css',
+  'css/hsg.css',
   'js/lobby/jukebox.js',
   'js/lobby/arcade.js',
   // The Workshop as a full room (SW v234) — design B, ported from wip/workshop-lab/.

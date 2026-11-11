@@ -565,6 +565,37 @@ const MP_GAME_CONFIGS = {
       thinkMs:   (d, rng) => cldBotThinkMs(d, rng),
     },
   },
+  hsg: {
+    gameName:       'Hide and Shogun',
+    emoji:          '\u{1F3EF}',
+    brandBtnClass:  'hsg-cta',
+    ptpLabel:       'Ready or Not',
+    lobbyCtaLabel:  'Ready or Not',
+    menuScreen:     'screen-hsg-menu',
+    // Host -> the first Battle; client -> standby (safe to re-run on a rejoin);
+    // one phone -> the names screen. hsgOnEnter() owns all three (spec §11).
+    onPassThePhone: () => hsgOnEnter(),
+    recommendedMode: 'mdlm',
+    // 'solo' joins at S8 with the bots entry (it requires one); the reconnect hook (S9)
+    // is not adopted yet, so its verify-mp-configs pin stays put.
+    supportedModes:  ['ptp', 'mdlm'],
+    multiplayerOnly: false,
+    rosterConfig:    { type: 'none' },    // two individuals, seat order from the lobby
+    // Bare constants: no setting changes the player range (spec §5).
+    getMaxPlayers:   () => 2,
+    getMinPlayers:   () => 2,
+    // The Intro (S5, spec §1b): the Storyteller's four lines, one brief for everyone
+    // (nothing is secret) whose third line follows The Campaign, then the roll call
+    // (no Line-up — two players, no teams). hsgIntroScene wraps the pure HsgScene and
+    // plays the fan snap. typeof guards: this object is built before hsg.js loads, and
+    // tools/verify-mp-configs.js evaluates it in a bare vm with no game file at all.
+    intro: {
+      template: 'intro-hsg',
+      scene:    () => (typeof hsgIntroScene !== 'undefined' ? hsgIntroScene : null),
+      brief:    () => (typeof hsgCampaignLen === 'undefined' || hsgCampaignLen === 3) ? 'default'
+                     : hsgCampaignLen === 1 ? 'single' : 'five',
+    },
+  },
   comb: {
     gameName:       'Honeycomb Hills',
     emoji:          '\u{1F41D}',
@@ -1114,6 +1145,7 @@ function mpSerialiseSettings(abbr) {
     case 'comb': return {
       combSeason, combLayout, combWasp, combOverflow, combWaggle, combDaylight, combBounty,
     };
+    case 'hsg': return { hsgCampaignLen, hsgFoxes };
     case 'eta': return {
       etaRange, etaShiftLength, etaGps, etaOffMap, etaVote, etaSyllyMode,
     };
@@ -1617,7 +1649,7 @@ const MP_END_SCREENS = new Set([
   'screen-lttp-gameover', 'screen-nat-gameover', 'screen-dsd-gameover', 'screen-gth-final-report',
   'screen-dyb-gameover', 'screen-bld-aftermath', 'screen-pass-gameover', 'screen-frt-gameover',
   'screen-shp-gameover', 'screen-flw-gameover', 'screen-pko-hierarchy', 'screen-cjar-gameover',
-  'screen-cld-gameover', 'screen-comb-gameover', 'screen-eta-gameover',
+  'screen-cld-gameover', 'screen-comb-gameover', 'screen-eta-gameover', 'screen-hsg-gameover',
 ]);
 
 function mpNoteScreen(id) {
@@ -1834,6 +1866,11 @@ function mpApplySettings(abbr, s) {
       if (s.combDaylight !== undefined) combDaylight = s.combDaylight;
       if (s.combBounty   !== undefined) combBounty   = s.combBounty;
       if (typeof combSyncSettingsUI === 'function') combSyncSettingsUI();
+      break;
+    case 'hsg':
+      if (s.hsgCampaignLen !== undefined) hsgCampaignLen = s.hsgCampaignLen;
+      if (s.hsgFoxes       !== undefined) hsgFoxes       = s.hsgFoxes;
+      if (typeof hsgSyncSettingsUI === 'function') hsgSyncSettingsUI();
       break;
     case 'eta':
       if (s.etaRange       !== undefined) etaRange       = s.etaRange;
@@ -2503,6 +2540,11 @@ function mpHandleEnvelope(env) {
   // ── E.T.A. SYNC + the private Ride (host→seat) and entries (seat→host) ──────
   if (mpActiveGame === 'eta') {
     if (typeof etaHandleEnvelope === 'function') etaHandleEnvelope(env);
+  }
+
+  // ── Hide and Shogun ACTION + SYNC + the private HSG_STATE repair ──────────
+  if (mpActiveGame === 'hsg') {
+    if (typeof hsgHandleEnvelope === 'function') hsgHandleEnvelope(env);
   }
 
   // ── Secret Signals ACTION/SYNC ─────────────────────────────────────────────

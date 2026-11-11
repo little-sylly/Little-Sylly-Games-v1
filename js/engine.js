@@ -104,6 +104,9 @@ const allScreens = [
   // E.T.A.
   'screen-eta-menu', 'screen-eta-standby', 'screen-eta-docket', 'screen-eta-log',
   'screen-eta-sheet', 'screen-eta-tally', 'screen-eta-gameover',
+  // Hide and Shogun
+  'screen-hsg-menu', 'screen-hsg-setup', 'screen-hsg-standby', 'screen-hsg-battle-intro',
+  'screen-hsg-castle', 'screen-hsg-chronicle', 'screen-hsg-gameover',
   // Arcade cabinets (js/lobby/arcade.js, SW v254) — not Sylly Games, but still real screens.
   // One entry per ARC_CABINETS cabinet; an unregistered one is a ghost screen that
   // never hides (its canvas paints under every later screen).
@@ -487,6 +490,37 @@ function playClashWin() {
   playTone({ type: 'sine',     freq: 131, startTime: now,        duration: 0.7,  gain: 0.18 });
 }
 
+// HSG — a folding fan snapped shut: the Storyteller's punctuation (and, from S9, a
+// strike). A sharp high-passed noise click (~25 ms) over a short triangle "clack"
+// falling from ~300 Hz; ~70 ms in all. Spec docs/new-game-tech-hsg.md §9.
+function playFanSnap() {
+  if (isMuted || !sfxEnabled) return;
+  const ctx = getAudioCtx(), now = ctx.currentTime;
+  const bufLen = Math.floor(ctx.sampleRate * 0.03);
+  const buf = ctx.createBuffer(1, bufLen, ctx.sampleRate);
+  const data = buf.getChannelData(0);
+  for (let i = 0; i < bufLen; i++) data[i] = Math.random() * 2 - 1;
+  const click = ctx.createBufferSource();
+  click.buffer = buf;
+  const hp = ctx.createBiquadFilter();
+  hp.type = 'highpass'; hp.frequency.value = 2500;
+  const cEnv = ctx.createGain();
+  cEnv.gain.setValueAtTime(0.32, now);
+  cEnv.gain.exponentialRampToValueAtTime(0.001, now + 0.025);
+  click.connect(hp); hp.connect(cEnv); cEnv.connect(ctx.destination);
+  click.start(now); click.stop(now + 0.03);
+  const osc = ctx.createOscillator();
+  const oEnv = ctx.createGain();
+  osc.type = 'triangle';
+  osc.frequency.setValueAtTime(300, now + 0.005);
+  osc.frequency.exponentialRampToValueAtTime(140, now + 0.07);
+  oEnv.gain.setValueAtTime(0.0001, now);
+  oEnv.gain.exponentialRampToValueAtTime(0.22, now + 0.008);
+  oEnv.gain.exponentialRampToValueAtTime(0.001, now + 0.07);
+  osc.connect(oEnv); oEnv.connect(ctx.destination);
+  osc.start(now); osc.stop(now + 0.075);
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function showScreen(id) {
   allScreens.forEach(s => { const el = document.getElementById(s); if (el) el.style.display = 'none'; });
@@ -633,7 +667,7 @@ function updateSliderTheme(gameId) {
     'gth': 'gth-range', 'bld': 'bld-range', 'dyb': 'dyb-range', 'pass': 'pass-range',
     'nt': 'nt-range', 'frt': 'frt-range', 'shp': 'shp-range', 'flw': 'flw-range',
     'pko': 'pko-range', 'cjar': 'cjar-range', 'cld': 'cld-range',
-    'comb': 'comb-range', 'eta': 'eta-range'
+    'comb': 'comb-range', 'eta': 'eta-range', 'hsg': 'hsg-range'
   };
   const cls = (map[gameId] || 'stone-range') + ' w-full';
   const el = document.getElementById('global-sound-volume');
@@ -655,7 +689,7 @@ function getMuteToggleOnClass(gameId) {
     'frt': 'game-toggle-on-frt',
     'flw': 'game-toggle-on-flw', 'pko': 'game-toggle-on-pko',
     'cjar': 'game-toggle-on-cjar', 'cld': 'game-toggle-on-cld',
-    'comb': 'game-toggle-on-comb', 'eta': 'game-toggle-on-eta'
+    'comb': 'game-toggle-on-comb', 'eta': 'game-toggle-on-eta', 'hsg': 'game-toggle-on-hsg'
   };
   return map[gameId] || 'game-toggle-on-stone';
 }
@@ -903,6 +937,13 @@ function resetToLobby() {
     const el = document.getElementById(id); if (el) el.style.display = 'none';
   });
   if (typeof etaTeardown === 'function') etaTeardown();
+  // Hide and Shogun teardown. hsgTeardown() owns every HSG timer (Battle intro, ending beat,
+  // moments) and clears the Battle state; the two settings persist.
+  ['hsg-settings-overlay','hsg-how-to-overlay','hsg-quit-overlay',
+   'hsg-new-campaign-overlay'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.style.display = 'none';
+  });
+  if (typeof hsgTeardown === 'function') hsgTeardown();
   // Help-tip overlay cleanup (Phase 21a)
   ['li5','gm','ss','jec','ygi','lttp','nat','dsd'].forEach(abbr => {
     const el = document.getElementById(`${abbr}-help-tip-overlay`);
@@ -1067,7 +1108,7 @@ const GAME_BRAND_HEX = {
   'btn-jec': '#475569', 'btn-frt': '#FFE500', 'btn-nat': '#65A30D', 'btn-gth': '#B1BCA0',
   'btn-nt': '#10B981', 'btn-sylly-signals': '#14B8A6', 'btn-dsd': '#0E7490', 'btn-cld': '#8ECAE6',
   'btn-dyb': '#6B5744', 'btn-shp': '#3A3D52', 'btn-great-minds': '#A855F7', 'btn-pass': '#18181B',
-  'btn-eta': '#EA580C',
+  'btn-eta': '#EA580C', 'btn-hsg': '#B8862B',
 };
 
 function lobbyHexToHSL(hex) {
