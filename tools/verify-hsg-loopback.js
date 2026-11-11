@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════════════════
-// verify-hsg-loopback.js — Hide and Shogun in Lobby Mode (spec §15, stage S7),
+// verify-hsg-loopback.js — Hide and Shogun in Lobby Mode (spec §15, stages S7 + S9),
 // driven through the REAL js/engine-multiplayer.js + js/engine-intro.js +
 // js/games/hsg-rules.js + hsg-scene.js + hsg.js on a host and a client, over the
 // shared fake Firebase world (tools/lib/mp-world.js): a WIRE that erases empty
@@ -25,9 +25,16 @@
 //      a stranger) change nothing and repair the client with HSG_STATE, which
 //      releases its sync lock.
 //   7. HSG_STATE's appliers land on the right screen from each phase.
-//   8. The quit contract both ways.
-//   9. Zero warnings on every device.
-// Not here: the rejoin itself (reconnect is S9), bots (S8), layout.
+//   8. Reconnect (S9): a real drop + reload through mpRejoinRoom, from the
+//      Battle intro (→ the Castle), mid-Battle after an Away (→ the Castle, then
+//      play on), the ending beat (→ the Chronicle, or the gameover when it won the
+//      Campaign) and the Chronicle (→ Next Battle from the rejoiner). Idempotent.
+//      The moments' lifecycle (not their looks): they play on both phones, never
+//      for a snapshot (a repair, a rejoin, a COMMAND_DONE that skips one), and a
+//      new Battle leaves none behind.
+//   9. The quit contract both ways.
+//  10. Zero warnings on every device.
+// Not here: bots (verify-hsg-bots.js), layout.
 // ═══════════════════════════════════════════════════════════════════════════
 'use strict';
 const fs = require('fs'), path = require('path');
@@ -111,6 +118,8 @@ const privOf = (code, uid) => {
   return Object.keys(ev).sort().map(k => ev[k]).filter(e => e && e.payload);
 };
 const ERR = [];
+// The moment boxes in a device's #hsg-castle-fx (the S9 layer; the drag ghost is not one).
+const moCount = d => d.el('hsg-castle-fx').children.filter(c => c && c._cls && c._cls.has('hsg-mo')).length;
 const PUB_KEYS = ['battleNo', 'board', 'campaignLen', 'cmd', 'firstSeat', 'foxTotal', 'foxesHeld', 'guards', 'last', 'quiet', 'replay', 'result', 'seals', 'seatCol', 'struck', 'turnSeat'];
 
 // Every HSG envelope the client was ever sent: shape + the '#' rule.
@@ -147,7 +156,7 @@ async function tapAct(d, act) {
 // Plays the current Battle to its end. Checks host/client agreement after every Command.
 async function playBattle(M, rnd, tally) {
   const { host, client, all } = M;
-  let guard = 0, agree = true, agreeNews = true, sameScreen = true, noSecret = true;
+  let guard = 0, agree = true, agreeNews = true, sameScreen = true, noSecret = true, moHost = 0, moClient = 0;
   while (host.run('hsgPub.result.reason') === 'none' && guard++ < 400) {
     const turn = host.run('hsgPub.turnSeat');
     const d = all.find(x => seatOf(x) === turn);
@@ -161,6 +170,7 @@ async function playBattle(M, rnd, tally) {
     if (!eq(J(client, 'hsgNewsFx'), J(host, 'hsgNewsFx'))) agreeNews = false;
     if (last(client) !== last(host)) sameScreen = false;
     if (client.run('hsgB') !== null) noSecret = false;
+    moHost = Math.max(moHost, moCount(host)); moClient = Math.max(moClient, moCount(client));
     if (client.run('window.syllySyncLocked')) { ok('the client is unlocked after every Command', false); return false; }
   }
   ok(`the Battle ended (${host.run('hsgPub.cmd')} Commands, ${host.run('hsgPub.result.reason')})`, host.run('hsgPub.result.reason') !== 'none');
@@ -168,6 +178,7 @@ async function playBattle(M, rnd, tally) {
   ok('…and its news (the fx keys, empty lists rebuilt off the wire)', agreeNews);
   ok('…and it is on the same screen', sameScreen);
   ok('…and it never held the secret (hsgB stays null on the client)', noSecret);
+  ok(`the moments played on both phones (S9: up to ${moHost} on the host, ${moClient} on the client at once)`, moHost > 0 && moClient > 0);
   return true;
 }
 
@@ -341,6 +352,7 @@ async function toCastle(M) {
       const now = J(host, '[hsgPub.battleNo, hsgPub.replay]');
       ok(`Next Battle → ${now[1] ? 'a replay of' : 'Battle'} ${now[0]} on both (was ${tag[0]}${tag[1] ? ' replay' : ''})`,
         all.every(d => last(d) === 'screen-hsg-battle-intro') && eq(J(client, 'hsgPub'), J(host, 'hsgPub')));
+      check('a new Battle leaves no moment behind on either phone (hsgStopTimers clears the layer)', M.all.map(moCount), [0, 0]);
       await toCastle(M);
     }
     ok(`the Campaign was won (${battles} Battles, ${replays} Truce replays)`, final);
@@ -415,11 +427,142 @@ async function toCastle(M) {
     c.run(`hsgHandleEnvelope({ type: 'SYNC', payload: { action: 'HSG_BATTLE_START', flavourIdx: 1, pub: ${oldPub} } })`);
     check('a late HSG_BATTLE_START for a Battle already on screen is ignored', [last(c), J(c, 'hsgPub.cmd')], ['screen-hsg-castle', J(h, 'hsgPub.cmd')]);
     ok('the client never held the secret', c.run('hsgB') === null);
+    // A moment is a Command this phone WATCHED happen. A COMMAND_DONE that skips one
+    // (a packet went missing) is a snapshot: drawn, but never animated. Synthetic
+    // pubs on the client alone — this run's last use of S1.
+    {
+      advance(3000); await flush();                   // the pending moments finish
+      const forge = ahead => c.run(`{ const p = JSON.parse(JSON.stringify(hsgPub)); const d = p.board.indexOf('#');
+        p.cmd += ${ahead}; p.turnSeat = 1 - p.turnSeat; p.last = { k: 'U', i: d, j: d, kind: '', seat: p.turnSeat, vid: '' };
+        hsgHandleEnvelope({ type: 'SYNC', payload: { action: 'HSG_COMMAND_DONE', act: ['U', d], pub: p } }); d; }`);
+      const n0 = moCount(c);
+      const d1 = forge(2);
+      ok('there is still a closed door to forge an Unveil on', d1 >= 0);
+      check('a COMMAND_DONE two Commands ahead (one went missing) plays no moment', moCount(c) - n0, 0);
+      forge(1);
+      ok('…the next one, one Command ahead, does (the control)', moCount(c) > n0);
+    }
     ERR.push(...errorsOf(S1.all));
   }
 
   // ═════════════════════════════════════════════════════════════════════════
-  section('9. The Mid-Game Quit Contract');
+  // A drop + reload through the REAL engine: the old socket dies (its onDisconnect
+  // removes its presence), a device with nothing in memory boots on the same phone
+  // and uid, and mpRejoinRoom → MP_REJOIN → the host's private MP_REJOIN_ACCEPT →
+  // mpEnterGame({ rejoin }) → hsgOnEnter (standby) → reconnect.sendState → HSG_STATE.
+  section('9. Reconnect — a drop + rejoin lands on the right screen with the right board');
+  {
+    const starts = code => pubEvents(code).filter(e => e.payload.action === 'HSG_BATTLE_START').length;
+    let gen = 0;
+    const reload = async (M, away) => {
+      const old = M.client;
+      ok(`${old.name}: the client kept a rejoin pointer`, !!old.phone.store.sylly_rejoin);
+      const startsBefore = starts(M.code), hostPub = JSON.stringify(J(M.host, 'hsgPub'));
+      old.net.kill(); advance(50);
+      const back = boot('c1r' + (++gen), old.uid, old.phone);
+      addHsg(back, 900 + gen);
+      if (away) { advance(3500); await flush(); }
+      const wasAway = M.host.run('mpAwaySeats.has(1)');
+      back.run(`mpRejoinRoom('${M.code}')`); await flush(); await flush();
+      ERR.push(...errorsOf([old]));
+      check('…the rejoin dealt nothing and moved nothing on the host', [starts(M.code), JSON.stringify(J(M.host, 'hsgPub'))], [startsBefore, hostPub]);
+      ok('…the host was not reset (a drop is not a quit)', M.host.S.__resets === 0);
+      check('…back in seat 1, Away cleared', [seatOf(back), M.host.run('mpAwaySeats.has(1)')], [1, false]);
+      ok('…the rejoiner never holds the secret', back.run('hsgB') === null);
+      check('…and a snapshot plays no moment (only a Command we watched does)', moCount(back), 0);
+      return { N: { host: M.host, client: back, all: [M.host, back], code: M.code }, wasAway };
+    };
+    const sameAsHost = (N, label) => {
+      check(`${label}: the rejoiner's pub is the host's, byte for byte`, J(N.client, 'hsgPub'), J(N.host, 'hsgPub'));
+      check(`${label}: …and its Campaign counters`, J(N.client, '[hsgBattleNo, hsgReplay, hsgFirstSeat, hsgSeals]'), J(N.host, '[hsgBattleNo, hsgReplay, hsgFirstSeat, hsgSeals]'));
+    };
+
+    // (a) mid-Battle-intro, a fast reload (back before the Away debounce)
+    let M = await hsgMatch(['Hana', 'Priya'], { len: 3, seed: 31, layout: 9 });
+    check('the host is in the Battle 1 intro', M.host.run('hsgPhase'), 'battle-intro');
+    let r = await reload(M, false);
+    let N = r.N;
+    ok('mid-intro: the fast reload never went Away', !r.wasAway);
+    ok('mid-intro: the rejoiner waited on standby first', N.client.screens.includes('screen-hsg-standby'));
+    check('mid-intro: the rejoiner skips the intro → the Castle', [last(N.client), N.client.run('hsgPhase')], ['screen-hsg-castle', 'castle']);
+    check('mid-intro: …painted (30 squares, the bars)', [N.client.el('hsg-grid').children.length, N.client.el('hsg-bar-top').innerHTML.length > 0], [30, true]);
+    sameAsHost(N, 'mid-intro');
+    check('mid-intro: the host is still in its own intro', N.host.run('hsgPhase'), 'battle-intro');
+    advance(4600); await flush();
+    check('mid-intro: the host\'s intro ends on the Castle; the rejoiner stays there', [last(N.host), last(N.client)], ['screen-hsg-castle', 'screen-hsg-castle']);
+
+    // (b) mid-Battle, a real Away, then a reload
+    const rnd = rngOf(57);
+    for (let k = 0; k < 5; k++) {
+      const d = N.all.find(x => seatOf(x) === N.host.run('hsgPub.turnSeat'));
+      await tapAct(d, chooseAct(d, rnd));
+    }
+    r = await reload(N, true);
+    ok('mid-Battle: the drop was Away first', r.wasAway);
+    N = r.N;
+    check('mid-Battle: the rejoiner is on the Castle', [last(N.client), N.client.run('hsgPhase')], ['screen-hsg-castle', 'castle']);
+    sameAsHost(N, 'mid-Battle');
+    {
+      const st = privOf(N.code, N.client.uid).filter(e => e.payload.action === 'HSG_STATE').slice(-1)[0];
+      check('mid-Battle: the snapshot says "castle"', st && st.payload.phase, 'castle');
+      const before = [JSON.stringify(J(N.client, 'hsgPub')), last(N.client), N.client.domText()];
+      N.client.run(`hsgHandleEnvelope(${JSON.stringify({ type: 'SYNC', originId: 'uH', payload: st.payload })})`);
+      check('mid-Battle: the same HSG_STATE again changes nothing (idempotent)', [JSON.stringify(J(N.client, 'hsgPub')), last(N.client), N.client.domText()], before);
+    }
+    const taps = {};
+    await playBattle(N, rnd, taps);
+    ok('mid-Battle: the rejoiner played on to the end of the Battle', (taps[N.client.name] || 0) > 0);
+
+    // (c) the ending beat (host still on the Castle, 2.4 s to go) → straight to the Chronicle
+    const wantEnd = N.host.run('hsgPhaseForWire()');
+    check('the host is in the ending beat', N.host.run('hsgPhase'), 'ending');
+    r = await reload(N, false);
+    N = r.N;
+    const endScreen = 'screen-hsg-' + wantEnd;
+    check(`ending: the rejoiner lands on the ${wantEnd} (the snapshot says "${wantEnd}")`, [last(N.client), N.client.run('hsgPhase')], [endScreen, wantEnd]);
+    ok('ending: …painted', N.client.el(wantEnd === 'gameover' ? 'hsg-go-body' : 'hsg-chron-body').innerHTML.length > 0);
+    sameAsHost(N, 'ending');
+    advance(2500); await flush();
+    check('ending: the host\'s beat ends on the same screen', last(N.host), endScreen);
+    {
+      const pick = d => J(d, '(m => ({ v: m.variant, f: m.final, h: m.head, s: m.sub, q: m.quote, c: m.cta }))(hsgChronicleModel(hsgPub))');
+      check('ending: the two War Chronicles say the same thing', pick(N.client), pick(N.host));
+    }
+
+    // (d) at the between-Battles Chronicle → the Chronicle; Next Battle from the rejoiner
+    if (wantEnd === 'chronicle') {
+      r = await reload(N, true);
+      N = r.N;
+      check('chronicle: the rejoiner is on the Chronicle', [last(N.client), N.client.run('hsgPhase')], ['screen-hsg-chronicle', 'chronicle']);
+      sameAsHost(N, 'chronicle');
+      N.client.el('btn-hsg-chron-next').click(); await flush();
+      check('chronicle: the rejoiner\'s Next Battle starts the next Battle on both', [last(N.host), last(N.client), N.client.run('window.syllySyncLocked')], ['screen-hsg-battle-intro', 'screen-hsg-battle-intro', false]);
+      sameAsHost(N, 'next Battle');
+      await toCastle(N);
+    } else ok('chronicle case skipped: the first Battle won the Campaign (seed changed?)', false);
+    ERR.push(...errorsOf(N.all));
+
+    // (e) the ending beat of the Battle that WINS the Campaign → the gameover
+    const G = await hsgMatch(['Alexandrina Ko', 'Priyanka Raju'], { len: 1, seed: 8, layout: 13 });
+    await toCastle(G);
+    let Gn = G, n = 0;
+    while (n++ < 6) {
+      await playBattle(Gn, rngOf(60 + n), {});
+      if (Gn.host.run('hsgPhaseForWire()') === 'gameover') break;
+      await toChronicle(Gn); Gn.host.el('btn-hsg-chron-next').click(); await flush(); await toCastle(Gn);
+    }
+    check('the Campaign-winning ending beat reads "gameover"', [Gn.host.run('hsgPhase'), Gn.host.run('hsgPhaseForWire()')], ['ending', 'gameover']);
+    r = await reload(Gn, false);
+    Gn = r.N;
+    check('gameover: the rejoiner lands on the gameover, painted', [last(Gn.client), Gn.client.run('hsgPhase'), Gn.client.el('hsg-go-body').innerHTML.length > 0], ['screen-hsg-gameover', 'gameover', true]);
+    sameAsHost(Gn, 'gameover');
+    advance(2500); await flush();
+    check('gameover: the host\'s beat ends there too, and the match is over for reconnect', [last(Gn.host), Gn.host.run('mpMatchLive')], ['screen-hsg-gameover', false]);
+    ERR.push(...errorsOf(Gn.all));
+  }
+
+  // ═════════════════════════════════════════════════════════════════════════
+  section('10. The Mid-Game Quit Contract');
   {
     const Q = await hsgMatch(['Hana', 'Priya'], { seed: 5 });
     await toCastle(Q);
@@ -440,7 +583,7 @@ async function toCastle(M) {
     ERR.push(...errorsOf(R.all).filter(e => !/HOST_END_GAME|host-disconnected/.test(e)));
   }
 
-  section('10. Zero warnings');
+  section('11. Zero warnings');
   ok('no device logged a warning or error', ERR.length === 0, ERR.slice(0, 6).join('\n          '));
   W.report();
 })().catch(e => { console.error(e); process.exit(1); });

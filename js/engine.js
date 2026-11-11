@@ -521,6 +521,32 @@ function playFanSnap() {
   osc.start(now); osc.stop(now + 0.075);
 }
 
+// HSG — a paper door slides open on its wooden runner: band-passed noise (~2.4 →
+// 1.3 kHz, a slight downward sweep) with a soft attack, ~180 ms. Spec
+// docs/new-game-tech-hsg.md §9. A Shogun behind it adds playHullThud (HSG_SOUND).
+function playPaperSlide() {
+  if (isMuted || !sfxEnabled) return;
+  const ctx = getAudioCtx(), now = ctx.currentTime;
+  const dur = 0.18;
+  const bufLen = Math.floor(ctx.sampleRate * (dur + 0.02));
+  const buf = ctx.createBuffer(1, bufLen, ctx.sampleRate);
+  const data = buf.getChannelData(0);
+  for (let i = 0; i < bufLen; i++) data[i] = Math.random() * 2 - 1;
+  const src = ctx.createBufferSource();
+  src.buffer = buf;
+  const bp = ctx.createBiquadFilter();
+  bp.type = 'bandpass'; bp.Q.value = 1.4;
+  bp.frequency.setValueAtTime(2400, now);
+  bp.frequency.exponentialRampToValueAtTime(1300, now + dur);
+  const env = ctx.createGain();
+  env.gain.setValueAtTime(0.0001, now);
+  env.gain.exponentialRampToValueAtTime(0.16, now + 0.045);   // soft attack: paper, not a slap
+  env.gain.setValueAtTime(0.16, now + 0.11);
+  env.gain.exponentialRampToValueAtTime(0.001, now + dur);
+  src.connect(bp); bp.connect(env); env.connect(ctx.destination);
+  src.start(now); src.stop(now + dur + 0.02);
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function showScreen(id) {
   allScreens.forEach(s => { const el = document.getElementById(s); if (el) el.style.display = 'none'; });

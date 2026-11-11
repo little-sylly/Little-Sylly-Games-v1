@@ -51,7 +51,7 @@ never Away; and reaching a game's final screen (`MP_END_SCREENS`, via `mpNoteScr
 its final screen to `MP_END_SCREENS`** (GM and NT are absent on purpose: per-round result screens).
 
 **The opt-in hook** — `MP_GAME_CONFIGS[abbr].reconnect = { sendState(idx), pause(), resume() }`, all
-host-only; `verify-mp-configs.js` § 7 pins the adopter list (`['flw', 'pko', 'cjar', 'comb']`). `pause()` runs on the FIRST
+host-only; `verify-mp-configs.js` § 7 pins the adopter list (`['li5', 'flw', 'pko', 'cjar', 'hsg', 'comb']`). `pause()` runs on the FIRST
 seat to go and `resume()` on the LAST back, never twice. An adopter's client `onPassThePhone` must be
 safe to re-run on a rejoining device (standby, never a new match) **and must start any data load the
 game's lobby button would have** — a rejoiner never tapped it (`cjarLoadData()`, `pkoLoadChain()`); the

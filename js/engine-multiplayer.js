@@ -576,8 +576,7 @@ const MP_GAME_CONFIGS = {
     // one phone -> the names screen. hsgOnEnter() owns all three (spec §11).
     onPassThePhone: () => hsgOnEnter(),
     recommendedMode: 'mdlm',
-    // 'solo' needs the bots entry below (S8). The reconnect hook (S9) is not adopted
-    // yet, so its verify-mp-configs pin stays put.
+    // 'solo' needs the bots entry below (S8).
     supportedModes:  ['ptp', 'mdlm', 'solo'],
     multiplayerOnly: false,
     rosterConfig:    { type: 'none' },    // two individuals, seat order from the lobby
@@ -604,6 +603,15 @@ const MP_GAME_CONFIGS = {
       decide:    (v, d, rng) => hsgBotDecide(v, d, rng),
       submit:    (i, move, tag) => hsgBotSubmit(i, move, tag),
       thinkMs:   (d, rng) => hsgBotThinkMs(d, rng),
+    },
+    // Reconnect (S9, spec §11). The whole state is one public snapshot, the same for
+    // both seats — nothing to strip — and nothing in HSG runs a clock or auto-plays
+    // for a seat, so pause and resume have nothing to stop (the bots' timers are the
+    // engine's own). HSG_STATE's applier takes standby → live and is idempotent.
+    reconnect: {
+      sendState: idx => hsgSendState(idx),
+      pause:     () => {},
+      resume:    () => {},
     },
   },
   comb: {
@@ -1547,7 +1555,7 @@ function mpApplyRejoinAccept(p, ts) {
   if (myIdx < 0 || !cfg || !cfg.reconnect) { mpRejoinFailed('gone'); return; }
   mpActiveGame       = p.game;
   mpActiveGameConfig = cfg;
-  // Every adopter so far uses its MP key as its activeGameId (flw, pko, cjar, comb). A future adopter
+  // Every adopter so far uses its MP key as its activeGameId (li5, flw, pko, cjar, hsg, comb). A future adopter
   // whose two ids differ (SS: 'ss' vs 'sylly-signals') must map it here.
   if (typeof activeGameId !== 'undefined') activeGameId = p.game;
   mpApplySettings(p.game, p.gameSettings || {});

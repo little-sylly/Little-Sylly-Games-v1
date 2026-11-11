@@ -604,6 +604,8 @@ field (impl notes DD-07). `hsgBotRng` adapts the engine's bare `() => float` to 
   re-arms nothing, because nothing in HSG is phase-scoped.
 - `hsg` joins the adopters pinned in `verify-mp-configs.js` § 7.
 
+*As built (S9):* exactly as above — the S7 applier needed no change. The rejoiner's `hsgOnEnter` (client) tears down and waits on standby, then `HSG_STATE` takes it live; a snapshot never plays a moment. Proved in `verify-hsg-loopback.js` § 9 by a real drop + reload from the Battle intro, mid-Battle (after an Away), the ending beat and the Chronicle. A rejoin after the host reaches the gameover is refused by the engine (the match is over — `MP_END_SCREENS`).
+
 **Settings override in Lobby Mode:** none.
 **readyCheck matrix:** none — no simultaneous moments.
 
@@ -706,6 +708,10 @@ and both War Chronicles, with the longest names, plus a reduced-motion pass.
   Banners, the fox, the Guard ring cracking, the lanterns, the strike, Found you!, the door slide —
   every one in the Castle's absolute layer, each with a static reduced-motion form — and `HSG_SOUND`,
   with `playPaperSlide()` and `playFanSnap()` added to `engine.js` and `docs/rules/audio.md`.
+  *As built:* one painter, `hsgPlayMoments(before, pub, fx)`, on every phone after a Command it watched
+  (`cmd` moved by exactly one). Reduced motion: motion-only moments (door slide, fold, puff, relight) are
+  skipped; the ones that carry news are shown still (`.is-still`). `hsgStopTimers()` clears the layer.
+  `playFanSnap()` already existed (S5); `playPaperSlide()` is new.
 - **S10 — The Household.** The gallery tab: one row per piece through `hsgRenderTile`, the ladder,
   the upsets, the loop triangle; long-press → row (`bindCardHold` + `refHighlightRow`).
 - **S11 — Practice.** Nine lessons (brief §24), each a small fixed board on the real rules and the

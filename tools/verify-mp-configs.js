@@ -261,7 +261,8 @@ section('7. Client reconnect — adopters and hook shape');
 const ADOPTERS = IDS.filter(id => CONFIGS[id].reconnect !== undefined);
 // SW v237: flw, pko, cjar — each proven in its own loopback's Reconnect sections.
 // LI5 pilot S1: li5 — proven in verify-li5-loopback.js § 13.
-check('the adopters are exactly the reviewed list', ADOPTERS, ['li5', 'flw', 'pko', 'cjar', 'comb']);
+// HSG S9 (SW v284): hsg — proven in verify-hsg-loopback.js § 9 (drop + rejoin from every phase).
+check('the adopters are exactly the reviewed list', ADOPTERS, ['li5', 'flw', 'pko', 'cjar', 'hsg', 'comb']);
 for (const id of ADOPTERS) {
   const rc = CONFIGS[id].reconnect;
   ok(id + ': reconnect has sendState, pause and resume',

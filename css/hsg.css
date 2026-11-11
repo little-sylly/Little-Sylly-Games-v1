@@ -1,6 +1,7 @@
 /* ═══════════════════════════════════════════════════════════════════════════
    hsg.css — Hide and Shogun’s world: the lamplit room (S4, SW v279); the Battle
-   intro and the Storyteller scene (S5, SW v280).
+   intro and the Storyteller scene (S5, SW v280); the War Chronicle (S6);
+   the moments (S9, SW v284).
    Brand classes (hsg-cta, pill-active-hsg, …) live in css/styles.css with the
    suite's other brand rules; this file is the world only.
 
@@ -517,8 +518,118 @@
   .hsg-ch-tallybox { padding: 6px 10px; gap: 4px; }
 }
 
+/* ═══ S9 — The moments (hsgPlayMoments, js/games/hsg.js) ═══════════════════════
+   Every one is a .hsg-mo box in #hsg-castle-fx, placed over what it is about and
+   removed by the game's own timer. --d is the moment's start; each part animates
+   in ≤300 ms, holds, and fades out ≤300 ms (ui-motion.md) — the Found you! beat is
+   the one blocking choreography. .is-still is the reduced-motion form the JS
+   picks: no travel, the held pose at once. The JS skips the motion-only ones. */
+.hsg-mo { position: absolute; pointer-events: none; --d: 0ms; }
+.hsg-mo.is-still, .hsg-mo.is-still * { animation: none !important; }
+@keyframes hsgMoOut { to { opacity: 0; } }
+
+/* the door slide — the signature: a shadow flickers on the paper, then the panel
+   slides aside on its runner and the piece pops in (scale .9 → 1) */
+.hsg-mo-door { overflow: hidden; }
+.hsg-mo-panel { position: absolute; inset: 0; animation: hsgDoorSlide 220ms 150ms cubic-bezier(.65,0,.35,1) forwards; }
+.hsg-mo-panel > * { position: absolute; inset: 0; }
+.hsg-mo-shade { background: radial-gradient(ellipse 30% 38% at 50% 46%, rgba(43,38,32,.45), rgba(43,38,32,0) 78%);
+  opacity: 0; animation: hsgShadeFlick 150ms linear forwards; }
+@keyframes hsgDoorSlide  { to { transform: translateX(102%); } }
+@keyframes hsgShadeFlick { 0% { opacity: 0; } 30% { opacity: .95; } 55% { opacity: .35; } 100% { opacity: .8; } }
+.hsg-tile.is-pop { animation: hsgPop 200ms 170ms cubic-bezier(.22,1,.36,1) both; }
+@keyframes hsgPop { from { transform: scale(.9); } to { transform: none; } }
+
+/* a strike: the struck piece folds flat like paper, and an ink splash */
+.hsg-mo-fold > .hsg-tile { transform-origin: 50% 100%; animation: hsgFold 240ms cubic-bezier(.65,0,.35,1) forwards; }
+@keyframes hsgFold { to { transform: scaleY(0); opacity: .5; } }
+.hsg-mo-ink svg { display: block; width: 100%; height: 100%; opacity: .82;
+  animation: hsgInkIn 170ms var(--d) cubic-bezier(.22,1,.36,1) both, hsgMoOut 280ms calc(var(--d) + 340ms) ease-out forwards; }
+@keyframes hsgInkIn { from { opacity: 0; transform: scale(.5); } to { opacity: .82; transform: none; } }
+
+/* Raising the Banners: two cloth banners drop from the beam */
+.hsg-mo-banners { display: flex; justify-content: space-around; align-items: flex-start;
+  padding: 0 7%; box-sizing: border-box; filter: drop-shadow(0 8px 10px rgba(0,0,0,.5)); }
+.hsg-mo-banner {
+  width: 39%; height: 88%; box-sizing: border-box; padding: 8px 6px 20px;
+  display: flex; flex-direction: column; align-items: center; gap: 3px; text-align: center;
+  border-top: 3px solid #C9A14A;
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 86%, 0 100%);
+  transform-origin: 50% 0;
+  animation: hsgUnfurl 300ms var(--d) cubic-bezier(.22,1,.36,1) both, hsgMoOut 260ms calc(var(--d) + 1500ms) ease-out forwards;
+}
+.hsg-mo-banners.is-final .hsg-mo-banner { animation: hsgUnfurl 300ms var(--d) cubic-bezier(.22,1,.36,1) both; }
+.hsg-mo-banner.is-won  { height: 100%; }
+.hsg-mo-banner.is-lost { height: 76%; filter: saturate(.4) brightness(.62); }
+.hsg-mo-banner-crest { width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0; box-shadow: 0 0 0 1.5px #C9A14A;
+  display: flex; align-items: center; justify-content: center; }
+.hsg-mo-banner-crest svg { width: 13px; height: 13px; }
+.hsg-mo-banner-clan { font-size: 12px; font-weight: 700; line-height: 1.1; color: #F3EAD7; }
+.hsg-mo-banner-who  { font-size: 11px; line-height: 1.1; color: #E3C894; max-width: 100%;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* a fox is found: ears pop up over the door frame, a paw crest stamps on */
+.hsg-mo-ears { position: absolute; left: 15%; width: 70%; bottom: 94%; height: auto;
+  animation: hsgEarsUp 220ms var(--d) cubic-bezier(.22,1,.36,1) both, hsgMoOut 260ms calc(var(--d) + 1150ms) ease-out forwards; }
+@keyframes hsgEarsUp { from { opacity: 0; transform: translateY(45%); } to { opacity: 1; transform: none; } }
+.hsg-mo-paw { position: absolute; right: 5%; bottom: 30%; width: 44%; height: 44%; box-sizing: border-box;
+  border-radius: 50%; border: 2px solid #F3EAD7; box-shadow: 0 2px 8px rgba(0,0,0,.45);
+  display: flex; align-items: center; justify-content: center; transform: rotate(-8deg);
+  animation: hsgPawStamp 220ms calc(var(--d) + 120ms) cubic-bezier(.22,1,.36,1) both, hsgMoOut 260ms calc(var(--d) + 1150ms) ease-out forwards; }
+.hsg-mo-paw svg { width: 66%; height: 66%; }
+@keyframes hsgPawStamp { from { opacity: 0; transform: rotate(-8deg) scale(1.7); } to { opacity: 1; transform: rotate(-8deg); } }
+
+/* the Guard falls: the gold ring cracks — and with no Guard left, breaks in two */
+.hsg-mo-guard svg { display: block; width: 100%; height: 100%; overflow: visible;
+  animation: hsgRingIn 180ms var(--d) ease-out both, hsgMoOut 260ms calc(var(--d) + 850ms) ease-out forwards; }
+@keyframes hsgRingIn { from { opacity: 0; transform: scale(.45); } to { opacity: 1; transform: none; } }
+.hsg-mo-guard path { fill: none; stroke-linecap: round; stroke-linejoin: round; transform-box: fill-box; transform-origin: 50% 50%; }
+.hsg-mo-ring-l, .hsg-mo-ring-r { stroke: #C9A14A; stroke-width: 5; }
+.hsg-mo-crack { stroke: #2B2620; stroke-width: 2.6; animation: hsgShow 70ms calc(var(--d) + 170ms) both; }
+.hsg-mo-guard.is-broken .hsg-mo-ring-l { animation: hsgRingL 280ms calc(var(--d) + 260ms) cubic-bezier(.65,0,.35,1) forwards; }
+.hsg-mo-guard.is-broken .hsg-mo-ring-r { animation: hsgRingR 280ms calc(var(--d) + 260ms) cubic-bezier(.65,0,.35,1) forwards; }
+@keyframes hsgRingL { to { transform: translate(-5px, 6px) rotate(-16deg); } }
+@keyframes hsgRingR { to { transform: translate(5px, 6px) rotate(16deg); } }
+.hsg-mo-guard.is-still.is-broken .hsg-mo-ring-l { transform: translate(-3px, 3px) rotate(-10deg); }
+.hsg-mo-guard.is-still.is-broken .hsg-mo-ring-r { transform: translate(3px, 3px) rotate(10deg); }
+
+/* the lanterns: one goes out with a puff; relit ones come back up, staggered */
+.hsg-mo-puff > .hsg-lantern { position: absolute; inset: 0; width: auto; height: auto; animation: hsgMoOut 280ms ease-out forwards; }
+.hsg-mo-puff > i { position: absolute; left: 50%; top: -3px; width: 8px; height: 8px; margin-left: -4px;
+  border-radius: 50%; background: rgba(243,234,215,.55); animation: hsgPuff 300ms ease-out forwards; }
+@keyframes hsgPuff { from { opacity: .75; transform: none; } to { opacity: 0; transform: translateY(-10px) scale(1.6); } }
+.hsg-lantern.is-relit { animation: hsgRelight 240ms calc(var(--i, 0) * 30ms) ease-out both; }
+@keyframes hsgRelight { from { opacity: .2; } to { opacity: 1; } }
+
+/* the ending beat over the board: the Storyteller's word; for a Shogun, his fan
+   snaps shut (on --d + 320 ms, with the sound) and the banners drop */
+.hsg-mo-end { display: flex; align-items: center; justify-content: center; box-sizing: border-box; padding-top: 22%;
+  border-radius: 6px; background: rgba(28,15,11,.42); animation: hsgShow 200ms var(--d) ease-out both; }
+.hsg-mo-end-card { display: flex; flex-direction: column; align-items: center; gap: 4px; max-width: 88%;
+  padding: 12px 22px 14px; box-sizing: border-box; border-radius: 14px; text-align: center;
+  background: #F3EAD7; color: #2B2620; box-shadow: 0 0 0 2px #C9A14A, 0 14px 30px rgba(0,0,0,.55);
+  animation: hsgEndIn 260ms var(--d) cubic-bezier(.22,1,.36,1) both; }
+@keyframes hsgEndIn { from { opacity: 0; transform: scale(1.18); } to { opacity: 1; transform: none; } }
+.hsg-mo-end-title { font-size: 26px; font-weight: 700; line-height: 1.1; overflow-wrap: anywhere; }
+.hsg-mo-fan { width: 64px; height: 50px; overflow: visible; }
+.hsg-mo-fan-open { transform-box: fill-box; transform-origin: 50% 100%;
+  animation: hsgFanShut 140ms calc(var(--d) + 320ms) cubic-bezier(.65,0,.35,1) forwards; }
+.hsg-mo-fan-shut { opacity: 0; animation: hsgShow 80ms calc(var(--d) + 400ms) both; }
+@keyframes hsgFanShut { to { transform: scaleX(.08); opacity: 0; } }
+.hsg-mo.is-still .hsg-mo-fan-open { opacity: 0; }       /* the snap has already happened */
+.hsg-mo.is-still .hsg-mo-fan-shut { opacity: 1; }
+@media (max-height: 600px) {
+  .hsg-mo-end-title { font-size: 22px; }
+  .hsg-mo-end-card { padding: 9px 16px 11px; }
+  .hsg-mo-fan { width: 50px; height: 39px; }
+  .hsg-mo-banner { padding: 5px 4px 16px; }
+  .hsg-mo-banner-crest { width: 18px; height: 18px; }
+}
+
 /* ── Reduced motion: every moving thing has a still form ───────────────────── */
 @media (prefers-reduced-motion: reduce) {
+  /* the moments' still form is the JS's .is-still; this is the belt to its braces */
+  .hsg-mo, .hsg-mo *, .hsg-tile.is-pop, .hsg-lantern.is-relit { animation: none !important; }
   .hsg-lantern.is-flicker { animation: none; opacity: .7; }
   .hsg-sq { transition: none; }
   /* the global block only shortens durations — delays would still hide the call */

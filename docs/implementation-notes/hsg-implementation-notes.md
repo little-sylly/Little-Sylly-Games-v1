@@ -69,6 +69,34 @@ not a callback, and write base styles as the end state.
 **Why:** the counts *are* public (anyone watching every door open could keep them), but the pub can't rebuild them: a struck piece leaves the board, and the pub keeps only a per-colour struck count plus the last victim. Keeping a running tally on the pub would have meant a new packet field for one consumer. Taking the counts from the host is the same information with no wire cost. Fairness holds because shuffling the closed doors leaves the multiset, and so `S.pool`, unchanged. `verify-hsg-bots` proves it at all three levels.
 **Think times:** Easy 700–1,200 ms, Medium 900–1,600 ms, Hard 1,100–2,000 ms (spec §11). Hard's `decide` measured at a max of 2.8 ms on Node with the look-ahead running, far under the 150 ms budget.
 
+### DD-08 — A moment is a Command this phone watched, played from two snapshots (S9)
+**What:** `hsgPlayMoments(before, pub, fx)` runs on every phone after a Command: the host from
+`hsgHostCommand`, a client from `hsgApplyCommandDone`. It reads only the snapshot before, the snapshot
+after and the fx keys, never `hsgB`, so a moment can't show what the pub doesn't, and both phones play
+the same one. It runs only when `cmd` moved by exactly one in the same Battle. A repair, a rejoin, or a
+COMMAND_DONE that skips one (a lost packet) is drawn but never animated, since animating it would slide
+a door whose Command this phone never saw. Fox moments come from diffing the boards (`#` → `Fx…`, or
+`Fxp` → sided), so a fox sided by the banners gets its stamp too.
+**Why the test exists:** the loopback mutant with the `cmd + 1` guard removed stayed green until a check
+fed the client a COMMAND_DONE two Commands ahead (with a one-ahead control). A guard that only defends
+against a lost packet needs a test that loses one.
+**Geometry:** squares are measured with `offsetLeft` / `offsetTop` (the Castle is their `offsetParent`).
+A lifted square is still easing back down when its Command lands, so `getBoundingClientRect` would put
+the door panel up to 7 px high. Bars, beam and lanterns use the rect.
+
+### DD-09 — Reduced motion is decided per moment in JS: skip the motion, keep the news (S9)
+**What:** a moment that is only motion (the door slide, the fold, a lantern's puff, the relight) is
+**skipped**, because the board already shows the result. A moment that carries news (the banners, the
+fox's stamp, the cracked ring, the ink blot, Found you!) is drawn with `.is-still`: no animation, the
+held pose at once, removed by the same timer.
+**Why:** each moment is an in-animation, a hold and an out-animation in one `animation` list. Under the
+suite's global block (durations → 0.01 ms, delays kept), the out-fade fires at its delay and the banner
+is gone early. With `animation: none` instead, a panel meant to slide away would sit over the piece.
+Neither is a still form. A `@media` rule in `css/hsg.css` backs up the JS.
+**Measured:** at 375×667 and 320×452, in both motion settings (`visual-check`). The ending banners were
+2.2 tiles long, which clipped the losing banner's name under its swallowtail at 320×452. They are now 2.6
+tiles, the same as Raising the Banners, and still clear the Found you! card.
+
 ---
 
 ## Bug Index
@@ -149,6 +177,25 @@ mutant is equivalent and the copy is defensive.
 state. If it never does, the decision can't reveal a leak; the view, which is the actual contract, has
 to be what you check.
 
+### ML-05 — Moments are removed by timers, so stopping the timers must clear the layer (S9)
+**What:** every moment box is removed by its own `hsgLater`, and `hsgStopTimers()` runs at every Battle
+start, ending and teardown. If it cleared the timers but not the boxes, every moment still in flight
+would stay on the board for good. `hsgStopTimers` now calls `hsgClearMoments()`.
+**Found by:** the loopback never moves the clock between taps, so dozens of moments pile up in a Battle.
+With the clear removed, "a new Battle leaves no moment behind" goes red. A harness that let each moment
+finish would have passed.
+**Lesson:** when a timer owns a DOM node's removal, the function that kills the timers must remove the
+nodes too, and the test should hold the clock still.
+
+### ML-06 — Reconnect cost one config entry because S7 built the snapshot first (S9)
+**What:** adopting `reconnect` changed no game code. `hsgSendState` and the `HSG_STATE` applier were
+written in S7 as the refusal repair, and `hsgOnEnter`'s client path already tore down and waited.
+`verify-hsg-loopback` § 9 drives a real drop and reload through `mpRejoinRoom` from the Battle intro,
+mid-Battle (after an Away), the ending beat and the Chronicle. It passed first time, apart from a wrong
+element id in the test itself.
+**Lesson:** when a game's whole state is one public snapshot, build the repair packet as the rejoin packet
+from the start. They become one function, and adopting `reconnect` later takes three lines.
+
 ---
 
 ## Template Gaps
@@ -177,3 +224,12 @@ scrolls by 56 and 124 px (it is a Stack).
 **Lesson:** a scene with `beat()` owns the *line*, not the *speaker*. The engine already names the
 speaker. Candidate for `docs/rules/ui-revamp.md` § 4 if a second world repeats it (ETA's clipboard
 carries "DOTTY · HEAD OF DISPATCH", so it may already have).
+
+### TG-04 — The global reduced-motion block can't give an in/hold/out moment a still form (S9)
+**What:** `docs/rules/ui-motion.md` says a new CSS animation needs no reduced-motion handling because the
+global block collapses durations. That holds for one-shot entrances. It fails for a transient with an
+in, a hold and an out in one animation list: the out-fade still fires at its delay, so a banner or a stamp
+goes early. See DD-09.
+**Candidate rule for ui-motion.md:** a transient that *carries information* needs a still form chosen in
+JS (shown held, without animation, for the same time). A transient that is *only motion* may be skipped.
+Becomes a rule if a second game repeats it.

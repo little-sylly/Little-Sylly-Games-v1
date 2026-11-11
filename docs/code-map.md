@@ -2445,7 +2445,7 @@ Per-game: LI5 `ptp`★/`tlm`/`mdlm` (4–12) · GM `ptp`★/`mdlm` · SS `tlm`�
 | `rooms/{code}/seats` | host, at `GAME_START`; removed by `mpReturnToLobby()` | `[uid0, uid1, …]` in seat order — never mutated mid-match |
 | `rooms/{code}/presence/{uid}/{pushId}` | each client, for itself | `true`, one child per connection with its own `onDisconnect().remove()`. Host writes none |
 
-Adopters (`MP_GAME_CONFIGS[abbr].reconnect`): **`flw`, `pko`, `cjar`, `comb`** (the first three SW v237) — pinned by `verify-mp-configs.js` § 7. Harness: `tools/verify-mp-reconnect.js`. Rule: `logic-engine.md` § Client Reconnect.
+Adopters (`MP_GAME_CONFIGS[abbr].reconnect`): **`li5`, `flw`, `pko`, `cjar`, `hsg`, `comb`** (the first three SW v237; `hsg` SW v284) — pinned by `verify-mp-configs.js` § 7. Harness: `tools/verify-mp-reconnect.js`. Rule: `logic-engine.md` § Client Reconnect.
 
 ### Bots (SW v247)
 Host-side bot seats + Solo, all in `js/engine-multiplayer.js` § BOTS. A bot is an `mpPlayerSlots` entry held only in the host's memory — `{ uid: 'bot:N', nickname, bot: { difficulty } }` — **never written to `/players`**. Rule: `logic-engine.md` § Bots. Detail: `shared-implementation-notes.md` DD-52.

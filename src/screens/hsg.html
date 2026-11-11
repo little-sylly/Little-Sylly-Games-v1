@@ -103,7 +103,8 @@
        your bar · the message card. The tile size is computed in css/hsg.css so the whole
        Castle always fits the glass. Everything inside #hsg-grid is drawn by hsgRenderCastle()
        from hsgPub ALONE; every tile goes through hsgRenderTile() (the art seam).
-       #hsg-castle-fx is the absolute moment layer (the drag ghost now; S9's moments later). -->
+       #hsg-castle-fx is the absolute moment layer: the drag ghost and every moment (S9,
+       hsgPlayMoments) — nothing that animates ever sits in the column's flow. -->
   <section id="screen-hsg-castle" data-tv="public" style="display:none"
     class="hsg-room w-full flex-col">
     <div id="hsg-castle" class="hsg-castle">
@@ -120,7 +121,7 @@
       </div>
       <div id="hsg-bar-top" class="hsg-bar"></div>
       <div id="hsg-beam" class="hsg-beam" role="img" aria-label="The lanterns"></div>
-      <div class="hsg-frame">
+      <div id="hsg-frame" class="hsg-frame">
         <div id="hsg-grid" class="hsg-grid" role="grid" aria-label="The castle"></div>
       </div>
       <div id="hsg-bar-bottom" class="hsg-bar"></div>

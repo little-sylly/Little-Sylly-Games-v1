@@ -6,6 +6,7 @@
 // ── BUILT SO FAR: S2 (state machine) · S3 (menu, War Council) · S4 (Castle) ─
 // ── · S5 (the Intro's scene + the Battle intro) · S6 (both War Chronicles) ──
 // ── · S7 (multi-device: the packet layer, the client path) · S8 (bots, Solo) ─
+// ── · S9 (reconnect; the moments + HSG_SOUND) ───────────────────────────────
 // The Campaign, the host's Command pipeline, the public-copy codec, the masked
 // state, and the Castle on one phone: hsgRenderTile (the art seam), the board,
 // the bars, the lantern beam, the message card, tap-tap, the two-tap door,
@@ -13,7 +14,8 @@
 // Storyteller (hsgIntroScene over js/games/hsg-scene.js). The five packets and
 // their receivers (hsgHandleEnvelope — S7), proved by tools/verify-hsg-loopback.js.
 // The bots' view / decide / submit (S8), proved by tools/verify-hsg-bots.js.
-// Reconnect + the moments are S9.
+// Reconnect (S9): HSG_STATE is the rejoin snapshot — the loopback's § 9 drops and
+// rejoins from every phase. The moments (S9, hsgPlayMoments) and the HSG_SOUND map.
 //
 // Spec: docs/new-game-tech-hsg.md (§2 state flow, §4 state, §6 scoring, §7
 // validation, §11 packets + bots). It wins over the brief.
@@ -134,6 +136,7 @@ function hsgLater(fn, ms) {
 function hsgStopTimers() {
   hsgTimers.forEach(h => clearTimeout(h));
   hsgTimers = [];
+  hsgClearMoments();               // a moment is removed by a timer: no timer, no moment (S9)
 }
 
 // Screens: the ONLY place this file touches routing. S3 registers the IDs.
@@ -417,6 +420,7 @@ function hsgHostCommand(seat, act, cmd) {
   if (!Array.isArray(act) || !HsgRules.battleLegal(hsgB).some(a => hsgSameAct(a, act))) return refuse('illegal');
 
   const B = hsgB;
+  const before = hsgPub, wasCastle = hsgPhase === 'castle';      // the moments play from the two snapshots
   const victimCell = act[0] === 'S' ? B.S.board[act[2]] : null;   // colour before it leaves the board
   const out = HsgRules.battleStep(B, act);
   const fx = [];
@@ -440,6 +444,7 @@ function hsgHostCommand(seat, act, cmd) {
   hsgPub = hsgBuildPub();                          // ONE snapshot, after everything settled
   if (hsgIsHost()) mpSendEnvelope({ type: 'SYNC', payload: { action: 'HSG_COMMAND_DONE', pub: hsgPub, act: act, fx: fx } });
   hsgRenderCastle();                               // the host's own screen draws the pub, like everyone's
+  if (wasCastle) hsgPlayMoments(before, hsgPub, fx);
   if (!B.over) hsgOpenCommand();
   return { ok: true, over: !!B.over, fx };
 }
@@ -685,12 +690,17 @@ function hsgApplyBattleStart(pub, flavourIdx) {
 function hsgApplyCommandDone(pub, fx) {
   hsgUnlock();
   if (hsgIsStale(pub)) return;
+  const before = hsgPub, wasCastle = hsgPhase === 'castle';
   hsgDragCancel();
   hsgTakePub(pub);
   hsgNewsFx = fx.filter(k => typeof k === 'string');
-  if (pub.result.reason !== 'none') { hsgClientEnding(); return; }
+  if (pub.result.reason !== 'none') {
+    hsgClientEnding();
+    if (wasCastle) hsgPlayMoments(before, pub, hsgNewsFx);
+    return;
+  }
   if (hsgPhase === 'battle-intro') return;         // the intro ends on its own timer and draws this board
-  if (hsgPhase === 'castle') hsgRenderCastle();
+  if (hsgPhase === 'castle') { hsgRenderCastle(); hsgPlayMoments(before, pub, hsgNewsFx); }
   else hsgEnterCastle();                           // a missed HSG_BATTLE_START: the snapshot is the Battle
 }
 
@@ -1227,9 +1237,26 @@ function hsgDragCancel() {
 // ═══════════════════════════════════════════════════════════════════════════
 // ── S5 — The Storyteller: the Battle intro, the Intro's scene, the fan snap ─
 // ═══════════════════════════════════════════════════════════════════════════
-// The one sound S5 needs; S9 fills in the rest of the map (spec §9).
+// Every moment → its sound (spec §9), the CJAR / COMB pattern. Two-part sounds put
+// their second half on hsgLater, so hsgStopTimers() silences a half-played one.
+const hsgCall = name => {
+  const g = typeof globalThis !== 'undefined' ? globalThis : window;
+  if (typeof g[name] === 'function') g[name]();
+};
 const HSG_SOUND = {
-  fan: () => { if (typeof playFanSnap === 'function') playFanSnap(); },
+  fan:        () => hsgCall('playFanSnap'),            // the Storyteller (the Intro's last beat, the Battle intro)
+  open:       () => hsgCall('playPaperSlide'),
+  openShogun: () => { hsgCall('playPaperSlide'); hsgLater(() => hsgCall('playHullThud'), 170); },   // the small taiko tap
+  march:      () => hsgCall('playPillClick'),          // March and Charge: a light wooden clack
+  strike:     () => { hsgCall('playFanSnap'); hsgLater(() => hsgCall('playWhoosh'), 70); },          // fan snap, then the ink swish
+  volley:     () => hsgCall('playWhoosh'),
+  leap:       () => hsgCall('playWhoosh'),
+  fox:        () => hsgCall('playSuccess'),
+  guardFall:  () => hsgCall('playBoing'),
+  foundYou:   () => { hsgCall('playFanSnap'); hsgLater(() => hsgCall('playClashWin'), 140); },
+  lantern:    () => hsgCall('playUnchallenged'),       // the last lantern goes out (a lantern going out is silent)
+  truce:      () => hsgCall('playDone'),
+  cornered:   () => hsgCall('playBoing'),
 };
 function hsgSound(key) {
   const f = HSG_SOUND[key];
@@ -1302,6 +1329,216 @@ function hsgPaintBattleIntro(bi) {
     } catch (e) { console.warn('[hsg] battle scene', e); }
   }
   if (root.classList) { root.classList.remove('is-playing'); void root.offsetWidth; root.classList.add('is-playing'); }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ── S9 — The moments (spec §15 S9; brief §0c, Appendix § Motion) ────────────
+// ═══════════════════════════════════════════════════════════════════════════
+// What a Command LOOKS and SOUNDS like, played on every phone from the same three
+// things: the snapshot before, the snapshot after, and the Command's fx keys. So a
+// moment can never show more than the public copy does, and both phones play the
+// same one. Never played for a repair or a rejoin (a snapshot, not a Command we
+// watched happen): only when the Command counter moved by exactly one.
+//
+// Every moment lives in #hsg-castle-fx (absolute over the Castle; ui-style.md §
+// "Transient animations must float"), is removed by its own hsgLater, and goes
+// when hsgStopTimers() does. Reduced motion is decided HERE, not only in CSS:
+// a moment that is only motion (the door slide, the fold, a lantern's puff) is
+// skipped — the board already shows the result — and a moment that carries news
+// (the banners, the fox's stamp, the cracked ring, the ink blot, "Found you!")
+// is shown still for the same hold (ui-motion.md: reduced motion, not reduced
+// information).
+const HSG_MO_INK = '<svg viewBox="0 0 60 60" aria-hidden="true"><g fill="#2B2620">'
+  + '<path d="M30 14 Q41 13 45 23 Q52 30 44 39 Q40 49 29 46 Q17 49 15 38 Q8 29 17 21 Q21 13 30 14Z"/>'
+  + '<circle cx="11" cy="15" r="4"/><circle cx="50" cy="13" r="3"/><circle cx="54" cy="44" r="4.5"/>'
+  + '<circle cx="14" cy="50" r="3"/><circle cx="33" cy="5" r="2.2"/><circle cx="5" cy="35" r="2"/><circle cx="41" cy="56" r="2"/></g></svg>';
+const HSG_MO_FAN = '<svg class="hsg-mo-fan" viewBox="0 0 64 50" aria-hidden="true">'
+  + '<g class="hsg-mo-fan-open"><path d="M32 48 L3 20 A40 40 0 0 1 61 20 Z" fill="#F3EAD7" stroke="#2B2620" stroke-width="2.5" stroke-linejoin="round"/>'
+  + '<path d="M32 48 L13 11 M32 48 L24 6 M32 48 L32 5 M32 48 L40 6 M32 48 L51 11" stroke="#2B2620" stroke-width="1.6"/>'
+  + '<path d="M9 17 A38 38 0 0 1 55 17" fill="none" stroke="#B3261E" stroke-width="3"/></g>'
+  + '<path class="hsg-mo-fan-shut" d="M32 49 L28 6 Q32 2 36 6 Z" fill="#2B2620"/></svg>';
+const HSG_MO_EARS = '<svg class="hsg-mo-ears" viewBox="0 0 40 16" aria-hidden="true">'
+  + '<path d="M5 16 L11 1 L18 16Z M22 16 L29 1 L35 16Z" fill="#2B2620"/>'
+  + '<path d="M9 14 L11.4 6 L14.8 14Z M25.2 14 L28.6 6 L31 14Z" fill="#E3C894"/></svg>';
+const HSG_MO_RING = '<svg viewBox="0 0 40 40" aria-hidden="true">'
+  + '<path class="hsg-mo-ring-l" d="M20 5.7 A14.3 14.3 0 0 0 20 34.3"/>'
+  + '<path class="hsg-mo-ring-r" d="M20 5.7 A14.3 14.3 0 0 1 20 34.3"/>'
+  + '<path class="hsg-mo-crack" d="M20 2.5 L17 11 L22.5 17 L17.5 25 L21 37.5"/></svg>';
+
+// el's box in the Castle's coordinates (the fx layer is inset: 0 over it). A square
+// is still sliding down from its lift when its Command lands, so where the Castle is
+// el's offsetParent the layout box is used — offsets ignore transforms.
+function hsgRectIn(el, host) {
+  if (!el || !host) return null;
+  if (el.offsetParent === host && typeof el.offsetLeft === 'number') {
+    return { x: el.offsetLeft, y: el.offsetTop, w: el.offsetWidth, h: el.offsetHeight };
+  }
+  if (!el.getBoundingClientRect || !host.getBoundingClientRect) return null;
+  const a = el.getBoundingClientRect(), h = host.getBoundingClientRect();
+  return { x: a.left - h.left, y: a.top - h.top, w: a.width, h: a.height };
+}
+const hsgGrow = (r, k) => r && { x: r.x + r.w * (1 - k) / 2, y: r.y + r.h * (1 - k) / 2, w: r.w * k, h: r.h * k };
+
+// One moment: a box in the layer, a CSS start delay (--d), gone after `ms`.
+function hsgMoment(cls, r, html, ms, at, still) {
+  const layer = document.getElementById('hsg-castle-fx');
+  if (!layer || !r || !document.createElement) return null;
+  const el = document.createElement('div');
+  el.className = 'hsg-mo ' + cls + (still ? ' is-still' : '');
+  el.style.left = r.x + 'px'; el.style.top = r.y + 'px';
+  el.style.width = r.w + 'px'; el.style.height = r.h + 'px';
+  if (el.style.setProperty) el.style.setProperty('--d', (still ? 0 : (at || 0)) + 'ms');
+  if (html) el.innerHTML = html;
+  layer.appendChild(el);
+  hsgLater(() => {
+    try {
+      if (el.parentNode) el.parentNode.removeChild(el);
+      else if (!('parentNode' in el)) layer.removeChild(el);   // the harness's mock DOM keeps no parent
+    } catch (_) {}
+  }, ms);
+  return el;
+}
+
+function hsgClearMoments() {
+  if (typeof document === 'undefined' || !document.getElementById) return;
+  const layer = document.getElementById('hsg-castle-fx');
+  if (!layer || !layer.children || !layer.removeChild) return;
+  Array.prototype.slice.call(layer.children).forEach(c => {
+    if (c && c.classList && c.classList.contains('hsg-mo')) layer.removeChild(c);
+  });
+}
+
+// Raising the Banners (and, with a winner, the banners of "Found you!"): two cloth
+// banners drop from the beam, the crimson sun and the indigo moon, each with a name.
+// You (the bottom bar) on the left, like the Battle intro's tally.
+function hsgBannersMoment(pub, host, at, winner, still) {
+  const br = hsgRectIn(document.getElementById('hsg-beam'), host);
+  const grid = document.getElementById('hsg-grid');
+  const t = (grid && grid.children && hsgRectIn(grid.children[0], host) || { h: 58 }).h;
+  if (!br) return;
+  const bottom = hsgBottomSeat();
+  const cloth = [bottom, 1 - bottom].map(s => {
+    const col = pub.seatCol[s];
+    if (col < 0) return '';
+    const cls = winner < 0 ? '' : s === winner ? ' is-won' : ' is-lost';
+    return '<div class="hsg-mo-banner' + cls + '" style="background:' + HSG_CLOTH[col] + '">'
+      + '<span class="hsg-mo-banner-crest" style="background:' + HSG_INK[col] + '"><svg viewBox="0 0 12 12"><path d="' + (col === 1 ? HSG_SUN : HSG_MOON) + '" fill="#F3EAD7"/></svg></span>'
+      + '<span class="hsg-mo-banner-clan">' + HSG_CLAN[col] + '</span>'
+      + '<span class="hsg-mo-banner-who">' + hsgEsc(hsgName(s)) + '</span></div>';
+  }).join('');
+  const final = winner >= 0;
+  // 2.6 tiles: the shorter, losing banner still clears its name above the swallowtail at 320×452
+  hsgMoment('hsg-mo-banners' + (final ? ' is-final' : ''), { x: br.x, y: br.y + br.h, w: br.w, h: t * 2.6 },
+    cloth, final ? HSG_ENDING_MS - 100 : at + 2000, at, still);
+}
+
+// A fox is found (or sided at the banners): ears over the door frame, then a paw
+// crest stamped on in the colour of the side she joins (the fox's own ink before then).
+function hsgFoxMoment(r, col, at, still) {
+  if (!r) return;
+  const ink = col >= 0 ? HSG_INK[col] : HSG_FOX_INK;
+  hsgMoment('hsg-mo-fox', r, HSG_MO_EARS
+    + '<span class="hsg-mo-paw" style="background:' + ink + '"><svg viewBox="0 0 12 12" aria-hidden="true"><path d="' + HSG_PAW + '" fill="#FFF6DD"/></svg></span>',
+    at + 1500, at, still);
+}
+
+// The Guard falls: the gold ring by that clan's name cracks — and, with no Guard
+// left, breaks in two (the bar underneath already draws it Unguarded).
+function hsgGuardMoment(r, broken, at, still) {
+  if (!r) return;
+  hsgMoment('hsg-mo-guard' + (broken ? ' is-broken' : ''), hsgGrow(r, 2.2), HSG_MO_RING, at + 1150, at, still);
+}
+
+// The ending beat over the board: the Storyteller's word, and for a Shogun his
+// fan snapping shut and the banners dropping — a blocking choreography beat (the
+// board is no longer playable), so it may run past 300 ms (ui-motion.md).
+function hsgEndingMoment(pub, host, at, still) {
+  const r = pub.result, shogun = r.reason === 'shogun';
+  const snap = shogun ? at + 320 : at;
+  hsgLater(() => hsgSound(shogun ? 'foundYou' : r.reason), still ? at : snap);
+  const fr = hsgRectIn(document.getElementById('hsg-frame'), host) || hsgRectIn(document.getElementById('hsg-grid'), host);
+  const title = hsgResultText(pub)[0].replace(/[“”]/g, '');
+  hsgMoment('hsg-mo-end' + (shogun ? ' has-fan' : ''), fr,
+    '<div class="hsg-mo-end-card">' + (shogun ? HSG_MO_FAN : '') + '<span class="hsg-mo-end-title">' + hsgEsc(title) + '</span></div>',
+    HSG_ENDING_MS - 100, at, still);
+  if (shogun) hsgBannersMoment(pub, host, at + 420, r.winnerSeat, still);
+}
+
+function hsgPlayMoments(before, pub, fx) {
+  if (typeof document === 'undefined' || !document.getElementById || !before || !pub) return;
+  const host = document.getElementById('hsg-castle'), grid = document.getElementById('hsg-grid');
+  if (!host || !grid || !document.getElementById('hsg-castle-fx')) return;
+  if (!hsgSameBattle(before, pub) || pub.cmd !== before.cmd + 1 || !pub.last || pub.last.k === 'none') return;
+  const still = hsgReducedMotion();
+  const sq = i => hsgRectIn(grid.children && grid.children[i], host);
+  const list = fx || [];
+  const L = pub.last, j = L.j;
+  let t = 0;                                       // when the Command's own beat is over; the news follows it
+
+  // 1. The Command itself
+  if (L.k === 'U') {
+    hsgSound(/^Sg/.test(pub.board[j]) ? 'openShogun' : 'open');
+    if (!still) {
+      // the signature: a shadow flickers on the paper, the panel slides aside, the piece pops in
+      hsgMoment('hsg-mo-door', sq(j), '<div class="hsg-mo-panel"><span class="hsg-door"></span><span class="hsg-mo-shade"></span></div>', 420, 0, false);
+      const tile = grid.children[j] && grid.children[j].children && grid.children[j].children[0];
+      if (tile && tile.classList) tile.classList.add('is-pop');
+    }
+    t = 380;
+  } else if (L.k === 'M' || L.k === 'C') {
+    hsgSound('march');
+  } else if (L.k === 'S') {
+    hsgSound(L.kind === 'v' ? 'volley' : L.kind === 'l' ? 'leap' : 'strike');
+    const r = sq(j);                               // the victim's square, for every kind of strike
+    if (!still && r) {
+      const fold = hsgMoment('hsg-mo-fold', r, '', 300, 0, false);
+      if (fold) fold.appendChild(hsgRenderTile(before.board[j], {}));   // the struck piece folds flat
+    }
+    hsgMoment('hsg-mo-ink', hsgGrow(r, 1.5), HSG_MO_INK, 720, 90, still);
+    t = 300;
+  }
+
+  // 2. Raising the Banners
+  const banners = list.indexOf('banners') >= 0;
+  if (banners) hsgBannersMoment(pub, host, t, -1, still);
+
+  // 3. A fox found — or a fox found earlier, sided now by the banners
+  let fox = list.some(k => k.indexOf('fox:') === 0);
+  pub.board.forEach((c, i) => {
+    const was = before.board[i];
+    if (c.indexOf('Fx') !== 0 || typeof was !== 'string') return;
+    const found = was === '#', sided = was.indexOf('Fxp') === 0 && c.indexOf('Fxp') !== 0;
+    if (!found && !sided) return;
+    fox = true;
+    hsgFoxMoment(sq(i), c.indexOf('Fxp') === 0 ? -1 : +c.slice(2), t + (banners ? 260 : 0), still);
+  });
+  if (fox) hsgLater(() => hsgSound('fox'), t + (banners ? 260 : 0));
+
+  // 4. The Guard falls
+  list.filter(k => k.indexOf('guardFall:') === 0).forEach(k => {
+    const col = +k.split(':')[1];
+    const s = pub.seatCol[0] === col ? 0 : pub.seatCol[1] === col ? 1 : -1;
+    if (s < 0) return;
+    const bar = document.getElementById(s === hsgBottomSeat() ? 'hsg-bar-bottom' : 'hsg-bar-top');
+    const ring = bar && bar.querySelector ? bar.querySelector('.hsg-guard') : null;
+    hsgGuardMoment(hsgRectIn(ring, host), pub.guards[col] === 0, t, still);
+    hsgLater(() => hsgSound('guardFall'), t + 140);
+  });
+
+  // 5. The lanterns: one goes out per quiet Command; an Unveil or a strike relights them
+  const beam = document.getElementById('hsg-beam');
+  const lamps = beam && beam.children ? beam.children : [];
+  const lit0 = Math.max(0, 12 - before.quiet), lit1 = Math.max(0, 12 - pub.quiet);
+  if (!still) {
+    for (let k = lit1; k < lit0; k++) hsgMoment('hsg-mo-puff', hsgRectIn(lamps[k], host), '<span class="hsg-lantern is-lit"></span><i></i>', 360, 0, false);
+    for (let k = lit0; k < lit1; k++) {
+      const el = lamps[k];
+      if (el && el.classList) { if (el.style && el.style.setProperty) el.style.setProperty('--i', String(k - lit0)); el.classList.add('is-relit'); }
+    }
+  }
+
+  // 6. The ending
+  if (pub.result.reason !== 'none') hsgEndingMoment(pub, host, Math.max(t, 240), still);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

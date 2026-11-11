@@ -94,7 +94,7 @@ syllyMultiplayerMode: 'single' | 'host' | 'client'
 | Presence | `rooms/{code}/presence/{uid}/{pushId}` — one child **per connection**, each removed by its own `onDisconnect`. A seat is present while any child exists. Clients only; the host writes none |
 | Away | A seated client whose presence has been empty for 3 s. Every device shows `#mp-away-overlay` ("Waiting for …") until it returns or the session ends. **A drop, not a quit** |
 | `sylly_rejoin` | localStorage `{ code, game, ts }` — a pointer to a live session for the reconnect prompt, never game state. Adopting games only; 2 h expiry |
-| `reconnect` hook | Optional `MP_GAME_CONFIGS[abbr].reconnect = { sendState(idx), pause(), resume() }`, host-only. The game can then be rejoined mid-match; without it a drop gets a 60 s grace (`MP_AWAY_GRACE_MS`), then the host is asked to keep waiting or end. Adopters: `flw`, `pko`, `cjar`, `comb` |
+| `reconnect` hook | Optional `MP_GAME_CONFIGS[abbr].reconnect = { sendState(idx), pause(), resume() }`, host-only. The game can then be rejoined mid-match; without it a drop gets a 60 s grace (`MP_AWAY_GRACE_MS`), then the host is asked to keep waiting or end. Adopters: `li5`, `flw`, `pko`, `cjar`, `hsg`, `comb` |
 
 ## Data Schema: words.json
 ```json
