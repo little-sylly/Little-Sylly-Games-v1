@@ -141,6 +141,10 @@ console.log('── Lantern');
   d.ctx.hsgPracTap(0); d.ctx.hsgPracTap(5);
   d.ctx.hsgTeardown();
   check('hsgTeardown clears the bag and the lesson', d.get('hsgPracTimers').length === 0 && d.get('hsgPracLesson') === -1);
+  { const e = makeDevice(false); playLesson(e, 1); playLesson(e, 2);
+    check('lessons are ticked after playing', e.get('hsgPracDone').length === 2);
+    e.ctx.hsgTeardown();
+    check('leaving HSG (hsgTeardown) clears the ticks', e.get('hsgPracDone').length === 0 && e.get('hsgPracLesson') === -1); }
   check('a cleared reply never fires', d.timers.length === 0);
 }
 {

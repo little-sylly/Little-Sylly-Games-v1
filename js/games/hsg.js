@@ -746,7 +746,7 @@ function hsgClientNextBattle() {
 // Settings (hsgCampaignLen, hsgFoxes) persist. S3 wires this into resetToLobby().
 function hsgTeardown() {
   hsgStopTimers();
-  hsgPracStop(); hsgPracLesson = -1; hsgPracS = null;
+  hsgPracStop(); hsgPracLesson = -1; hsgPracS = null; hsgPracDone = [];   // leaving HSG wipes Practice: the next visitor starts with no ticks
   hsgStopBattleScene();
   hsgB = null; hsgPub = null; hsgPhase = 'idle';
   hsgSel = -1; hsgDoorArmed = -1;

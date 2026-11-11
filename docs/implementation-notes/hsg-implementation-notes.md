@@ -258,6 +258,7 @@ Nine lessons (brief §24), each a fixed engine state (`HsgRules.applyAct`, doors
 **Why a filter, not free play:** the brief's checks are single moves; letting the player wander makes every lesson need a recovery path. "Practice again" is the recovery.
 **Lesson learned:** a `from` ring that names fixed squares breaks once a piece has moved (lesson 9, first draft stuck on step 2) — a ring is a function of the state (`hsgPracOwn`).
 **Layout:** at 320×452 the sheet's header and three tabs leave ~190 px for the body, so a lesson scrolls inside it (same as Rules and Household); the coach line scrolls itself into view on each beat. Tabs squeezed to one row with a scoped CSS rule. Revisit at S12.
+**Reset:** `hsgTeardown()` (every exit to the lobby) also clears the ticks, so a revisit or a new player starts fresh.
 **Not taught:** the full strike chart (Household), Sylly Mode (none), the Campaign.
 
 ### DD-13 — The Shogun's Guarded / Exposed status lives on his tile (playtest, 12 Nov 2026)
