@@ -20,6 +20,7 @@
   - `docs/rules/ui-screen-patterns.md` — Round/Night intro, Team Setup screens, legacy sticky-footer + `h-screen` whitelist, Vocab Lock. **Read when:** building/editing those screens.
   - `docs/rules/audio.md` — audio function catalogue + background music. **Read when:** adding/choosing a sound or touching music.
   - `docs/rules/mp-bots-reconnect.md` — Bots/Solo and Client Reconnect. **Read when:** adopting bots or a `reconnect` hook, or touching seats/presence/rejoin.
+  - `docs/rules/multiplayer.md` — the whole Multiplayer Sync Module (globals, `MP_GAME_CONFIGS` schema, envelopes, sync lock, MDLM patterns, entry seam, quit contract). **Read when:** touching any MP send site or applier, `MP_GAME_CONFIGS`, a quit-confirm handler, `engine-multiplayer.js` or `engine-intro.js`. Moved 12 Nov 2026; its headline rules stay in `logic-engine.md`.
 - `docs/art-authoring-guide.md` — the standalone (no-Claude-Code) artwork guide: skin pack vs core art, exact dimensions/aspect per game, the inventory for all seven render seams, `tools/make-skin-pack.ps1`, the offline install check. **Read when:** authoring/converting art, or answering "what art does game X need". Written for the owner to use alone — point them at it rather than re-deriving dimensions from CSS.
 - `docs/rules/word-expansion.md` — `data/words.json` content rules: difficulty tiers, Great Minds categories, the animals Broad Shield protocol, the `nono_list` Dual-Use Contract. **Read when:** editing words in `data/words.json` or a pack manifest's inline `words`.
 - `docs/rules/new-game-process.md` — three-stage protocol (brief → tech spec → implementation). **Read when:** starting a new game.
@@ -70,7 +71,7 @@ shape. Screen/overlay IDs, state variables, key functions and MP packet tables l
 
 For per-game classes (range / toggle / pill / CTA / how-to / brand class strings) read `docs/rules/per-game-classes.md` (on-demand) — the single source for those; don't duplicate them here.
 
-For where each game's screens/overlays live in `index.html`, see the **Per-Game Offset Map** at the top of `docs/code-map.md`. **`code-map.md` is ~325 KB (~80k tokens) — never read it whole.** Same rule as any large file: Grep for the game or element ID, then offset-Read that slice. One careless full read costs more than the entire always-loaded rule set.
+For where each game's screens/overlays live in `index.html`, see the **Per-Game Offset Map** at the top of `docs/code-map.md`. **`code-map.md` is ~410 KB (~100k tokens) — never read it whole.** Same rule as any large file: Grep for the game or element ID, then offset-Read that slice. One careless full read costs more than the entire always-loaded rule set.
 
 ---
 
@@ -121,7 +122,7 @@ All symbols are global (no ES modules). Forward references work at runtime.
 - **Audio:** Web Audio API (synthesised tones) — **effects are never files**. The one exception is background *music* (`data/music/`, SW v212), runtime-cached like packs and never precached — see `logic-engine.md` § Background music
 - **Capabilities:** PWA (offline via Service Worker), Screen Wake Lock API
 - **Diagrams:** Mermaid (`stateDiagram-v2`) — used in tech specs for state flows; rendered natively by GitHub, no install required
-- **Font:** Fredoka, self-hosted from `fonts/` (variable woff2, `@font-face` in `css/styles.css`, precached). No external font request — the app has **zero** runtime third-party dependencies.
+- **Fonts:** Fredoka is the suite font (menus, lobby, shared chrome), self-hosted from `fonts/` (variable woff2, `@font-face` in `css/styles.css`, precached). A game's world may bring its own display fonts inside its own screens — E.T.A. is the reference (`css/eta.css`, four fonts) — also self-hosted. Never load a font from a remote server. The main menus' typography is open for a revamp to propose (owner, 12 Nov 2026).
 
 ---
 
@@ -133,10 +134,12 @@ All symbols are global (no ES modules). Forward references work at runtime.
   script still leaves a shippable app. Rationale and the process that approved it:
   `docs/cost-envelope.md` § 7 and `docs/superpowers/specs/2026-09-15-index-decomposition-design.md`.
   (`tools/*.js` verification harnesses remain dev tooling, not a build.)
-- Do NOT add external JS libraries. The only **three** are vendored: local Tailwind
-  (`js/lib/tailwind-play.js`), the Firebase SDK (precached, lazy-loaded at runtime — see
-  `logic-engine.md` § Firebase Lazy-Load), and Three.js r128 (`js/lib/three.min.js`, precached,
-  never fetched from a CDN — see `logic-engine.md` § Shared Library Modules).
+- Do NOT depend on a CDN or any third-party server at runtime — the app must run offline from its
+  own files. A library may be **vendored** (a copy committed into `js/lib/` and precached, so the
+  project owns it). Vendoring a new one is a cost-envelope proposal (`docs/cost-envelope.md` § 4: state
+  its size and what it replaces) that the owner approves first. Vendored today: Tailwind
+  (`js/lib/tailwind-play.js`), the Firebase SDK (precached, lazy-loaded — `docs/rules/multiplayer.md`
+  § Firebase Lazy-Load) and Three.js r128 (`js/lib/three.min.js` — no GLTFLoader in it).
 - Do NOT create multiple HTML pages — single-page app
 - Do NOT use `localStorage` for game state mid-round (memory only; settings may persist)
   - **Exception:** `sylly_nickname` (multiplayer nickname), `isMuted`/`masterVolume`,
@@ -157,9 +160,14 @@ to new games (`new-game-process.md` § Stage 1b) and every revamp pass (UI revam
 per session. A screen that could belong to any game is not done.
 
 ## 🧠 How to Work
-- **Visualise first.** Describe the logic/flow in plain English before writing code. For a genuinely
-  new pattern, lead with a real-world analogy and one sentence on why this way over the alternative.
-- **Atomic changes.** One function or one UI component at a time.
+- **Visualise first (new patterns and Tier 2).** Before building something new, say in a few plain
+  sentences what will happen for the player. For a genuinely new pattern, add a real-world analogy and
+  one sentence on why this way over the alternative.
+- **Reviewable changes.** One concern per commit, so any change rolls back on its own. Several small
+  items may go in one pass (§ Batching rule).
+- **Commit as you go (owner, 12 Nov 2026).** Commit at the end of each task without asking — git is
+  the undo. Ask before pushing (a push to `main` deploys the live site) and before anything git cannot
+  undo (force-push, rewriting history, deleting untracked files).
 - **Test first.** Name the verification before implementing it.
 - **Direct references.** Read/edit the specific files and lines the task needs — never a whole big
   file to "get oriented" (§ Token Hygiene).
@@ -171,7 +179,7 @@ per session. A screen that could belong to any game is not done.
 ---
 
 ## 📋 Documentation Integrity Protocol
-**Trigger:** After any completed phase, game addition, permanent architectural change, or mid-session bug fix session. Applies even when no phase snapshot is written — the snapshot is optional, the doc updates are not.
+**Trigger:** a session that changed code at Tier 1 or 2 (§ Task Triage Gate), added a game, closed a phase, or bumped the SW. Applies even when no phase snapshot is written — the snapshot is optional, the doc updates are not. **At Tier 0, do only the steps your change touches. A plan- or review-only session runs none of it** — the session that applies its changes does.
 **Mandatory updates, in this order:**
 1. `docs/code-map.md` — new screen IDs, overlay IDs, key functions, state variables
 2. `docs/game-identities/[abbr].md` — terminology, settings, the player's journey + UI copy, Sylly Mode, art. **Screen and overlay reference tables are step 1's job, not this one.** Respect the section's **free / paired / derived** tag — a paired change is not done until the code ships too.
@@ -196,11 +204,11 @@ per session. A screen that could belong to any game is not done.
 ## 🧼 Token Hygiene & Context Management
 - **`index.html` is generated — edit `src/screens/[abbr].html` instead (15 Sep 2026).** `index.html` itself is assembled by `tools/build-index.js` and carries a "DO NOT EDIT BY HAND" banner; a hand edit is silently overwritten on the next build. Per-game markup now lives in `src/screens/[abbr].html` (~350–750 lines each) — small enough to read whole, no Grep-then-offset needed. `index.html` itself should essentially never be read; if you must (e.g. auditing the assembler's own output), Grep first for the identifier and `Read` with `offset`/`limit` as before. After editing a partial, run `node tools/build-index.js` (or let the pre-commit hook do it) and `node tools/verify-build-fresh.js`. Detail: `docs/superpowers/specs/2026-09-15-index-decomposition-design.md`.
 - **Same rule for any file over ~40 KB** (e.g. `js/games/nt.js`, `engine-multiplayer.js`, `secret-signals.js`): locate the relevant section with Grep, then read only that slice. Reading a large file in full to orient yourself is the single most common cause of the mid-task auto-compact spiral.
-- **Lean Context:** Avoid repetitive explanations. Assume technical competence.
+- **Lean replies:** don't repeat explanations. The reader is the owner — sharp, not a coder: use plain words, define a technical term the first time, and lead with what changes for the player.
 - **Australian English:** Use Australian spelling (e.g., "colour", "synthesised"). Metric units only — the one exception is E.T.A.'s per-phone KM / MI display chip (SW v276); content is still written in metric.
 - **Session Cleanup:** If a sub-task is complete, suggest running /compact to clear history.
 - **End every response with "what's next":** 1–2 sentences naming what was just completed AND what comes next (name upcoming phases for multi-phase work). Applies even to short responses — the owner may return after a gap with no context. The closing line must carry **all three** explicitly, never implied: the next task, the **model + effort** it warrants, and the **session call** — `same session` / `/compact then continue` / `fresh session`.
-  - **Defaults:** model **Sonnet, medium** — Opus/Fable + high only for architectural work, 3+ files under cross-cutting rules (MP sync, render seams) or a phase-gate audit. Session call **fresh session with an explicit pointer** when unsure (never start fresh without one); a direct follow-on or the same game's files already loaded stays `same session`.
+  - **Defaults:** sessions open on **Opus 5.5** (`.claude/settings.json`). For the *next* task, recommend **Sonnet, medium** whenever it is bounded; **Opus, high** for architectural work, 3+ files under cross-cutting rules (MP sync, render seams) or a phase-gate audit. **Fable** is rare and opt-in — only when the owner says it is available, and only for planning or review, via the `sylly-fable-brief` skill. Session call **fresh session with an explicit pointer** when unsure (never start fresh without one); a direct follow-on or the same game's files already loaded stays `same session`.
   - **`fresh session` ⇒ a ready-to-paste handoff block is mandatory** (a fenced pointer, not a summary, ≤15 lines: Task · Read first · State · Constraints · Model + effort). The full picker tables and the handoff template live in the **`sylly-whats-next` skill** — invoke it when choosing a non-default model/session call or writing a handoff.
 
 ---
@@ -226,13 +234,13 @@ One line each — open the doc when the trigger applies; none of these is loaded
 (**≤6 lines, one version only**), where the suite stands, the Arcade side project, and pointers.
 On every bump the outgoing SW entry moves **verbatim** to `docs/sw-changelog.md` — there is no
 "keep the last three". **A second `**SW v…**` paragraph appearing here means that move didn't
-happen: do it before anything else.**
+happen: do it in the same commit as your next SW bump.**
 
 **SW v291 — Hide and Shogun: lobby sticker and music (12 Nov 2026).** `data/stickers/hsg.png` replaces the emoji disc on the Board and TV (`LB_NO_STICKER` is empty again) and the jukebox gains *Paper-Door Tiptoe* with its own cover, playing in-game as the `hsg` track. No code change beyond the registry set. `CACHE_NAME` v290 → v291. `MP_PROTOCOL_VERSION` stays v265.
 
 **Previous versions: `docs/sw-changelog.md`** — continuous, v288 back to v167.
 
-**Where the suite stands.** **22 games**, 20 gold-master plus **Hide and Shogun (`hsg`, built SW v278–v288, closure and phase 45 gate SW v289 — two-player, PTP / MDLM / Solo, no Sylly Mode)** and **E.T.A. (`eta`, built SW v272, playtest rounds SW v273–v274, content rebuilt SW v275, phase 44 gate SW v277)**; newest before it are Honeycomb Hills (`comb`, MDLM-only, no Sylly Mode), Cold Shoulder (`cld`, first physics game) and Cookie Jar (`cjar`). Every game has an identity doc (`docs/game-identities/`). The Cartridge System (word packs + skin packs, `docs/cartridge-system-plan.md`) is complete; core art has rolled out to `pko`, `flw`, `frt`, `shp`, `comb` — PASS runs CSS defaults, DYB and CLD art are procedural and never need a pack (`docs/expansion-guide.md` § Core art packs). **Phase gates 37–39 and 41 are closed; phase 40 (Cold Shoulder) is open** — its snapshot (archived) names what is left (a live multi-device session and the offline install check). **Phase 44 (E.T.A.) passed Protocol A and is open on R15 only** — `docs/phase44-snapshot.md`. **Phase 45 (Hide and Shogun) passed Protocol A at SW v289 and is open on one item** — a live two-phone session — `docs/phase45-snapshot.md`. **UI revamp** (spec `docs/superpowers/specs/2026-11-08-ui-revamp-design.md`): Stage 0 foundations built (SW v264 — the Intro, `mpEnterGame`, tooling); **the LI5 pilot is under way** — S0 (scene `beat` hook) and S1 (LI5 MDLM + TLM on one host path, `verify-li5-loopback.js`) built 9 Nov, S2 (world kit + Intro scene) shipped as SW v265, S3 (wipe-and-write round intro) as SW v266, S4 (describer board) as SW v267, **S5 (tattle + guess) as SW v268, S6 (Report Card, gameover, history, play-again) as SW v269**; the LI5 pilot is built — then GM — tracker `docs/ui-revamp-rollout.md`.
+**Where the suite stands.** **22 games** — 20 gold-master, plus Hide and Shogun (`hsg`, SW v278–v289; two-player, PTP / MDLM / Solo, no Sylly Mode) and E.T.A. (`eta`, SW v272–v277); every game has an identity doc (`docs/game-identities/`). **Open phase gates:** 40 (Cold Shoulder — a live multi-device session and the offline install check), 44 (E.T.A. — R15 only, `docs/phase44-snapshot.md`), 45 (Hide and Shogun — a live two-phone session, `docs/phase45-snapshot.md`). **UI revamp:** Stage 0 built (SW v264), the LI5 pilot built (SW v265–v269), GM next — status and history in `docs/ui-revamp-rollout.md`. The Cartridge System is complete (`docs/cartridge-system-plan.md`); core-art status: `docs/expansion-guide.md` § Core art packs.
 
 **Side project — the Arcade.** A room of its own (`screen-arcade`, `js/lobby/arcade.js`, SW v254) — no longer a Secret Mode category. **Cabinets are NOT Sylly Games and NOT packs** — no MP config, identity doc, Sylly Mode or harness, and not `docs/rules/new-game-checklist.md`; their screens wear the Arcade room's chrome (SW v259), the canvas art is each cabinet's own. **Nine cabinets shipped (seven SW v249, COLD SHOT + TRACE ROUTE SW v255):** ASHERPLANE, DEEP-SEA SWEEP, OTHER SIDE, CHOP SALAD, COOKIE JAR, STACKING ORDER, BEYOND THE BLUFF, COLD SHOT, TRACE ROUTE — all built in a standalone bench, all awaiting a phone play-test. The room itself is the **Arcade Floor** (SW v257 — a row of cabinets in the controller's colours); the Lounge has its own cabinet on the bookshelf (spec Stage 3, SW v258), and since SW v259 the Floor's cabinets *are* that model, each screen showing its game's live attract scene (spec § 3.2) — since SW v260 all in one live 3D scene, on a ring (spec § 3.3). A cabinet's optional `preview` / `best` fields feed its screen. A new cabinet = one `ARC_CABINETS` entry (`start` **and** `stop`, plus `blurb`/`accent`) + one file; **`ARC_CABINETS` is the registration, so anything acting on "a cabinet" iterates it** — the room's list, `resetToLobby()`, the Konami guard. Inventory: `docs/code-map.md` § Arcade Cabinets. Harness: `node tools/verify-arcade.js` (+ `mutate-arcade.js`). Bench + workshop notes: `js/arcade/_archive/`. **Building a cabinet offline** (no repo attached): paste `js/arcade/arcade-cabinet-prompt.md` whole — self-contained, carries the skeleton + the integration contract; destined for `docs/content-prompts/`. Spec: `docs/superpowers/{specs,plans}/2026-08-03-arcade-asherplane*.md`.
 

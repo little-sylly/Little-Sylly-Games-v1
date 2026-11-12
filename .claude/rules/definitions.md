@@ -110,7 +110,7 @@ syllyMultiplayerMode: 'single' | 'host' | 'client'
 - Great Minds uses 10: excludes `vehicles, music, pop_culture, people, brands, aussie_slang`
 - Difficulty 1 = Standard (concrete nouns), 2 = Wild (verbs/adjectives), 3 = Wilder (abstract)
 - `isSylly` = `difficulty === 3` — derived, never stored
-- **animals category only:** `nono_list[0]` = Documentary Label / Common Grouping (e.g., "Sea Creature", "Furry Animal") — serves as the Broad Shield in Like I'm Five AND as The Mole's Grouping in Natural Selection (the only clue The Mole receives). Must NOT be a scientific class name. See Dual-Use Contract in `CLAUDE.md`.
+- **animals category only:** `nono_list[0]` = Documentary Label / Common Grouping (e.g., "Sea Creature", "Furry Animal") — serves as the Broad Shield in Like I'm Five AND as The Mole's Grouping in Natural Selection (the only clue The Mole receives). Must NOT be a scientific class name. See the Dual-Use Contract in `docs/rules/word-expansion.md`.
 
 ## Other Data Files
 Schemas for the other data files are documented next to their owning game — do not duplicate them here:

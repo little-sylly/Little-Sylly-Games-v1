@@ -1,5 +1,9 @@
 # UI Style Rules — Little Sylly Games
 
+**Scope during a UI revamp pass:** the layout, motion-cap and screen-pattern rules below are defaults, not
+gates — depart when the game's world needs it, and log the departure (`docs/rules/ui-revamp.md` § 2).
+Brand-coded controls, the speaker/exit protocol and the touch-target minimum still bind.
+
 ## Global UI Protocol
 Every screen must have:
 
@@ -188,7 +192,7 @@ just to make it participate.
 
 ## The Stack — Canonical Screen Layout (read this before building ANY screen)
 
-Every screen in every game is built from **the Stack**: three zones stacked in one vertical column, held together and floated in the middle of the viewport. This is the *single* layout standard — there is no per-screen "which pattern?" decision to make. Pick the Stack. Always.
+Every screen in every game is built from **the Stack**: three zones stacked in one vertical column, held together and floated in the middle of the viewport. This is the *single* layout standard — there is no per-screen "which pattern?" decision to make. Pick the Stack (outside a revamp pass, always).
 
 ### Terminology (use these exact words in code comments, specs, and audits)
 
@@ -361,8 +365,8 @@ Add `pointer-events-none` to the layer unless the animation is interactive. *[El
   Pear-Off card, but FRT never mirrored it into its How to Play overlay — NT's Debug Mode card is
   the first instance of *this* how-to mirror specifically.
 - **Winning and Scoring:** always this exact label — never just "Winning" or "Scoring".
-- **Sylly Mode card:** present in every game's How to Play, **including the one game that has no Sylly Mode**. Label is `✨ Sylly Mode` (literal — the `✨` is part of the label text, styled with `text-[brand]`). Heading is the thematic name (e.g. "Wild Words", "Silent Running").
-  - **The no-Sylly-Mode form (COMB, SW v225 — the only instance).** A game may ship without a Sylly Mode when its ordinary settings already own the difficulty axis and an eighth "advanced rules" switch would be decoration. When it does, **the how-to card stays in its usual last slot** with a heading saying so plainly (COMB: *"Not this one"*) and a line pointing at the setting that does the job. A player scanning for the card must get an **answer**, not a gap. The **settings overlay then carries no Sylly Mode card at all** — a dead toggle is worse than an honest sentence, and on a settings screen a dimmed control already means *unavailable* (§ Mutually-exclusive / superseded settings). Do not reach for this: it is an exception earned by having seven rule-bearing settings, not a licence to skip the work.
+- **Sylly Mode card:** present in every game's How to Play, **including the games that have none** (COMB, HSG). Label is `✨ Sylly Mode` (literal — the `✨` is part of the label text, styled with `text-[brand]`). Heading is the thematic name (e.g. "Wild Words", "Silent Running").
+  - **The no-Sylly-Mode form (COMB SW v225, then HSG).** A game may ship without a Sylly Mode when its ordinary settings already own the difficulty axis and an eighth "advanced rules" switch would be decoration. When it does, **the how-to card stays in its usual last slot** with a heading saying so plainly (COMB: *"Not this one"*) and a line pointing at the setting that does the job. A player scanning for the card must get an **answer**, not a gap. The **settings overlay then carries no Sylly Mode card at all** — a dead toggle is worse than an honest sentence, and on a settings screen a dimmed control already means *unavailable* (§ Mutually-exclusive / superseded settings). Do not reach for this: it is an exception earned by having seven rule-bearing settings, not a licence to skip the work.
 - **Close button:** game brand primary colour (`bg-[brand] hover:bg-[brand-dark]`).
 - **Inner div:** must include `flex flex-col` — title block is `flex-shrink-0`, body is `overflow-y-auto`.
 
@@ -397,7 +401,7 @@ Every game's settings overlay must follow this order:
    </div>
    ```
 2. Game-specific options (timer, rounds, categories, word pools, etc.)
-3. **✨ Sylly Mode** — always last; the "advanced rules" signature. **Omitted entirely by a game that has none** (COMB is the only one — see § How-to Overlay Standard's no-Sylly-Mode form); never shipped as a toggle that does nothing
+3. **✨ Sylly Mode** — always last; the "advanced rules" signature. **Omitted entirely by a game that has none** (COMB and HSG — see § How-to Overlay Standard's no-Sylly-Mode form); never shipped as a toggle that does nothing
 
 **Settings button on the game menu:** always labelled **"Settings"** exactly. Thematic flair lives inside the overlay as the title block — not on the button.
 
@@ -416,7 +420,7 @@ All multi-choice settings use the **Pill Button** style:
 ### Settings Card Standard
 Every individual setting is wrapped in a white card. Do NOT use bare divs or `<hr>` separators.
 
-**Emoji rule — only Sylly Mode gets one:** Setting card titles carry **no emoji prefix**. The single exception is the `✨ Sylly Mode` card, whose label is literally `✨ Sylly Mode` (the `✨` is part of the label). Do not prefix any other setting name with an emoji — it dilutes the signal that `✨` marks the advanced/last card. (Fixed June 2026: SS "⏱ Broadcaster Timer" → "Broadcaster Timer".)
+**Emoji rule — only Sylly Mode gets one:** Setting card titles carry **no emoji prefix**. The single exception is the `✨ Sylly Mode` card, whose label is literally `✨ Sylly Mode` (the `✨` is part of the label). Do not prefix any other setting name with an emoji — it dilutes the signal that `✨` marks the advanced/last card.
 
 **Pill-group card** (timer, rounds, difficulty, etc.):
 ```html
@@ -669,8 +673,6 @@ assigned **more than once** in one file (initial render + a later open-the-modal
 known bad string finds only the sites that still contain it. Audit both `index.html` **and** an exhaustive
 `[Bb]tn.*textContent =` / `createElement('button')` pass over `js/games/*.js` — never an id-list-driven pass.
 
-**Suite-wide sweep completed 7 Aug 2026, all 18 games, no violations outstanding.** Detail: `docs/decision-log.md` 2026-08-07.
-
 ---
 
 ## Thumb-Friendly UI
@@ -735,16 +737,13 @@ match size and weight, and pick colour per § Game Brand Colour — Scope (brand
 action, neutral stone for a secondary one). The gel treatment is menu-only — do **not** put
 `gel-btn` on gameover / Decision Modal buttons.
 
-**Rollout status:** four-button menu standard applied suite-wide, all 18 games (9 Aug 2026); the
-`gel-btn` moulding added to all 72 menu buttons (SW v218, 1 Sep 2026).
-
 **Rules:**
 - "← Back to the Box" is always identical — never game-themed.
 - "How to Play" label is always identical — opens a data overlay (Pattern 1). Always `bg-stone-700 hover:bg-stone-800 text-white`.
 - Settings button label is always **"Settings"** — no exceptions. Thematic name lives inside the overlay as the title block. Button uses a **light brand tint** (`bg-[brand-100] hover:bg-[brand-200] text-[brand-700]`) — see Game Brand Colour — Scope § Per-game brand reference for per-game classes.
 - Play CTA is the primary action — largest button, top of the stack, full brand colour.
 
-### Menu Title Treatment (all 20 games, 8 Sep 2026)
+### Menu Title Treatment (every game, 8 Sep 2026)
 
 > **Moved (4 Nov 2026) → `docs/rules/ui-menu-extras.md`** — read it when editing a game menu's title heading.
 > **Headline rule:** Title is `text-5xl font-bold`, split into a neutral `text-stone-800` part and a brand-coloured part (usually the darkened `-label` colour, FRT excepted).
@@ -783,8 +782,6 @@ Confirm takes the game's `accentBtnClass` (or `bg-stone-700` where the brand fil
 
 Note this is *different* from the **tip overlay's** close button, which is deliberately `min-h-11 … text-sm` (see § Contextual Tip Icons) — a tip has one acknowledging button and no decision in it.
 
-All 18 games conform as of the 7 Aug 2026 sweep (`docs/deferred-work.md`).
-
 ---
 
 ## Vocab Lock Reuse Pattern
@@ -802,7 +799,7 @@ It was ~2.3k tokens of per-game lookup loaded on every turn, including turns tou
 
 **Read it when** you need a specific game's exact class strings. Every `see § Per-Game Reference →
 Table X` pointer in this file now means that file. For brand colour + active pill alone,
-`CLAUDE.md` § Per-Game Quick Index has all 18 games and is always loaded.
+`CLAUDE.md` § Per-Game Quick Index has every game and is always loaded.
 
 **Adding a game:** three rows there, plus the CSS/engine-map steps in § Sound Overlay above.
 

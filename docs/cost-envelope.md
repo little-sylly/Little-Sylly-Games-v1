@@ -114,12 +114,13 @@ caching contract it takes (§ 5), and whether the cost is one-time or per-game.
 | New self-hosted font | ~30–100 KB **plus a 20-game restyle** — the labour is the cost | Fredoka is 33 KB |
 | Lobby tile artwork, 20 games | 0.8 MB at a 40 KB/tile ceiling; multiple MB if uncapped | PKO's card art arrived as **26 MB of PNGs** and was re-cut to 682 KB at 40 KB/card |
 | A new small library | Its own size, vendored, precached, forever | Three.js 0.60 MB, Firebase ×4 |
-| A background music track | ~1.5 MB ceiling, runtime-cached, not in install | `logic-engine.md` § Background music |
+| A background music track | ~1.5 MB target (some run over — fine), runtime-cached, not in install | `logic-engine.md` § Background music |
 | Converting a game to core art | 0.2–3.8 MB **each** | The six existing packs |
 
-**The standing rule, learned the hard way: agree the per-file ceiling *before* the asset is
-generated, not after.** That is PKO TG-02 and it is the single most expensive lesson in the
-project's history.
+**The standing rule, learned the hard way: state the per-file size target *before* the asset is
+generated, not after** — PKO TG-02, the single most expensive lesson in the project's history. Since
+12 Nov 2026 a target is not a gate: the owner can approve going over it, and runtime-cached content
+(music, packs) may run larger.
 
 ### Tier 3 — changes what the project is · **out of scope to build; the seam is mandatory**
 
@@ -179,7 +180,7 @@ never a thing to build.
 **Reviewing a proposal:** ask which tier, and for Tier 2, ask for the byte cost and the caching
 contract. "It's just one image" is how a 26 MB precache happens.
 
-**Adding an asset:** agree the per-file ceiling before it is generated. Measure the quality that
+**Adding an asset:** state the per-file size target before it is generated. Measure the quality that
 ceiling forces at the element's real render size, not in the abstract (`logic-engine.md`'s note
 on CJAR TG-02b).
 

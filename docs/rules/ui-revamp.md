@@ -54,9 +54,9 @@ layering; Round/Night intro, Team Setup and the `h-screen` whitelist; how-to and
 *content*; the Motion Standard's timing caps (compositor-only stays as performance guidance); the
 interstitial chrome exemption's ~5 s ceiling.
 
-**Still binding:** every multiplayer rule in `logic-engine.md`; reduced motion in CSS **and** in JS for
+**Still binding:** every multiplayer rule (`docs/rules/multiplayer.md`); reduced motion in CSS **and** in JS for
 every RAF/scene loop; 44 px targets (`.pill` exempt); Australian English, metric; the three test sizes;
-no new precached binary without an agreed ceiling (`cost-envelope.md`); edit `src/screens/`, never
+state the size of any new precached binary (`cost-envelope.md` — a target, not a gate); edit `src/screens/`, never
 `index.html`; timer/RAF lifecycle.
 
 ## 3. The Intro — how a game adopts it

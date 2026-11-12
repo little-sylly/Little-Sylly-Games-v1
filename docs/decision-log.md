@@ -19,6 +19,13 @@ Detail: pointer to the canonical doc (snapshot / impl note / spec / memory).
 ```
 
 
+## 2026-11-12 — Instruction files cleaned for literal-reading models
+Category: Process
+Decision: Sessions open on Opus 5.5 (Fable rare, plan/review only); vendored libraries allowed via a cost-envelope proposal; games may ship their own self-hosted fonts; asset sizes are targets, not gates; Claude commits at the end of each task without asking (push still asks).
+Why: Fable 5.2 follows written rules literally, so stale absolutes and contradictions steered it (and every model) wrongly; the project default was pinned to Fable.
+Changed: `.claude/settings.json`, CLAUDE.md, the three rule files, `sylly-whats-next`, `sylly-implementation-notes`, new `sylly-fable-brief` skill, new `docs/rules/multiplayer.md` (moved out of `logic-engine.md`, ~25 KB off the baseline), `cost-envelope.md`, `ui-revamp.md`, memory. Deferred: Lounge load speed (boots first, slow on phones).
+Detail: `wip/fable/CLAUDE-REVIEW.md` (local).
+
 ## 2026-11-12 (Phase 45) — Hide and Shogun ships and passes its gate (Process)
 Category: Process
 Decision: Game 22 closes at SW v289 with no Sylly Mode (COMB's form) and stays open on one live two-phone session.
