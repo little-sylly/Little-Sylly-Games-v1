@@ -7,6 +7,13 @@ game abbreviation, function or screen id. Items keep their original section head
 
 ---
 
+## Hide and Shogun — sticker and music (RESOLVED 12 Nov 2026, SW v291)
+
+Both landed: `data/stickers/hsg.png` (converted from a 767×833 master by `tools/convert-stickers.js`, 59 KB, `LB_NO_STICKER` now empty) and the jukebox track *Paper-Door Tiptoe* (`paper-door-tiptoe.mp3`, 6.1 MB, 6:32, with its extracted cover; `hsg` entry in `data/music/manifest.json`). Original entries:
+
+- **Lobby sticker** — `data/stickers/hsg.png` does not exist; `hsg` is in `LB_NO_STICKER` (`js/lobby/lobby.js`). Prompt: `docs/content-prompts/hsg-sticker-music-prompts.md` § 1. Draw it, remove `hsg` from the set, then `node tools/build-games.js`.
+- **Music** — no `hsg` track in `data/music/jukebox/`: koto/shamisen, sparse, playful, never a war film, no ticking (brief §16). Prompt: `docs/content-prompts/hsg-sticker-music-prompts.md` § 2.
+
 ## E.T.A. (was ETA?) — built, what is open (10 Nov 2026, SW v272)
 
 - **The content rebuild** — RESOLVED 11 Nov 2026 (SW v275): `data/eta-data.json` rebuilt (100 real Routes + 30 Off the Map, 49 Rides) and signed off. `eta-implementation-notes` DD-14.

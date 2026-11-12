@@ -19,5 +19,6 @@
   { "id": "cjar",   "label": "Cookie Jar",        "image": "cjar.png",   "unlocked": true },
   { "id": "cld",    "label": "Cold Shoulder",     "image": "cld.png",    "unlocked": true },
   { "id": "comb",   "label": "Honeycomb Hills",   "image": "comb.png",   "unlocked": true },
-  { "id": "eta",    "label": "E.T.A.",            "image": "eta.png",    "unlocked": true }
+  { "id": "eta",    "label": "E.T.A.",            "image": "eta.png",    "unlocked": true },
+  { "id": "hsg",    "label": "Hide and Shogun",  "image": "hsg.png",    "unlocked": true }
 ] }

@@ -152,6 +152,12 @@
       "artist": "Sylly House Band",
       "gain": 1.0
     },
+    "hsg": {
+      "file": "jukebox/paper-door-tiptoe.mp3",
+      "title": "Paper-Door Tiptoe",
+      "artist": "Sylly House Band",
+      "gain": 1.0
+    },
     "comb": {
       "file": "jukebox/harmonium-hums.mp3",
       "title": "Harmonium Hums",

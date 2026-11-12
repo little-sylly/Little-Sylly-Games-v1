@@ -228,7 +228,7 @@ On every bump the outgoing SW entry moves **verbatim** to `docs/sw-changelog.md`
 "keep the last three". **A second `**SW v…**` paragraph appearing here means that move didn't
 happen: do it before anything else.**
 
-**SW v289 — Hide and Shogun, S13: closure (12 Nov 2026).** Game 22 is documented and gated, with no gameplay change. Identity doc `docs/game-identities/hsg.md` (T1–T10, 100 copy strings verified), a full HSG section in `code-map.md` (screens, overlays, state, packets, TV public-state line), Tables A–C in `per-game-classes.md`, `hsg` moved from reserved to active in `definitions.md`, the brief-template roster, impl notes and the phase 45 snapshot. `CACHE_NAME` v288 → v289. `MP_PROTOCOL_VERSION` stays v265.
+**SW v291 — Hide and Shogun: lobby sticker and music (12 Nov 2026).** `data/stickers/hsg.png` replaces the emoji disc on the Board and TV (`LB_NO_STICKER` is empty again) and the jukebox gains *Paper-Door Tiptoe* with its own cover, playing in-game as the `hsg` track. No code change beyond the registry set. `CACHE_NAME` v290 → v291. `MP_PROTOCOL_VERSION` stays v265.
 
 **Previous versions: `docs/sw-changelog.md`** — continuous, v288 back to v167.
 

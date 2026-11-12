@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-11T12:33:47.643Z",
+  "generatedAt": "2026-11-12T01:20:51.134Z",
   "games": [
     {
       "id": "bld",
@@ -526,6 +526,36 @@
         "identityDoc": "docs/game-identities/gth.md",
         "mpConfig": "js/engine-multiplayer.js MP_GAME_CONFIGS.gth",
         "lobbyButton": "index.html #btn-gth"
+      }
+    },
+    {
+      "id": "hsg",
+      "gameName": "Hide and Shogun",
+      "emoji": "🏯",
+      "brandHex": "#B8862B",
+      "minPlayers": 2,
+      "maxPlayers": 2,
+      "playerRangeDisplay": null,
+      "supportedModes": [
+        "ptp",
+        "mdlm",
+        "solo"
+      ],
+      "multiplayerOnly": false,
+      "pitch": "Find their Shogun before they find yours.",
+      "playCtaLabel": "Ready or Not",
+      "howToTitle": null,
+      "howToStepsRaw": null,
+      "howItGoes": {
+        "steps": [],
+        "needsReview": true
+      },
+      "syllyModeName": "None in v1",
+      "minutes": null,
+      "_sources": {
+        "identityDoc": "docs/game-identities/hsg.md",
+        "mpConfig": "js/engine-multiplayer.js MP_GAME_CONFIGS.hsg",
+        "lobbyButton": "index.html #btn-hsg"
       }
     },
     {

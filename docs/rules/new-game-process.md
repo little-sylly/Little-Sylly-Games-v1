@@ -79,6 +79,7 @@ a game needing seat order designs it at its own world brief).
 - [ ] A direction picked, and §0d filled in
 - [ ] Every section §0d names as changed has actually been edited (brand colour, §9 terms, Intro copy)
 - [ ] The build plan is in the brief's Stage 2 appendix
+- [ ] **Sticker + music prompts handed to the owner** (`docs/content-prompts/[abbr]-sticker-music-prompts.md`, model: `hsg-sticker-music-prompts.md`) — written now, from the picked direction, so the owner can generate the lobby sticker (`data/stickers/[abbr].png`) and the jukebox track while Stage 3 runs
 
 ---
 
@@ -130,6 +131,9 @@ If §16 (Clarifications Required) has items, Claude Code presents them to the pr
 **Who:** Claude Code
 **Reference:** The confirmed technical spec (`docs/new-game-tech-[name].md`)
 **Process:** Work through the implementation checklist in §15 of the technical spec, one item at a time
+
+### Asset hand-off (sticker + music) — run alongside the build
+The owner generates these in parallel with Stage 3, so ask for them at the **start**, not the closure. Integrate whichever has arrived at the lobby-registry step (sticker: leave `[abbr]` out of `LB_NO_STICKER`, add the manifest line, `node tools/build-games.js`; music: manifest entry per `docs/rules/audio.md`). **If one has not arrived by closure, do not wait:** keep `[abbr]` in `LB_NO_STICKER` / fall back to the lobby track, and log it in `docs/deferred-work.md` with the prompt file as the pointer.
 
 ### Implementation rules
 - The technical spec is the source of truth — not the Phase 1 brief, not memory, not inference

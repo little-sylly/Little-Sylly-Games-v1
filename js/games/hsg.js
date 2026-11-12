@@ -137,7 +137,8 @@ function hsgLater(fn, ms) {
 function hsgStopTimers() {
   hsgTimers.forEach(h => clearTimeout(h));
   hsgTimers = [];
-  hsgClearMoments();               // a moment is removed by a timer: no timer, no moment (S9)
+  hsgTipTimer = null; hsgHideBarTip();
+  hsgClearMoments();              // a moment is removed by a timer: no timer, no moment (S9)
 }
 
 // Screens: the ONLY place this file touches routing. S3 registers the IDs.
@@ -1048,7 +1049,7 @@ function hsgRenderTile(cell, opts) {
     h += '<span class="hsg-tile-crest" style="background:' + ink + '"><svg viewBox="0 0 12 12" aria-hidden="true"><path d="' + crest + '" fill="#FFF6DD"/></svg></span>'
        + (rank ? '<span class="hsg-rank">' + rank + '</span>' : '')
        + '<span class="hsg-sash" style="background:' + ink + '">' + hsgTypeName(inf.id) + '</span>';
-    if (inf.id === 'Sg' && opts.guard) h += '<span class="hsg-sg-frame is-' + opts.guard + '"></span><span class="hsg-sg-flag is-' + opts.guard + '">' + (opts.guard === 'guarded' ? 'Guarded' : 'Exposed') + '</span>';
+    if (inf.id === 'Sg' && opts.guard) h += '<span class="hsg-sg-frame is-' + opts.guard + '"></span><span class="hsg-sg-flag is-' + opts.guard + '">' + (opts.guard === 'guarded' ? 'Guarded' : 'Unguarded') + '</span>';
   }
   if (opts.screen) h += '<span class="hsg-mark-screen"></span>';
   const m = opts.mark;
@@ -1085,11 +1086,50 @@ function hsgBarHTML(pub, s) {
   const guard = '<svg class="hsg-guard" viewBox="0 0 18 18" role="img" aria-label="' + (guarded ? 'Guarded' : 'Unguarded') + '"><circle cx="9" cy="9" r="6.5" fill="none" '
     + (guarded ? 'stroke="#C9A14A" stroke-width="2.6"' : 'stroke="rgba(243,234,215,.35)" stroke-width="2" stroke-dasharray="3 3"') + '/></svg>';
   const seals = hsgSealRowHTML(pub, s);
+  // What each little gauge means — hover (title) or tap (hsgBarTip) shows it. Plain English, no thematic voice.
+  const clan = col >= 0 ? HSG_CLAN[col] : 'This side';
+  const tipFox = share === 1 ? 'Foxes: ' + held + ' of 1. A fox joins whoever opens her door; ' + clan + ' can take at most one.'
+    : 'Foxes: ' + held + ' of ' + share + ' on ' + clan + '’s side. A fox joins whoever opens her door; each clan can take at most ' + share + '.';
+  const tipGuard = col < 0 ? 'No banner yet, so no Shogun to guard.'
+    : guarded ? clan + '’s Shogun is Guarded: only a fox can reach him while a Guard of his clan stands (even behind a door).'
+              : clan + '’s Shogun is Unguarded: every Guard has fallen, so any piece that can strike him may.';
+  const won = hsgSeatWins(pub, s).map(w => hsgWinCol(w) === 0 || hsgWinCol(w) === 1 ? HSG_CLAN[hsgWinCol(w)] : 'no banner');
+  const tipSeal = pub.campaignLen === 1 ? 'Single Battle: win it and the Campaign is yours.'
+    : 'Honour Seals: ' + pub.seals[s] + ' of ' + pub.campaignLen + (won.length ? ' (won as ' + won.join(', ') + ')' : '') + '. Each is struck in the colour of the clan it was won as. First to ' + pub.campaignLen + ' wins.';
+  const tip = t => ' title="' + hsgEsc(t) + '" data-hsg-tip="' + hsgEsc(t) + '"';
   return crest
     + '<div class="hsg-bar-who"><span class="hsg-bar-name">' + hsgEsc(hsgName(s)) + '</span><span class="hsg-bar-clan">' + (col >= 0 ? HSG_CLAN[col] : 'No banner yet') + '</span></div>'
-    + '<div class="hsg-slots" role="img" aria-label="Foxes: ' + held + ' of ' + share + '">' + foxes + '</div>'
-    + guard
-    + '<div class="hsg-seals" role="img" aria-label="Honour Seals: ' + pub.seals[s] + ' of ' + pub.campaignLen + '">' + seals + '</div>';
+    + '<div class="hsg-slots hsg-tippable" role="img" aria-label="Foxes: ' + held + ' of ' + share + '"' + tip(tipFox) + '>' + foxes + '</div>'
+    + '<span class="hsg-tippable"' + tip(tipGuard) + '>' + guard + '</span>'
+    + '<div class="hsg-seals hsg-tippable" role="img" aria-label="Honour Seals: ' + pub.seals[s] + ' of ' + pub.campaignLen + '"' + tip(tipSeal) + '>' + seals + '</div>';
+}
+
+// Tap (or hover, via title) on a bar gauge → a small bubble beside that bar. One at a time; a second
+// tap on the same gauge, a tap anywhere else or the 4 s timer closes it. Lives outside the bars, which
+// are repainted every Command. The timer is in the hsgTimers bag, so teardown clears it.
+let hsgTipTimer = null;
+function hsgHideBarTip() {
+  if (hsgTipTimer) { clearTimeout(hsgTipTimer); hsgTimers = hsgTimers.filter(x => x !== hsgTipTimer); hsgTipTimer = null; }
+  const el = typeof document !== 'undefined' && document.getElementById ? document.getElementById('hsg-bar-tip') : null;
+  if (el) { el.style.display = 'none'; el.removeAttribute('data-for'); }
+}
+function hsgBarTipTap(e) {
+  const g = e.target && e.target.closest ? e.target.closest('[data-hsg-tip]') : null;
+  if (!g) return false;
+  e.stopPropagation();
+  const box = document.getElementById('hsg-bar-tip'), bar = g.closest('.hsg-bar'), castle = document.getElementById('hsg-castle');
+  if (!box || !bar || !castle) return true;
+  const key = bar.id + ':' + g.className.split(' ')[0];
+  const same = box.getAttribute('data-for') === key && box.style.display !== 'none';
+  hsgHideBarTip();
+  if (same) return true;
+  box.textContent = g.getAttribute('data-hsg-tip');
+  box.setAttribute('data-for', key);
+  box.style.display = 'block';
+  if (bar.id === 'hsg-bar-top') { box.style.top = (bar.offsetTop + bar.offsetHeight + 4) + 'px'; box.style.bottom = 'auto'; }
+  else { box.style.bottom = (castle.clientHeight - bar.offsetTop + 4) + 'px'; box.style.top = 'auto'; }
+  hsgTipTimer = hsgLater(hsgHideBarTip, 4000);
+  return true;
 }
 
 function hsgSquareLabel(pub, i, opts) {
@@ -1966,7 +2006,7 @@ const HSG_LESSONS = [
       { pick: 'While a Guard stands (even one still behind a door) the Shogun is Guarded (gold frame, see his flag) and nothing can touch him. Tap your Guard.',
         go: 'Strike their Guard.', from: () => [7], to: () => [6],
         allow: a => hsgPracIs(a, 'S', 7, 6), want: a => hsgPracIs(a, 'S', 7, 6) },
-      { pick: 'That was their last Guard, so his flag flips to Exposed. Tap your Guard.',
+      { pick: 'That was their last Guard, so his flag flips to Unguarded. Tap your Guard.',
         go: 'Strike the Shogun!', from: () => [6], to: () => [1],
         allow: a => hsgPracIs(a, 'S', 6, 1), want: a => hsgPracIs(a, 'S', 6, 1) }],
     win: () => 'The Shogun falls and the Battle is yours. Take the Guards first.' },
@@ -2291,7 +2331,7 @@ if (typeof document !== 'undefined' && document.addEventListener) {
       grid.addEventListener('pointercancel', hsgDragEnd);
     }
     const castle = document.getElementById('hsg-castle');
-    if (castle) castle.addEventListener('click', hsgTapOff);
+    if (castle) castle.addEventListener('click', e => { if (hsgBarTipTap(e)) return; hsgHideBarTip(); hsgTapOff(e); });
     on('btn-hsg-chron-next', () => {
       playLaunch();
       const mode = window.syllyMultiplayerMode;

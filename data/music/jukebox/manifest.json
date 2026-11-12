@@ -33,6 +33,7 @@
   { "id": "perilous-gambit", "title": "Perilous Gambit", "game": "dyb", "variant": "The Tempest", "artist": "Sylly House Band", "seconds": 364, "file": "perilous-gambit.mp3", "locked": false, "master": "Perilous Gambit - The Bluff (Sylly).mp3", "cover": "covers/perilous-gambit.jpg" }, 
   { "id": "relay-handoff", "title": "Relay Handoff", "game": "nt", "variant": "Distributed Network Protocol", "artist": "Sylly House Band", "seconds": 112, "file": "relay-handoff.mp3", "locked": false, "master": "Relay Handoff - Net-Trace (Sylly).mp3", "cover": "covers/relay-handoff.jpg" }, 
   { "id": "the-wrong-piece", "title": "The Wrong Piece", "game": "flw", "variant": "The Counterfeit Run", "artist": "Sylly House Band", "seconds": 224, "file": "the-wrong-piece.mp3", "locked": false, "master": "The Wrong Piece - Flawless (Sylly).mp3", "cover": "covers/the-wrong-piece.jpg" }, 
-  { "id": "two-radios", "title": "Two Radios", "game": "gm", "variant": "Static Interference", "artist": "Sylly House Band", "seconds": 65, "file": "two-radios.mp3", "locked": false, "master": "GM Sylly.mp3", "cover": "covers/two-radios.jpg" }
+  { "id": "two-radios", "title": "Two Radios", "game": "gm", "variant": "Static Interference", "artist": "Sylly House Band", "seconds": 65, "file": "two-radios.mp3", "locked": false, "master": "GM Sylly.mp3", "cover": "covers/two-radios.jpg" }, 
+  { "id": "paper-door-tiptoe", "title": "Paper-Door Tiptoe", "game": "hsg", "variant": null, "artist": "Sylly House Band", "seconds": 392, "file": "paper-door-tiptoe.mp3", "locked": false, "master": "Sam Tse - Paper-Door Tiptoe.mp3", "cover": "covers/paper-door-tiptoe.jpg" }
  ]
 }

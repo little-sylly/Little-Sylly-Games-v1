@@ -410,10 +410,7 @@ the pieces later with no logic change (asset kinds keyed by the stable piece id)
 message card, the banners, the Seal stamps and the lanterns are CSS or inline SVG. The Battle intro mounts
 its own scene instance. The scene text is Fredoka throughout — no new font.
 
-**Lobby sticker — not yet drawn.** `hsg` is in `LB_NO_STICKER` (`js/lobby/lobby.js`), so the Board and TV
-show the emoji fallback until `data/stickers/hsg.png` exists. **Music — none yet.** The brief (§16) asks for
-sparse koto and shamisen, playful, never a war film and with no ticking; the game falls back to the lobby
-track. Both are owner art/audio tasks, tracked in `docs/deferred-work.md`.
+**Lobby sticker and music (SW v291).** `data/stickers/hsg.png` is the lobby badge (a shoji door ajar, a shadow-puppet samurai peeking, fox ears behind). The jukebox track is *Paper-Door Tiptoe* (Sylly House Band, 6:32, koto and shamisen, own cover art), keyed `hsg` in `data/music/manifest.json` so it plays in-game and shows in the jukebox. Prompts that made them: `docs/content-prompts/hsg-sticker-music-prompts.md`.
 
 **Sound.** All synthesised through `HSG_SOUND` over the engine's `play*()`; `playPaperSlide()` (a door
 opening) and `playFanSnap()` (a strike, Found you!) were added for this game.

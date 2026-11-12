@@ -707,7 +707,19 @@
   font-weight: 700; text-transform: uppercase; letter-spacing: .02em; font-size: max(.85em, 7px); color: #fff; white-space: nowrap; overflow: hidden;
 }
 .hsg-sg-flag.is-guarded { background: #8A6A1F; }
-.hsg-sg-flag.is-exposed { background: #C2362B; }
+.hsg-sg-flag.is-exposed { background: #C2362B; letter-spacing: 0; font-size: max(.7em, 6px); }   /* "Unguarded" is two letters longer than "Exposed" */
+
+/* The bar gauges explain themselves on hover / tap (hsgBarTipTap). The bubble floats over the
+   board's edge, inside the castle, never in the column's flow. */
+.hsg-tippable { cursor: help; -webkit-tap-highlight-color: transparent; display: flex; align-items: center; }
+.hsg-bar-tip {
+  position: absolute; left: 50%; transform: translateX(-50%); z-index: 30;
+  width: max-content; max-width: calc(var(--hsg-w) - 8px); box-sizing: border-box;
+  padding: 7px 10px; border-radius: 10px;
+  background: #2B2620; color: #F3EAD7; font-size: 12px; line-height: 1.3; text-align: left;
+  box-shadow: 0 0 0 1px rgba(201,161,74,.6), 0 6px 14px rgba(0,0,0,.45);
+  pointer-events: none;
+}
 
 /* Short phones (≤600 px tall, S12): the How-to sheet takes more of the glass and drops its subtitle,
    so a Practice lesson's coach line and board sit nearer one screen (320×452 went from ~190 px of body to ~290). */
