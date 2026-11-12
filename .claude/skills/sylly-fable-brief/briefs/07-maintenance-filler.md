@@ -7,7 +7,7 @@ either because every open task is ⏸ on the owner or because a session has room
 ## Why this
 
 Fable shouldn't sit idle while the owner signs things off, and a session that finishes its stage early
-has already paid its ~38k-token baseline. These items are real, small, need no phone, and are already
+has already paid its ~31k-token baseline. These items are real, small, need no phone, and are already
 diagnosed in `docs/deferred-work.md`. They aren't the reason for a Fable run. They fill its gaps.
 
 ## How to work it

@@ -13,8 +13,8 @@ and opens only that task's brief.**
 
 ## 1. What a session costs before it starts
 
-Every session auto-loads `CLAUDE.md` plus the three `.claude/rules/` files, about **150 KB (~38k tokens)**
-(measured 12 Nov 2026). Fable pays that at Fable rates before reading a single task file, so:
+Every session auto-loads `CLAUDE.md` plus the three `.claude/rules/` files, about **119 KB (~31k tokens)**
+(the pre-commit hook prints the current figure). Fable pays that at Fable rates before reading a single task file, so:
 
 - **Make each session count.** Take a task stage as far as it will go before closing. Don't open a
   session for a five-minute job: fold it into the next one.
