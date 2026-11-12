@@ -702,7 +702,15 @@
 .hsg-sg-frame.is-exposed { border: .28em dashed #C2362B; }
 .hsg-sg-flag {
   left: 0; right: 0; bottom: 1.6em; height: 1.5em; line-height: 1.5em; text-align: center;
-  font-weight: 700; text-transform: uppercase; letter-spacing: .04em; font-size: .85em; color: #fff;
+  font-weight: 700; text-transform: uppercase; letter-spacing: .02em; font-size: max(.85em, 7px); color: #fff; white-space: nowrap; overflow: hidden;
 }
 .hsg-sg-flag.is-guarded { background: #8A6A1F; }
 .hsg-sg-flag.is-exposed { background: #C2362B; }
+
+/* Short phones (≤600 px tall, S12): the How-to sheet takes more of the glass and drops its subtitle,
+   so a Practice lesson's coach line and board sit nearer one screen (320×452 went from ~190 px of body to ~290). */
+@media (max-height: 600px) {
+  #hsg-how-to-overlay .overlay-data-inner { height: 94dvh; max-height: 94dvh; }
+  #hsg-how-to-overlay .overlay-data-inner > div:first-child { padding-top: .75rem; padding-bottom: .6rem; }
+  #hsg-how-to-overlay .overlay-data-inner > div:first-child p { display: none; }
+}

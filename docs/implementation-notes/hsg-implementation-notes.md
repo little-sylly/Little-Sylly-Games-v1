@@ -257,9 +257,14 @@ as a square, not as part of the grid.
 Nine lessons (brief §24), each a fixed engine state (`HsgRules.applyAct`, doors holding real hidden pieces) turned into a public-copy-shaped object by `hsgPracPub()`, so `hsgTapDecide` / `hsgMarksFor` / `hsgRenderTile` run unchanged. Only the top `rows` rows are drawn; `hsgLegalFor` got one optional line (`pub.pracFilter`) that narrows legal Commands to the drawn rows **and the taught move**, so a stray tap can't strand a board and a lifted piece shows exactly one mark. Sam (the cast) only moves in the Last Lantern lesson: a scripted March per player March, so the beam really runs 8 → 12; the reply waits 600 ms on `hsgPracTimers`, or is instant when `matchMedia('(prefers-reduced-motion: reduce)')` is true.
 **Why a filter, not free play:** the brief's checks are single moves; letting the player wander makes every lesson need a recovery path. "Practice again" is the recovery.
 **Lesson learned:** a `from` ring that names fixed squares breaks once a piece has moved (lesson 9, first draft stuck on step 2) — a ring is a function of the state (`hsgPracOwn`).
-**Layout:** at 320×452 the sheet's header and three tabs leave ~190 px for the body, so a lesson scrolls inside it (same as Rules and Household); the coach line scrolls itself into view on each beat. Tabs squeezed to one row with a scoped CSS rule. Revisit at S12.
+**Layout:** at 320×452 the sheet's header and three tabs leave ~190 px for the body, so a lesson scrolls inside it (same as Rules and Household); the coach line scrolls itself into view on each beat. Tabs squeezed to one row with a scoped CSS rule. Revisited at S12 (DD-14).
 **Reset:** `hsgTeardown()` (every exit to the lobby) also clears the ticks, so a revisit or a new player starts fresh.
 **Not taught:** the full strike chart (Household), Sylly Mode (none), the Campaign.
 
 ### DD-13 — The Shogun's Guarded / Exposed status lives on his tile (playtest, 12 Nov 2026)
 The bar's Guard ring was too quiet and Practice has no bars. `hsgRenderTile` takes `opts.guard` for an open Shogun: frame + flag, gold/solid vs red/dashed (never colour alone). Both the Castle and Practice pass `hsgShogunState(pub, cell)`; the Castle's tile key includes it so the tile redraws when the last Guard falls.
+
+## S12 — Polish and measure (12 Nov 2026)
+
+### DD-14 — Measured at three sizes; two fixes
+Castle: no scroll at 375×667 / 375×548 / 320×452, tiles 58 / 54 / 38 px, no sideways scroll; Battle intro and menu unchanged (menu scrolls as a Stack at 320×452, by design). **Flag at 38 px:** the em-based flag text computed to 5.95 px; floored at 7 px, `white-space: nowrap`, and it no longer overlaps the sash. **Practice at 320×452:** the sheet left ~190 px of body, so the lesson board sat below the fold; at `max-height: 600px` the sheet is 94 dvh and the subtitle is hidden (body ≈ 290 px). Known and left: at 38 px the frame border clips the descender of "Shogun" in the sash.

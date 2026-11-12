@@ -227,7 +227,7 @@ On every bump the outgoing SW entry moves **verbatim** to `docs/sw-changelog.md`
 "keep the last three". **A second `**SW v…**` paragraph appearing here means that move didn't
 happen: do it before anything else.**
 
-**SW v287 — Hide and Shogun: the Shogun wears his status (12 Nov 2026).** After a Practice playtest: an open Shogun’s own tile now shows **Guarded** (solid gold frame, gold flag) or **Exposed** (dashed red frame, red flag) — in the Castle and in Practice, via `hsgRenderTile`’s new `opts.guard` (`hsgShogunState(pub, cell)`; a Guard still behind a door counts, so it reads `pub.guards`). Shape differs as well as colour; the square’s aria-label says it too. Lesson 7’s coach lines point at the flag. `MP_PROTOCOL_VERSION` stays v265.
+**SW v288 — Hide and Shogun, S12: polish and measure (12 Nov 2026).** Measured at 375×667 / 375×548 / 320×452: the Castle fits with no scroll (tiles 58 / 54 / 38 px) and the Guarded / Exposed flag fits every size, but at 38 px its type was 6 px — now floored at 7 px (`max(.85em, 7px)`, no wrap). On phones ≤600 px tall the How-to sheet takes 94 dvh and drops its subtitle, so a Practice lesson's coach line and the top of its board share the first screen at 320×452. `MP_PROTOCOL_VERSION` stays v265.
 
 **Previous versions: `docs/sw-changelog.md`** — continuous, v286 back to v167.
 
