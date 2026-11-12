@@ -18,7 +18,7 @@ Moved out of `CLAUDE.md` § Token Hygiene (4 Nov 2026) so the tables load only w
 | New game implementation (Stage 3 build) | Opus | high | Multi-file, cross-cutting (MP handlers, render seam, checklist) — mistakes compound silently |
 | Architecture/strategic decision (spec write, MP pattern design, refactor plan) | Opus | high | Wrong call here becomes a decision-log entry and future rework |
 | Phase-gate audit (Protocol A/B/C, studio sweep) | Opus | high | Needs to catch subtle drift across many files, not just pattern-match |
-| Owner says Fable is available, and the task is a plan or a review | Fable, via `sylly-fable-brief` | high | Reads a lot, writes little — the only shape worth its price. Never for building |
+| A Fable run is on (owner started it) | Fable, via `sylly-fable-brief` | high | Every task in the run is Fable, building included. Name the next queue task, not a model. Pure execution of a written plan may go to a Sonnet subagent (that skill's § 1) |
 | Large exploratory search ("find every place X happens") | dispatch to Explore/general-purpose subagent | medium | Keeps the fan-out out of the main context window regardless of which model runs it |
 | Quick lookup / "what does X do" | Haiku or Sonnet | low | No edit risk, cost matters more than depth |
 

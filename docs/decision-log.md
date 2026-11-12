@@ -19,6 +19,13 @@ Detail: pointer to the canonical doc (snapshot / impl note / spec / memory).
 ```
 
 
+## 2026-11-12 — The Fable run: a queue of self-contained task briefs
+Category: Process
+Decision: Once a Fable run starts every session is Fable, building included, and it works an ordered queue (`sylly-fable-brief` § 2), one brief per task in `.claude/skills/sylly-fable-brief/briefs/`.
+Why: The owner won't switch back to a cheaper model mid-run, so each task needs its own read list, current state, pain points and definition of done that a fresh session can pick up alone.
+Changed: `sylly-fable-brief` (ranking → queue + 7 briefs, area cards folded in), `sylly-whats-next` Fable row, CLAUDE.md Defaults line. Owner gates mark a task ⏸ and the run moves on; mechanical execution may go to a Sonnet subagent.
+Detail: `.claude/skills/sylly-fable-brief/SKILL.md`.
+
 ## 2026-11-12 — Instruction files cleaned for literal-reading models
 Category: Process
 Decision: Sessions open on Opus 5.5 (Fable rare, plan/review only); vendored libraries allowed via a cost-envelope proposal; games may ship their own self-hosted fonts; asset sizes are targets, not gates; Claude commits at the end of each task without asking (push still asks).
