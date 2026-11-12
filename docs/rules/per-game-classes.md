@@ -45,6 +45,7 @@ places the game at its old position. There is no harness for this — check it b
 | CLD | `#8ECAE6` glacier blue (custom) | `cld-range` | `game-toggle-on-cld` | `pill-active-cld` |
 | COMB | `#F0A500` bright honey gold (custom) | `comb-range` | `game-toggle-on-comb` | `pill-active-comb` |
 | ETA | `#EA580C` hi-vis orange (custom; text rung `#C2410C`) | `eta-range` | `game-toggle-on-eta` | `pill-active-eta` |
+| HSG | `#B8862B` Lantern gold (custom; text rung `#9C6A1E`) | `hsg-range` | `game-toggle-on-hsg` | `pill-active-hsg` |
 
 `sylly-range` is GM's alone — it predates the `[abbr]-range` convention every other game follows. Never reuse it.
 Gradient values live on each `.[abbr]-range` rule in `css/styles.css`.
@@ -89,6 +90,7 @@ No `ctaTextClass` remains in `MP_GAME_CONFIGS` for any game.
 | CLD | Hit the Ice | 🐧 | The Thaw |
 | COMB | Send the Scouts | 🐝 | **None** ‖ |
 | ETA | Clock On | 🛵 | Backseat Drivers |
+| HSG | Ready or Not | 🏯 | **None** (How to Play card reads *Not yet*; no settings card) |
 
 **†  Resolved 1 Aug 2026 — LTTP's Sylly Mode is real and shipped.** The How-to Standard's old parenthetical
 ("omit for LTTP which has none") was wrong and has been corrected. Verified in code: `lttpJokerMode`, the
@@ -145,6 +147,7 @@ The how-to **close button is always the game's `accentBtnClass`**, so it no long
 | CLD | `cld-cta` | — | `cld-label` | `bg-[#e4f4fa] hover:bg-[#cbe9f4] text-[#2a6b85]` |
 | COMB | `comb-cta` ※ | — | `comb-label` | `bg-[#FDF0D0] hover:bg-[#FAE3AB] text-[#B87A00]` |
 | ETA | `eta-cta` (white ink — #EA580C kept by the owner, 10 Nov 2026; 3.56:1) | — | `eta-label` (`#C2410C`) | `bg-[#FFEDD5] hover:bg-[#FED7AA] text-[#9A3412]` |
+| HSG | `hsg-cta` (white ink; #B8862B ≈3.2:1) | — | `hsg-label` (`#9C6A1E`) | `bg-[#F4EAD3] hover:bg-[#ECDDBC] text-[#7A5517]` |
 
 
 **CJAR no longer needs a dark-ink exception.** Its 5 Sep 2026 recolour to chocolate-brown `#5C3A21`

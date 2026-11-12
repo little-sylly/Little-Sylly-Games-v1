@@ -25,7 +25,7 @@ are §1–§24. To use it by hand, ignore the AI blocks. Everything from the two
   plus 4 more (11 in all). §16 Sound Design and §20 Mood & References gain real guidance.
 - **Rules are now tiered** (Hard / Strong default / Guidance) instead of one flat list of
   "non-negotiables". See "The rules of the suite".
-- Games table updated through `fyfi`, `hsg` and `eta`.
+- Games table updated through `fyfi`, `hsg` (shipped, SW v288) and `eta`.
 
 10 Nov 2026 — **world first (the UI revamp, after the LI5 pilot).** New **§0 The World & the Intro**
 (world, narrator, the match-start Intro's copy, round-intro mood beats, and §0d for the Stage 1b
@@ -135,7 +135,7 @@ A game may support one or both. Some games are hybrids (for example, two teams e
 | `comb` | Honeycomb Hills | Hex-and-resource engine-builder on a 19-hex meadow — one 2d6 cast pays every player at once, spend on walls/cells/domes, negotiate the rest; MDLM-only, 3–4 players; the suite's longest game (25–50 min) and the **only one with no Sylly Mode** (seven settings carry the difficulty axis instead) |
 | `eta` | ETA? | Estimation + persuasion (E.T.A. Couriers, narrator Dot) — each courier gets a secret Ride, logs an ETA for a shared Route on the Time Dial, defends it out loud (Talk Me Through It, Stamps of Approval), then Proof of Delivery scores accuracy on the ratio to the truth; MDLM-only, 3–8; the first new game built world-first (Stage 1b); Sylly Mode = Backseat Drivers (secret multiplying Course Corrections) |
 | `fyfi` | Flip You For It | Two-player 3x3 collectible cap duel (Triple Triad-inspired) — place caps wearing the suite's game stickers, flip the opponent's by edge numbers, chain reactions; best-of-3/5 series; bot opponent (Easy/Medium/Hard); Sylly Mode skipped for now |
-| `hsg` | Hide and Shogun | Two-player hidden-tile grid duel (Banqi / Chinese Dark Chess–inspired) — hide-and-seek in a castle of paper doors (narrator: the Storyteller); open closed doors, rank-based Strikes with special-move pieces, neutral foxes side with whoever finds them, strike the Shogun; Honour Seal Campaign; Sylly Mode deferred. In design (brief v5; Stage 1b done, brand Lantern gold `#B8862B`; Stage 2 next) |
+| `hsg` | Hide and Shogun | Two-player hidden-tile grid duel (Banqi–inspired), built SW v278–v288 — hide-and-seek in a castle of paper doors, narrated by the Storyteller (a rakugo teller). 5×6 lattice, 30 doors: each clan's 13 (Shogun, Guards, Monks, Samurai, Ninja, Archers, Farmers) plus 2 or 4 foxes that side with whoever finds them; the win is striking the Shogun (a living Guard shields him from all but a fox); Last Lantern clock (12 quiet Commands), Honour Seals, first to 1/3/5; PTP, MDLM and Solo vs bot (Easy/Medium/Hard); reconnect adopted; Practice (9 lessons) and the Household gallery; **no Sylly Mode** (COMB's form, deferred). Brand Lantern gold `#B8862B`. Game 22 |
 
 **Abbreviations already taken:** `li5`, `gm`, `ss`, `jec`, `ygi`, `lttp`, `nat`, `dsd`, `gth`, `dyb`, `bld`, `pass`, `nt`, `frt`, `shp`, `flw`, `pko`, `cjar`, `cld`, `comb`, `fyfi`, `hsg`, `eta`
 

@@ -19,6 +19,13 @@ Detail: pointer to the canonical doc (snapshot / impl note / spec / memory).
 ```
 
 
+## 2026-11-12 (Phase 45) — Hide and Shogun ships and passes its gate (Process)
+Category: Process
+Decision: Game 22 closes at SW v289 with no Sylly Mode (COMB's form) and stays open on one live two-phone session.
+Why: S1–S12 built the game; documentation had lagged the code (no code-map section, hsg still "reserved"), the same gap phase 44 found for E.T.A.
+Changed: `docs/game-identities/hsg.md`, `code-map.md`, `per-game-classes.md`, `definitions.md`, the brief-template roster, `CLAUDE.md`, `phase45-snapshot.md`. Deferred: sticker, music, Sylly Mode, the Forfeit variant — `docs/deferred-work.md`.
+Detail: `docs/phase45-snapshot.md`; `hsg-implementation-notes` DD-15.
+
 ## 2026-11-11 — Hide and Shogun gets its world; the v4 rules are trimmed, not redesigned (Strategy)
 **Decision:** `hsg` enters Stage 1b as **the Paper Castle** (hide-and-seek in a castle of paper doors, narrated by a rakugo Storyteller, "war with a wink"); the Geisha becomes a **Fox**, the cast goes plain-English, Shogun's Shame is cut, a Truce replay flips the first move; no further rule changes before human playtests.
 **Why:** an Opus review against Banqi found the core gains real (capture-the-Shogun win, distinct pieces, the comeback fox) but the rules over-patched by bot-tuning; the Geisha read badly for a family suite named for a child.

@@ -190,6 +190,8 @@
 }
 .hsg-tile-crest svg { width: .9em; height: .9em; }
 .hsg-rank { top: .15em; right: .4em; font-weight: 700; color: #3A1F1A; }
+/* a framed Shogun: the frame border overlays the sash foot, so lift the text off it */
+.hsg-sash:has(~ .hsg-sg-frame) { line-height: 1.2em; }
 .hsg-sash {
   left: 0; right: 0; bottom: 0; height: 1.6em; line-height: 1.6em;
   color: #FFF6DD; font-weight: 600; text-align: center; white-space: nowrap; overflow: hidden;
@@ -713,4 +715,16 @@
   #hsg-how-to-overlay .overlay-data-inner { height: 94dvh; max-height: 94dvh; }
   #hsg-how-to-overlay .overlay-data-inner > div:first-child { padding-top: .75rem; padding-bottom: .6rem; }
   #hsg-how-to-overlay .overlay-data-inner > div:first-child p { display: none; }
+}
+
+/* Practice on a short phone: the coach card is tighter. */
+@media (max-height: 600px) {
+  #hsg-practice-box { gap: .5rem; }
+  .hsg-prac-coach { padding: .6rem .75rem; }
+}
+
+/* Display Zoom (≤520 px tall): the sheet's title block goes too — the three tabs already say where you are —
+   so a Practice lesson's coach card and its whole board share one screen at 320×452. */
+@media (max-height: 520px) {
+  #hsg-how-to-overlay .overlay-data-inner > div:first-child { display: none; }
 }

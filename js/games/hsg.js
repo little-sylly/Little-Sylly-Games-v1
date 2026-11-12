@@ -2113,7 +2113,7 @@ function hsgRenderPractice() {
   }
 
   const L = HSG_LESSONS[hsgPracLesson], S = hsgPracS, pub = hsgPracPub();
-  const top = el('div', 'flex items-center justify-between gap-2');
+  const top = el('div', 'hsg-prac-top flex items-center justify-between gap-2');
   const back = el('button', 'min-h-11 px-3 rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-sm transition-transform duration-100', '← Lessons');
   back.type = 'button'; back.id = 'btn-hsg-prac-back';
   back.addEventListener('click', () => { playExit(); hsgPracStop(); hsgPracLesson = -1; hsgPracS = null; hsgRenderPractice(); });
@@ -2121,11 +2121,11 @@ function hsgRenderPractice() {
   top.append(back, el('p', 'text-xs font-semibold uppercase tracking-widest hsg-label', 'Lesson ' + (hsgPracLesson + 1) + ' of ' + HSG_LESSONS.length + ' · ' + count));
   box.appendChild(top);
 
-  const coach = el('div', 'bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-1');
+  const coach = el('div', 'hsg-prac-coach bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-1');
   const cap = el('p', 'text-stone-500 text-sm', hsgPracCaption(L));
   cap.id = 'hsg-prac-caption'; cap.setAttribute('aria-live', 'polite');
   coach.append(el('p', 'font-bold text-stone-800', L.title), cap);
-  if (L.teamCol) coach.append(el('p', 'text-stone-400 text-xs', 'You are ' + HSG_SHORT[L.teamCol[0]] + ' · Sam is ' + HSG_SHORT[L.teamCol[1]]));
+  if (L.teamCol) coach.append(el('p', 'hsg-prac-who text-stone-400 text-xs', 'You are ' + HSG_SHORT[L.teamCol[0]] + ' · Sam is ' + HSG_SHORT[L.teamCol[1]]));
   box.appendChild(coach);
   if (cap.scrollIntoView) cap.scrollIntoView({ block: 'nearest' });   // a new coach line comes back into view
 
