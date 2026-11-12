@@ -45,6 +45,7 @@ Spec: `docs/superpowers/specs/2026-09-15-index-decomposition-design.md`.
 | Cold Shoulder (CLD) | `src/screens/cld.html` |
 | Honeycomb Hills (COMB) | `src/screens/comb.html` |
 | E.T.A. (ETA) | `src/screens/eta.html` (+ the world: `css/eta.css`, `js/games/eta-scene.js`) |
+| Hide and Shogun (HSG) | `src/screens/hsg.html` (+ the world: `css/hsg.css`, `js/games/hsg-scene.js`; pure rules `js/games/hsg-rules.js`) |
 | Multiplayer global overlays | `src/screens/_mp.html` (same partial as the multiplayer engine — the two sections are adjacent) |
 | Global sound overlay + art viewer | `src/screens/_sound.html` |
 | Shell (lobby, who-first, engine-global) | `src/screens/_shell.html` |
@@ -2445,7 +2446,7 @@ Per-game: LI5 `ptp`★/`tlm`/`mdlm` (4–12) · GM `ptp`★/`mdlm` · SS `tlm`�
 | `rooms/{code}/seats` | host, at `GAME_START`; removed by `mpReturnToLobby()` | `[uid0, uid1, …]` in seat order — never mutated mid-match |
 | `rooms/{code}/presence/{uid}/{pushId}` | each client, for itself | `true`, one child per connection with its own `onDisconnect().remove()`. Host writes none |
 
-Adopters (`MP_GAME_CONFIGS[abbr].reconnect`): **`flw`, `pko`, `cjar`, `comb`** (the first three SW v237) — pinned by `verify-mp-configs.js` § 7. Harness: `tools/verify-mp-reconnect.js`. Rule: `logic-engine.md` § Client Reconnect.
+Adopters (`MP_GAME_CONFIGS[abbr].reconnect`): **`li5`, `flw`, `pko`, `cjar`, `hsg`, `comb`** (the first three SW v237; `hsg` SW v284) — pinned by `verify-mp-configs.js` § 7. Harness: `tools/verify-mp-reconnect.js`. Rule: `logic-engine.md` § Client Reconnect.
 
 ### Bots (SW v247)
 Host-side bot seats + Solo, all in `js/engine-multiplayer.js` § BOTS. A bot is an `mpPlayerSlots` entry held only in the host's memory — `{ uid: 'bot:N', nickname, bot: { difficulty } }` — **never written to `/players`**. Rule: `logic-engine.md` § Bots. Detail: `shared-implementation-notes.md` DD-52.
@@ -3251,3 +3252,80 @@ Teardown: `etaTeardown()` (from `resetToLobby`) clears every handle above, stops
 | `node tools/verify-eta-rules.js` (423) | The accuracy curve vs the maths doc; Samples 1, 2 and 2b from the brief; Sweep, insurance cap, floor, Hands off; gear rounding adds up; ranks; durations + Double-Take; placings (ties, ratio-not-gap, no ETA) + the miss in words; 3,000 seeded deals (window, no duplicates, Unregistered only in Sylly, spread); Route draws (no repeats, Range, Off the Map ≈ 1 in 4); four whole Shifts through the host appliers; both stalls (captured timers). `ETA_SRC=` / `ETA_SEED=` |
 | `node tools/verify-eta-loopback.js` (190) | The REAL engine + Intro + `eta.js` on up to 5 devices over the `mp-world` wire, real buttons clicked: the privacy invariants (no Ride before the Run Sheet, no entry / Stamp / Correction on the public channel, no truth before `ETA_PROOF`, each private queue holds only its own Ride), the log stall, a changed Stamp, stale + forged packets, host-only Next job, placings parity + the board's SAID / TRUE / place + Your result shown, End of Shift parity, Backseat Drivers (placings rank the Logged ETA, never the Revised) (corrections before Proof, Revised ETAs agree, an empty list over the wire), the quit contract, zero warnings. Board / docket / scene are recording fakes. `ETA_SRC=` |
 | `node tools/verify-eta-content.js` (1,443) | `data/eta-data.json` against the content rules, through the game's own pairing code; `**bold**` markers pair up and every Route's Briefing bolds something |
+
+---
+
+## Hide and Shogun (HSG) — game 22 · **BUILT (SW v278–v288)** · phase 45 gate SW v289
+
+Spec: `docs/new-game-tech-hsg.md` (wins over the brief). Brief: `docs/new-game-brief-hide-and-shogun.md` (v5). Identity doc: `docs/game-identities/hsg.md`. Impl notes: `docs/implementation-notes/hsg-implementation-notes.md`.
+**Two players, host-authoritative, hidden information (the closed doors). Modes: Pass-the-Phone · MDLM · Solo vs a bot.** The second game built world-first (Stage 1b: A's Lamplit Room with C's Castle); the third adopter of the engine Intro (roll call, no Line-up). **Adopts `reconnect`** (SW v284) and `bots` (Easy / Medium / Hard = `easy` / `cautious` / `search3`). **No Sylly Mode** (COMB's form).
+**Brand:** Lantern gold `#B8862B` — `.hsg-cta`, `.pill-active-hsg`, `.game-toggle-on-hsg`, `.hsg-range`, `.hsg-label` (`#9C6A1E`, text) in `styles.css`; the world in `css/hsg.css`.
+**Lobby button:** `#btn-hsg`; `hsg` is in `LB_NO_STICKER` (no sticker drawn yet); no music track yet.
+
+**One idea.** The host's `hsgB` (the secret seating chart) is **never sent and never rendered**. Every device draws from `hsgPub`, the public copy, where a closed door is just `'#'`. `hsgMaskedState(pub)` is the only way anything but the host's Command pipeline reads the rules (the client lights its moves from it, the bot decides from it).
+
+**TV public state (hsg):** everything — battleNo, replay, firstSeat, turnSeat, cmd, the board (opened pieces only; closed doors `#`), seatCol, guards, foxesHeld / foxTotal, quiet (the Last Lantern count), struck, seals, wins, campaignLen, `last` (the last Command, its seat and struck piece) and `result`. Nothing is private to one player; the secret layout never leaves the host.
+
+### Screens
+| ID | TV | Purpose |
+|----|----|---------|
+| `screen-hsg-menu` | public | Menu — Ready or Not / How to Play / Settings / ← Back to the Box |
+| `screen-hsg-setup` | public | Pass-the-Phone only — `#hsg-name-0` / `#hsg-name-1`, `#btn-hsg-setup-start`. Gone in MDLM and Solo (names from the lobby) |
+| `screen-hsg-standby` | public | A client before the first Battle, and a rejoining phone's landing |
+| `screen-hsg-battle-intro` | public | Interstitial, chrome-exempt — `#hsg-bi` (`data-state` toss · battle · replay), `#hsg-bi-stage` (its own `HsgScene.make()`), `#hsg-bi-flavour`, `#hsg-bi-call`. 4.5 s (Battle 1) / 3.5 s |
+| `screen-hsg-castle` | public | **Fixed-height, non-scrolling** (logged departure) — header (`#btn-hsg-how-to`, 🔊, ✕), `#hsg-bar-top`, `#hsg-beam` (12 lanterns), `#hsg-grid` (30 stable `.hsg-sq` slots), `#hsg-bar-bottom`, the message card (`#hsg-card-title` / `#hsg-card-sub`), `#hsg-castle-fx` (the absolute moments layer + drag ghost) |
+| `screen-hsg-chronicle` | public | The War Chronicle between Battles — `#hsg-chron-body`, `#btn-hsg-chron-next` (Next Battle / Replay the Battle), `#btn-hsg-chron-leave`. A Stack |
+| `screen-hsg-gameover` | public | In `MP_END_SCREENS`. Same painter into `#hsg-go-body`; `#btn-hsg-go-new` / `#btn-hsg-go-leave` / `#btn-hsg-go-exit` |
+| `screen-game-intro` | *(engine)* | `<template id="intro-hsg">` + `hsgIntroScene` over `HsgScene` |
+
+### Overlays
+| ID | Type | z | Purpose |
+|----|------|---|---------|
+| `hsg-settings-overlay` | Data | 80 | The War Council — `data-group="hsg-campaign"` (1/3/5) and `"hsg-foxes"` (2/4) pills, `#hsg-val-foxes` live line, `#btn-hsg-settings-close`. No Sylly card |
+| `hsg-how-to-overlay` | Data | 90 | Tabs `#btn-hsg-howto-tab-{rules,practice,household}` → `#hsg-howto-body-*`; Practice mounts into `#hsg-practice-box`, the Household into `#hsg-household-box` |
+| `hsg-quit-overlay` | Modal | 80 | Leave the Field? — `mpNotifyPlayerLeft()` then `resetToLobby()` |
+| `hsg-new-campaign-overlay` | Modal | 90 | New Campaign? — `mpReturnToLobby()` in a lobby session |
+
+### State (`js/games/hsg.js`)
+| Group | Variables |
+|-------|-----------|
+| Settings — host, `SETTINGS_SYNC` | `hsgCampaignLen` (1 / 3 / 5), `hsgFoxes` (2 / 4) |
+| Roster | `hsgNames` |
+| Campaign | `hsgBattleNo`, `hsgReplay`, `hsgFirstSeat`, `hsgSeals`, `hsgWins` (seat \| colour << 1, in order won), `hsgStruck`, `hsgLast`, `hsgResult` |
+| **Host only — never sent** | `hsgB` (the engine battle incl. the layout), `hsgSeed` (a harness pins the shuffle) |
+| Every device | `hsgPub` (the snapshot — the only thing renderers read), `hsgPhase` (`idle` · `battle-intro` · `castle` · `ending` · `chronicle` · `gameover`), `hsgFlavourIdx`, `hsgNewsFx` |
+| Local UI | `hsgSel`, `hsgDoorArmed`, `hsgDrag`, `hsgDragEndAt`, `hsgBattleScene` |
+| Handles | `hsgTimers` (`hsgLater` / `hsgStopTimers`, which also clears the moments layer), `hsgPracTimers` |
+| Practice | `hsgPracDone`, `hsgPracLesson` (-1 = picker), `hsgPracS`, `hsgPracStep`, `hsgPracSel`, `hsgPracArmed`, `hsgPracBusy`, `hsgPracEnd`, `hsgPracNote` |
+
+Teardown: `hsgTeardown()` (from `resetToLobby()`) clears the timers, the moments, the scenes and Practice progress.
+
+### Files and key functions
+| Where | What |
+|-------|------|
+| `js/games/hsg-rules.js` (`HsgRules`, pure) | The lifted rules engine: the strike matrix, foxes and the share, Guarded / Unguarded, the Last Lantern, Cornered, `applyAct`, `choose()` + `BOT_LEVELS` |
+| `js/games/hsg.js` — pub | `hsgBuildPub` (canonical, wire-safe), `hsgWirePub` / `hsgWireArr` / `hsgWireList` (rebuild on receipt — Firebase erases empties), `hsgMaskedState`, `hsgLegalFor`, `hsgOpenCounts`, `hsgSeatOfTeam` / `hsgTeamOfSeat` (the only seat↔team meeting points) |
+| `js/games/hsg.js` — host | `hsgOnEnter` (onPassThePhone), `hsgStartCampaign`, `hsgStartBattle`, `hsgHostCommand`, `hsgOpenCommand`, `hsgEndBattle`, `hsgFinishEnding`, `hsgHostNextBattle`, `hsgResultOf` |
+| `js/games/hsg.js` — wire | `hsgHandleEnvelope` → `hsgHandleAction` / `hsgHandleSync`, `hsgApply{BattleStart,CommandDone,State}`, `hsgSendState` (the refusal repair **and** the rejoin snapshot), `hsgRepairSeat`, `hsgIsStale` |
+| `js/games/hsg.js` — Castle | `hsgRenderTile` (**the art seam**), `hsgRenderCastle`, `hsgMarksFor`, `hsgTapDecide`, `hsgTap`, `hsgSubmitCommand`, `hsgDrag*`, `hsgCardText`, `hsgShogunState` |
+| `js/games/hsg.js` — moments | `hsgPlayMoments(before, pub, fx)`, `hsgBannersMoment`, `hsgFoxMoment`, `hsgGuardMoment`, `hsgEndingMoment`, `hsgSound` / `HSG_SOUND` |
+| `js/games/hsg.js` — Chronicle | `hsgChronicleModel` (pure), `hsgPaintChronicle`, `hsgLedgerHTML` |
+| `js/games/hsg.js` — bots | `hsgBotView` / `hsgBotDecide` / `hsgBotSubmit` / `hsgBotThinkMs` |
+| `js/games/hsg.js` — Household / Practice | `hsgRenderHousehold`, `hsgBindCardHold`, `HSG_LESSONS` (9), `hsgPracBuild` / `hsgPracPub` / `hsgPracTap`, `hsgRenderPractice` |
+| `js/games/hsg-scene.js` (`HsgScene`, pure) | The Storyteller — `make()`, `mount(el, { reducedMotion })`, `beat(i, text)`, `stop()`. Owns no timers: every motion is a keyframe delayed by `--hsg-snap` |
+| `js/engine.js` | `playPaperSlide()`, `playFanSnap()` (new for this game); `'hsg'` in `updateSliderTheme` and `getMuteToggleOnClass` maps; `GAME_BRAND_HEX` |
+
+### Multiplayer packets
+**ACTION, client → host:** `HSG_COMMAND` (`cmd` + `act` — the host checks `cmd` is current and the act is legal) · `HSG_NEXT_BATTLE` (`battleNo`, `replay` — either lord may tap; the first wins). Seat from `originId`.
+**SYNC, host → all:** `HSG_BATTLE_START` (`pub`, `flavourIdx`) · `HSG_COMMAND_DONE` (`pub`, `act`, `fx` — the moment keys).
+**PRIVATE, host → one seat:** `HSG_STATE` (`pub`, `phase`) — the repair after a refused ACTION, and the reconnect snapshot. Nothing in any packet carries a closed door's contents.
+A client applier first releases the sync lock, then asks `hsgIsStale(pub)` (same Battle identity with fewer Commands, or the same Command once the result is held) and ignores an older snapshot. Quit: the generic `MP_PLAYER_LEFT` via `mpNotifyPlayerLeft()`.
+
+### Verification tools
+| Tool | Covers |
+|------|--------|
+| `node tools/verify-hsg-rules.js` (35) | The lifted rules engine — the prototype's scenarios with v5 ids, the strike matrix, foxes, the Last Lantern |
+| `node tools/verify-hsg.js` (180) | The game headless — the Campaign, both seats via explicit-seat appliers, refusals, the pub codec and its key allow-list, the Chronicle model |
+| `node tools/verify-hsg-loopback.js` (221) | The real engine + Intro + rules + scene + `hsg.js` on host and client over the `mp-world` wire with real mock elements: privacy (a shuffled layout leaves every client string unchanged), stale snapshots, double-tap, the quit contract, reconnect from every phase |
+| `node tools/verify-hsg-bots.js` (155) | The bots at all three levels, run as the engine would (view → decide → submit); the view is compared byte for byte, with a deliberately leaky control |
+| `node tools/verify-hsg-practice.js` (66) | The nine lessons, each finished by taps alone through the Castle's own tap code |

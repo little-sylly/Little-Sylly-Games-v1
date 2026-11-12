@@ -37,7 +37,7 @@ const TV_STATE = {
 // A fixed, designed shuffle — NOT games.js order. It spaces the brand hues so
 // no two neighbouring boxes read as the same colour. Verified against games.js
 // by verify-lounge.js, both directions.
-const TV_ORDER = ['pko','li5','cjar','cld','gm','nat','flw','dsd','ygi','shp','bld','ss','frt','gth','dyb','jec','nt','comb','eta','lttp','pass'];
+const TV_ORDER = ['pko','li5','cjar','cld','gm','nat','flw','dsd','ygi','shp','bld','ss','frt','gth','dyb','jec','nt','comb','eta','hsg','lttp','pass'];
 // The empty pane's sticker pile — three silhouettes that read at a glance and
 // never clash (round, long, upright). Fixed, not random, so screenshots compare.
 const TV_PILE = ['cjar', 'frt', 'cld'];

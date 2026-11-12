@@ -1,0 +1,386 @@
+  <!-- ════ HIDE AND SHOGUN ════
+       Screens : screen-hsg-menu, screen-hsg-setup, screen-hsg-standby, screen-hsg-battle-intro,
+                 screen-hsg-castle, screen-hsg-chronicle, screen-hsg-gameover
+       Overlays: hsg-settings-overlay, hsg-how-to-overlay, hsg-quit-overlay, hsg-new-campaign-overlay
+       Template: intro-hsg (the engine Intro — the Storyteller's four lines + the roll call)
+       Notes   : The menu, setup, standby, the War Council, the Rules tab (S3), the Castle
+                 (S4), the Battle intro (S5) and both War Chronicles (S6) are real. The Castle and the Battle intro are fixed-height, non-scrolling (a
+                 logged departure, spec §17 #7; world styles in css/hsg.css). No Sylly Mode in
+                 v1 (spec §17 #6) — the settings overlay is COMB's no-Sylly-Mode form.
+    ════════════════════════════════════════════════════════════════════════════ -->
+
+  <!-- HSG MENU — content-height section (NO min-h-screen, or the 🔊 detaches to the viewport top) -->
+  <section id="screen-hsg-menu" data-tv="public" style="display:none"
+    class="relative flex flex-col items-center justify-center px-6 py-12 w-full max-w-sm mx-auto text-center gap-6">
+    <button class="btn-open-sound absolute top-4 right-4 text-2xl active:scale-90 transition-transform duration-100">🔊</button>
+    <div class="text-5xl" role="img" aria-label="Japanese castle">🏯</div>
+    <div>
+      <h1 class="text-5xl font-bold leading-tight text-stone-800">Hide and</h1>
+      <h1 class="text-5xl font-bold leading-tight hsg-label">Shogun</h1>
+      <p class="text-stone-400 text-base mt-1">Find their Shogun before they find yours.</p>
+    </div>
+    <div class="flex flex-col gap-3 w-full">
+      <button id="btn-hsg-menu-play" class="gel-btn hsg-cta min-h-14 w-full rounded-2xl text-xl font-semibold">Ready or Not</button>
+      <button id="btn-hsg-menu-how-to" class="gel-btn min-h-14 w-full rounded-2xl bg-stone-700 hover:bg-stone-800 text-white text-xl font-semibold">How to Play</button>
+      <button id="btn-hsg-menu-settings" class="gel-btn gel-btn-light min-h-14 w-full rounded-2xl bg-[#F4EAD3] hover:bg-[#ECDDBC] text-[#7A5517] text-xl font-semibold">Settings</button>
+      <button id="btn-hsg-menu-back" class="gel-btn gel-btn-light min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 text-stone-500 text-xl font-semibold">← Back to the Box</button>
+    </div>
+  </section>
+
+  <!-- HSG SETUP — Pass-the-Phone only. Multi-device and Solo take names from the lobby. -->
+  <section id="screen-hsg-setup" data-tv="public" style="display:none"
+    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-4">
+      <div class="flex items-center justify-between">
+        <h2 class="text-2xl font-bold text-stone-800">Who's playing?</h2>
+        <div class="flex items-center gap-2">
+          <button class="btn-open-sound text-xl active:scale-90 transition-transform duration-100">🔊</button>
+          <button class="btn-hsg-quit-open text-stone-500 font-bold text-xl active:scale-90 transition-transform duration-100">✕</button>
+        </div>
+      </div>
+      <div class="flex flex-col gap-3">
+        <input id="hsg-name-0" type="text" maxlength="14" autocomplete="off" placeholder="First lord"
+          class="w-full min-h-14 rounded-2xl border-2 border-stone-200 bg-white px-4 text-lg text-stone-800 focus:outline-none focus:border-[#B8862B]">
+        <input id="hsg-name-1" type="text" maxlength="14" autocomplete="off" placeholder="Second lord"
+          class="w-full min-h-14 rounded-2xl border-2 border-stone-200 bg-white px-4 text-lg text-stone-800 focus:outline-none focus:border-[#B8862B]">
+        <p id="hsg-setup-err" class="text-amber-600 text-xs" style="display:none">Two lords can't share a name.</p>
+        <p class="text-stone-400 text-xs">Leave blank to use Lord 1 and Lord 2. The phone lies flat between you — nothing flips.</p>
+      </div>
+      <button id="btn-hsg-setup-start" class="hsg-cta min-h-14 w-full rounded-2xl text-xl font-semibold active:scale-95 transition-all duration-150">Take your cushions</button>
+    </div>
+  </section>
+
+  <!-- HSG STANDBY — the client's wait for the host's first Battle; also a rejoining phone's
+       landing screen. Not an interstitial (no auto-advance, may be left), so full 🔊 + ✕ chrome. -->
+  <section id="screen-hsg-standby" data-tv="public" style="display:none"
+    class="flex items-center justify-center w-full min-h-screen px-5 py-8 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-4">
+      <div class="flex items-center justify-between">
+        <h2 class="text-xl font-bold text-stone-800">Hide and Shogun</h2>
+        <div class="flex items-center gap-2">
+          <button class="btn-open-sound text-xl active:scale-90 transition-transform duration-100">🔊</button>
+          <button class="btn-hsg-quit-open text-stone-500 font-bold text-xl active:scale-90 transition-transform duration-100">✕</button>
+        </div>
+      </div>
+      <div class="flex flex-col gap-4 text-center">
+        <div class="text-6xl" role="img" aria-label="Japanese castle">🏯</div>
+        <h3 class="text-3xl font-bold text-stone-800">Cushions, please…</h3>
+        <p class="text-stone-500 text-base">The Storyteller is setting out the cushions…</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- HSG BATTLE INTRO (S5) — board "A · Battle intro". An interstitial: it auto-advances
+       (3.5 s; 4.5 s for Battle 1's fan toss) and has no controls, so no chrome (ui-style.md
+       § Global UI Protocol 5). Three states, data-state on #hsg-bi: toss · battle · replay.
+       hsgPaintBattleIntro() writes the words; #hsg-bi-stage is HsgScene's (mode 'battle').
+       Fixed-height like the Castle: the stage shrinks to what the glass leaves, never scrolls.
+       Every one-shot motion is CSS under .is-playing, timed by --hsg-snap / --hsg-bi-ms. -->
+  <section id="screen-hsg-battle-intro" data-tv="public" style="display:none"
+    class="hsg-room w-full flex-col">
+    <div id="hsg-bi" class="hsg-bi" data-state="battle">
+      <div class="hsg-bi-beam" aria-hidden="true">
+        <span style="--i:0;--c:10px"></span><span style="--i:1;--c:16px"></span><span style="--i:2;--c:12px"></span>
+        <span style="--i:3;--c:18px"></span><span style="--i:4;--c:11px"></span><span style="--i:5;--c:15px"></span>
+        <span style="--i:6;--c:13px"></span><span style="--i:7;--c:17px"></span><span style="--i:8;--c:10px"></span>
+        <span style="--i:9;--c:16px"></span><span style="--i:10;--c:12px"></span><span style="--i:11;--c:14px"></span>
+      </div>
+      <div class="hsg-bi-head">
+        <h2 id="hsg-bi-title" class="hsg-bi-title">Battle 1</h2>
+        <div id="hsg-bi-tally" class="hsg-bi-tally"></div>
+      </div>
+      <div id="hsg-bi-stage" class="hsg-bi-stage"></div>
+      <div class="hsg-bi-card" aria-live="polite">
+        <span id="hsg-bi-flavour" class="hsg-bi-flavour"></span>
+        <span id="hsg-bi-call" class="hsg-bi-call"></span>
+      </div>
+      <div class="hsg-bi-progress" aria-hidden="true"><i></i></div>
+    </div>
+  </section>
+
+  <!-- HSG CASTLE — the board (S4). A FIXED-HEIGHT, NON-SCROLLING board, a logged departure
+       from the Stack (spec §17 #7): header · opponent bar · lantern beam · the 5×6 board ·
+       your bar · the message card. The tile size is computed in css/hsg.css so the whole
+       Castle always fits the glass. Everything inside #hsg-grid is drawn by hsgRenderCastle()
+       from hsgPub ALONE; every tile goes through hsgRenderTile() (the art seam).
+       #hsg-castle-fx is the absolute moment layer: the drag ghost and every moment (S9,
+       hsgPlayMoments) — nothing that animates ever sits in the column's flow. -->
+  <section id="screen-hsg-castle" data-tv="public" style="display:none"
+    class="hsg-room w-full flex-col">
+    <div id="hsg-castle" class="hsg-castle">
+      <div class="hsg-head">
+        <div class="flex flex-col">
+          <span id="hsg-castle-battle" class="hsg-head-title">Battle 1</span>
+          <span id="hsg-castle-terms" class="hsg-head-sub">First to 3 Seals</span>
+        </div>
+        <div class="flex items-center">
+          <button id="btn-hsg-how-to" class="hsg-chrome font-bold text-sm" aria-label="How to Play">[?]</button>
+          <button class="btn-open-sound hsg-chrome text-xl" aria-label="Sound">🔊</button>
+          <button class="btn-hsg-quit-open hsg-chrome font-bold text-xl" aria-label="Leave the Field">✕</button>
+        </div>
+      </div>
+      <div id="hsg-bar-top" class="hsg-bar"></div>
+      <div id="hsg-beam" class="hsg-beam" role="img" aria-label="The lanterns"></div>
+      <div id="hsg-frame" class="hsg-frame">
+        <div id="hsg-grid" class="hsg-grid" role="grid" aria-label="The castle"></div>
+      </div>
+      <div id="hsg-bar-bottom" class="hsg-bar"></div>
+      <div class="hsg-card" aria-live="polite">
+        <span class="hsg-portrait" aria-hidden="true"><svg viewBox="0 0 40 40"><path d="M13 22 A7 7 0 1 0 27 22 A7 7 0 1 0 13 22Z M8 40 Q8 30 20 29 Q32 30 32 40Z M13 19 Q14 13 20 13 Q26 13 27 19 Q23 17 20 17 Q17 17 13 19Z M28 26 L33 16 L35 17 L31 28Z M34 16 L27 4 A13 13 0 0 1 40 8 Z" fill="#2B2620"/></svg></span>
+        <div class="hsg-card-text">
+          <span id="hsg-card-title" class="hsg-card-title"></span>
+          <span id="hsg-card-sub" class="hsg-card-sub"></span>
+        </div>
+      </div>
+      <div id="hsg-castle-fx" class="hsg-fx" aria-hidden="true"></div>
+    </div>
+  </section>
+
+  <!-- HSG CHRONICLE (S6) — board "A · War Chronicle". The Stack (Header · Stage · Controls in
+       ONE column, centred by the section; it scrolls as a unit on a short phone). BOTH War
+       Chronicles are painted by the one hsgPaintChronicle(): #hsg-chron-body here, #hsg-go-body
+       on the gameover. Not an end screen (per-round) → ✕ and Leave the Field open the
+       Leave the Field? modal. Next Battle / Replay the Battle is brand; Leave the Field is
+       stone, same size (DD-31). -->
+  <section id="screen-hsg-chronicle" data-tv="public" style="display:none"
+    class="hsg-room flex items-center justify-center w-full min-h-screen px-5 py-5 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-3">
+      <div class="flex items-center justify-between">
+        <h2 class="hsg-ch-eyebrow">The War Chronicle</h2>
+        <div class="flex items-center">
+          <button class="btn-open-sound hsg-chrome text-xl" aria-label="Sound">🔊</button>
+          <button class="btn-hsg-quit-open hsg-chrome font-bold text-xl" aria-label="Leave the Field">✕</button>
+        </div>
+      </div>
+      <div id="hsg-chron-body" class="hsg-ch" aria-live="polite"></div>
+      <button id="btn-hsg-chron-next" class="hsg-cta min-h-14 w-full rounded-2xl text-xl font-semibold active:scale-95 transition-all duration-150">Next Battle</button>
+      <button id="btn-hsg-chron-leave" class="btn-hsg-quit-open min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-500 text-xl font-semibold transition-all duration-150">Leave the Field</button>
+    </div>
+  </section>
+
+  <!-- HSG GAMEOVER (S6) — the War Chronicle when the Campaign is won; IN MP_END_SCREENS.
+       The game is over, so ✕ and Leave the Field go straight to resetToLobby(); New
+       Campaign confirms through hsg-new-campaign-overlay. Same painter as the Chronicle. -->
+  <section id="screen-hsg-gameover" data-tv="public" style="display:none"
+    class="hsg-room flex items-center justify-center w-full min-h-screen px-5 py-5 overflow-y-auto">
+    <div class="flex flex-col w-full max-w-sm gap-3">
+      <div class="flex items-center justify-between">
+        <h2 class="hsg-ch-eyebrow">The War Chronicle</h2>
+        <div class="flex items-center">
+          <button class="btn-open-sound hsg-chrome text-xl" aria-label="Sound">🔊</button>
+          <button id="btn-hsg-go-exit" class="hsg-chrome font-bold text-xl" aria-label="Leave the Field">✕</button>
+        </div>
+      </div>
+      <div id="hsg-go-body" class="hsg-ch" aria-live="polite"></div>
+      <button id="btn-hsg-go-new" class="hsg-cta min-h-14 w-full rounded-2xl text-xl font-semibold active:scale-95 transition-all duration-150">New Campaign</button>
+      <button id="btn-hsg-go-leave" class="min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-500 text-xl font-semibold transition-all duration-150">Leave the Field</button>
+    </div>
+  </section>
+
+  <!-- THE INTRO (engine-owned screen-game-intro reads this) — brief §0b; the Single
+       Battle / First to 5 variants are spec §1b (§16 Q6). MP_GAME_CONFIGS.hsg.intro.brief
+       picks one from The Campaign. Plain text nodes only (ui-revamp.md § 3). -->
+  <template id="intro-hsg">
+    <p data-intro-narrator>The Storyteller</p>
+    <p data-intro-role>A rakugo teller, hired for the night</p>
+    <p data-intro-line>Ahem! Tonight, the whole castle plays hide-and-seek.</p>
+    <p data-intro-line>Two clans. Thirty doors. Someone behind every one.</p>
+    <p data-intro-line>Find their Shogun before they find yours.</p>
+    <p data-intro-line>And mind the foxes. They side with whoever finds them.</p>
+    <ul data-intro-brief="default">
+      <li>Your go: slide open a door, or move one of yours.</li>
+      <li>Tap a piece to see where it can go and what it can strike.</li>
+      <li>Strike their Shogun to win the Battle. First to 3 Seals.</li>
+    </ul>
+    <ul data-intro-brief="single">
+      <li>Your go: slide open a door, or move one of yours.</li>
+      <li>Tap a piece to see where it can go and what it can strike.</li>
+      <li>Strike their Shogun to win. One Battle decides it.</li>
+    </ul>
+    <ul data-intro-brief="five">
+      <li>Your go: slide open a door, or move one of yours.</li>
+      <li>Tap a piece to see where it can go and what it can strike.</li>
+      <li>Strike their Shogun to win the Battle. First to 5 Seals.</li>
+    </ul>
+    <p data-intro-roll>The lords take their cushions.</p>
+    <p data-intro-ready-tag>BOWED IN</p>
+  </template>
+
+  <!-- HSG SETTINGS — The War Council. Two cards and NO Sylly Mode card (spec §12 / §17 #6):
+       a dead toggle is worse than an honest line. Both repaint from hsgSyncSettingsUI(),
+       which the pill handler AND the SETTINGS_SYNC apply both call. -->
+  <div id="hsg-settings-overlay" style="display:none"
+    class="fixed inset-0 bg-black/40 z-[80] flex items-end justify-center">
+    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
+      <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
+        <h2 class="text-xl font-bold text-stone-800">The War Council 🏯</h2>
+        <p class="text-xs text-stone-400 mt-1">Set the terms before the doors slide shut.</p>
+      </div>
+      <div id="hsg-settings-body" class="overflow-y-auto flex flex-col gap-5 px-5 py-5">
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div>
+            <p class="text-stone-800 font-semibold">The Campaign</p>
+            <p class="text-stone-400 text-sm mt-0.5">How many Battles a lord must win to take the Campaign.</p>
+          </div>
+          <div class="flex gap-2">
+            <button class="pill" data-group="hsg-campaign" data-val="1">Single Battle</button>
+            <button class="pill pill-active-hsg" data-group="hsg-campaign" data-val="3">First to 3</button>
+            <button class="pill" data-group="hsg-campaign" data-val="5">First to 5</button>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div>
+            <p class="text-stone-800 font-semibold">The Foxes</p>
+            <p class="text-stone-400 text-sm mt-0.5">How many foxes hide behind the doors. Fewer foxes means more Farmers.</p>
+          </div>
+          <div class="flex flex-col gap-2">
+            <div class="flex gap-2">
+              <button class="pill" data-group="hsg-foxes" data-val="2">A Pair</button>
+              <button class="pill pill-active-hsg" data-group="hsg-foxes" data-val="4">A Skulk</button>
+            </div>
+            <p id="hsg-val-foxes" class="text-stone-400 text-xs"></p>
+          </div>
+        </div>
+
+        <button id="btn-hsg-settings-close" class="hsg-cta min-h-14 w-full rounded-2xl text-xl font-semibold active:scale-95 transition-all duration-150">Got it</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- HSG HOW TO PLAY — tab bar: The Rules · Practice (S11) · The Household (S10). Copy: brief §18. -->
+  <div id="hsg-how-to-overlay" style="display:none"
+    class="fixed inset-0 bg-black/40 z-[90] flex items-end justify-center">
+    <div class="overlay-data-inner settings-slide-up bg-stone-50 w-full max-w-sm rounded-t-3xl flex flex-col">
+      <div class="px-5 pt-5 pb-4 border-b border-stone-200 flex-shrink-0">
+        <h2 class="text-xl font-bold text-stone-800">How to Play 🏯</h2>
+        <p class="text-xs text-stone-400 mt-1">Two clans, thirty doors, a Shogun hiding behind one of them.</p>
+      </div>
+      <div class="px-5 pt-3 pb-3 border-b border-stone-200 flex-shrink-0 flex gap-2">
+        <button id="btn-hsg-howto-tab-rules" class="pill pill-active-hsg" data-hsg-howto-tab="rules">The Rules</button>
+        <button id="btn-hsg-howto-tab-practice" class="pill" data-hsg-howto-tab="practice">Practice</button>
+        <button id="btn-hsg-howto-tab-household" class="pill" data-hsg-howto-tab="household">The Household</button>
+      </div>
+      <div id="hsg-howto-body-rules" class="overflow-y-auto flex flex-col gap-4 px-5 py-5">
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest hsg-label">Step 1</p>
+          <p class="font-bold text-stone-800">Every piece hides behind a door</p>
+          <p class="text-stone-500 text-sm">All thirty start <span class="font-semibold text-stone-700">closed</span>. Anyone may open any door.</p>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest hsg-label">Step 2</p>
+          <p class="font-bold text-stone-800">One Command a turn</p>
+          <p class="text-stone-500 text-sm">On your go, <span class="font-semibold text-stone-700">open a door</span>, <span class="font-semibold text-stone-700">march</span> a piece of yours, or <span class="font-semibold text-stone-700">strike</span>. Tap a piece to see where it can go and what it can hit.</p>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest hsg-label">Step 3</p>
+          <p class="font-bold text-stone-800">Raising the Banners</p>
+          <p class="text-stone-500 text-sm">The first clan piece anyone finds decides who is <span class="font-semibold text-stone-700">Crimson</span> and who is <span class="font-semibold text-stone-700">Indigo</span>.</p>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest hsg-label">Step 4</p>
+          <p class="font-bold text-stone-800">The ladder</p>
+          <p class="text-stone-500 text-sm">Higher strikes lower, up close: <span class="font-semibold text-stone-700">Shogun, Guard, Monk, Samurai, Ninja, Archer, Farmer</span>.</p>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest hsg-label">Step 5</p>
+          <p class="font-bold text-stone-800">The specialists</p>
+          <ul class="list-disc pl-5 flex flex-col gap-1 text-stone-500 text-sm">
+            <li><span class="font-semibold text-stone-700">Archer</span> — hits 2 or 3 squares away.</li>
+            <li><span class="font-semibold text-stone-700">Ninja</span> — Leaps over one piece.</li>
+            <li><span class="font-semibold text-stone-700">Monk</span> — moves on the diagonal.</li>
+            <li><span class="font-semibold text-stone-700">Samurai</span> — Charges 2.</li>
+            <li><span class="font-semibold text-stone-700">Farmer</span> — lowest rank, but chases off foxes.</li>
+          </ul>
+          <p class="text-stone-500 text-sm">Easy to miss: the Archer and the Ninja can't hit an adjacent piece.</p>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest hsg-label">Step 6</p>
+          <p class="font-bold text-stone-800">The Guard</p>
+          <p class="text-stone-500 text-sm">While a Guard stands — even one still behind a door — the Shogun is <span class="font-semibold text-stone-700">Guarded</span>. When both Guards fall, he is <span class="font-semibold text-stone-700">Unguarded</span>.</p>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest hsg-label">Step 7</p>
+          <p class="font-bold text-stone-800">The foxes</p>
+          <p class="text-stone-500 text-sm">Find a fox and she sides with you, up to your share. She's the only piece that can reach a Guarded Shogun, and only a Farmer or the Ninja can stop her.</p>
+          <p class="text-stone-500 text-sm">Easy to miss: your third fox goes to your opponent.</p>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest hsg-label">Step 8</p>
+          <p class="font-bold text-stone-800">The Last Lantern</p>
+          <p class="text-stone-500 text-sm">Twelve quiet Commands in a row and the Battle ends: whoever has the most pieces <span class="font-semibold text-stone-700">in the open</span> wins.</p>
+          <p class="text-stone-500 text-sm">Easy to miss: closed doors don't count.</p>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest hsg-label">Winning and Scoring</p>
+          <p class="font-bold text-stone-800">Seals take the Campaign</p>
+          <ul class="list-disc pl-5 flex flex-col gap-1 text-stone-500 text-sm">
+            <li><span class="font-semibold text-stone-700">Strike their Shogun</span>, or lead when the last lantern goes out, to win the Battle.</li>
+            <li>One <span class="font-semibold text-stone-700">Seal</span> per Battle — first to 3 takes the Campaign (the War Council can change it).</li>
+            <li>A <span class="font-semibold text-stone-700">Truce</span> is replayed. The first move alternates every Battle.</li>
+          </ul>
+        </div>
+
+        <!-- The honest line: no Sylly Mode in v1 (spec §12). The card stays in its usual last
+             slot so a player scanning for it gets an answer, not a gap. -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm flex flex-col gap-2">
+          <p class="text-xs font-semibold uppercase tracking-widest hsg-label">✨ Sylly Mode</p>
+          <p class="font-bold text-stone-800">Not yet</p>
+          <p class="text-stone-500 text-sm">The Storyteller is still writing this one. Coming later.</p>
+        </div>
+
+        <button id="btn-hsg-howto-close"
+          class="hsg-cta min-h-14 w-full rounded-2xl text-xl font-semibold active:scale-95 transition-all duration-150">Got it</button>
+      </div>
+
+      <!-- The Practice tab (S11): nine lessons on small fixed boards, painted by hsgRenderPractice(). No multiplayer. -->
+      <div id="hsg-howto-body-practice" style="display:none" class="overflow-y-auto flex flex-col gap-4 px-5 py-5">
+        <div id="hsg-practice-box" class="flex flex-col gap-4"></div>
+        <button id="btn-hsg-howto-practice-close"
+          class="hsg-cta min-h-14 w-full rounded-2xl text-xl font-semibold active:scale-95 transition-all duration-150">Got it</button>
+      </div>
+
+      <!-- The Household tab (S10): painted by hsgRenderHousehold() — every tile through hsgRenderTile. -->
+      <div id="hsg-howto-body-household" style="display:none" class="overflow-y-auto flex flex-col gap-4 px-5 py-5">
+        <div id="hsg-household-box" class="flex flex-col gap-4"></div>
+        <button id="btn-hsg-howto-household-close"
+          class="hsg-cta min-h-14 w-full rounded-2xl text-xl font-semibold active:scale-95 transition-all duration-150">Got it</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- HSG QUIT — destructive red confirm (irreversible; in a lobby it dissolves the session). -->
+  <div id="hsg-quit-overlay" style="display:none"
+    class="fixed inset-0 z-[80] overlay-modal-backdrop flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-[#DCC08A]">
+      <p class="text-3xl">🏯</p>
+      <h3 class="text-lg font-bold text-stone-800">Leave the Field?</h3>
+      <p class="text-stone-500 text-sm">Slip away now and the whole Campaign goes to your opponent.</p>
+      <button id="btn-hsg-quit-confirm" class="min-h-14 w-full rounded-2xl bg-red-500 hover:bg-red-600 active:scale-95 text-white font-semibold text-lg transition-all duration-150">Yeah, slip away</button>
+      <button id="btn-hsg-quit-cancel" class="min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-lg transition-all duration-150">Not yet!</button>
+    </div>
+  </div>
+
+  <!-- HSG NEW CAMPAIGN — the confirm label is set when opened (Play-Again Return Pattern):
+       one phone "Toss the fan", host "Restart in the lobby", client "Leave Session". -->
+  <div id="hsg-new-campaign-overlay" style="display:none"
+    class="fixed inset-0 z-[90] overlay-modal-backdrop flex items-center justify-center px-6">
+    <div class="overlay-modal-inner bg-stone-50 w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 flex flex-col gap-4 text-center border border-[#DCC08A]">
+      <p class="text-3xl">🏮</p>
+      <h3 class="text-lg font-bold text-stone-800">New Campaign?</h3>
+      <p class="text-stone-500 text-sm">Every Seal comes off and the fan is tossed again.</p>
+      <button id="btn-hsg-new-confirm" class="hsg-cta min-h-14 w-full rounded-2xl active:scale-95 font-semibold text-lg transition-all duration-150">Toss the fan</button>
+      <button id="btn-hsg-new-cancel" class="min-h-14 w-full rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-700 font-semibold text-lg transition-all duration-150">Stay here</button>
+    </div>
+  </div>
+

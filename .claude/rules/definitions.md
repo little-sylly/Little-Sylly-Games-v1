@@ -11,7 +11,7 @@
 | Sets / Arrays | Pluralised camelCase | `allScreens`, `gmSessionGuesses`, `gmRoundLog` |
 | Constants | `SCREAMING_SNAKE_CASE` | `GM_CATEGORIES`, `BLD_ROLE_TABLE`, `LTTP_SMALL_TALK` |
 
-**Active plugin prefixes (21 games):** `li5` (state vars unprefixed — see above), `gm`, `ss`, `jec`, `ygi`, `lttp`, `nat`, `dsd`, `gth`, `dyb`, `bld`, `pass`, `nt`, `frt`, `shp`, `flw`, `pko`, `cjar`, `cld`, `comb`, `eta`. **Lobby modules, not games** (SW v231) — also reserved: `lou` (the Lounge's room), `tv` (TV layout), `bd` (the Board, SW v250), `lb` (the shared layout helpers), `lobby` (router/doors/host), `ach` (stickerbook rules), `sb` (stickerbook DOM), `jbx` (the jukebox screen, SW v233), `arc` (the Arcade room + cabinet registry, SW v254 — cabinets keep their own prefixes `ap ms ck sl hj sto bb`). A new game's abbreviation must not collide with any of these (Naming Collision Check 3, `new-game-process.md`). **This list is the collision check's source — a stale one is how a collision gets shipped**, so extend it in the same pass that registers a new plugin. (It sat at 15 from `shp` until the phase-41 gate, missing five live prefixes.)
+**Active plugin prefixes (22 games):** `li5` (state vars unprefixed — see above), `gm`, `ss`, `jec`, `ygi`, `lttp`, `nat`, `dsd`, `gth`, `dyb`, `bld`, `pass`, `nt`, `frt`, `shp`, `flw`, `pko`, `cjar`, `cld`, `comb`, `eta`, `hsg` (Hide and Shogun — globals `HsgRules`, `HsgScene`, SW v278–v288). **Lobby modules, not games** (SW v231) — also reserved: `lou` (the Lounge's room), `tv` (TV layout), `bd` (the Board, SW v250), `lb` (the shared layout helpers), `lobby` (router/doors/host), `ach` (stickerbook rules), `sb` (stickerbook DOM), `jbx` (the jukebox screen, SW v233), `arc` (the Arcade room + cabinet registry, SW v254 — cabinets keep their own prefixes `ap ms ck sl hj sto bb`). **Reserved for a game in design:** none. A new game's abbreviation must not collide with any of these (Naming Collision Check 3, `new-game-process.md`). **This list is the collision check's source — a stale one is how a collision gets shipped**, so extend it in the same pass that registers a new plugin. (It sat at 15 from `shp` until the phase-41 gate, missing five live prefixes.)
 
 ## Function Naming
 
@@ -94,7 +94,7 @@ syllyMultiplayerMode: 'single' | 'host' | 'client'
 | Presence | `rooms/{code}/presence/{uid}/{pushId}` — one child **per connection**, each removed by its own `onDisconnect`. A seat is present while any child exists. Clients only; the host writes none |
 | Away | A seated client whose presence has been empty for 3 s. Every device shows `#mp-away-overlay` ("Waiting for …") until it returns or the session ends. **A drop, not a quit** |
 | `sylly_rejoin` | localStorage `{ code, game, ts }` — a pointer to a live session for the reconnect prompt, never game state. Adopting games only; 2 h expiry |
-| `reconnect` hook | Optional `MP_GAME_CONFIGS[abbr].reconnect = { sendState(idx), pause(), resume() }`, host-only. The game can then be rejoined mid-match; without it a drop gets a 60 s grace (`MP_AWAY_GRACE_MS`), then the host is asked to keep waiting or end. Adopters: `flw`, `pko`, `cjar`, `comb` |
+| `reconnect` hook | Optional `MP_GAME_CONFIGS[abbr].reconnect = { sendState(idx), pause(), resume() }`, host-only. The game can then be rejoined mid-match; without it a drop gets a 60 s grace (`MP_AWAY_GRACE_MS`), then the host is asked to keep waiting or end. Adopters: `li5`, `flw`, `pko`, `cjar`, `hsg`, `comb` |
 
 ## Data Schema: words.json
 ```json

@@ -31,4 +31,5 @@ cjar.html
 cld.html
 comb.html
 eta.html
+hsg.html
 _foot.html

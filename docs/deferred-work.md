@@ -12,6 +12,18 @@ the discovery record is kept there, not deleted. A section with nothing left ope
 
 ---
 
+## Hide and Shogun — what is open (12 Nov 2026, SW v289)
+
+- **A live two-phone session** (keeps phase 45 open). Watch: whether the Open? two-tap feels right on a thumb, the Battle intro's length with real names, the Last Lantern's count being understood, Raising the Banners and the fox moments over real Firebase ordering, and a Hard bot Battle (`?fps` on the moments layer). Also the offline install check.
+- **Lobby sticker** — `data/stickers/hsg.png` does not exist; `hsg` is in `LB_NO_STICKER` (`js/lobby/lobby.js`). Draw it, remove `hsg` from the set, then `node tools/build-games.js`.
+- **Music** — no `hsg` track in `data/music/jukebox/`: koto/shamisen, sparse, playful, never a war film, no ticking (brief §16).
+- **Practice lesson 9 at 320×452** — the lantern beam makes the whole board overshoot the short-phone sheet by about 16 px (`hsg-implementation-notes` DD-14).
+- **The Forfeit Chronicle variant** is not built (Leave the Field ends the session for both).
+- **Sylly Mode** — deferred (brief §8 parked ideas). Adding one means a settings card, the How to Play card, and the identity doc's T6 / T8.
+- **Balance** — the evidence is bot-simulated; once there are human Battles, log first-mover, fox share of Shogun strikes and Last Lantern endings against the sim figures (brief §19).
+
+---
+
 ## E.T.A. (was ETA?) — built, what is open (10 Nov 2026, SW v272)
 
 **Playtest round 2 — done SW v274** (`eta-implementation-notes` DD-13). Sticker and music **installed** (SW v274: `data/stickers/eta.png`, jukebox track *Handle with Care (Or Not)*) — still to do: look at both on a phone.

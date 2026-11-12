@@ -134,6 +134,17 @@ const GAMES = [
     shelves: ['talk', 'guess-draw'], // estimate (guess) + defend it out loud (talk)
   },
   {
+    id: 'hsg', gameName: 'Hide and Shogun', emoji: '🏯', brandHex: '#B8862B',
+    minPlayers: 2, maxPlayers: 2, playerRangeDisplay: null,
+    supportedModes: ["ptp","mdlm"],   // 'solo' joins with the bots at S8
+    pitch: "Find their Shogun before they find yours.",
+    playCtaLabel: "Ready or Not",
+    syllyModeName: null,   // deferred past v1 (spec §17 #6) — the How to Play card says "Not yet"
+    howItGoes: ['Thirty doors, a piece behind every one', 'Open a door, march, or strike', 'Strike their Shogun, first to 3 Seals'],
+    minutes: '~10 min',   // brief §5: a First-to-3 Campaign is roughly 5–12 min [ASSUMPTION]
+    shelves: ['board'],   // Strategy shelf
+  },
+  {
     id: 'dsd', gameName: 'Deep-Sea Deploy', emoji: '⚓', brandHex: '#0E7490',
     minPlayers: 2, maxPlayers: 6, playerRangeDisplay: '2 (TLM) or 4–6 (MDLM)',
     supportedModes: ["ptp","tlm","mdlm"],
@@ -350,6 +361,7 @@ const LOBBY_FLAVOUR = {
   cld:  'Nudging a penguin into the drink. Gently',
   comb: 'Negotiating with the bees',
   eta:  'Signing for a parcel that hasn\'t left yet',
+  hsg:  'Asking the Storyteller to hurry up',
 };
 // The room's own lines — boot screen only.
 const LOBBY_ROOM_LINES = [

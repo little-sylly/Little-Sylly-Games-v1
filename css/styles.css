@@ -3420,3 +3420,56 @@ button.intro-chip:active, .intro-col-join:active { transform: scale(0.96); }
   border: none;
   box-shadow: 0 1px 4px rgba(0,0,0,0.2);
 }
+
+/* ── Hide and Shogun (hsg) — Lantern gold #B8862B, WHITE button ink ──────────
+   Owner pick at Stage 1b (11 Nov 2026): gold toward the lamplight. #B8862B takes
+   white ink like every brand (contrast cost accepted suite-wide); #9C6A1E (Brass)
+   is the hover rung AND the TEXT rung (.hsg-label, ≈4.7:1 on off-white). The
+   world's own palette (lacquer, paper, sumi, Crimson/Indigo clans) lives with the
+   Castle (S4), never here. */
+.pill-active-hsg {
+  background-color: #B8862B;
+  color: #fff;
+  font-weight: 600;
+}
+.game-toggle-on-hsg {
+  background-color: #B8862B;
+  color: #fff;
+  border-radius: 9999px;
+  padding: 0.4rem 1.2rem;
+  font-weight: 700;
+  font-size: 0.9rem;
+  transition: background 0.2s, color 0.2s;
+  border: none;
+  cursor: pointer;
+}
+/* Custom CTA: MUST declare flex centering (DYB/GTH/FRT/FLW/PKO lesson). */
+.hsg-cta { background-color: #B8862B; color: #ffffff; display: flex; align-items: center; justify-content: center; }
+.hsg-cta:hover { background-color: #9C6A1E; }
+.hsg-label { color: #9C6A1E; }
+.hsg-medal-slot { display: inline-block; width: 1.4rem; text-align: center; flex-shrink: 0; }
+.hsg-range {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  border-radius: 9999px;
+  background: linear-gradient(to right, #F4EAD3, #B8862B); /* paper → lantern gold */
+  outline: none;
+  cursor: pointer;
+}
+.hsg-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: #B8862B;
+  border: 3px solid #fff;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+}
+.hsg-range::-moz-range-thumb {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: #B8862B;
+  border: none;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+}
